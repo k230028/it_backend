@@ -645,6 +645,371 @@ class MigrationValidatorTest {
         assertThat(result).noneMatch(d -> "devAmountIoeC".equals(d.column()));
     }
 
+    // ===== CRITICAL-2: 짧은 코드 컬럼의 라벨 → 코드 변환과 길이 가드 =====
+
+    /**
+     * 추진가능성 실 데이터는 `추진계획 검토중`(8자)인데 `EXE_PTT_YN`은 `VARCHAR2(1)`이다. 검증이 막지 않으면 dry-run이 초록인 채
+     * commit에서 ORA-12899가 나고 셀을 짚지 못하는 500으로 끝난다.
+     */
+    @Test
+    @DisplayName("추진가능성 라벨이 코드표에 없으면 CODE_UNRESOLVED와 코드셋 전체 후보를 낸다")
+    void 미해석_추진가능성은_후보와_함께_블로커다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                capitalSheet(
+                                        row(
+                                                2,
+                                                capitalCellsWith(
+                                                        Map.of("feasibility", "추진계획 검토중"))))),
+                        catalogIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "feasibility".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("CODE_UNRESOLVED");
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactlyInAnyOrder("1", "2");
+                        });
+    }
+
+    @Test
+    @DisplayName("추진가능성이 코드값명과 정확히 일치하면 진단을 내지 않는다")
+    void 해석되는_추진가능성은_진단이_없다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                capitalSheet(
+                                        row(2, capitalCellsWith(Map.of("feasibility", "확정"))))),
+                        catalogIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result).noneMatch(d -> "feasibility".equals(d.column()));
+    }
+
+    @Test
+    @DisplayName("전결권 라벨이 자본 계열 코드표에 없으면 CODE_UNRESOLVED를 낸다")
+    void 미해석_전결권은_블로커다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                capitalSheet(
+                                        row(
+                                                2,
+                                                capitalCellsWith(
+                                                        Map.of("delegationLabel", "지점장 전결"))))),
+                        catalogIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "delegationLabel".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("CODE_UNRESOLVED");
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .contains("22", "25");
+                        });
+    }
+
+    @Test
+    @DisplayName("코드표에 없는 사업코드는 CODE_UNRESOLVED와 후보를 낸다 (BG_UNT_ABUS_C VARCHAR2(3))")
+    void 미등록_사업코드는_블로커다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("abusCode", "9999"))))),
+                        catalogIndexWith(TestSnapshots.indexWithIoe("001", "국내전산임차료")),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "abusCode".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("CODE_UNRESOLVED");
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .contains("571");
+                        });
+    }
+
+    /** `CTT_OPP_NM`은 `VARCHAR2(100 BYTE)`라 한글 34자에서 이미 넘는다. 형제 컬럼 `CTT_NM`(100 CHAR)과 단위가 다르다. */
+    @Test
+    @DisplayName("계약업체명이 100바이트를 넘으면 LENGTH_EXCEEDED를 낸다")
+    void 계약업체명_바이트초과는_블로커다() {
+        String longVendor = "가".repeat(40); // 120바이트
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("vendorName", longVendor))))),
+                        TestSnapshots.indexWithIoe("001", "국내전산임차료"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "vendorName".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("LENGTH_EXCEEDED");
+                            assertThat(d.message()).contains("바이트");
+                        });
+    }
+
+    // ===== CRITICAL-3: 미해석 셀도 보정 후보를 들고 온다 =====
+
+    @Test
+    @DisplayName("미해석 부서명에도 이름이 비슷한 후보가 함께 온다 (드롭다운을 그릴 수 있어야 한다)")
+    void 미해석_부서명도_후보를_낸다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("deptName", "런던PF데스크"))))),
+                        TestSnapshots.indexWithOrgs("0910", "런던지점", "0920", "뉴욕지점"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "deptName".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("ORG_UNRESOLVED");
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("0910");
+                            // 문구가 "찾았다"로 읽히면 안 된다
+                            assertThat(d.message()).contains("찾지 못했습니다");
+                        });
+    }
+
+    @Test
+    @DisplayName("빈 셀은 후보를 내지 않는다 (제안할 근거가 없다)")
+    void 빈_부서명은_후보가_없다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("deptName", ""))))),
+                        TestSnapshots.indexWithOrgs("0910", "런던지점"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "deptName".equals(d.column()))
+                .singleElement()
+                .satisfies(d -> assertThat(d.candidates()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("미해석 담당자명에도 이름이 비슷한 후보가 함께 온다")
+    void 미해석_담당자명도_후보를_낸다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                capitalSheet(
+                                        row(2, capitalCellsWith(Map.of("managerName", "김성완 과장"))))),
+                        TestSnapshots.indexWithUsers(
+                                List.of(user("K1", "김성원", "과장", "180", "18001", "IT기획팀"))),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "managerName".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("USER_UNRESOLVED");
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("K1");
+                        });
+    }
+
+    @Test
+    @DisplayName("미등록 통화에는 등록된 통화 전체가 후보로 온다")
+    void 미등록_통화는_통화후보를_낸다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                costSheet(
+                                        row(
+                                                2,
+                                                costCells(
+                                                        Map.of(
+                                                                "currency", "AUD",
+                                                                "fcAmount", "100",
+                                                                "krwAmount", "100"))))),
+                        TestSnapshots.indexWithXcr("GBP", "1924"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "currency".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("CODE_UNRESOLVED");
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("GBP");
+                        });
+    }
+
+    /** 금액이 둘 다 0인 행도 통화 자체는 검사해야 한다 — 어댑터가 CUR_C(3자)에 그 값을 그대로 쓴다. */
+    @Test
+    @DisplayName("금액이 없는 행도 미등록 통화를 짚는다")
+    void 금액이_없어도_통화를_검사한다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.DELEGATED_BUDGET,
+                                        "2026",
+                                        List.of(
+                                                row(
+                                                        2,
+                                                        delegatedCells(
+                                                                Map.of(
+                                                                        "branchName", "런던지점",
+                                                                        "currency", "AUDX",
+                                                                        "hwKrwAmount", "0")))))),
+                        TestSnapshots.indexWithOrgs("0910", "런던지점"),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "currency".equals(d.column()))
+                .singleElement()
+                .satisfies(d -> assertThat(d.code()).isEqualTo("CODE_UNRESOLVED"));
+    }
+
+    // ===== IMPORTANT-5: 검증이 보정값을 반영해 읽는다 =====
+
+    /** 보정 이전 값으로 금액을 대조하면, 사용자가 통화·금액을 고쳐도 검증은 원본을 보고 어댑터는 보정값을 저장하는 어긋남이 생긴다(검증 우회). */
+    @Test
+    @DisplayName("금액 대조는 통화·금액 보정값을 반영해 읽는다")
+    void 금액대조가_보정값을_반영한다() {
+        Map<String, String> overrides =
+                Map.of(MigrationValidator.overrideKey(SheetKind.COST, 2, "krwAmount"), "1924");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                costSheet(
+                                        row(
+                                                2,
+                                                costCells(
+                                                        Map.of(
+                                                                "currency", "GBP",
+                                                                "fcAmount", "1000",
+                                                                "krwAmount", "999999"))))),
+                        TestSnapshots.indexWithXcr("GBP", "1924"),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        // 1,000 GBP × 1,924 = 1,924,000원 = 보정된 엑셀 1,924천원이라 정확히 일치한다.
+        // 보정 이전 값(999,999천원)을 읽으면 AMOUNT_MISMATCH가 남는다.
+        assertThat(result).noneMatch(d -> "AMOUNT_MISMATCH".equals(d.code()));
+    }
+
+    @Test
+    @DisplayName("부문계획의 사업 존재 판정은 자본예산 시트의 사업명 보정값을 반영한다")
+    void 사업존재판정이_사업명_보정값을_반영한다() {
+        Map<String, String> overrides =
+                Map.of(
+                        MigrationValidator.overrideKey(SheetKind.CAPITAL_PROJECT, 2, "projectName"),
+                        "웹한글 기안기 도입");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                capitalSheet(
+                                        row(2, capitalCellsWith(Map.of("projectName", "오타 사업명")))),
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT,
+                                        "2026",
+                                        List.of(row(2, Map.of("projectName", "웹한글 기안기 도입"))))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        overrides);
+
+        // 보정 이전 값(오타 사업명)만 모으면 부문계획 행이 PROJECT_NOT_FOUND로 잘못 막힌다.
+        assertThat(result).noneMatch(d -> "PROJECT_NOT_FOUND".equals(d.code()));
+    }
+
+    // ===== IMPORTANT-10: 같은 반영 안의 사업명 중복 =====
+
+    /**
+     * 같은 이름의 두 행은 사업을 둘 만들지만 {@code projectNoByName}에는 나중 것만 남아, 앞 사업이 편성행 없는 고아가 된다(목록에는 보이고 모든 예산
+     * 화면에서 0).
+     */
+    @Test
+    @DisplayName("같은 반영 안에 사업명이 중복되면 뒤 행에 DUPLICATE_EXISTS를 낸다")
+    void 페이로드_내_사업명중복은_블로커다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT,
+                                        "2026",
+                                        List.of(
+                                                row(
+                                                        2,
+                                                        capitalCellsWith(
+                                                                Map.of("projectName", "같은 사업"))),
+                                                row(
+                                                        3,
+                                                        capitalCellsWith(
+                                                                Map.of(
+                                                                        "projectName",
+                                                                        "같은  사업")))))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "DUPLICATE_EXISTS".equals(d.code()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.excelRow()).isEqualTo(3);
+                            assertThat(d.column()).isEqualTo("projectName");
+                            assertThat(d.message()).contains("2행");
+                        });
+    }
+
+    private static MigrationDto.SheetPayload capitalSheet(MigrationDto.NormalizedRow row) {
+        return new MigrationDto.SheetPayload(SheetKind.CAPITAL_PROJECT, "2026", List.of(row));
+    }
+
+    /** 자본예산 기본 셀에 인자만 덮어씁니다. */
+    private static Map<String, String> capitalCellsWith(Map<String, String> overrides) {
+        Map<String, String> cells = capitalCells();
+        cells.putAll(overrides);
+        return cells;
+    }
+
+    /** 사업코드·추진가능성·전결권 카탈로그를 갖춘 인덱스. */
+    private static MigrationLookupIndex catalogIndex() {
+        return catalogIndexWith(TestSnapshots.emptyIndex());
+    }
+
+    private static MigrationLookupIndex catalogIndexWith(MigrationLookupIndex base) {
+        return TestSnapshots.withCatalogs(
+                base,
+                Map.of("571", "운영시스템 유지보수", "501", "정보시스템 계획수립 및 운용"),
+                Map.of("확정", "1", "미정(검토중)", "2"),
+                Map.of("부문장", "22", "이사회", "25"));
+    }
+
     private static MigrationDto.SheetPayload costSheet(MigrationDto.NormalizedRow row) {
         return new MigrationDto.SheetPayload(SheetKind.COST, "2026", List.of(row));
     }

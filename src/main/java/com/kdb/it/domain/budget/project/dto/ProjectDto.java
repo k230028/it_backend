@@ -36,42 +36,6 @@ import lombok.Setter;
 public class ProjectDto {
 
     /**
-     * 정보화사업 목록 경량 프로젝션 DTO(#7).
-     *
-     * <p>목록 화면에 필요한 식별/요약 컬럼만 담으며, 1000자+ 대용량 텍스트 (사업설명/현황/기대효과/문제/추진경과/고객유형 등)는 select하지 않는다. 상세는
-     * 기존 엔티티 조회 경로를 유지한다.
-     *
-     * @param abusMngNo 사업관리번호 (프로젝트관리번호, 예: "PRJ-2026-0001")
-     * @param sno 프로젝트 순번
-     * @param abusNm 사업명
-     * @param bzTpC 사업유형명 (물리컬럼 ABUS_PPO_CONE, 공통코드 ABUS_PPO 코드값명 저장)
-     * @param svnDpmC 주관부서코드
-     * @param dvmDpmC 개발부서코드 (IT부서)
-     * @param sttDtm 시작일자 (사업 개시 예정일)
-     * @param endDtm 종료일자 (사업 완료 예정일)
-     * @param bseYy 기준연도 (예산연도, YYYY)
-     * @param odnYn 경상여부 ('Y'=경상사업, null 또는 'N'=일반 정보화사업)
-     * @param abusTc 사업구분코드 (신규/계속 여부)
-     * @param rprStsTc 보고상태구분코드 (공통코드 2자리)
-     * @param delYn 삭제여부 ('Y'=삭제)
-     */
-    @Schema(name = "ProjectListRow")
-    public record ProjectListRow(
-            String abusMngNo,
-            Integer sno,
-            String abusNm,
-            String bzTpC,
-            String svnDpmC,
-            String dvmDpmC,
-            LocalDate sttDtm,
-            LocalDate endDtm,
-            String bseYy,
-            String odnYn,
-            String abusTc,
-            String rprStsTc,
-            String delYn) {}
-
-    /**
      * 정보화사업 생성 요청 DTO
      *
      * <p>신규 정보화사업을 등록할 때 사용합니다. 약 30개 이상의 필드로 구성된 대형 DTO입니다.
@@ -108,9 +72,17 @@ public class ProjectDto {
         @Schema(description = "주관부서")
         private String svnDpmC;
 
+        /** 주관팀 코드 (SVN_TEM_C, VARCHAR2(5)) */
+        @Schema(description = "주관팀")
+        private String svnTemC;
+
         /** IT부서 코드 또는 명칭 */
         @Schema(description = "IT부서")
         private String dvmDpmC;
+
+        /** 개발팀 코드 (DVM_TEM_C, VARCHAR2(5)) */
+        @Schema(description = "개발팀")
+        private String dvmTemC;
 
         @Schema(description = "시작일자")
         private LocalDate sttDtm;
@@ -195,8 +167,8 @@ public class ProjectDto {
         @Schema(description = "보고상태")
         private String rprStsTc;
 
-        /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
-        @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
+        /** 프로젝트추진가능성 — 공통코드 EXE_PTT_YN 코드값('1' 확정·'2' 미정). 물리 컬럼은 VARCHAR2(1)이라 라벨을 담지 못한다. */
+        @Schema(description = "프로젝트추진가능성 (공통코드 EXE_PTT_YN 코드값, 1자)")
         private String exePttYn;
 
         /** 프로젝트상태 (예: "계획", "진행중", "완료", "취소") */
@@ -243,7 +215,9 @@ public class ProjectDto {
                     .abusNm(abusNm) // 프로젝트명
                     .bzTpC(bzTpC) // 프로젝트유형
                     .svnDpmC(svnDpmC) // 주관부서
+                    .svnTemC(svnTemC) // 주관팀
                     .dvmDpmC(dvmDpmC) // IT부서
+                    .dvmTemC(dvmTemC) // 개발팀
                     .sttDtm(sttDtm) // 시작일자
                     .endDtm(endDtm) // 종료일자
                     .usid(usid) // 주관부서담당자
@@ -395,8 +369,8 @@ public class ProjectDto {
         @Schema(description = "보고상태")
         private String rprStsTc;
 
-        /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
-        @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
+        /** 프로젝트추진가능성 — 공통코드 EXE_PTT_YN 코드값('1' 확정·'2' 미정). 물리 컬럼은 VARCHAR2(1)이라 라벨을 담지 못한다. */
+        @Schema(description = "프로젝트추진가능성 (공통코드 EXE_PTT_YN 코드값, 1자)")
         private String exePttYn;
 
         /** 프로젝트상태 */
@@ -571,8 +545,8 @@ public class ProjectDto {
         @Schema(description = "보고상태")
         private String rprStsTc;
 
-        /** 프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva, VARCHAR2(3)) */
-        @Schema(description = "프로젝트추진가능성 (공통코드 PRJ_PUL_PTT cdva)")
+        /** 프로젝트추진가능성 — 공통코드 EXE_PTT_YN 코드값('1' 확정·'2' 미정). 물리 컬럼은 VARCHAR2(1)이라 라벨을 담지 못한다. */
+        @Schema(description = "프로젝트추진가능성 (공통코드 EXE_PTT_YN 코드값, 1자)")
         private String exePttYn;
 
         /** 프로젝트상태 */

@@ -4,7 +4,6 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.MigrationYearSnapshot;
-import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -31,8 +30,12 @@ public class CostSheetAdapter implements SheetAdapter {
         for (MigrationDto.NormalizedRow row : sheet.rows()) {
             String currency = AdapterSupport.cellOf(sheet, row, "currency", ctx);
             String ioeC = resolveIoe(sheet, row, ctx);
-            String deptCode = resolveOrg(sheet, row, "deptName", ctx);
-            String teamCode = resolveOrg(sheet, row, "teamName", ctx);
+            String deptCode =
+                    AdapterSupport.resolveOrgCode(
+                            AdapterSupport.cellOf(sheet, row, "deptName", ctx), ctx);
+            String teamCode =
+                    AdapterSupport.resolveOrgCode(
+                            AdapterSupport.cellOf(sheet, row, "teamName", ctx), ctx);
             String vendor = AdapterSupport.cellOf(sheet, row, "vendorName", ctx);
             String contractName = AdapterSupport.cellOf(sheet, row, "requestDetail", ctx);
             String abusCode = AdapterSupport.cellOf(sheet, row, "abusCode", ctx);
@@ -79,20 +82,5 @@ public class CostSheetAdapter implements SheetAdapter {
         String raw = AdapterSupport.cellOf(sheet, row, "ioeName", ctx);
         String mapped = ctx.index().ioeCodeByName().get(raw);
         return mapped != null ? mapped : (raw.isBlank() ? null : raw);
-    }
-
-    /** 보정값이 있으면 그 조직코드를, 없으면 이름으로 해석합니다. 미해석이면 null. */
-    private String resolveOrg(
-            MigrationDto.SheetPayload sheet,
-            MigrationDto.NormalizedRow row,
-            String column,
-            AdapterContext ctx) {
-        String raw = AdapterSupport.cellOf(sheet, row, column, ctx);
-        OrgIdentityResolver.Resolution resolution = ctx.index().org().resolveOrg(raw);
-        if (resolution.code() != null) {
-            return resolution.code();
-        }
-        // 보정값은 이미 코드값이므로 셀 원문이 코드 형태로 왔을 수 있다
-        return ctx.index().org().orgNameOf(raw) != null ? raw : null;
     }
 }

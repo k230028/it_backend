@@ -62,7 +62,7 @@ class MigrationIoeCatalogReaderTest {
     @Test
     @DisplayName("통화 → 예산환율 맵을 만든다")
     void 환율_맵을_만든다() {
-        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.CURRENCY, "N"))
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
                 .thenReturn(List.of(currency("GBP", "1924"), currency("USD", "1432.5")));
 
         Map<String, BigDecimal> result = readerWithRepo().xcrByCurrency();
@@ -75,7 +75,7 @@ class MigrationIoeCatalogReaderTest {
     @Test
     @DisplayName("환율 값이 숫자로 파싱되지 않는 행은 예외를 던지지 않고 건너뛴다")
     void 숫자가_아닌_환율은_건너뛴다() {
-        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.CURRENCY, "N"))
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
                 .thenReturn(List.of(currency("XXX", "해당없음"), currency("GBP", "1924")));
 
         Map<String, BigDecimal> result = readerWithRepo().xcrByCurrency();
@@ -86,7 +86,7 @@ class MigrationIoeCatalogReaderTest {
     @Test
     @DisplayName("환율 값이 null인 행은 건너뛴다")
     void 환율값이_null이면_건너뛴다() {
-        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.CURRENCY, "N"))
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
                 .thenReturn(
                         List.of(
                                 Ccodem.builder()
@@ -102,12 +102,59 @@ class MigrationIoeCatalogReaderTest {
     @Test
     @DisplayName("같은 통화가 중복되면 먼저 나온 환율을 유지한다")
     void 중복_통화는_먼저나온값을_유지한다() {
-        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.CURRENCY, "N"))
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
                 .thenReturn(List.of(currency("GBP", "1924"), currency("GBP", "9999")));
 
         Map<String, BigDecimal> result = readerWithRepo().xcrByCurrency();
 
         assertThat(result).containsEntry("GBP", new BigDecimal("1924"));
+    }
+
+    @Test
+    @DisplayName("환율은 resolveXcr과 같은 유효일자 필터로 읽는다 — 만료 행은 조회 자체에 들어오지 않는다")
+    void 환율은_유효일자_필터로_읽는다() {
+        // findByCIdAndDelYn(유효일자 무시)으로 되돌리면 이 스텁이 비어 맵이 빈 채로 나온다.
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
+                .thenReturn(List.of(currency("GBP", "1924")));
+
+        Map<String, BigDecimal> result = readerWithRepo().xcrByCurrency();
+
+        assertThat(result).containsExactly(java.util.Map.entry("GBP", new BigDecimal("1924")));
+        // 유효일자를 보지 않는 조회는 아예 쓰지 않는다 (resolveXcr과 판정 기준이 어긋나는 지점)
+        org.mockito.Mockito.verify(codeRepository, org.mockito.Mockito.never())
+                .findByCIdAndDelYn(CommonCodeGroups.CURRENCY, "N");
+    }
+
+    @Test
+    @DisplayName("추진가능성·전결권·사업코드 카탈로그를 만든다 — 전결권은 자본 계열만 채택한다")
+    void 코드_카탈로그를_만든다() {
+        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.EXE_POSSIBLE, "N"))
+                .thenReturn(
+                        List.of(
+                                named(CommonCodeGroups.EXE_POSSIBLE, "1", "확정", null),
+                                named(CommonCodeGroups.EXE_POSSIBLE, "2", "미정(검토중)", null)));
+        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.EDRT, "N"))
+                .thenReturn(
+                        List.of(
+                                named(CommonCodeGroups.EDRT, "12", "부문장", "EDRT_MNGC"),
+                                named(CommonCodeGroups.EDRT, "22", "부문장", "EDRT_CPIT"),
+                                named(CommonCodeGroups.EDRT, "25", "이사회", "EDRT_CPIT")));
+        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.ABUS_UNIT, "N"))
+                .thenReturn(List.of(named(CommonCodeGroups.ABUS_UNIT, "571", "운영시스템 유지보수", null)));
+
+        MigrationIoeCatalogReader reader = readerWithRepo();
+
+        assertThat(reader.exePttCodeByName()).containsEntry("미정(검토중)", "2");
+        // 같은 이름이 경상(12)·자본(22) 양쪽에 있으므로 코드타입으로 갈라야 자본 코드가 나온다
+        assertThat(reader.edrtCapitalCodeByName())
+                .containsEntry("부문장", "22")
+                .containsEntry("이사회", "25")
+                .hasSize(2);
+        assertThat(reader.abusUnitNameByCode()).containsEntry("571", "운영시스템 유지보수");
+    }
+
+    private static Ccodem named(String cId, String cdva, String cdvaNm, String cTp) {
+        return Ccodem.builder().cId(cId).cdva(cdva).cdvaNm(cdvaNm).cTp(cTp).build();
     }
 
     private static Ccodem code(String cdva, String cdvaNm) {

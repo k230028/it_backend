@@ -31,4 +31,21 @@ public final class MigrationAmounts {
             case DELEGATED_BUDGET -> BigDecimal.ONE;
         };
     }
+
+    /**
+     * 엑셀 셀 문자열을 숫자로 읽습니다. 검증기와 어댑터가 같은 파싱 규칙을 써야 하므로 여기 한 곳에만 둡니다.
+     *
+     * @param raw 엑셀 셀 문자열 (천 단위 쉼표 허용)
+     * @return 파싱된 값. 비었거나 숫자가 아니면 null
+     */
+    public static BigDecimal number(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(raw.replace(",", "").trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 }

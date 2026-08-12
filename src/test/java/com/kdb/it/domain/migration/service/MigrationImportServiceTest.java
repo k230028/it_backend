@@ -154,7 +154,12 @@ class MigrationImportServiceTest {
                                 java.util.Set.of(),
                                 new java.util.LinkedHashMap<>(Map.of("기존사업", "PRJ-2026-0099")),
                                 java.util.Set.of(),
-                                new java.util.LinkedHashMap<>(Map.of("BPROJM|PRJ-2026-0099", 80)),
+                                new java.util.LinkedHashMap<>(Map.of("COST-2026-0099", 90)),
+                                new java.util.LinkedHashMap<>(
+                                        Map.of(
+                                                "PRJ-2026-0099",
+                                                new MigrationYearSnapshot.ProjectRate(80, 70))),
+                                List.of("PRJ-2026-0099"),
                                 List.of("COST-2026-0099")));
 
         service.commit(commitRequest(), "999999");
@@ -166,10 +171,48 @@ class MigrationImportServiceTest {
         assertThat(captor.getValue().items())
                 .extracting(BudgetWorkDto.ItemRate::orcPkVl)
                 .contains("COST-2026-0001", "PRJ-2026-0099", "COST-2026-0099");
+        // 기존 사업의 편성률은 스냅샷이 품목 편성행에서 역산한 값을 그대로 실어야 한다.
+        // 'BPROJM|사업관리번호' 키를 찾던 구 구현은 항상 null을 받아 기본값 100으로 리셋했고,
+        // applyItemRates가 연도 전체를 재작성하므로 그 연도 모든 기존 사업의 편성률이 조용히 100이 됐다.
         assertThat(captor.getValue().items())
                 .filteredOn(i -> "PRJ-2026-0099".equals(i.orcPkVl()))
                 .singleElement()
-                .satisfies(i -> assertThat(i.assetDupRt()).isEqualTo(80));
+                .satisfies(
+                        i -> {
+                            assertThat(i.assetDupRt()).isEqualTo(80);
+                            assertThat(i.costDupRt()).isEqualTo(70);
+                        });
+        assertThat(captor.getValue().items())
+                .filteredOn(i -> "COST-2026-0099".equals(i.orcPkVl()))
+                .singleElement()
+                .satisfies(i -> assertThat(i.assetDupRt()).isEqualTo(90));
+    }
+
+    /**
+     * 이 서비스는 첫 시트의 예산연도 하나를 연도 스냅샷·중복 판정·편성률 적용의 기준으로 쓴다. 시트마다 연도가 다르면 두 번째 시트 이후는 다른 연도의 스냅샷으로
+     * 검증되고 첫 시트의 연도로 저장된다 (IMPORTANT-8).
+     */
+    @Test
+    @DisplayName("시트마다 예산연도가 다르면 거부한다")
+    void 예산연도가_섞이면_거부한다() {
+        MigrationImportService service = service();
+
+        MigrationDto.CommitRequest mixed =
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.COST,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of()))),
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.COST,
+                                        "2027",
+                                        List.of(new MigrationDto.NormalizedRow(3, Map.of())))),
+                        List.of());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.commit(mixed, "999999"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("예산연도가 다릅니다");
     }
 
     /**
@@ -455,7 +498,7 @@ class MigrationImportServiceTest {
 
         assertThat(response.planReqDocNo()).isNull();
         verify(planService, never())
-                .createPlanForMigration(anyString(), anyString(), any(), any(), any());
+                .createPlanForMigration(anyString(), anyString(), any(), any(), any(), any());
     }
 
     /**
@@ -475,6 +518,7 @@ class MigrationImportServiceTest {
                         new BigDecimal("1000000"),
                         null,
                         null,
+                        new BigDecimal("500000"),
                         "202603",
                         Map.of("사업진행", "진행(품의)"));
         when(planAdapter.adapt(any(), any()))
@@ -491,7 +535,7 @@ class MigrationImportServiceTest {
         when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
         when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0005", "N", "Y"))
                 .thenReturn(List.of(Bitemm.builder().gclMngNo("GCL-2025-0001").sno(1).build()));
-        when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any()))
+        when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any(), any()))
                 .thenReturn("PLN-2026-0009");
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
@@ -528,7 +572,7 @@ class MigrationImportServiceTest {
         verify(projectService).replaceItemsForMigration(eq("PRJ-2026-0005"), any());
         verify(planService)
                 .createPlanForMigration(
-                        eq("2026"), eq("조정"), eq(List.of("PRJ-2026-0005")), any(), any());
+                        eq("2026"), eq("조정"), eq(List.of("PRJ-2026-0005")), any(), any(), any());
     }
 
     /** 부문계획 대상 사업을 찾지 못하면 품목 교체도 계획 생성도 건너뛰고 예외를 던지지 않는다. */
@@ -538,7 +582,8 @@ class MigrationImportServiceTest {
         SheetAdapter planAdapter = Mockito.mock(SheetAdapter.class);
         when(planAdapter.supports()).thenReturn(SheetKind.PLAN_ADJUSTMENT);
         PlanIntent intent =
-                new PlanIntent("존재하지않는사업", new BigDecimal("1000000"), null, null, null, Map.of());
+                new PlanIntent(
+                        "존재하지않는사업", new BigDecimal("1000000"), null, null, null, null, Map.of());
         when(planAdapter.adapt(any(), any()))
                 .thenReturn(new AdapterOutput(List.of(), List.of(), List.of(intent), List.of()));
 
@@ -582,7 +627,7 @@ class MigrationImportServiceTest {
         assertThat(response.itemCount()).isZero();
         verify(projectService, never()).replaceItemsForMigration(anyString(), any());
         verify(planService, never())
-                .createPlanForMigration(anyString(), anyString(), any(), any(), any());
+                .createPlanForMigration(anyString(), anyString(), any(), any(), any(), any());
     }
 
     private MigrationImportService service() {

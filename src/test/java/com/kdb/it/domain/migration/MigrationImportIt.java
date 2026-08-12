@@ -127,7 +127,12 @@ class MigrationImportIt {
      * <p>이 테스트는 {@code @SpringBootTest}라 {@code @DataJpaTest}의 테스트 트랜잭션이 없어 {@link EntityManager}로
      * 직접 실행하는 네이티브 UPDATE/DELETE에는 활성 트랜잭션이 없습니다({@code TransactionRequiredException}). {@link
      * TransactionTemplate}으로 정리 전용 트랜잭션을 열어 커밋합니다.
+     *
+     * <p><b>실행 전에도 정리합니다.</b> 뒤 정리만 걸면 JVM이 테스트 중간에 죽은 실행(빌드 취소·세션 중단)이 남긴 {@code BSE_YY=2999} 행이
+     * 다음 실행의 첫 테스트에 그대로 보여, 행 수를 세는 단정이 실제 회귀 없이 실패합니다(관측된 증상: 기대 2행에 3행). 앞뒤 모두 정리하면 어느 쪽으로 중단돼도
+     * 다음 실행이 깨끗한 연도에서 시작합니다.
      */
+    @BeforeEach
     @AfterEach
     void cleanUpTestYearData() {
         new TransactionTemplate(transactionManager)
@@ -302,28 +307,72 @@ class MigrationImportIt {
                 .hasMessageContaining("반영할 수 없습니다");
     }
 
+    /**
+     * 이관 대상이 아닌 기존 편성행의 **편성률 값**이 유지되는지 확인합니다.
+     *
+     * <p>행 수만 세면 아무것도 증명하지 못합니다 — 편성률이 전부 100%로 리셋돼도 행 수는 같습니다. 그래서 자본예산 시트를 조정비율 0.7(=편성률 70)로 먼저
+     * 반영해 **100이 아닌** 편성행을 만들어 두고, 그 뒤 무관한 시트(전산업무비)를 반영한 다음 그 70이 그대로 남아 있는지 {@code ASG_RT}로 직접 읽어
+     * 확인합니다.
+     *
+     * <p>사업의 편성률은 {@code BBUGTM}에 사업관리번호로 걸린 행이 없어(키가 품목관리번호) 스냅샷이 품목 편성행에서 역산해야 얻어집니다. {@code
+     * 'BPROJM|사업관리번호'} 키를 찾던 구 구현은 항상 null을 받아 기본값 100으로 채웠고, {@code applyItemRates}가 연도 전체를 재작성하므로
+     * 두 번째 반영에서 이 사업의 편성률이 조용히 100으로 바뀝니다. 벌크 논리삭제라 {@code BBUGT_L}에도 흔적이 남지 않습니다.
+     */
     @Test
-    @DisplayName("이관 대상이 아닌 기존 연도 편성행은 편성률이 유지된다")
+    @DisplayName("이관 대상이 아닌 기존 연도 편성행은 편성률 값까지 유지된다")
     void 기존_편성행의_편성률이_유지된다() {
-        // 1차 반영으로 편성행을 만들고
-        service.commit(
-                new MigrationDto.CommitRequest(
-                        List.of(sheet(SheetKind.COST, "cost.json")), List.of()),
-                ACTOR_ENO);
-        int before = bbugtmRepository.findByBseYyAndDelYn(BSE_YY, "N").size();
-        assertThat(before).isPositive();
-
-        // 다른 시트를 추가 반영해도 앞서 만든 편성행이 applyItemRates의 연도 전체 재작성에 사라지지 않는다 (§3.5)
+        // 1차 반영: 조정비율 0.7 → 이 사업의 품목 편성행은 ASG_RT=70이 된다
         service.commit(
                 new MigrationDto.CommitRequest(
                         List.of(sheet(SheetKind.CAPITAL_PROJECT, "capital.json")), List.of()),
                 ACTOR_ENO);
 
-        assertThat(bbugtmRepository.findByBseYyAndDelYn(BSE_YY, "N"))
-                .hasSizeGreaterThanOrEqualTo(before);
-        // 앞서 만든 BCOSTM 원천 편성행 자체가 여전히 남아 있는지도 함께 확인한다 (연도 전체 재작성이 다른 원천을 지우지 않는다는 직접 증거)
+        assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N"))
+                .as("자본예산 반영이 편성률 70의 품목 편성행을 만든다")
+                .isNotEmpty()
+                .allSatisfy(budget -> assertThat(budget.getAsgRt()).isEqualTo(70));
+        int itemBudgetRows =
+                bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N").size();
+
+        // 2차 반영: 전산업무비만 올린다. 이 사업은 이관 대상이 아니므로 편성률이 그대로여야 한다
+        service.commit(
+                new MigrationDto.CommitRequest(
+                        List.of(sheet(SheetKind.COST, "cost.json")), List.of()),
+                ACTOR_ENO);
+
+        assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N"))
+                .as("무관한 시트 반영 후에도 기존 사업의 편성률 70이 유지된다")
+                .hasSize(itemBudgetRows)
+                .allSatisfy(budget -> assertThat(budget.getAsgRt()).isEqualTo(70));
+        // 전산업무비 원천 편성행도 함께 생겨 있어야 한다 (연도 전체 재작성이 서로를 지우지 않는다)
         assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BCOSTM", "N"))
-                .hasSize(before);
+                .isNotEmpty();
+    }
+
+    /**
+     * 자본예산 픽스처의 짧은 코드 컬럼이 실제 물리 폭 안에서 저장되는지 확인합니다.
+     *
+     * <p>{@code EXE_PTT_YN}은 {@code VARCHAR2(1)}, {@code IT_PTL_EDRT_TC}는 {@code VARCHAR2(2)}입니다.
+     * 엑셀 라벨(`미정(검토중)`·`부문장`)을 그대로 대입하면 dry-run이 초록인 채 commit에서 {@code ORA-12899}가 나고 전량 롤백됩니다. 픽스처가
+     * 이 필드들을 빈 문자열로 비워 두면 그 경로를 한 번도 지나가지 않습니다.
+     */
+    @Test
+    @DisplayName("자본예산 반영이 추진가능성·전결권·팀코드를 코드값으로 저장한다")
+    void 짧은_코드컬럼이_코드값으로_저장된다() {
+        service.commit(
+                new MigrationDto.CommitRequest(
+                        List.of(sheet(SheetKind.CAPITAL_PROJECT, "capital.json")), List.of()),
+                ACTOR_ENO);
+
+        assertThat(projectRepository.findByBseYyAndLstYnAndDelYn(BSE_YY, "Y", "N"))
+                .singleElement()
+                .satisfies(
+                        project -> {
+                            assertThat(project.getExePttYn()).isEqualTo("2"); // 미정(검토중)
+                            assertThat(project.getEdrtTc()).isEqualTo("22"); // 부문장(자본 계열)
+                            assertThat(project.getSvnTemC()).isEqualTo("180");
+                            assertThat(project.getDvmTemC()).isEqualTo("180");
+                        });
     }
 
     /** 픽스처 JSON을 읽어 시트 페이로드로 만듭니다. 예산연도는 테스트 연도로 바꿔 실 데이터와 섞이지 않게 합니다. */

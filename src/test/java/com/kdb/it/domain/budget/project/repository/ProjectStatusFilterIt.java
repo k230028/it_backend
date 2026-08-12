@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.project.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.dto.ProjectListRow;
 import com.kdb.it.domain.budget.project.entity.Bproja;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
@@ -66,10 +67,10 @@ class ProjectStatusFilterIt extends AbstractOracleRepositoryTest {
         ProjectDto.SearchCondition plan = condition(PLAN_STATUS);
 
         assertThat(projectRepository.searchListByCondition(own))
-                .extracting(ProjectDto.ProjectListRow::abusMngNo)
+                .extracting(ProjectListRow::abusMngNo)
                 .contains(abusMngNo);
         assertThat(projectRepository.searchListByCondition(plan))
-                .extracting(ProjectDto.ProjectListRow::abusMngNo)
+                .extracting(ProjectListRow::abusMngNo)
                 .doesNotContain(abusMngNo);
 
         // 건수 경로도 같은 WHERE를 공유한다 — 엔티티 조회 결과 수와 정확히 일치해야 한다.

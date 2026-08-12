@@ -158,16 +158,22 @@ public class MigrationImportService {
 
         AdapterContext ctx = new AdapterContext(bseYy, index, snapshot, overrides, actorEno);
 
-        // 2단계: 이관 대상이 아닌 기존 편성행의 편성률을 유지하도록 미리 모아 둔다 (§7 5단계 준비)
+        // 2단계: 이관 대상이 아닌 기존 편성행의 편성률을 유지하도록 미리 모아 둔다 (§7 5단계 준비).
+        // 사업의 편성률은 BBUGTM에 사업관리번호로 걸린 행이 없어(키가 품목관리번호다, §3.5) 스냅샷이
+        // 품목 편성행에서 역산해 준다. 이 값을 잘못 읽으면 applyItemRates가 연도 전체를 재작성하면서
+        // 기존 사업 전부를 기본값 100%로 올려 버리고, 벌크 논리삭제라 BBUGT_L에도 흔적이 남지 않는다.
         List<BudgetWorkDto.ItemRate> rateItems = new ArrayList<>();
         for (String projectNo : snapshot.allProjectNos()) {
-            Integer rate = snapshot.existingRateOf("BPROJM", projectNo);
+            MigrationYearSnapshot.ProjectRate rate = snapshot.existingProjectRateOf(projectNo);
             rateItems.add(
                     new BudgetWorkDto.ItemRate(
-                            "BPROJM", projectNo, orDefault(rate), orDefault(rate)));
+                            "BPROJM",
+                            projectNo,
+                            rate == null ? MigrationYearSnapshot.DEFAULT_RATE : rate.assetRate(),
+                            rate == null ? MigrationYearSnapshot.DEFAULT_RATE : rate.costRate()));
         }
         for (String costNo : snapshot.allCostNos()) {
-            Integer rate = snapshot.existingRateOf("BCOSTM", costNo);
+            Integer rate = snapshot.existingCostRateOf(costNo);
             rateItems.add(
                     new BudgetWorkDto.ItemRate("BCOSTM", costNo, orDefault(rate), orDefault(rate)));
         }
@@ -314,12 +320,35 @@ public class MigrationImportService {
         return items.size();
     }
 
-    /** 조정 금액이 있는 항목만 품목으로 만듭니다. 비목 기본값은 자본예산 어댑터와 같습니다. */
+    /**
+     * 조정 금액이 있는 항목만 품목으로 만듭니다.
+     *
+     * <p>비목 기본값은 {@link MigrationIoeCodes} 상수를 그대로 참조합니다 — 자본예산 어댑터가 만든 품목과 같은 비목이어야 조정이 같은 비목의 품목을
+     * 교체합니다. 리터럴을 여기 다시 적으면 한쪽만 바뀌었을 때 조용히 어긋납니다.
+     */
     private List<ProjectDto.BitemmDto> buildAdjustedItems(PlanIntent intent, String bseYy) {
         List<ProjectDto.BitemmDto> items = new ArrayList<>();
-        addAdjustedItem(items, intent.devAmount(), "103", "개발비", intent.paymentYm(), bseYy);
-        addAdjustedItem(items, intent.hwAmount(), "101", "기계장치", intent.paymentYm(), bseYy);
-        addAdjustedItem(items, intent.swAmount(), "106", "기타무형자산", intent.paymentYm(), bseYy);
+        addAdjustedItem(
+                items,
+                intent.devAmount(),
+                MigrationIoeCodes.IOE_DEV,
+                "개발비",
+                intent.paymentYm(),
+                bseYy);
+        addAdjustedItem(
+                items,
+                intent.hwAmount(),
+                MigrationIoeCodes.IOE_HW,
+                "기계장치",
+                intent.paymentYm(),
+                bseYy);
+        addAdjustedItem(
+                items,
+                intent.swAmount(),
+                MigrationIoeCodes.IOE_SW,
+                "기타무형자산",
+                intent.paymentYm(),
+                bseYy);
         return items;
     }
 
@@ -353,6 +382,7 @@ public class MigrationImportService {
             List<PlanIntent> intents, Map<String, String> projectNoByName, String bseYy) {
         List<String> projectNos = new ArrayList<>();
         List<BigDecimal> capitalAmounts = new ArrayList<>();
+        List<BigDecimal> generalAmounts = new ArrayList<>();
         Map<String, Map<String, String>> snapshotFieldsByProject = new LinkedHashMap<>();
         for (PlanIntent intent : intents) {
             String projectNo = projectNoByName.get(intent.normalizedProjectName());
@@ -362,13 +392,14 @@ public class MigrationImportService {
             projectNos.add(projectNo);
             capitalAmounts.add(
                     sumAmounts(intent.devAmount(), intent.hwAmount(), intent.swAmount()));
+            generalAmounts.add(sumAmounts(intent.generalAmount()));
             snapshotFieldsByProject.put(projectNo, intent.snapshotFields());
         }
         if (projectNos.isEmpty()) {
             return null;
         }
         return planService.createPlanForMigration(
-                bseYy, "조정", projectNos, capitalAmounts, snapshotFieldsByProject);
+                bseYy, "조정", projectNos, capitalAmounts, generalAmounts, snapshotFieldsByProject);
     }
 
     /** null-safe 금액 합산. */
@@ -398,16 +429,32 @@ public class MigrationImportService {
         return new MigrationLookupIndex(
                 orgIdentityResolver.snapshot(),
                 catalogReader.ioeCodeByName(),
-                catalogReader.xcrByCurrency());
+                catalogReader.xcrByCurrency(),
+                catalogReader.abusUnitNameByCode(),
+                catalogReader.exePttCodeByName(),
+                catalogReader.edrtCapitalCodeByName());
     }
 
+    /**
+     * 시트 목록이 반영 가능한 형태인지 확인합니다.
+     *
+     * <p>예산연도는 반드시 전 시트가 같아야 합니다. 이 서비스는 {@code sheets.get(0).bseYy()} 하나를 연도 스냅샷·중복 판정·편성률 적용의
+     * 기준으로 쓰므로, 시트마다 연도가 다르면 두 번째 시트 이후는 **다른 연도의 스냅샷으로 검증되고 첫 시트의 연도로 저장**됩니다.
+     *
+     * @throws IllegalArgumentException 시트가 없거나, 지원하지 않는 종류이거나, 예산연도가 섞인 경우
+     */
     private void requireSupported(List<MigrationDto.SheetPayload> sheets) {
         if (sheets == null || sheets.isEmpty()) {
             throw new IllegalArgumentException("올린 시트가 없습니다.");
         }
+        String bseYy = sheets.get(0).bseYy();
         for (MigrationDto.SheetPayload sheet : sheets) {
             if (!adapters.containsKey(sheet.kind())) {
                 throw new IllegalArgumentException("지원하지 않는 시트 종류입니다: " + sheet.kind());
+            }
+            if (bseYy == null || !bseYy.equals(sheet.bseYy())) {
+                throw new IllegalArgumentException(
+                        "시트마다 예산연도가 다릅니다: " + bseYy + ", " + sheet.bseYy());
             }
         }
     }

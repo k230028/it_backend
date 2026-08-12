@@ -6,9 +6,11 @@ import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,38 +37,60 @@ public class OrgIdentityResolver {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
 
+    /** 유사도 제안 후보의 최대 개수. 드롭다운 선택지가 되므로 훑어볼 수 있는 수로 제한합니다. */
+    private static final int MAX_SUGGESTIONS = 5;
+
+    /**
+     * 유사도 채택 하한. `가장 긴 공통 부분문자열 / 짧은 쪽 길이`가 이 값 이상이어야 후보로 냅니다.
+     *
+     * <p>0.5는 한글 3자 이름에서 2자가 겹칠 때(`김성원`↔`김성완`)는 제안하고 1자만 겹칠 때(`김철수`↔`김영희`)는 제안하지 않는 경계입니다.
+     */
+    private static final double SUGGESTION_THRESHOLD = 0.5d;
+
     /**
      * 해석 결과입니다.
      *
      * @param code 확정된 코드값. 미확정이면 null
      * @param label 확정된 표시명. 미확정이면 입력 원문
-     * @param candidates 중의적일 때의 후보. 확정·미해석이면 빈 목록
+     * @param candidates 보정 후보. 중의적일 때의 동등 후보이거나, 미해석일 때의 유사도 제안입니다. 확정이면 빈 목록
+     * @param ambiguous 후보들이 동등하게 성립하는 중의적 상태인지 여부. 미해석 + 유사도 제안이면 false
      */
-    public record Resolution(String code, String label, List<MigrationDto.Candidate> candidates) {
+    public record Resolution(
+            String code, String label, List<MigrationDto.Candidate> candidates, boolean ambiguous) {
 
         /** 확정 결과를 만듭니다. */
         static Resolution of(String code, String label) {
-            return new Resolution(code, label, List.of());
+            return new Resolution(code, label, List.of(), false);
         }
 
         /** 후보 없는 미해석 결과를 만듭니다. */
         static Resolution unresolved(String input) {
-            return new Resolution(null, input, List.of());
+            return new Resolution(null, input, List.of(), false);
+        }
+
+        /**
+         * 미해석이지만 유사한 값을 후보로 제안하는 결과를 만듭니다.
+         *
+         * <p>{@link #ambiguous(String, List)}와 구분해야 합니다 — 이쪽은 "찾지 못했고 비슷한 것을 제안한다"이고, 저쪽은 "여러 개가
+         * 똑같이 맞는다"입니다. 진단 문구가 이 구분을 그대로 반영합니다.
+         */
+        static Resolution suggested(String input, List<MigrationDto.Candidate> candidates) {
+            return new Resolution(null, input, List.copyOf(candidates), false);
         }
 
         /** 후보가 있는 중의적 결과를 만듭니다. */
         static Resolution ambiguous(String input, List<MigrationDto.Candidate> candidates) {
-            return new Resolution(null, input, List.copyOf(candidates));
+            return new Resolution(null, input, List.copyOf(candidates), true);
         }
 
-        /** 확정되지 않았고 후보도 없는 상태인지 판정합니다. */
+        /** 확정되지 않은 상태인지 판정합니다. 유사도 제안만 있는 경우도 미해석입니다. */
         public boolean isUnresolved() {
-            return code == null && candidates.isEmpty();
+            return code == null && !ambiguous;
         }
 
-        /** 확정되지 않았으나 후보가 있는 상태인지 판정합니다. */
+        /** 후보들이 동등하게 성립하는 중의적 상태인지 판정합니다. */
         public boolean isAmbiguous() {
-            return code == null && !candidates.isEmpty();
+            return ambiguous;
         }
     }
 
@@ -125,6 +149,10 @@ public class OrgIdentityResolver {
          *
          * <p>3단계로 좁힙니다. ① 정확 일치 ② 공백·괄호를 제거한 정규화 일치 ③ 부분 일치. ③에서 후보가 둘 이상이면 확정하지 않고 후보를 돌려줍니다.
          *
+         * <p>세 단계가 모두 실패하면 ④ 유사도 제안으로 **가장 비슷한 몇 개를 후보로** 돌려줍니다. 후보가 빈 미해석 결과는 미리보기에 보정 드롭다운을 그릴 수
+         * 없어 사용자가 손댈 방법이 사라지기 때문입니다(진단 문구는 "찾지 못했다 + 비슷한 값"으로 유지합니다). 셀 자체가 비어 있으면 제안할 근거가 없으므로
+         * 종전처럼 후보 없이 돌려줍니다.
+         *
          * @param name 엑셀 부서명·팀명. null·공백·`-` 같은 미지정 표기는 미해석으로 처리
          * @return 해석 결과
          */
@@ -155,9 +183,79 @@ public class OrgIdentityResolver {
                 MigrationDto.Candidate only = partial.get(0);
                 return Resolution.of(only.code(), only.label());
             }
-            return partial.isEmpty()
+            if (!partial.isEmpty()) {
+                return Resolution.ambiguous(name, partial);
+            }
+            List<MigrationDto.Candidate> suggestions =
+                    suggest(
+                            needle,
+                            allOrgs,
+                            CorgnI::getBbrNm,
+                            org ->
+                                    new MigrationDto.Candidate(
+                                            org.getPrlmOgzCCone(), org.getBbrNm()));
+            return suggestions.isEmpty()
                     ? Resolution.unresolved(name)
-                    : Resolution.ambiguous(name, partial);
+                    : Resolution.suggested(name, suggestions);
+        }
+
+        /**
+         * 이름이 하나도 걸리지 않았을 때 가장 비슷한 후보를 고릅니다.
+         *
+         * <p>편집거리 대신 **가장 긴 공통 부분문자열 길이 / 짧은 쪽 길이**를 씁니다. 은행 조직·직원 이름의 오차는 접미어 차이(`런던지점`↔`런던PF`)나 한
+         * 글자 오기가 대부분이라 이 척도로 충분히 갈라지고, 짧은 문자열 대상이라 비용도 무시할 수 있습니다(조직 200건 × 20자 수준).
+         *
+         * @param needle 정규화된 입력
+         * @param source 후보 원본 목록
+         * @param nameOf 원본에서 비교할 이름을 꺼내는 함수
+         * @param toCandidate 원본을 후보로 바꾸는 함수
+         * @return 점수 내림차순, 같으면 표시명 오름차순으로 정렬한 최대 {@link #MAX_SUGGESTIONS}개
+         */
+        private static <T> List<MigrationDto.Candidate> suggest(
+                String needle,
+                List<T> source,
+                Function<T, String> nameOf,
+                Function<T, MigrationDto.Candidate> toCandidate) {
+            if (needle.isEmpty()) {
+                return List.of();
+            }
+            record Scored(double score, MigrationDto.Candidate candidate) {}
+            List<Scored> scored = new ArrayList<>();
+            for (T item : source) {
+                String name = nameOf.apply(item);
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+                double score = similarity(needle, normalize(name));
+                if (score >= SUGGESTION_THRESHOLD) {
+                    scored.add(new Scored(score, toCandidate.apply(item)));
+                }
+            }
+            scored.sort(
+                    Comparator.comparingDouble(Scored::score)
+                            .reversed()
+                            .thenComparing(
+                                    s -> s.candidate().label(),
+                                    Comparator.nullsLast(Comparator.naturalOrder())));
+            return scored.stream().limit(MAX_SUGGESTIONS).map(Scored::candidate).toList();
+        }
+
+        /** 가장 긴 공통 부분문자열 길이를 짧은 쪽 길이로 나눈 0~1 유사도입니다. */
+        private static double similarity(String a, String b) {
+            if (a.isEmpty() || b.isEmpty()) {
+                return 0d;
+            }
+            int[][] dp = new int[a.length() + 1][b.length() + 1];
+            int longest = 0;
+            for (int i = 1; i <= a.length(); i++) {
+                for (int j = 1; j <= b.length(); j++) {
+                    if (a.charAt(i - 1) == b.charAt(j - 1)) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                        longest = Math.max(longest, dp[i][j]);
+                    }
+                }
+            }
+            return (double) longest / Math.min(a.length(), b.length());
         }
 
         /**
@@ -165,6 +263,8 @@ public class OrgIdentityResolver {
          *
          * <p>공백으로 이름과 직위를 분리해 사용자명+직위명으로 좁히고, 직위가 없거나 일치하지 않으면 이름만으로 좁힙니다. 그래도 둘 이상이면 {@code
          * deptCodeHint}(같은 행의 주관부서코드)로 한 번 더 좁힙니다.
+         *
+         * <p>이름이 하나도 걸리지 않으면 조직 해석과 같은 이유로 유사도 제안을 후보로 돌려줍니다({@link #resolveOrg} 참고).
          *
          * @param nameWithTitle 엑셀 담당자 표기. null·공백은 미해석
          * @param deptCodeHint 같은 행에서 해석된 부서코드. 없으면 null
@@ -186,7 +286,15 @@ public class OrgIdentityResolver {
                 }
             }
             if (byName.isEmpty()) {
-                return Resolution.unresolved(nameWithTitle);
+                List<MigrationDto.Candidate> suggestions =
+                        suggest(
+                                normalize(name),
+                                allUsers,
+                                CuserI::getUsrNm,
+                                user -> new MigrationDto.Candidate(user.getEno(), label(user)));
+                return suggestions.isEmpty()
+                        ? Resolution.unresolved(nameWithTitle)
+                        : Resolution.suggested(nameWithTitle, suggestions);
             }
             List<CuserI> narrowed = byName;
             if (title != null && byName.size() > 1) {

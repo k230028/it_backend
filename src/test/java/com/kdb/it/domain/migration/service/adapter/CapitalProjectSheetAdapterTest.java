@@ -141,6 +141,51 @@ class CapitalProjectSheetAdapterTest {
                 .isEqualTo(100);
     }
 
+    /**
+     * `EXE_PTT_YN`은 `VARCHAR2(1)`이라 엑셀 라벨을 그대로 대입하면 실 데이터(`추진계획 검토중`, 8자)에서 ORA-12899가 난다. 라벨을
+     * 코드값으로 바꿔야 한다.
+     */
+    @Test
+    @DisplayName("추진가능성 라벨을 EXE_PTT_YN 코드값으로 바꾼다")
+    void 추진가능성을_코드값으로_바꾼다() {
+        Map<String, String> cells = cells();
+        cells.put("feasibility", "미정(검토중)");
+
+        assertThat(adaptSingle(cells).getExePttYn()).isEqualTo("2");
+    }
+
+    @Test
+    @DisplayName("해석되지 않는 추진가능성은 원문을 쓰지 않고 null로 둔다")
+    void 미해석_추진가능성은_null이다() {
+        Map<String, String> cells = cells();
+        cells.put("feasibility", "추진계획 검토중");
+
+        assertThat(adaptSingle(cells).getExePttYn()).isNull();
+    }
+
+    @Test
+    @DisplayName("전결권 라벨을 IT_PTL_EDRT_TC 코드값으로 바꿔 저장한다")
+    void 전결권을_코드값으로_바꾼다() {
+        Map<String, String> cells = cells();
+        cells.put("delegationLabel", "부문장");
+
+        assertThat(adaptSingle(cells).getEdrtTc()).isEqualTo("22");
+    }
+
+    /** 검증이 BLOCKER로 강제하는 값이 저장되지 않으면 사용자가 고칠 이유가 없어진다 (IMPORTANT-4). */
+    @Test
+    @DisplayName("담당팀은 SVN_TEM_C, 담당IT팀은 DVM_DPM_C·DVM_TEM_C에 담는다")
+    void 팀코드를_모두_담는다() {
+        Map<String, String> cells = cells();
+        cells.put("itTeamName", "글로벌IT혁신팀");
+
+        ProjectDto.CreateRequest project = adaptSingle(cells);
+
+        assertThat(project.getSvnTemC()).isEqualTo("0211");
+        assertThat(project.getDvmDpmC()).isEqualTo("0211");
+        assertThat(project.getDvmTemC()).isEqualTo("0211");
+    }
+
     private ProjectDto.CreateRequest adaptSingle(Map<String, String> cells) {
         return adapter.adapt(sheet(cells), context(Map.of())).projects().get(0);
     }
@@ -162,7 +207,10 @@ class CapitalProjectSheetAdapterTest {
                                         user("100001", "장원섭", "차장", "0210"),
                                         user("100002", "이효재", "팀장", "0210"))),
                         Map.of(),
-                        Map.of()),
+                        Map.of(),
+                        Map.of("571", "운영시스템 유지보수"),
+                        Map.of("확정", "1", "미정(검토중)", "2"),
+                        Map.of("부문장", "22", "이사회", "25")),
                 TestSnapshots.empty("2026"),
                 overrides,
                 "999999");

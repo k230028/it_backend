@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.project.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.dto.ProjectListRow;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.util.List;
@@ -23,7 +24,7 @@ class ProjectListProjectionIt extends AbstractOracleRepositoryTest {
         // 전체 조건(필터 없음) — 동일 WHERE(DEL_YN='N')에서 두 경로 비교
         ProjectDto.SearchCondition cond = new ProjectDto.SearchCondition();
         List<Bprojm> entities = projectRepository.searchByCondition(cond);
-        List<ProjectDto.ProjectListRow> rows = projectRepository.searchListByCondition(cond);
+        List<ProjectListRow> rows = projectRepository.searchListByCondition(cond);
 
         assertThat(rows).hasSameSizeAs(entities);
 
@@ -34,7 +35,7 @@ class ProjectListProjectionIt extends AbstractOracleRepositoryTest {
                                         e -> e.getAbusMngNo() + "#" + e.getSno(),
                                         Function.identity(),
                                         (a, b) -> a));
-        for (ProjectDto.ProjectListRow row : rows) {
+        for (ProjectListRow row : rows) {
             Bprojm e = byKey.get(row.abusMngNo() + "#" + row.sno());
             assertThat(e).as("동일 키 엔티티 존재").isNotNull();
             assertThat(row.abusNm()).isEqualTo(e.getAbusNm());

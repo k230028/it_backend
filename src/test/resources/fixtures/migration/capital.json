@@ -3,23 +3,23 @@
     "excelRow": 2,
     "cells": {
       "projectName": "테스트정보화사업A",
-      "projectType": "",
-      "progressLabel": "신규",
-      "projectOutline": "테스트 사업 개요",
-      "headquarters": "",
+      "projectType": "법률/규제대응",
+      "progressLabel": "계속",
+      "projectOutline": "테스트 사업 개요 — 내규 솔루션 업그레이드 및 표준 연계 모듈 정비",
+      "headquarters": "기획관리부문",
       "deptName": "IT기획부",
-      "teamName": "",
+      "teamName": "IT기획부",
       "managerName": "박팀장 팀장",
       "teamLeaderName": "김기획팀장 팀장",
-      "itTeamName": "",
-      "feasibility": "",
-      "startYm": "",
-      "endYm": "",
+      "itTeamName": "IT기획부",
+      "feasibility": "미정(검토중)",
+      "startYm": "'26.05",
+      "endYm": "'26.12",
       "devAmount": "5",
       "hwAmount": "",
       "swAmount": "",
-      "adjustRate": "",
-      "delegationLabel": ""
+      "adjustRate": "0.7",
+      "delegationLabel": "부문장"
     }
   }
 ]

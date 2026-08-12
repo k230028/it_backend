@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.repository;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.dto.ProjectListRow;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import java.util.List;
 
@@ -56,5 +57,5 @@ public interface ProjectRepositoryCustom {
      * @param condition 검색 조건 DTO
      * @return 조건에 맞는 정보화사업 경량 목록 행 (DEL_YN='N' 필터 항상 적용)
      */
-    List<ProjectDto.ProjectListRow> searchListByCondition(ProjectDto.SearchCondition condition);
+    List<ProjectListRow> searchListByCondition(ProjectDto.SearchCondition condition);
 }

@@ -3,8 +3,9 @@ package com.kdb.it.domain.migration.service.adapter;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
+import com.kdb.it.domain.migration.service.MigrationAmounts;
+import com.kdb.it.domain.migration.service.MigrationIoeCodes;
 import com.kdb.it.domain.migration.service.MigrationYearSnapshot;
-import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -24,12 +25,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class DelegatedBudgetSheetAdapter implements SheetAdapter {
 
-    /** 국외점포 기계장치 비목. */
-    static final String IOE_HW_OVERSEA = "102";
-
-    /** 국외점포 기타무형자산 비목. */
-    static final String IOE_SW_OVERSEA = "105";
-
     @Override
     public SheetKind supports() {
         return SheetKind.DELEGATED_BUDGET;
@@ -42,7 +37,7 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
         String currentBranch = null;
 
         for (MigrationDto.NormalizedRow row : sheet.rows()) {
-            String branch = AdapterSupport.cellOf(sheet, row, "branchName", ctx);
+            String branch = branchLabel(AdapterSupport.cellOf(sheet, row, "branchName", ctx), ctx);
             if (!branch.isBlank()) {
                 currentBranch = branch;
             }
@@ -105,9 +100,13 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
             return;
         }
         ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
-        item.setIoeC("hw".equals(prefix) ? IOE_HW_OVERSEA : IOE_SW_OVERSEA);
+        item.setIoeC(
+                "hw".equals(prefix)
+                        ? MigrationIoeCodes.IOE_HW_OVERSEA
+                        : MigrationIoeCodes.IOE_SW_OVERSEA);
         item.setGclNm(itemName);
-        item.setQty(AdapterSupport.number(AdapterSupport.cellOf(sheet, row, prefix + "Qty", ctx)));
+        item.setQty(
+                MigrationAmounts.number(AdapterSupport.cellOf(sheet, row, prefix + "Qty", ctx)));
         item.setCurC(currency.isBlank() ? "KRW" : currency);
         item.setFcAmt(
                 AdapterSupport.foreignAmount(
@@ -117,13 +116,24 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
         items.add(item);
     }
 
+    /**
+     * 부점명 셀을 사람이 읽는 부점명으로 정규화합니다.
+     *
+     * <p>부점명 셀에 보정이 걸리면 {@code cellOf}가 조직**코드**를 돌려줍니다. 그 값을 그대로 쓰면 사업명이 `2026년 0910 위임예산(경상)`이
+     * 되고, 같은 부점의 다른 행(원본 이름)과 그룹이 갈려 한 부점이 두 사업으로 쪼개집니다. {@code ABUS_NM}은 중복 판정과 부문계획 매칭의 자연키이므로
+     * 반드시 사람이 읽는 부점명이어야 합니다.
+     *
+     * @param raw 셀 값 또는 보정값
+     * @param ctx 어댑터 컨텍스트
+     * @return 조직코드로 해석되면 그 조직명, 아니면 입력 그대로
+     */
+    private String branchLabel(String raw, AdapterContext ctx) {
+        String name = ctx.index().org().orgNameOf(raw);
+        return name != null ? name : raw;
+    }
+
     /** 보정값이 있으면 그 조직코드를, 없으면 이름으로 해석합니다. 미해석이면 null. */
     private String resolveOrg(String branch, AdapterContext ctx) {
-        OrgIdentityResolver.Resolution resolution = ctx.index().org().resolveOrg(branch);
-        if (resolution.code() != null) {
-            return resolution.code();
-        }
-        // 보정값은 이미 코드값이므로 셀 원문이 코드 형태로 왔을 수 있다
-        return ctx.index().org().orgNameOf(branch) != null ? branch : null;
+        return AdapterSupport.resolveOrgCode(branch, ctx);
     }
 }

@@ -229,6 +229,78 @@ class OrgIdentityResolverTest {
         assertThat(result.isAmbiguous()).isTrue();
     }
 
+    @Test
+    @DisplayName("유사도 제안 결과(suggested)는 후보가 있어도 isUnresolved가 참이다")
+    void 유사도제안결과는_미해석이다() {
+        OrgIdentityResolver.Resolution result =
+                OrgIdentityResolver.Index.of(List.of(org("0910", "런던지점")), List.of())
+                        .resolveOrg("런던PF데스크");
+
+        assertThat(result.code()).isNull();
+        // 후보가 붙어도 "여러 개가 똑같이 맞는다"(ambiguous)가 아니라 "못 찾았고 비슷한 것을 제안한다"다
+        assertThat(result.isAmbiguous()).isFalse();
+        assertThat(result.isUnresolved()).isTrue();
+        assertThat(result.candidates())
+                .extracting(com.kdb.it.domain.migration.dto.MigrationDto.Candidate::code)
+                .containsExactly("0910");
+    }
+
+    @Test
+    @DisplayName("한 글자만 겹치는 조직은 제안하지 않는다")
+    void 한글자만_겹치면_제안하지_않는다() {
+        OrgIdentityResolver.Resolution result =
+                OrgIdentityResolver.Index.of(List.of(org("0100", "여신관리부")), List.of())
+                        .resolveOrg("총무팀부");
+
+        assertThat(result.candidates()).isEmpty();
+        assertThat(result.isUnresolved()).isTrue();
+    }
+
+    @Test
+    @DisplayName("유사도 제안은 최대 5개까지, 점수가 높은 순으로 온다")
+    void 유사도제안은_다섯개까지다() {
+        List<CorgnI> orgs = new java.util.ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            orgs.add(org("01" + i, "테스트조직" + i));
+        }
+        orgs.add(org("099", "테스트조직"));
+
+        OrgIdentityResolver.Resolution result =
+                // 부분 일치 단계에 걸리지 않도록 마지막 글자만 다른 값을 쓴다
+                OrgIdentityResolver.Index.of(orgs, List.of()).resolveOrg("테스트조진");
+
+        assertThat(result.candidates()).hasSize(5);
+        assertThat(result.candidates().get(0).code()).isEqualTo("099");
+    }
+
+    @Test
+    @DisplayName("이름이 하나도 걸리지 않는 담당자에도 유사한 사번 후보를 제안한다")
+    void 미해석_담당자도_후보를_제안한다() {
+        OrgIdentityResolver.Resolution result =
+                OrgIdentityResolver.Index.of(
+                                List.of(),
+                                List.of(user("K1", "김성원", "과장", "180", "18001", "IT기획팀")))
+                        .resolveUser("김성완 과장", null);
+
+        assertThat(result.code()).isNull();
+        assertThat(result.isAmbiguous()).isFalse();
+        assertThat(result.candidates())
+                .extracting(com.kdb.it.domain.migration.dto.MigrationDto.Candidate::code)
+                .containsExactly("K1");
+    }
+
+    @Test
+    @DisplayName("빈 담당자 셀은 후보를 제안하지 않는다")
+    void 빈_담당자셀은_후보가_없다() {
+        OrgIdentityResolver.Resolution result =
+                OrgIdentityResolver.Index.of(
+                                List.of(),
+                                List.of(user("K1", "김성원", "과장", "180", "18001", "IT기획팀")))
+                        .resolveUser("-", null);
+
+        assertThat(result.candidates()).isEmpty();
+    }
+
     private static CorgnI org(String code, String name) {
         return CorgnI.builder().prlmOgzCCone(code).bbrNm(name).build();
     }

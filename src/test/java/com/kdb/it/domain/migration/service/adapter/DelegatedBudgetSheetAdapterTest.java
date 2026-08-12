@@ -152,6 +152,38 @@ class DelegatedBudgetSheetAdapterTest {
                 row(4, hwCells("런던 PF", "내부망 PC", "2", "1610.4", "3098409.6")));
     }
 
+    /**
+     * 부점명에 보정을 걸면 {@code cellOf}가 조직**코드**를 돌려준다. 그 값을 사업명에 그대로 쓰면 `2026년 0910 위임예산(경상)`이 되고, 같은
+     * 부점의 다른 행(원본 이름)과 그룹이 갈려 한 부점이 두 사업으로 쪼개진다. {@code ABUS_NM}은 중복 판정과 부문계획 매칭의 자연키다
+     * (IMPORTANT-6).
+     */
+    @Test
+    @DisplayName("부점명 보정값(조직코드)도 사업명은 사람이 읽는 부점명으로 만들고 같은 그룹에 붙인다")
+    void 부점명_보정값도_사업명은_부점명이다() {
+        Map<String, String> overrides =
+                Map.of(
+                        com.kdb.it.domain.migration.service.MigrationValidator.overrideKey(
+                                SheetKind.DELEGATED_BUDGET, 3, "branchName"),
+                        "0910");
+
+        AdapterOutput out =
+                adapter.adapt(
+                        sheet(
+                                List.of(
+                                        row(2, hwCells("런던", "데스크탑", "1", "1000", "1924000")),
+                                        row(3, swCells("", "MS오피스", "1", "1000", "1924000")))),
+                        contextWith(overrides));
+
+        assertThat(out.projects())
+                .singleElement()
+                .satisfies(
+                        project -> {
+                            assertThat(project.getAbusNm()).isEqualTo("2026년 런던 위임예산(경상)");
+                            assertThat(project.getSvnDpmC()).isEqualTo("0910");
+                            assertThat(project.getItems()).hasSize(2);
+                        });
+    }
+
     private static MigrationDto.NormalizedRow row(int excelRow, Map<String, String> cells) {
         return new MigrationDto.NormalizedRow(excelRow, cells);
     }
@@ -161,6 +193,10 @@ class DelegatedBudgetSheetAdapterTest {
     }
 
     private static AdapterContext context() {
+        return contextWith(Map.of());
+    }
+
+    private static AdapterContext contextWith(Map<String, String> overrides) {
         return new AdapterContext(
                 "2026",
                 new MigrationLookupIndex(
@@ -169,7 +205,7 @@ class DelegatedBudgetSheetAdapterTest {
                         Map.of(),
                         Map.of("GBP", new BigDecimal("1924"))),
                 TestSnapshots.empty("2026"),
-                Map.of(),
+                overrides,
                 "999999");
     }
 

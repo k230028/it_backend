@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.project.repository;
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.dto.ProjectListRow;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.QBproja;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
@@ -55,18 +56,17 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
     /**
      * 목록 경량 프로젝션 조회(#7) — {@link #searchByCondition}와 동일 WHERE, select만 대용량 텍스트 제외 컬럼으로 축소.
      *
-     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가 {@link
-     * ProjectDto.ProjectListRow} 컴포넌트 순서와 정확히 일치해야 한다.
+     * <p>QueryDSL {@code Projections.constructor}는 위치 기반이므로 select 인자 순서가 {@link ProjectListRow}
+     * 컴포넌트 순서와 정확히 일치해야 한다.
      */
     @Override
-    public List<ProjectDto.ProjectListRow> searchListByCondition(
-            ProjectDto.SearchCondition condition) {
+    public List<ProjectListRow> searchListByCondition(ProjectDto.SearchCondition condition) {
         QBprojm bprojm = QBprojm.bprojm;
         // 동일 WHERE 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
         return queryFactory
                 .select(
                         Projections.constructor(
-                                ProjectDto.ProjectListRow.class,
+                                ProjectListRow.class,
                                 bprojm.abusMngNo,
                                 bprojm.sno,
                                 bprojm.abusNm,

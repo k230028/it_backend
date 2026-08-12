@@ -4,7 +4,9 @@ import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,13 @@ import org.springframework.stereotype.Component;
  *
  * <p>dry-run과 commit이 같은 인스턴스를 호출합니다. commit은 클라이언트가 보낸 값을 신뢰하지 않고 이 검증을 다시 돌린 뒤 BLOCKER가 하나라도 있으면
  * 아무것도 쓰지 않고 실패합니다.
+ *
+ * <p><b>보정값을 반영해 읽는다</b>는 것이 이 클래스의 불변식입니다. 어댑터는 보정값이 반영된 값을 저장하므로, 검증이 원본 셀을 보면 사용자가 고친 값이 검증을
+ * 우회합니다. 셀 접근은 예외 없이 {@link MigrationDiagnostics#cell}을 거치며 {@code Map.of()}를 넘기지 않습니다.
+ *
+ * <p><b>길이 검증의 단위</b>는 물리 컬럼의 문자 의미를 따릅니다. 대부분은 {@code CHAR} 의미라 문자 수로 검사하지만 {@code
+ * CTT_OPP_NM}·{@code GCL_NM}은 {@code BYTE} 의미(100바이트)라 UTF-8 바이트 수로 검사합니다 — 문자 수로 검사하면 한글 34자에서 이미
+ * 넘는 값을 통과시켜 {@code ORA-12899}가 commit에서 터집니다.
  */
 @Component
 public class MigrationValidator {
@@ -27,10 +36,6 @@ public class MigrationValidator {
     /** 원화 금액 대조 허용 오차 (원). */
     private static final BigDecimal AMOUNT_TOLERANCE = BigDecimal.ONE;
 
-    /** 자본예산 계열 비목코드 — 개발비·기계장치·기타무형자산 (IoeCategories.CAPITAL_CTPS에 대응). */
-    private static final Set<String> CAPITAL_IOE_CODES =
-            Set.of("101", "102", "103", "104", "105", "106", "107");
-
     /**
      * 보정값 조회 키를 만듭니다. commit이 {@code CellOverride} 목록을 이 키의 맵으로 접어 넘깁니다.
      *
@@ -40,7 +45,7 @@ public class MigrationValidator {
      * @return 파이프로 이은 키
      */
     public static String overrideKey(SheetKind sheet, int excelRow, String column) {
-        return sheet.name() + "|" + excelRow + "|" + column;
+        return MigrationDiagnostics.overrideKey(sheet, excelRow, column);
     }
 
     /**
@@ -58,17 +63,21 @@ public class MigrationValidator {
             MigrationYearSnapshot.Data snapshot,
             Map<String, String> overrides) {
         List<MigrationDto.CellDiagnostic> out = new ArrayList<>();
-        Set<String> namesInThisImport = collectProjectNames(sheets);
+        Set<String> namesInThisImport = collectProjectNames(sheets, overrides);
 
         for (MigrationDto.SheetPayload sheet : sheets) {
             if (sheet.kind() == SheetKind.DELEGATED_BUDGET) {
                 checkDelegatedFirstBranch(sheet, overrides, out);
             }
+            // 같은 반영 안의 사업명 중복은 행 단위로는 보이지 않는다 — 시트별로 앞선 행을 기억해 뒤 행에서 짚는다
+            Map<String, Integer> projectNameRows = new LinkedHashMap<>();
             for (MigrationDto.NormalizedRow row : sheet.rows()) {
                 switch (sheet.kind()) {
                     case COST -> validateCostRow(sheet, row, index, snapshot, overrides, out);
-                    case CAPITAL_PROJECT ->
-                            validateProjectRow(sheet, row, index, snapshot, overrides, out);
+                    case CAPITAL_PROJECT -> {
+                        validateProjectRow(sheet, row, index, snapshot, overrides, out);
+                        checkIntraPayloadDuplicate(sheet, row, overrides, projectNameRows, out);
+                    }
                     case DELEGATED_BUDGET ->
                             validateDelegatedRow(sheet, row, index, overrides, out);
                     case PLAN_ADJUSTMENT ->
@@ -80,8 +89,9 @@ public class MigrationValidator {
         return out;
     }
 
-    /** 같은 반영에 포함된 사업명(자본예산·위임예산)을 모읍니다. PROJECT_NOT_FOUND 판정 기준입니다. */
-    private Set<String> collectProjectNames(List<MigrationDto.SheetPayload> sheets) {
+    /** 같은 반영에 포함된 사업명(자본예산)을 모읍니다. PROJECT_NOT_FOUND 판정 기준입니다. */
+    private Set<String> collectProjectNames(
+            List<MigrationDto.SheetPayload> sheets, Map<String, String> overrides) {
         Set<String> names = new LinkedHashSet<>();
         for (MigrationDto.SheetPayload sheet : sheets) {
             if (sheet.kind() != SheetKind.CAPITAL_PROJECT) {
@@ -90,10 +100,44 @@ public class MigrationValidator {
             for (MigrationDto.NormalizedRow row : sheet.rows()) {
                 names.add(
                         MigrationYearSnapshot.normalizeName(
-                                cell(row, "projectName", Map.of(), sheet)));
+                                MigrationDiagnostics.cell(row, "projectName", overrides, sheet)));
             }
         }
         return names;
+    }
+
+    /**
+     * 같은 반영 안에서 사업명이 중복되는지 확인합니다.
+     *
+     * <p>{@code MigrationImportService}의 {@code projectNoByName}은 정규화 사업명이 키라 같은 이름의 두 행 중 나중 것만
+     * 남습니다. 그러면 앞 행의 사업은 만들어졌는데 편성률 대상에서 빠져 편성행이 없는 고아가 됩니다 — 목록에는 보이고 모든 예산 화면에서는 0인 상태입니다. DB
+     * 스냅샷과의 중복({@link #validateProjectRow})과 달리 이 검사는 페이로드 안에서만 성립하므로 별도로 둡니다.
+     *
+     * @param seenRows 이미 등장한 정규화 사업명 → 첫 등장 행 번호 (시트 단위로 누적)
+     */
+    private void checkIntraPayloadDuplicate(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            Map<String, String> overrides,
+            Map<String, Integer> seenRows,
+            List<MigrationDto.CellDiagnostic> out) {
+        String normalized =
+                MigrationYearSnapshot.normalizeName(
+                        MigrationDiagnostics.cell(row, "projectName", overrides, sheet));
+        if (normalized.isEmpty()) {
+            return;
+        }
+        Integer firstRow = seenRows.putIfAbsent(normalized, row.excelRow());
+        if (firstRow != null) {
+            out.add(
+                    MigrationDiagnostics.blocker(
+                            sheet,
+                            row,
+                            "projectName",
+                            "DUPLICATE_EXISTS",
+                            "같은 반영의 " + firstRow + "행과 사업명이 같습니다. 한 사업으로 합치거나 사업명을 구분해 주세요.",
+                            List.of()));
+        }
     }
 
     private void validateCostRow(
@@ -103,12 +147,17 @@ public class MigrationValidator {
             MigrationYearSnapshot.Data snapshot,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        requireText(sheet, row, "requestDetail", 100, overrides, out);
-        limitLength(sheet, row, "remark", 200, overrides, out);
+        requireText(sheet, row, "requestDetail", overrides, out);
+        limitLength(sheet, row, "requestDetail", 100, overrides, out); // CTT_NM VARCHAR2(100 CHAR)
+        limitBytes(sheet, row, "vendorName", 100, overrides, out); // CTT_OPP_NM VARCHAR2(100 BYTE)
+        limitLength(sheet, row, "remark", 200, overrides, out); // IND_RSN VARCHAR2(200 CHAR)
         resolveOrgCell(sheet, row, "deptName", index, overrides, out, true);
         resolveOrgCell(sheet, row, "teamName", index, overrides, out, false);
+        resolveCodeCell(
+                sheet, row, "abusCode", index.abusUnitNameByCode(), overrides, out, "사업코드", false);
+        checkCurrency(sheet, row, index, overrides, out);
 
-        String ioeName = cell(row, "ioeName", overrides, sheet);
+        String ioeName = MigrationDiagnostics.cell(row, "ioeName", overrides, sheet);
         String ioeOverride = overrides.get(overrideKey(sheet.kind(), row.excelRow(), "ioeName"));
         String ioeCode;
         if (ioeOverride != null) {
@@ -123,7 +172,7 @@ public class MigrationValidator {
         if (ioeCode == null) {
             out.add(
                     ioeOverride != null
-                            ? blocker(
+                            ? MigrationDiagnostics.blocker(
                                     sheet,
                                     row,
                                     "ioeName",
@@ -131,29 +180,29 @@ public class MigrationValidator {
                                     "보정값 '"
                                             + ioeOverride
                                             + "'에 해당하는 비목코드를 찾지 못했습니다. 비목을 다시 선택해 주세요.",
-                                    candidatesOfIoe(index))
-                            : blocker(
+                                    MigrationDiagnostics.candidatesOfIoe(index, false))
+                            : MigrationDiagnostics.blocker(
                                     sheet,
                                     row,
                                     "ioeName",
                                     "CODE_UNRESOLVED",
                                     "비목 '" + ioeName + "'에 대응하는 비목코드를 찾지 못했습니다. 비목을 직접 선택해 주세요.",
-                                    candidatesOfIoe(index)));
+                                    MigrationDiagnostics.candidatesOfIoe(index, false)));
         }
 
-        checkAmount(sheet, row, index, out);
+        checkAmount(sheet, row, index, overrides, out);
 
         if (ioeCode != null) {
             String key =
                     MigrationYearSnapshot.costNaturalKey(
                             sheet.bseYy(),
-                            cell(row, "abusCode", overrides, sheet),
+                            MigrationDiagnostics.cell(row, "abusCode", overrides, sheet),
                             ioeCode,
-                            cell(row, "vendorName", overrides, sheet),
-                            cell(row, "requestDetail", overrides, sheet));
+                            MigrationDiagnostics.cell(row, "vendorName", overrides, sheet),
+                            MigrationDiagnostics.cell(row, "requestDetail", overrides, sheet));
             if (snapshot.costNaturalKeys().contains(key)) {
                 out.add(
-                        blocker(
+                        MigrationDiagnostics.blocker(
                                 sheet,
                                 row,
                                 null,
@@ -171,21 +220,45 @@ public class MigrationValidator {
             MigrationYearSnapshot.Data snapshot,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        requireText(sheet, row, "projectName", 100, overrides, out);
+        requireText(sheet, row, "projectName", overrides, out);
+        limitLength(sheet, row, "projectName", 100, overrides, out); // ABUS_NM VARCHAR2(100 CHAR)
+        limitLength(sheet, row, "projectType", 300, overrides, out); // ABUS_PPO_CONE
+        limitLength(sheet, row, "projectOutline", 1000, overrides, out); // ABUS_CONE
+        limitLength(sheet, row, "headquarters", 100, overrides, out); // PRLM_HRK_OGZ_C_CONE
         resolveOrgCell(sheet, row, "deptName", index, overrides, out, true);
         resolveOrgCell(sheet, row, "teamName", index, overrides, out, false);
+        resolveOrgCell(sheet, row, "itTeamName", index, overrides, out, false);
         resolveUserCell(sheet, row, "managerName", "deptName", index, overrides, out);
         resolveUserCell(sheet, row, "teamLeaderName", "deptName", index, overrides, out);
+        resolveCodeCell(
+                sheet,
+                row,
+                "feasibility",
+                index.exePttCodeByName(),
+                overrides,
+                out,
+                "추진가능성",
+                true); // EXE_PTT_YN VARCHAR2(1)
+        resolveCodeCell(
+                sheet,
+                row,
+                "delegationLabel",
+                index.edrtCodeByName(),
+                overrides,
+                out,
+                "전결권",
+                true); // IT_PTL_EDRT_TC VARCHAR2(2)
         checkYm(sheet, row, "startYm", overrides, out);
         checkYm(sheet, row, "endYm", overrides, out);
         checkRate(sheet, row, "adjustRate", overrides, out);
-        checkCapitalIoeOverrides(sheet, row, overrides, out);
+        checkCapitalIoeOverrides(sheet, row, index, overrides, out);
 
         String normalized =
-                MigrationYearSnapshot.normalizeName(cell(row, "projectName", overrides, sheet));
+                MigrationYearSnapshot.normalizeName(
+                        MigrationDiagnostics.cell(row, "projectName", overrides, sheet));
         if (snapshot.projectNoByName(normalized) != null) {
             out.add(
-                    blocker(
+                    MigrationDiagnostics.blocker(
                             sheet,
                             row,
                             "projectName",
@@ -198,24 +271,25 @@ public class MigrationValidator {
     /**
      * 품목 비목 보정값(`devAmountIoeC`·`hwAmountIoeC`·`swAmountIoeC`)이 자본예산 계열 비목코드인지 확인합니다.
      *
-     * <p>보정값이 없는 컬럼은 기본 비목(개발비 103·기계장치 101·기타무형 106)을 그대로 쓰므로 검사하지 않습니다.
+     * <p>보정값이 없는 컬럼은 기본 비목({@link MigrationIoeCodes})을 그대로 쓰므로 검사하지 않습니다.
      */
     private void checkCapitalIoeOverrides(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
+            MigrationLookupIndex index,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
         for (String column : List.of("devAmountIoeC", "hwAmountIoeC", "swAmountIoeC")) {
             String override = overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
-            if (override != null && !CAPITAL_IOE_CODES.contains(override)) {
+            if (override != null && !MigrationIoeCodes.CAPITAL_CODES.contains(override)) {
                 out.add(
-                        blocker(
+                        MigrationDiagnostics.blocker(
                                 sheet,
                                 row,
                                 column,
                                 "CODE_UNRESOLVED",
                                 "'" + override + "'는 자본예산 계열 비목이 아닙니다.",
-                                List.of()));
+                                MigrationDiagnostics.candidatesOfIoe(index, true)));
             }
         }
     }
@@ -234,9 +308,9 @@ public class MigrationValidator {
             return;
         }
         MigrationDto.NormalizedRow first = sheet.rows().get(0);
-        if (cell(first, "branchName", overrides, sheet).isBlank()) {
+        if (MigrationDiagnostics.cell(first, "branchName", overrides, sheet).isBlank()) {
             out.add(
-                    blocker(
+                    MigrationDiagnostics.blocker(
                             sheet,
                             first,
                             "branchName",
@@ -252,10 +326,12 @@ public class MigrationValidator {
             MigrationLookupIndex index,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        requireText(sheet, row, "itemName", 100, overrides, out);
+        requireText(sheet, row, "itemName", overrides, out);
+        limitBytes(sheet, row, "itemName", 100, overrides, out); // GCL_NM VARCHAR2(100 BYTE)
         // 부점명은 병합 셀이라 이어지는 행에서 비는 것이 정상이다(forward-fill). 첫 행 검사는 시트 단위로 별도 수행한다.
         resolveOrgCell(sheet, row, "branchName", index, overrides, out, false);
-        checkAmount(sheet, row, index, out);
+        checkCurrency(sheet, row, index, overrides, out);
+        checkAmount(sheet, row, index, overrides, out);
     }
 
     private void validatePlanRow(
@@ -266,17 +342,19 @@ public class MigrationValidator {
             Set<String> namesInThisImport,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        requireText(sheet, row, "projectName", 100, overrides, out);
+        requireText(sheet, row, "projectName", overrides, out);
+        limitLength(sheet, row, "projectName", 100, overrides, out);
         checkYm(sheet, row, "startYm", overrides, out);
         checkYm(sheet, row, "endYm", overrides, out);
 
         String normalized =
-                MigrationYearSnapshot.normalizeName(cell(row, "projectName", overrides, sheet));
+                MigrationYearSnapshot.normalizeName(
+                        MigrationDiagnostics.cell(row, "projectName", overrides, sheet));
         boolean inImport = namesInThisImport.contains(normalized);
         boolean inDb = snapshot.projectNoByName(normalized) != null;
         if (!inImport && !inDb) {
             out.add(
-                    blocker(
+                    MigrationDiagnostics.blocker(
                             sheet,
                             row,
                             "projectName",
@@ -286,13 +364,44 @@ public class MigrationValidator {
         }
         if (snapshot.planExists("조정")) {
             out.add(
-                    blocker(
+                    MigrationDiagnostics.blocker(
                             sheet,
                             row,
                             null,
                             "DUPLICATE_EXISTS",
                             sheet.bseYy() + "년 조정 계획이 이미 있습니다.",
                             List.of()));
+        }
+    }
+
+    /**
+     * 통화 코드가 예산환율 공통코드에 있는지 확인합니다 (§3.7).
+     *
+     * <p>금액 대조({@link #checkAmountPair})가 아니라 행 단위로 한 번만 검사합니다. 위임예산은 HW·SW 금액 쌍이 통화 컬럼 하나를 공유하므로
+     * 금액 쌍마다 검사하면 같은 셀에 같은 진단이 두 번 붙고, 두 쌍이 모두 0인 행에서는 아예 검사되지 않아 미등록 통화가 {@code CUR_C
+     * VARCHAR2(3)}까지 그대로 흘러갑니다.
+     */
+    private void checkCurrency(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            MigrationLookupIndex index,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        String currency = MigrationDiagnostics.cell(row, "currency", overrides, sheet);
+        if (currency.isBlank() || "KRW".equals(currency)) {
+            return;
+        }
+        if (!index.xcrByCurrency().containsKey(currency)) {
+            out.add(
+                    MigrationDiagnostics.blocker(
+                            sheet,
+                            row,
+                            "currency",
+                            "CODE_UNRESOLVED",
+                            "통화 '"
+                                    + currency
+                                    + "'의 예산환율이 공통코드에 없습니다. 등록된 통화 중에서 선택하거나 환율 시드를 먼저 적용해 주세요.",
+                            MigrationDiagnostics.candidatesOfCurrency(index)));
         }
     }
 
@@ -307,13 +416,14 @@ public class MigrationValidator {
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             MigrationLookupIndex index,
+            Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
         if (sheet.kind() == SheetKind.DELEGATED_BUDGET) {
-            checkAmountPair(sheet, row, index, out, "hwFcAmount", "hwKrwAmount");
-            checkAmountPair(sheet, row, index, out, "swFcAmount", "swKrwAmount");
+            checkAmountPair(sheet, row, index, overrides, out, "hwFcAmount", "hwKrwAmount");
+            checkAmountPair(sheet, row, index, overrides, out, "swFcAmount", "swKrwAmount");
             return;
         }
-        checkAmountPair(sheet, row, index, out, "fcAmount", "krwAmount");
+        checkAmountPair(sheet, row, index, overrides, out, "fcAmount", "krwAmount");
     }
 
     /**
@@ -326,36 +436,26 @@ public class MigrationValidator {
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             MigrationLookupIndex index,
+            Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out,
             String fcColumn,
             String krwColumn) {
-        String currency = cell(row, "currency", Map.of(), sheet);
-        BigDecimal fc = number(cell(row, fcColumn, Map.of(), sheet));
-        BigDecimal krw = number(cell(row, krwColumn, Map.of(), sheet));
+        String currency = MigrationDiagnostics.cell(row, "currency", overrides, sheet);
+        BigDecimal fc =
+                MigrationAmounts.number(MigrationDiagnostics.cell(row, fcColumn, overrides, sheet));
+        BigDecimal krw =
+                MigrationAmounts.number(
+                        MigrationDiagnostics.cell(row, krwColumn, overrides, sheet));
         if (currency.isBlank() || "KRW".equals(currency) || fc == null || krw == null) {
             return;
         }
-        // 위임예산의 두 쌍 중 이 행에서 쓰지 않은 쌍은 0으로 채워져 온다. 빈 쌍까지 환율 미등록으로 진단하지 않도록 건너뛴다.
+        // 위임예산의 두 쌍 중 이 행에서 쓰지 않은 쌍은 0으로 채워져 온다. 빈 쌍까지 대조하지 않도록 건너뛴다.
         if (fc.compareTo(BigDecimal.ZERO) == 0 && krw.compareTo(BigDecimal.ZERO) == 0) {
             return;
         }
         BigDecimal xcr = index.xcrByCurrency().get(currency);
         if (xcr == null) {
-            if (out.stream()
-                    .noneMatch(
-                            d ->
-                                    d.excelRow() == row.excelRow()
-                                            && "currency".equals(d.column())
-                                            && "CODE_UNRESOLVED".equals(d.code()))) {
-                out.add(
-                        blocker(
-                                sheet,
-                                row,
-                                "currency",
-                                "CODE_UNRESOLVED",
-                                "통화 '" + currency + "'의 예산환율이 공통코드에 없습니다. 환율 시드를 먼저 적용해 주세요.",
-                                List.of()));
-            }
+            // 미등록 통화는 checkCurrency가 행 단위로 이미 짚었다.
             return;
         }
         // JPY는 엑셀 외화열이 천엔이므로 엔으로 올린다 (§5.1)
@@ -366,7 +466,7 @@ public class MigrationValidator {
                         .setScale(3, RoundingMode.HALF_UP);
         if (recomputed.subtract(excelKrw).abs().compareTo(AMOUNT_TOLERANCE) > 0) {
             out.add(
-                    warning(
+                    MigrationDiagnostics.warning(
                             sheet,
                             row,
                             krwColumn,
@@ -385,7 +485,8 @@ public class MigrationValidator {
             String column,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        BigDecimal rate = number(cell(row, column, overrides, sheet));
+        BigDecimal rate =
+                MigrationAmounts.number(MigrationDiagnostics.cell(row, column, overrides, sheet));
         if (rate == null) {
             return;
         }
@@ -393,7 +494,7 @@ public class MigrationValidator {
         if (percent.compareTo(BigDecimal.ZERO) < 0
                 || percent.compareTo(new BigDecimal("100")) > 0) {
             out.add(
-                    warning(
+                    MigrationDiagnostics.warning(
                             sheet,
                             row,
                             column,
@@ -410,13 +511,13 @@ public class MigrationValidator {
             String column,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        String value = cell(row, column, overrides, sheet);
+        String value = MigrationDiagnostics.cell(row, column, overrides, sheet);
         if (value.isBlank()) {
             return;
         }
         if (!YM.matcher(value.trim()).matches()) {
             out.add(
-                    warning(
+                    MigrationDiagnostics.warning(
                             sheet,
                             row,
                             column,
@@ -425,21 +526,21 @@ public class MigrationValidator {
         }
     }
 
+    /** 필수값이 비어 있지 않은지 확인합니다. 길이 제한은 호출자가 컬럼의 문자 의미에 맞는 검사를 이어 붙입니다. */
     private void requireText(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             String column,
-            int maxLength,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        String value = cell(row, column, overrides, sheet);
-        if (value.isBlank()) {
-            out.add(blocker(sheet, row, column, "REQUIRED_MISSING", "필수 값이 비어 있습니다.", List.of()));
-            return;
+        if (MigrationDiagnostics.cell(row, column, overrides, sheet).isBlank()) {
+            out.add(
+                    MigrationDiagnostics.blocker(
+                            sheet, row, column, "REQUIRED_MISSING", "필수 값이 비어 있습니다.", List.of()));
         }
-        limitLength(sheet, row, column, maxLength, overrides, out);
     }
 
+    /** 문자 수 상한을 확인합니다 ({@code VARCHAR2(n CHAR)} 컬럼). */
     private void limitLength(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
@@ -447,16 +548,84 @@ public class MigrationValidator {
             int maxLength,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        String value = cell(row, column, overrides, sheet);
+        String value = MigrationDiagnostics.cell(row, column, overrides, sheet);
         if (value.length() > maxLength) {
             out.add(
-                    blocker(
+                    MigrationDiagnostics.blocker(
                             sheet,
                             row,
                             column,
                             "LENGTH_EXCEEDED",
                             "값이 " + value.length() + "자로 최대 " + maxLength + "자를 넘습니다.",
                             List.of()));
+        }
+    }
+
+    /**
+     * UTF-8 바이트 수 상한을 확인합니다 ({@code VARCHAR2(n BYTE)} 컬럼).
+     *
+     * <p>{@code CTT_OPP_NM}·{@code GCL_NM}이 바이트 의미라 한글은 한 자에 3바이트를 씁니다 — 문자 수로만 검사하면 한글 34자에서 이미 넘는
+     * 값이 통과해 {@code ORA-12899}가 commit에서 터집니다.
+     */
+    private void limitBytes(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            String column,
+            int maxBytes,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        String value = MigrationDiagnostics.cell(row, column, overrides, sheet);
+        int bytes = value.getBytes(StandardCharsets.UTF_8).length;
+        if (bytes > maxBytes) {
+            out.add(
+                    MigrationDiagnostics.blocker(
+                            sheet,
+                            row,
+                            column,
+                            "LENGTH_EXCEEDED",
+                            "값이 " + bytes + "바이트로 최대 " + maxBytes + "바이트를 넘습니다(한글은 한 자에 3바이트).",
+                            List.of()));
+        }
+    }
+
+    /**
+     * 코드값명 또는 코드값이 공통코드에 있는지 확인합니다.
+     *
+     * <p>{@code EXE_PTT_YN}(1자)·{@code IT_PTL_EDRT_TC}(2자)·{@code BG_UNT_ABUS_C}(3자)는 물리 길이가 아주 짧아,
+     * 엑셀 원문을 그대로 대입하면 값이 조금만 길어도 {@code ORA-12899}로 commit이 실패합니다(추진가능성 실 데이터는 `추진계획 검토중` 8자). 그래서
+     * 라벨을 코드값으로 바꾸고, 바꿀 수 없으면 여기서 막아 미리보기에서 고르게 합니다.
+     *
+     * @param codeCatalog 코드 카탈로그. {@code byName=true}면 코드값명 → 코드값, 아니면 코드값 → 코드값명
+     * @param label 사용자 문구에 쓰는 항목 이름
+     * @param byName 카탈로그가 이름 → 코드 방향인지 여부
+     */
+    private void resolveCodeCell(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            String column,
+            Map<String, String> codeCatalog,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out,
+            String label,
+            boolean byName) {
+        String value = MigrationDiagnostics.cell(row, column, overrides, sheet).trim();
+        if (value.isBlank() || codeCatalog.isEmpty()) {
+            // 빈 셀은 컬럼이 nullable이라 그대로 두고, 카탈로그가 비어 있으면(코드 조회를 하지 않는 단위 테스트) 판정 근거가 없다
+            return;
+        }
+        boolean resolved =
+                byName
+                        ? codeCatalog.containsKey(value) || codeCatalog.containsValue(value)
+                        : codeCatalog.containsKey(value);
+        if (!resolved) {
+            out.add(
+                    MigrationDiagnostics.blocker(
+                            sheet,
+                            row,
+                            column,
+                            "CODE_UNRESOLVED",
+                            "'" + value + "'에 해당하는 " + label + " 코드를 찾지 못했습니다. 목록에서 선택해 주세요.",
+                            MigrationDiagnostics.candidatesOfCatalog(codeCatalog, byName)));
         }
     }
 
@@ -471,25 +640,28 @@ public class MigrationValidator {
         String overrideValue = overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
         if (overrideValue != null) {
             if (index.org().orgNameOf(overrideValue) == null) {
+                // 보정값이 실재하지 않으면(오래된 코드 등) 원본 셀 값으로 다시 후보를 뽑아 드롭다운을 살려 둔다
                 out.add(
-                        blocker(
+                        MigrationDiagnostics.blocker(
                                 sheet,
                                 row,
                                 column,
                                 "ORG_UNRESOLVED",
                                 "보정값 '" + overrideValue + "'에 해당하는 조직코드를 찾지 못했습니다. 조직을 다시 선택해 주세요.",
-                                List.of()));
+                                index.org()
+                                        .resolveOrg(MigrationDiagnostics.rawCell(row, column))
+                                        .candidates()));
             }
             return;
         }
-        String value = cell(row, column, overrides, sheet);
+        String value = MigrationDiagnostics.cell(row, column, overrides, sheet);
         OrgIdentityResolver.Resolution resolution = index.org().resolveOrg(value);
         if (resolution.code() != null) {
             return;
         }
         if (resolution.isAmbiguous()) {
             out.add(
-                    blocker(
+                    MigrationDiagnostics.blocker(
                             sheet,
                             row,
                             column,
@@ -500,13 +672,14 @@ public class MigrationValidator {
         }
         if (required || !value.isBlank()) {
             out.add(
-                    blocker(
+                    MigrationDiagnostics.blocker(
                             sheet,
                             row,
                             column,
                             "ORG_UNRESOLVED",
-                            "'" + value + "'에 해당하는 조직을 찾지 못했습니다. 조직을 선택해 주세요.",
-                            List.of()));
+                            MigrationDiagnostics.unresolvedMessage(
+                                    "'" + value + "'에 해당하는 조직을 찾지 못했습니다.", resolution),
+                            resolution.candidates()));
         }
     }
 
@@ -522,17 +695,20 @@ public class MigrationValidator {
         if (overrideValue != null) {
             if (!index.org().userExists(overrideValue)) {
                 out.add(
-                        blocker(
+                        MigrationDiagnostics.blocker(
                                 sheet,
                                 row,
                                 column,
                                 "USER_UNRESOLVED",
                                 "보정값 '" + overrideValue + "'에 해당하는 사번을 찾지 못했습니다. 담당자를 다시 선택해 주세요.",
-                                List.of()));
+                                index.org()
+                                        .resolveUser(
+                                                MigrationDiagnostics.rawCell(row, column), null)
+                                        .candidates()));
             }
             return;
         }
-        String value = cell(row, column, overrides, sheet);
+        String value = MigrationDiagnostics.cell(row, column, overrides, sheet);
         if (value.isBlank()) {
             return;
         }
@@ -542,14 +718,15 @@ public class MigrationValidator {
             return;
         }
         out.add(
-                blocker(
+                MigrationDiagnostics.blocker(
                         sheet,
                         row,
                         column,
                         resolution.isAmbiguous() ? "USER_AMBIGUOUS" : "USER_UNRESOLVED",
                         resolution.isAmbiguous()
                                 ? "'" + value + "'에 해당하는 직원이 여러 명입니다. 한 명을 선택해 주세요."
-                                : "'" + value + "'에 해당하는 직원을 찾지 못했습니다. 담당자를 선택해 주세요.",
+                                : MigrationDiagnostics.unresolvedMessage(
+                                        "'" + value + "'에 해당하는 직원을 찾지 못했습니다.", resolution),
                         resolution.candidates()));
     }
 
@@ -579,73 +756,6 @@ public class MigrationValidator {
         if (override != null) {
             return index.org().orgNameOf(override) != null ? override : null;
         }
-        String value = row.cells().get(column);
-        return index.org().resolveOrg(value == null ? "" : value).code();
-    }
-
-    private static List<MigrationDto.Candidate> candidatesOfIoe(MigrationLookupIndex index) {
-        List<MigrationDto.Candidate> out = new ArrayList<>();
-        index.ioeCodeByName()
-                .forEach((name, code) -> out.add(new MigrationDto.Candidate(code, name)));
-        return out;
-    }
-
-    private static MigrationDto.CellDiagnostic blocker(
-            MigrationDto.SheetPayload sheet,
-            MigrationDto.NormalizedRow row,
-            String column,
-            String code,
-            String message,
-            List<MigrationDto.Candidate> candidates) {
-        return new MigrationDto.CellDiagnostic(
-                sheet.kind(),
-                row.excelRow(),
-                column,
-                code,
-                MigrationDto.Severity.BLOCKER,
-                message,
-                candidates);
-    }
-
-    private static MigrationDto.CellDiagnostic warning(
-            MigrationDto.SheetPayload sheet,
-            MigrationDto.NormalizedRow row,
-            String column,
-            String code,
-            String message) {
-        return new MigrationDto.CellDiagnostic(
-                sheet.kind(),
-                row.excelRow(),
-                column,
-                code,
-                MigrationDto.Severity.WARNING,
-                message,
-                List.of());
-    }
-
-    /** 보정값이 있으면 그 값을, 없으면 원본 셀 값을 반환합니다. null은 빈 문자열로 접습니다. */
-    private static String cell(
-            MigrationDto.NormalizedRow row,
-            String column,
-            Map<String, String> overrides,
-            MigrationDto.SheetPayload sheet) {
-        String override = overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
-        if (override != null) {
-            return override;
-        }
-        String value = row.cells().get(column);
-        return value == null ? "" : value;
-    }
-
-    /** 쉼표를 제거하고 숫자로 파싱합니다. 숫자가 아니면 null. */
-    private static BigDecimal number(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return new BigDecimal(value.replace(",", "").trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return index.org().resolveOrg(MigrationDiagnostics.rawCell(row, column)).code();
     }
 }

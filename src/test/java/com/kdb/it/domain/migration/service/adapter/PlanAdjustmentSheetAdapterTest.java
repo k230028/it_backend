@@ -87,6 +87,28 @@ class PlanAdjustmentSheetAdapterTest {
         assertThat(out.projects()).isEmpty();
     }
 
+    /**
+     * 일반관리비가 스냅샷 텍스트에만 남고 의도에 실리지 않으면 계획 마스터의 {@code TOT_XP_AMT}가 0이 되고 {@code ADU_TOT_AMT}도 자본만 세게
+     * 된다 (IMPORTANT-9).
+     */
+    @Test
+    @DisplayName("일반관리비를 원 단위로 환산해 의도에 담는다")
+    void 일반관리비를_의도에_담는다() {
+        Map<String, String> cells = cells();
+        cells.put("generalAmount", "300");
+
+        assertThat(adaptSingle(cells).generalAmount())
+                .isEqualByComparingTo(new java.math.BigDecimal("300000000"));
+        // 원문도 스냅샷에 그대로 남는다
+        assertThat(adaptSingle(cells).snapshotFields()).containsEntry("generalAmount", "300");
+    }
+
+    @Test
+    @DisplayName("일반관리비가 비면 null로 둔다")
+    void 일반관리비가_없으면_null이다() {
+        assertThat(adaptSingle(cells()).generalAmount()).isNull();
+    }
+
     private PlanIntent adaptSingle(Map<String, String> cells) {
         return adapter.adapt(sheet(cells), context()).plans().get(0);
     }

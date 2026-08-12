@@ -211,14 +211,21 @@ public class ProjectService {
 
         // 엔티티 생성
         Bprojm project = request.toEntity();
-        // 주관팀/개발팀은 각 담당자(주관=USID, IT=DVM_USID) 소속 팀 스냅샷(팀코드+팀명)으로 채움
+        // 주관팀/개발팀은 각 담당자(주관=USID, IT=DVM_USID) 소속 팀 스냅샷(팀코드+팀명)으로 채움.
+        // 단 요청이 팀코드를 명시했으면(수기 엑셀 이관은 시트의 담당팀·담당IT팀 열을 해석해 넘긴다)
+        // 그 값을 우선한다 — 담당자 소속으로 덮어쓰면 시트가 지정한 팀이 조용히 사라진다.
         TeamSnapshot svnTeam = resolveTeam(project.getUsid());
         TeamSnapshot dvmTeam = resolveTeam(project.getDvmUsid());
-        project.assignTeamCodes(svnTeam.temC(), dvmTeam.temC());
+        String svnTemC = firstNonBlank(request.getSvnTemC(), svnTeam.temC());
+        project.assignTeamCodes(svnTemC, firstNonBlank(request.getDvmTemC(), dvmTeam.temC()));
         // 주관부서명은 CORGNI 조회 스냅샷, 주관팀명은 담당자(CUSERI) 팀명 스냅샷으로 저장
-        // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용)
-        project.assignSvnOrgNames(
-                orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
+        // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용).
+        // 요청이 팀코드를 명시한 경우에만 그 코드로 조직명을 한 번 더 조회해 본다.
+        String svnTemNm =
+                isBlank(request.getSvnTemC())
+                        ? svnTeam.temNm()
+                        : firstNonBlank(orgNameResolver.resolveName(svnTemC), svnTeam.temNm());
+        project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTemNm);
         projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====
@@ -621,6 +628,15 @@ public class ProjectService {
     /** null이면 "N"으로 정규화 (infPrtYn, itrInfrYn 공통 기본값 처리) */
     private static String defaultYn(String value) {
         return value == null ? "N" : value;
+    }
+
+    /** 공백·null이 아닌 첫 값을 반환합니다. 둘 다 비었으면 null. */
+    private static String firstNonBlank(String preferred, String fallback) {
+        return isBlank(preferred) ? (isBlank(fallback) ? null : fallback) : preferred;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     /**

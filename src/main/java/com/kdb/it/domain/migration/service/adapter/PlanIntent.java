@@ -12,6 +12,7 @@ import java.util.Map;
  * @param devAmount 개발비 조정액 (원 단위). 없으면 null
  * @param hwAmount 기계장치 조정액 (원 단위). 없으면 null
  * @param swAmount 기타무형자산 조정액 (원 단위). 없으면 null
+ * @param generalAmount 일반관리비 조정액 (원 단위). 계획 마스터의 {@code TOT_XP_AMT} 합계에 들어갑니다. 없으면 null
  * @param paymentYm 예상지급일정 6자리 (BITEMM.BSE_YM). 없으면 null
  * @param snapshotFields 원장에 넣지 않고 계획 스냅샷에만 남길 값 (집행 실적·사업진행·비고)
  */
@@ -20,5 +21,6 @@ public record PlanIntent(
         BigDecimal devAmount,
         BigDecimal hwAmount,
         BigDecimal swAmount,
+        BigDecimal generalAmount,
         String paymentYm,
         Map<String, String> snapshotFields) {}

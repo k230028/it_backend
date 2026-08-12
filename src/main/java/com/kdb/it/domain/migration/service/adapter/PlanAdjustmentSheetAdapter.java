@@ -17,7 +17,9 @@ import org.springframework.stereotype.Component;
  * {@code BITEMM}을 이 금액으로 버전 교체하고 편성률 100을 적용합니다. 실제 교체는 {@code MigrationImportService}가 수행하고 이 어댑터는
  * 의도만 만듭니다 — 사업·전산업무비 생성요청은 만들지 않습니다.
  *
- * <p>집행 실적 4열과 사업진행·비고는 원장 컬럼에 대응하는 자리가 없어 계획 스냅샷({@code BPLANM.REDT_CONE_INF})에만 남깁니다.
+ * <p>집행 실적 4열과 사업진행·비고·총사업금액은 원장 컬럼에 대응하는 자리가 없어 계획 스냅샷({@code BPLANM.REDT_CONE_INF})에만 남깁니다.
+ * 일반관리비는 원문을 스냅샷에 남기는 동시에 원 단위로 환산해 {@link PlanIntent#generalAmount()}로 넘깁니다 — 계획 마스터의 {@code
+ * TOT_XP_AMT}와 {@code ADU_TOT_AMT} 합계가 그 값을 포함해야 하기 때문입니다(§5.4).
  */
 @Component
 public class PlanAdjustmentSheetAdapter implements SheetAdapter {
@@ -61,6 +63,10 @@ public class PlanAdjustmentSheetAdapter implements SheetAdapter {
                             positiveAmount(sheet, row, ctx, "devAmount"),
                             positiveAmount(sheet, row, ctx, "hwAmount"),
                             positiveAmount(sheet, row, ctx, "swAmount"),
+                            // 일반관리비는 품목을 만들지 않고 계획 마스터의 TOT_XP_AMT 합계에만 들어간다
+                            AdapterSupport.amount(
+                                    AdapterSupport.cellOf(sheet, row, "generalAmount", ctx),
+                                    sheet.kind()),
                             AdapterSupport.ymToYyyymm(
                                     AdapterSupport.cellOf(sheet, row, "paymentSchedule", ctx)),
                             snapshotFields));

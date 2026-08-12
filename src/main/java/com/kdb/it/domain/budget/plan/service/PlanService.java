@@ -322,11 +322,12 @@ public class PlanService {
      *
      * @param bseYy 예산연도
      * @param plnTp 계획구분 (이관은 "조정" 고정)
-     * @param projectNos 대상 사업관리번호 목록. capitalAmounts와 같은 순서로 대응합니다
+     * @param projectNos 대상 사업관리번호 목록. capitalAmounts·generalAmounts와 같은 순서로 대응합니다
      * @param capitalAmounts 사업별 자본예산 조정 합계(개발비+기계장치+기타무형자산). projectNos와 같은 순서
+     * @param generalAmounts 사업별 일반관리비 조정액. projectNos와 같은 순서. null 요소는 0으로 봅니다
      * @param snapshotFieldsByProject 사업관리번호 → 원장 외 스냅샷 전용 필드(집행 실적·사업진행·비고)
      * @return 생성된 계획관리번호
-     * @throws IllegalArgumentException projectNos와 capitalAmounts의 크기가 다른 경우
+     * @throws IllegalArgumentException projectNos와 금액 목록들의 크기가 다른 경우
      * @throws ResponseStatusException 스냅샷 직렬화에 실패한 경우 500
      */
     @Transactional
@@ -335,18 +336,24 @@ public class PlanService {
             String plnTp,
             List<String> projectNos,
             List<BigDecimal> capitalAmounts,
+            List<BigDecimal> generalAmounts,
             Map<String, Map<String, String>> snapshotFieldsByProject) {
-        if (projectNos.size() != capitalAmounts.size()) {
-            throw new IllegalArgumentException("projectNos와 capitalAmounts의 크기가 다릅니다.");
+        if (projectNos.size() != capitalAmounts.size()
+                || projectNos.size() != generalAmounts.size()) {
+            throw new IllegalArgumentException("projectNos와 금액 목록의 크기가 다릅니다.");
         }
 
         BigDecimal cpitBgApvAmt = BigDecimal.ZERO;
+        BigDecimal totXpAmt = BigDecimal.ZERO;
         List<PlanDto.ProjectSnapshot> projectSnapshots = new ArrayList<>();
         for (int i = 0; i < projectNos.size(); i++) {
             String prjMngNo = projectNos.get(i);
             BigDecimal amount =
                     capitalAmounts.get(i) != null ? capitalAmounts.get(i) : BigDecimal.ZERO;
+            BigDecimal generalAmount =
+                    generalAmounts.get(i) != null ? generalAmounts.get(i) : BigDecimal.ZERO;
             cpitBgApvAmt = cpitBgApvAmt.add(amount);
+            totXpAmt = totXpAmt.add(generalAmount);
 
             ProjectDto.Response project = projectService.getProject(prjMngNo);
             projectSnapshots.add(
@@ -358,12 +365,11 @@ public class PlanService {
                             .svnHdq(project.getPrlmHrkOgzCCone())
                             .svnDpm(project.getSvnDpmC())
                             .svnDpmNm(project.getSvnDpmCNm())
-                            .prjBg(amount)
+                            .prjBg(amount.add(generalAmount))
                             .assetBg(amount)
-                            .costBg(BigDecimal.ZERO)
+                            .costBg(generalAmount)
                             .build());
         }
-        BigDecimal totXpAmt = BigDecimal.ZERO;
         BigDecimal aduTotAmt = cpitBgApvAmt.add(totXpAmt);
 
         PlanDto.SnapshotDto snapshot =

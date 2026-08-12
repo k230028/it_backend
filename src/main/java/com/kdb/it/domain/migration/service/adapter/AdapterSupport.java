@@ -53,7 +53,7 @@ public final class AdapterSupport {
      * @return 원 단위 금액. 셀이 비었거나 숫자가 아니면 null
      */
     public static BigDecimal amount(String raw, SheetKind kind) {
-        BigDecimal parsed = number(raw);
+        BigDecimal parsed = MigrationAmounts.number(raw);
         if (parsed == null) {
             return null;
         }
@@ -73,7 +73,7 @@ public final class AdapterSupport {
         if (currency == null || currency.isBlank() || "KRW".equals(currency)) {
             return null;
         }
-        BigDecimal parsed = number(raw);
+        BigDecimal parsed = MigrationAmounts.number(raw);
         if (parsed == null) {
             return null;
         }
@@ -151,7 +151,7 @@ public final class AdapterSupport {
      * @return 0~100으로 잘린 편성률. 셀이 비었으면 100
      */
     public static int ratePercent(String raw) {
-        BigDecimal parsed = number(raw);
+        BigDecimal parsed = MigrationAmounts.number(raw);
         if (parsed == null) {
             return 100;
         }
@@ -160,16 +160,40 @@ public final class AdapterSupport {
         return Math.max(0, Math.min(100, percent));
     }
 
-    /** 쉼표를 제거하고 숫자로 파싱합니다. 숫자가 아니면 null. */
-    public static BigDecimal number(String raw) {
+    /**
+     * 조직 이름 또는 코드값을 조직코드로 바꿉니다.
+     *
+     * <p>세 어댑터(전산일반관리비·자본예산·위임예산)가 같은 규칙을 씁니다 — 이름으로 해석되면 그 코드를, 해석되지 않았지만 값 자체가 등록된 조직코드면(미리보기
+     * 보정값은 코드값으로 옵니다) 그 값을 그대로 씁니다. 둘 다 아니면 null이며, 이 상태는 검증이 이미 BLOCKER로 막았어야 합니다.
+     *
+     * @param raw 셀 값 또는 보정값
+     * @param ctx 어댑터 컨텍스트
+     * @return 조직코드. 미해석이면 null
+     */
+    public static String resolveOrgCode(String raw, AdapterContext ctx) {
+        String code = ctx.index().org().resolveOrg(raw).code();
+        if (code != null) {
+            return code;
+        }
+        return ctx.index().org().orgNameOf(raw) != null ? raw : null;
+    }
+
+    /**
+     * 코드값명 맵으로 라벨을 코드값으로 바꿉니다.
+     *
+     * @param codeByName 코드값명 → 코드값 맵
+     * @param raw 셀 값 또는 보정값
+     * @return 코드값. 라벨이 매칭되지 않고 값 자체도 등록된 코드값이 아니면 null
+     */
+    public static String resolveCode(java.util.Map<String, String> codeByName, String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        try {
-            return new BigDecimal(raw.replace(",", "").trim());
-        } catch (NumberFormatException e) {
-            return null;
+        String mapped = codeByName.get(raw.trim());
+        if (mapped != null) {
+            return mapped;
         }
+        return codeByName.containsValue(raw.trim()) ? raw.trim() : null;
     }
 
     /** 2자리 연도를 2000년대로 해석합니다. 은행 편성 문서가 `'26` 표기를 쓰므로 세기 보정이 필요합니다. */

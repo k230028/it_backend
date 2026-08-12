@@ -67,10 +67,39 @@ public final class TestSnapshots {
                 OrgIdentityResolver.Index.of(orgs, users), Map.of(), Map.of());
     }
 
+    /**
+     * 기존 인덱스에 코드 카탈로그(사업코드·추진가능성·전결권)를 덧붙입니다.
+     *
+     * @param base 조직·비목·환율이 들어 있는 인덱스
+     * @param abusUnitNameByCode 사업코드 → 코드값명
+     * @param exePttCodeByName 추진가능성 코드값명 → 코드값
+     * @param edrtCodeByName 전결권 코드값명 → 코드값
+     */
+    public static MigrationLookupIndex withCatalogs(
+            MigrationLookupIndex base,
+            Map<String, String> abusUnitNameByCode,
+            Map<String, String> exePttCodeByName,
+            Map<String, String> edrtCodeByName) {
+        return new MigrationLookupIndex(
+                base.org(),
+                base.ioeCodeByName(),
+                base.xcrByCurrency(),
+                abusUnitNameByCode,
+                exePttCodeByName,
+                edrtCodeByName);
+    }
+
     /** 기존 데이터가 없는 연도 스냅샷. */
     public static MigrationYearSnapshot.Data empty(String bseYy) {
         return new MigrationYearSnapshot.Data(
-                bseYy, Set.of(), new LinkedHashMap<>(), Set.of(), new LinkedHashMap<>(), List.of());
+                bseYy,
+                Set.of(),
+                new LinkedHashMap<>(),
+                Set.of(),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(),
+                List.of(),
+                List.of());
     }
 
     /** 전산업무비 자연키 하나가 이미 있는 연도 스냅샷. */
@@ -78,7 +107,14 @@ public final class TestSnapshots {
         Set<String> keys = new LinkedHashSet<>();
         keys.add(naturalKey);
         return new MigrationYearSnapshot.Data(
-                bseYy, keys, new LinkedHashMap<>(), Set.of(), new LinkedHashMap<>(), List.of());
+                bseYy,
+                keys,
+                new LinkedHashMap<>(),
+                Set.of(),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(),
+                List.of(),
+                List.of());
     }
 
     /** 특정 계획구분이 이미 존재하는 연도 스냅샷. PLAN_ADJUSTMENT의 DUPLICATE_EXISTS 픽스처용입니다. */
@@ -86,7 +122,14 @@ public final class TestSnapshots {
         Set<String> types = new LinkedHashSet<>();
         types.add(planType);
         return new MigrationYearSnapshot.Data(
-                bseYy, Set.of(), new LinkedHashMap<>(), types, new LinkedHashMap<>(), List.of());
+                bseYy,
+                Set.of(),
+                new LinkedHashMap<>(),
+                types,
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(),
+                List.of(),
+                List.of());
     }
 
     /** 정규화 사업명 하나가 이미 있는 연도 스냅샷. CAPITAL_PROJECT의 DUPLICATE_EXISTS 픽스처용입니다. */
@@ -95,6 +138,13 @@ public final class TestSnapshots {
         Map<String, String> byName = new LinkedHashMap<>();
         byName.put(normalizedName, projectNo);
         return new MigrationYearSnapshot.Data(
-                bseYy, Set.of(), byName, Set.of(), new LinkedHashMap<>(), List.of());
+                bseYy,
+                Set.of(),
+                byName,
+                Set.of(),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(),
+                List.of(projectNo),
+                List.of());
     }
 }

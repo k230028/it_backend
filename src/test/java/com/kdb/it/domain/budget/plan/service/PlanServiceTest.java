@@ -550,15 +550,19 @@ class PlanServiceTest {
                         // capitalAmounts는 null을 허용하므로(0으로 취급) List.of()가 아니라
                         // 널 허용 리스트가 필요하다.
                         java.util.Arrays.asList(new BigDecimal("1000000"), null),
+                        java.util.Arrays.asList(new BigDecimal("300000"), null),
                         Map.of("PRJ-2026-0001", Map.of("사업진행", "진행(품의)")));
 
         assertThat(result).isEqualTo("PLN-2026-0009");
         ArgumentCaptor<Bplanm> planCaptor = ArgumentCaptor.forClass(Bplanm.class);
         verify(bplanmRepository).save(planCaptor.capture());
         assertThat(planCaptor.getValue().getItPtlPlnTpC()).isEqualTo("조정");
-        // null capitalAmount는 0으로 취급되므로 합계는 1,000,000만 반영된다.
+        // null 금액은 0으로 취급되므로 자본 합계는 1,000,000, 일반관리비 합계는 300,000이다.
         assertThat(planCaptor.getValue().getCpitBgApvAmt()).isEqualByComparingTo("1000000");
-        assertThat(planCaptor.getValue().getAduTotAmt()).isEqualByComparingTo("1000000");
+        // 일반관리비가 TOT_XP_AMT로 실제 반영되고 총액이 자본+일반이어야 한다 (§5.4).
+        // 하드코딩 ZERO로 되돌리면 이 두 단정이 깨진다.
+        assertThat(planCaptor.getValue().getTotXpAmt()).isEqualByComparingTo("300000");
+        assertThat(planCaptor.getValue().getAduTotAmt()).isEqualByComparingTo("1300000");
         verify(bplanaRepository, times(2)).save(any(Bplana.class));
         verify(bprojaSyncService).upsert("PRJ-2026-0001", "PLN-2026-0009", "11");
         verify(bprojaSyncService).upsert("PRJ-2026-0002", "PLN-2026-0009", "11");
@@ -574,6 +578,7 @@ class PlanServiceTest {
                                         "조정",
                                         List.of("PRJ-2026-0001", "PRJ-2026-0002"),
                                         List.of(new BigDecimal("1000000")),
+                                        List.of(BigDecimal.ZERO, BigDecimal.ZERO),
                                         Map.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("크기가 다릅니다");
