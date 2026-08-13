@@ -90,13 +90,30 @@ public class EaiService {
                                             return EaiResult.success("");
                                         }
                                         if (status == 200) {
-                                            String error =
-                                                    errorResponseParser
-                                                            .parse(responseBody, charset)
-                                                            .orElse("EAI 오류 응답 파싱 실패");
-                                            return EaiResult.failure(error);
+                                            return errorResponseParser
+                                                    .parse(responseBody, charset)
+                                                    .map(EaiResult::failure)
+                                                    .orElseGet(
+                                                            () -> {
+                                                                // 오류 코드를 못 읽으면 표준전문 여부와 판정
+                                                                // 바이트를 남겨 원인(짧은 응답/다른 플래그)을
+                                                                // 구분할 수 있게 한다.
+                                                                log.warn(
+                                                                        "EAI 200 응답을 오류 전문으로"
+                                                                                + " 해석하지 못함:"
+                                                                                + " ifId={}, {}",
+                                                                        request.ifId(),
+                                                                        errorResponseParser
+                                                                                .diagnostics(
+                                                                                        responseBody,
+                                                                                        charset));
+                                                                return EaiResult.failure(
+                                                                        "EAI 오류 응답 파싱 실패");
+                                                            });
                                         }
-                                        return EaiResult.failure("EAI HTTP 오류: " + status);
+                                        return EaiResult.failure(
+                                                "EAI HTTP 오류: %d(len=%d)"
+                                                        .formatted(status, responseBody.length));
                                     });
             if (result.success()) {
                 log.info(

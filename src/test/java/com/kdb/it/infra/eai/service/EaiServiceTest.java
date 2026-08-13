@@ -341,7 +341,7 @@ class EaiServiceTest {
     void http200ErrorMessage_returnsFailureWithErrorCode() {
         RestClient.Builder builder = RestClient.builder().baseUrl("http://eai.test");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        byte[] response = eaiErrorResponse("SEEAI00001");
+        byte[] response = EaiStandardResponseFixture.errorResponse("SEEAI00001", MS949);
         server.expect(requestTo("http://eai.test/eai"))
                 .andRespond(withSuccess(response, MediaType.APPLICATION_OCTET_STREAM));
 
@@ -362,15 +362,6 @@ class EaiServiceTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorMessage()).contains("SEEAI00001");
-    }
-
-    private byte[] eaiErrorResponse(String errorCode) {
-        byte[] response = " ".repeat(1100).getBytes(MS949);
-        response[241] = '2';
-        response[1013] = '1';
-        byte[] code = errorCode.getBytes(MS949);
-        System.arraycopy(code, 0, response, 1020, code.length);
-        return response;
     }
 
     @Test
