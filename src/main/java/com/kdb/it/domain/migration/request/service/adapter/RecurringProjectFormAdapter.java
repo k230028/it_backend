@@ -1,0 +1,127 @@
+package com.kdb.it.domain.migration.request.service.adapter;
+
+import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.request.dto.FormSheetKind;
+import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
+import com.kdb.it.domain.migration.request.dto.RequestFormDto;
+import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.springframework.stereotype.Component;
+
+/**
+ * 시트 ② `2. 경상적인 사업`을 경상사업 생성 요청으로 바꿉니다.
+ *
+ * <p>부서 열이 시트에 없어 폴더명에서 온 부서코드를 씁니다. 기간은 예산연도 전체(`1월 1일 ~ 12월 31일`)로 둡니다 — 경상사업은 연중 상시 집행이라 양식에
+ * 시작·종료일 칸이 없습니다.
+ *
+ * <p>런던 제출본처럼 사업명이 공란인 파일이 실제로 있습니다. 그때는 사업을 만들지 않고 `REQUIRED_MISSING`을 내 미리보기에서 채우게 합니다.
+ */
+@Component
+@RequiredArgsConstructor
+public class RecurringProjectFormAdapter implements FormSheetAdapter {
+
+    private final FormLabelReader labelReader;
+    private final ResourceTableReader resourceTableReader;
+
+    @Override
+    public FormSheetKind trigger() {
+        return FormSheetKind.RECURRING;
+    }
+
+    @Override
+    public FormAdapterOutput adapt(FormAdapterContext context) {
+        Sheet sheet = context.sheets().get(FormSheetKind.RECURRING);
+        if (sheet == null) return FormAdapterOutput.empty();
+
+        Optional<ResourceTableReader.Result> table = resourceTableReader.read(sheet, 0, false);
+        boolean hasResources = table.isPresent() && !table.get().rows().isEmpty();
+        String projectName = resolveProjectName(sheet, context);
+
+        // 사업명도 없고 소요자원도 없으면 부점이 이 시트를 쓰지 않은 것이다. 진단 없이 건너뛴다.
+        if (projectName == null && !hasResources) return FormAdapterOutput.empty();
+
+        List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
+        if (projectName == null) {
+            diagnostics.add(
+                    RequestFormDto.FormDiagnostic.of(
+                            FormSheetKind.RECURRING,
+                            null,
+                            "abusNm",
+                            RequestFormDiagnosticCode.REQUIRED_MISSING,
+                            "경상사업의 사업명이 비어 있습니다. 미리보기에서 입력해 주세요.",
+                            List.of()));
+            return new FormAdapterOutput(List.of(), List.of(), List.copyOf(diagnostics), null);
+        }
+
+        ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
+        project.setAbusNm(projectName);
+        project.setBseYy(context.bseYy());
+        project.setOdnYn("Y");
+        project.setAbusTc(CodeDefaults.NOT_APPLICABLE);
+        project.setSvnDpmC(context.resolvedDeptCode());
+        project.setSttDtm(LocalDate.of(Integer.parseInt(context.bseYy()), 1, 1));
+        project.setEndDtm(LocalDate.of(Integer.parseInt(context.bseYy()), 12, 31));
+        project.setAbusCone(labelReader.value(sheet, "(개요)"));
+        project.setCpnSafCone(labelReader.value(sheet, "(현황)"));
+        project.setAbusRngCone(labelReader.value(sheet, "(추진내용)"));
+        project.setPlmDes(labelReader.value(sheet, "(미추진시 문제점)"));
+
+        List<ProjectDto.BitemmDto> items = new ArrayList<>();
+        if (hasResources) {
+            int sno = 1;
+            for (ResourceRow row : table.get().rows()) {
+                items.add(
+                        ResourceTableReader.toItem(
+                                row,
+                                resolveIoe(row, context, diagnostics),
+                                sno++,
+                                context.bseYy()));
+            }
+        }
+        project.setItems(items);
+
+        return new FormAdapterOutput(List.of(project), List.of(), List.copyOf(diagnostics), null);
+    }
+
+    private String resolveIoe(
+            ResourceRow row,
+            FormAdapterContext context,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        Optional<String> override =
+                context.override(FormSheetKind.RECURRING, row.excelRow(), "ioeC");
+        if (override.isPresent() && context.ioeIndex().exists(override.get()))
+            return override.get();
+
+        boolean domestic = "KRW".equalsIgnoreCase(row.currency());
+        IoeHierarchyIndex.Resolution resolution =
+                context.ioeIndex().resolveByGroup(row.group(), domestic);
+        if (resolution.code() != null) return resolution.code();
+
+        diagnostics.add(
+                RequestFormDto.FormDiagnostic.of(
+                        FormSheetKind.RECURRING,
+                        row.excelRow(),
+                        "ioeC",
+                        resolution.isAmbiguous()
+                                ? RequestFormDiagnosticCode.CODE_AMBIGUOUS
+                                : RequestFormDiagnosticCode.CODE_UNRESOLVED,
+                        "품목 구분 `%s`의 비목을 정하지 못했습니다.".formatted(row.group()),
+                        resolution.candidates()));
+        return null;
+    }
+
+    /** 보정값을 우선하고, 없으면 시트의 사업명을 씁니다. 둘 다 없으면 null. */
+    private String resolveProjectName(Sheet sheet, FormAdapterContext context) {
+        Optional<String> override = context.override(FormSheetKind.RECURRING, null, "abusNm");
+        if (override.isPresent()) return override.get();
+
+        String fromSheet = labelReader.value(sheet, "사업명");
+        return fromSheet == null || fromSheet.isBlank() ? null : fromSheet;
+    }
+}
