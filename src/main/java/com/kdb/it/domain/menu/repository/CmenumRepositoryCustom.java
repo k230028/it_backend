@@ -16,4 +16,23 @@ public interface CmenumRepositoryCustom {
      * 조용히 충돌하지는 않으나, {@code MNU_ID} 컬럼 길이를 초과하면 저장 시 실패한다.
      */
     String nextMnuId();
+
+    /**
+     * 활성 메뉴 전량을 트리 조립용 경량 프로젝션으로 읽는다.
+     *
+     * <p>{@code DEL_YN='N'} 조건은 {@code findAllActive()}와 동일하다. {@code IMK_NM} 컬럼이 없는 환경에서는 그 컬럼을
+     * select 목록에서 제외하므로 {@code imkNm}이 전부 {@code null}로 온다.
+     *
+     * @return 활성 메뉴 행 목록. 정렬은 하지 않으며 트리 조립 시 서비스가 정렬한다
+     */
+    List<MenuTreeRow> findActiveMenuTreeRows();
+
+    /**
+     * {@code TPRMPP_CMENUM.IMK_NM} 컬럼이 실제 스키마에 있는지 판정한다.
+     *
+     * <p>스키마는 런타임에 바뀌지 않으므로 최초 호출 때 한 번만 데이터 사전을 읽고 결과를 캐시한다. 판정 실패는 '없음'으로 접는다.
+     *
+     * @return 컬럼이 있으면 true. 없거나 판정에 실패하면 false
+     */
+    boolean isIconColumnPresent();
 }
