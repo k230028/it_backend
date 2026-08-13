@@ -13,6 +13,7 @@ import com.kdb.it.common.mfa.provider.MfaProviderRegistry;
 import com.kdb.it.common.mfa.provider.MfaStartContext;
 import com.kdb.it.common.mfa.provider.MfaVerificationResult;
 import com.kdb.it.common.mfa.provider.MfaVerifyContext;
+import com.kdb.it.common.mfa.provider.OnePassProviderException;
 import com.kdb.it.common.mfa.store.LoginPendingTransactionStore;
 import com.kdb.it.common.mfa.store.MfaTransactionStore;
 import com.kdb.it.common.mfa.store.MfaTransactionStore.ProofConsumption;
@@ -103,6 +104,11 @@ public class MfaService {
         MfaChallengeData challenge;
         try {
             challenge = providerRegistry.start(request.method(), context);
+        } catch (OnePassProviderException exception) {
+            throw new MfaException(
+                    MfaErrorCode.MFA_UNAVAILABLE,
+                    exception.providerCode(),
+                    exception.providerMessage());
         } catch (RuntimeException exception) {
             throw new MfaException(MfaErrorCode.MFA_UNAVAILABLE);
         }

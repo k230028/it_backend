@@ -2,8 +2,7 @@
 
 `src/main/resources/logback-spring.xml`이 콘솔과 파일 로깅을 구성합니다.
 
-- 로컬 기본 경로: `c:/itp_log`
-- dev/prod 기본 경로: `/log/springitp`
+- 모든 프로파일 기본 경로: `/log/springitp`
 - 활성 로그와 월 단위 보관 로그를 분리합니다.
 - 보관 기간과 전체 용량 상한을 유지합니다.
 - 파일 로그는 UTF-8을 사용합니다.

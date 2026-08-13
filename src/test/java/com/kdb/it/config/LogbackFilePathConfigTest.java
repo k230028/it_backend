@@ -35,7 +35,7 @@ class LogbackFilePathConfigTest {
                 }
             }
 
-            assertThat(defaultLogPath).isEqualTo("c:/itp_log");
+            assertThat(defaultLogPath).isEqualTo("/log/springitp");
         }
     }
 }

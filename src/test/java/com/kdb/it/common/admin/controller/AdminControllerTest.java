@@ -1,6 +1,7 @@
 package com.kdb.it.common.admin.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -28,6 +29,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -162,16 +166,43 @@ class AdminControllerTest {
     // =========================================================================
 
     @Test
-    @DisplayName("GET /api/admin/users - 관리자 인증 → 200 + 빈 목록 반환")
+    @DisplayName("GET /api/admin/users - 페이징 응답과 전체 건수를 반환")
     @WithMockUser(username = "10001", roles = "ADMIN")
     void getUsers_관리자인증_200반환() throws Exception {
-        // given
-        given(adminService.getUsers()).willReturn(List.of());
+        AdminDto.UserResponse user =
+                new AdminDto.UserResponse(
+                        "10001", "홍길동", null, null, null, null, null, null, null, null, null, null);
+        given(adminService.getUsers(eq("홍"), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(user), PageRequest.of(1, 20), 41));
 
         // when & then
-        mockMvc.perform(get("/api/admin/users"))
+        mockMvc.perform(
+                        get("/api/admin/users")
+                                .param("page", "1")
+                                .param("size", "20")
+                                .param("search", "홍")
+                                .param("sort", "usrNm,desc"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$.content[0].eno").value("10001"))
+                .andExpect(jsonPath("$.totalElements").value(41))
+                .andExpect(jsonPath("$.number").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/admin/users/export - 검색 결과 전체를 반환")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void exportUsers_검색결과전체반환() throws Exception {
+        AdminDto.UserResponse user =
+                new AdminDto.UserResponse(
+                        "10001", "홍길동", null, null, null, null, null, null, null, null, null, null);
+        given(adminService.getUsersForExport(eq("홍"), any(Sort.class))).willReturn(List.of(user));
+
+        mockMvc.perform(
+                        get("/api/admin/users/export")
+                                .param("search", "홍")
+                                .param("sort", "eno,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].eno").value("10001"));
     }
 
     @Test

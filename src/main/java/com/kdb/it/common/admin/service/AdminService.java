@@ -23,7 +23,9 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,21 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminService {
+
+    private static final int MAX_USER_PAGE_SIZE = 200;
+    private static final Set<String> USER_SORT_FIELDS =
+            Set.of(
+                    "eno",
+                    "usrNm",
+                    "ptCNm",
+                    "bbrNm",
+                    "temNm",
+                    "temC",
+                    "inleNo",
+                    "cpnTpn",
+                    "etrMilAddrNm",
+                    "fstEnrDtm",
+                    "lstChgDtm");
 
     // 각 관리 기능은 기존 도메인 리포지토리를 생성자 주입으로 재사용합니다.
     private final AuthRepository authRepository;
@@ -236,24 +253,36 @@ public class AdminService {
      *
      * @return 사용자 응답 DTO 목록
      */
-    public List<AdminDto.UserResponse> getUsers() {
-        List<UserRepository.AdminUserView> users = userRepository.findAdminUserViewsByDelYn("N");
-        Set<String> orgCodes =
-                users.stream()
-                        .map(user -> user.getBbrC())
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toSet());
-        Map<String, String> orgNames =
-                orgRepository.findNameViewsByPrlmOgzCConeIn(orgCodes).stream()
-                        .filter(organization -> organization.getBbrNm() != null)
-                        .collect(
-                                Collectors.toMap(
-                                        organization -> organization.getPrlmOgzCCone(),
-                                        organization -> organization.getBbrNm(),
-                                        (left, right) -> left));
-        return users.stream()
-                .map(user -> toUserResponse(user, orgNames.get(user.getBbrC())))
+    public Page<AdminDto.UserResponse> getUsers(String search, Pageable pageable) {
+        Pageable safePageable = normalizeUserPageable(pageable);
+        return userRepository
+                .findAdminUserPage(normalizeSearch(search), safePageable)
+                .map(user -> toUserResponse(user, user.getBbrNm()));
+    }
+
+    public List<AdminDto.UserResponse> getUsersForExport(String search, Sort sort) {
+        Sort safeSort = normalizeUserSort(sort);
+        return userRepository.findAdminUsersForExport(normalizeSearch(search), safeSort).stream()
+                .map(user -> toUserResponse(user, user.getBbrNm()))
                 .toList();
+    }
+
+    private Pageable normalizeUserPageable(Pageable pageable) {
+        int size = Math.min(pageable.getPageSize(), MAX_USER_PAGE_SIZE);
+        return PageRequest.of(
+                pageable.getPageNumber(), size, normalizeUserSort(pageable.getSort()));
+    }
+
+    private Sort normalizeUserSort(Sort sort) {
+        List<Sort.Order> allowed =
+                sort.stream()
+                        .filter(order -> USER_SORT_FIELDS.contains(order.getProperty()))
+                        .toList();
+        return allowed.isEmpty() ? Sort.by("eno").ascending() : Sort.by(allowed);
+    }
+
+    private String normalizeSearch(String search) {
+        return search == null || search.isBlank() ? null : search.trim();
     }
 
     /**

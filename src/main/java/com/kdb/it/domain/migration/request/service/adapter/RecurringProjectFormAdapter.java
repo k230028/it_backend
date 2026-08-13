@@ -101,7 +101,21 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         boolean domestic = "KRW".equalsIgnoreCase(row.currency());
         IoeHierarchyIndex.Resolution resolution =
                 context.ioeIndex().resolveByGroup(row.group(), domestic);
-        if (resolution.code() != null) return resolution.code();
+        if (resolution.code() != null) {
+            if (!resolution.candidates().isEmpty()) {
+                // 기본값으로 정했지만 대안이 있다. 반영은 막지 않고 확인만 요청한다.
+                diagnostics.add(
+                        RequestFormDto.FormDiagnostic.of(
+                                FormSheetKind.RECURRING,
+                                row.excelRow(),
+                                "ioeC",
+                                RequestFormDiagnosticCode.CODE_DEFAULTED,
+                                "품목 구분 `%s`는 `%s`로 기본 설정했습니다. 다른 비목이면 골라 주세요."
+                                        .formatted(row.group(), resolution.code()),
+                                resolution.candidates()));
+            }
+            return resolution.code();
+        }
 
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.of(

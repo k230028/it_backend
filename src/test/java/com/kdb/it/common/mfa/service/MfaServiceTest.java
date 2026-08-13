@@ -19,6 +19,7 @@ import com.kdb.it.common.mfa.provider.MfaChallengeData;
 import com.kdb.it.common.mfa.provider.MfaProvider;
 import com.kdb.it.common.mfa.provider.MfaProviderRegistry;
 import com.kdb.it.common.mfa.provider.MfaVerificationResult;
+import com.kdb.it.common.mfa.provider.OnePassProviderException;
 import com.kdb.it.common.mfa.store.InMemoryLoginPendingTransactionStore;
 import com.kdb.it.common.mfa.store.InMemoryMfaTransactionStore;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -836,6 +837,46 @@ class MfaServiceTest {
                                 Optional.of(user),
                                 null),
                 MfaErrorCode.MFA_UNAVAILABLE);
+    }
+
+    @Test
+    void 공급자_업무오류의_코드와_메시지를_보존한다() {
+        MfaProvider provider =
+                new MfaProvider() {
+                    @Override
+                    public MfaChallengeData start(
+                            com.kdb.it.common.mfa.provider.MfaStartContext context) {
+                        throw new OnePassProviderException("100108", "등록되지 않은 사용자 입니다.");
+                    }
+
+                    @Override
+                    public MfaVerificationResult verify(
+                            com.kdb.it.common.mfa.provider.MfaVerifyContext context) {
+                        return MfaVerificationResult.success();
+                    }
+                };
+        MfaService service =
+                service(
+                        new InMemoryMfaTransactionStore(),
+                        new InMemoryLoginPendingTransactionStore(),
+                        provider,
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+
+        assertThatThrownBy(
+                        () ->
+                                service.startChallenge(
+                                        new MfaDto.MfaStartRequest(
+                                                MfaPurpose.APPROVAL, MfaMethod.MOTP),
+                                        Optional.of(user),
+                                        null))
+                .isInstanceOf(MfaException.class)
+                .satisfies(
+                        throwable -> {
+                            MfaException exception = (MfaException) throwable;
+                            assertThat(exception.providerCode()).isEqualTo("100108");
+                            assertThat(exception.providerMessage()).isEqualTo("등록되지 않은 사용자 입니다.");
+                        });
     }
 
     @Test

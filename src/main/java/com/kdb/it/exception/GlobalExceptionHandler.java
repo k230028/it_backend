@@ -67,12 +67,24 @@ public class GlobalExceptionHandler {
     /** MFA 표준 오류를 클라이언트가 분기할 수 있는 코드와 HTTP 상태로 변환한다. */
     @ExceptionHandler(MfaException.class)
     public ResponseEntity<Map<String, Object>> handleMfaException(MfaException e) {
-        log.warn("MFA 거래 거부: code={}", e.errorCode().name());
+        if (e.providerCode() != null) {
+            log.warn(
+                    "MFA 거래 거부: code={}, providerCode={}, providerMessage={}",
+                    e.errorCode().name(),
+                    e.providerCode(),
+                    e.providerMessage());
+        } else {
+            log.warn("MFA 거래 거부: code={}", e.errorCode().name());
+        }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now().toString());
         body.put("status", e.errorCode().status().value());
         body.put("code", e.errorCode().name());
         body.put("message", e.errorCode().message());
+        if (e.providerCode() != null) {
+            body.put("providerCode", e.providerCode());
+            body.put("providerMessage", e.providerMessage());
+        }
         return ResponseEntity.status(e.errorCode().status()).body(body);
     }
 

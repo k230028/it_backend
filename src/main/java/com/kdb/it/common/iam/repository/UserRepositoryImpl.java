@@ -6,12 +6,22 @@ import com.kdb.it.common.iam.entity.QCauthI;
 import com.kdb.it.common.iam.entity.QCorgnI;
 import com.kdb.it.common.iam.entity.QCroleI;
 import com.kdb.it.common.iam.entity.QCuserI;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /**
  * 사용자(CuserI) 커스텀 리포지토리 구현 클래스
@@ -34,6 +44,129 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
 
     /** QueryDSL 쿼리 팩토리: JPA 쿼리 생성 및 실행 담당 */
     private final JPAQueryFactory queryFactory;
+
+    @Override
+    public Page<UserRepository.AdminUserView> findAdminUserPage(String search, Pageable pageable) {
+        QCuserI user = QCuserI.cuserI;
+        QCorgnI organization = new QCorgnI("adminUserOrganization");
+        BooleanExpression predicate = adminUserPredicate(user, organization, search);
+
+        List<AdminUserProjection> rows =
+                selectAdminUsers(user, organization)
+                        .where(user.delYn.eq("N"), predicate)
+                        .orderBy(adminUserOrder(user, organization, pageable.getSort()))
+                        .offset(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .fetch();
+        Long total =
+                queryFactory
+                        .select(user.count())
+                        .from(user)
+                        .leftJoin(organization)
+                        .on(organization.prlmOgzCCone.eq(user.bbrC))
+                        .where(user.delYn.eq("N"), predicate)
+                        .fetchOne();
+        return new PageImpl<>(new ArrayList<>(rows), pageable, total == null ? 0 : total);
+    }
+
+    @Override
+    public List<UserRepository.AdminUserView> findAdminUsersForExport(String search, Sort sort) {
+        QCuserI user = QCuserI.cuserI;
+        QCorgnI organization = new QCorgnI("adminUserExportOrganization");
+        return new ArrayList<>(
+                selectAdminUsers(user, organization)
+                        .where(user.delYn.eq("N"), adminUserPredicate(user, organization, search))
+                        .orderBy(adminUserOrder(user, organization, sort))
+                        .fetch());
+    }
+
+    private JPAQuery<AdminUserProjection> selectAdminUsers(QCuserI user, QCorgnI organization) {
+        return queryFactory
+                .select(
+                        Projections.bean(
+                                AdminUserProjection.class,
+                                user.eno,
+                                user.usrNm,
+                                user.ptCNm,
+                                user.temC,
+                                user.temNm,
+                                user.bbrC,
+                                organization.bbrNm,
+                                user.etrMilAddrNm,
+                                user.inleNo,
+                                user.cpnTpn,
+                                user.fstEnrDtm,
+                                user.lstChgDtm))
+                .from(user)
+                .leftJoin(organization)
+                .on(organization.prlmOgzCCone.eq(user.bbrC));
+    }
+
+    private BooleanExpression adminUserPredicate(
+            QCuserI user, QCorgnI organization, String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+        String keyword = search.trim();
+        return user.eno
+                .containsIgnoreCase(keyword)
+                .or(user.usrNm.containsIgnoreCase(keyword))
+                .or(user.ptCNm.containsIgnoreCase(keyword))
+                .or(user.bbrC.containsIgnoreCase(keyword))
+                .or(organization.bbrNm.containsIgnoreCase(keyword))
+                .or(user.temC.containsIgnoreCase(keyword))
+                .or(user.temNm.containsIgnoreCase(keyword))
+                .or(user.etrMilAddrNm.containsIgnoreCase(keyword))
+                .or(user.inleNo.containsIgnoreCase(keyword))
+                .or(user.cpnTpn.containsIgnoreCase(keyword));
+    }
+
+    private OrderSpecifier<?>[] adminUserOrder(QCuserI user, QCorgnI organization, Sort sort) {
+        List<OrderSpecifier<?>> orders = new ArrayList<>();
+        for (Sort.Order order : sort) {
+            boolean ascending = order.isAscending();
+            OrderSpecifier<?> specifier =
+                    switch (order.getProperty()) {
+                        case "usrNm" -> ascending ? user.usrNm.asc() : user.usrNm.desc();
+                        case "ptCNm" -> ascending ? user.ptCNm.asc() : user.ptCNm.desc();
+                        case "bbrNm" ->
+                                ascending ? organization.bbrNm.asc() : organization.bbrNm.desc();
+                        case "temNm" -> ascending ? user.temNm.asc() : user.temNm.desc();
+                        case "temC" -> ascending ? user.temC.asc() : user.temC.desc();
+                        case "inleNo" -> ascending ? user.inleNo.asc() : user.inleNo.desc();
+                        case "cpnTpn" -> ascending ? user.cpnTpn.asc() : user.cpnTpn.desc();
+                        case "etrMilAddrNm" ->
+                                ascending ? user.etrMilAddrNm.asc() : user.etrMilAddrNm.desc();
+                        case "fstEnrDtm" ->
+                                ascending ? user.fstEnrDtm.asc() : user.fstEnrDtm.desc();
+                        case "lstChgDtm" ->
+                                ascending ? user.lstChgDtm.asc() : user.lstChgDtm.desc();
+                        default -> ascending ? user.eno.asc() : user.eno.desc();
+                    };
+            orders.add(specifier);
+        }
+        if (orders.isEmpty()) {
+            orders.add(user.eno.asc());
+        }
+        return orders.toArray(OrderSpecifier[]::new);
+    }
+
+    @Getter
+    @Setter
+    public static class AdminUserProjection implements UserRepository.AdminUserView {
+        private String eno;
+        private String usrNm;
+        private String ptCNm;
+        private String temC;
+        private String temNm;
+        private String bbrC;
+        private String bbrNm;
+        private String etrMilAddrNm;
+        private String inleNo;
+        private String cpnTpn;
+        private LocalDateTime fstEnrDtm;
+        private LocalDateTime lstChgDtm;
+    }
 
     @Override
     public List<UserDto.ListRow> findListRowsByBbrC(String bbrC) {

@@ -35,6 +35,14 @@ public enum RequestFormDiagnosticCode {
     DUPLICATE_EXISTS(MigrationDto.Severity.BLOCKER),
     /** 물리 컬럼 길이 초과 */
     LENGTH_EXCEEDED(MigrationDto.Severity.BLOCKER),
+    /**
+     * 코드를 기본값으로 정했고 대안이 있음 — 확인 요청.
+     *
+     * <p>{@link #CODE_AMBIGUOUS}와 구분해야 합니다. 저쪽은 <b>아무 코드도 못 정한</b> 상태라 반영을 막아야 하고, 이쪽은 <b>합리적인 기본값을
+     * 정했지만</b> 다른 선택지가 있는 상태입니다. 둘을 같은 BLOCKER로 묶으면 기본값을 제시하는 의미가 사라져, 개발비·기타무형자산 품목이 있는 파일이 사람이 매번
+     * 같은 값을 다시 고르기 전까지 전부 차단됩니다.
+     */
+    CODE_DEFAULTED(MigrationDto.Severity.WARNING),
     /** 시트 ③ 단위를 휴리스틱으로 추정함 — 확인 요청 */
     UNIT_UNCERTAIN(MigrationDto.Severity.WARNING),
     /** 1-1 요약 대 1-2 합계, 월간×주기 대 연간, 소계·총계 불일치 */

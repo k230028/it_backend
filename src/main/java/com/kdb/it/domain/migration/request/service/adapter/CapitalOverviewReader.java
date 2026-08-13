@@ -90,7 +90,7 @@ public class CapitalOverviewReader {
         applyOrganization(sheet, context, project, diagnostics);
         applyPeople(sheet, context, project, diagnostics);
         applyPeriod(sheet, project, diagnostics);
-        applyDelegation(sheet, project, edrtCodes, diagnostics);
+        applyDelegation(sheet, context, project, edrtCodes, diagnostics);
 
         return new Result(project, List.copyOf(diagnostics), declaredYearTotal(sheet));
     }
@@ -265,11 +265,24 @@ public class CapitalOverviewReader {
                 .ifPresent(ym -> project.setEndDtm(ym.atEndOfMonth()));
     }
 
+    /**
+     * 전결권자 이름을 자본예산 계열 코드로 바꿉니다.
+     *
+     * <p>보정값을 먼저 봅니다 — 이름이 코드표에 없을 때 사람이 고를 길이 없으면 그 파일은 영구히 차단됩니다.
+     */
     private void applyDelegation(
             Sheet sheet,
+            FormAdapterContext context,
             ProjectDto.CreateRequest project,
             Map<String, String> edrtCodes,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
+        Optional<String> override =
+                context.override(FormSheetKind.CAPITAL_OVERVIEW, null, "edrtTc");
+        if (override.isPresent()) {
+            project.setEdrtTc(override.get());
+            return;
+        }
+
         String name = labelReader.value(sheet, "전결권자");
         if (!hasText(name)) return;
         String code = lookup(edrtCodes, name);

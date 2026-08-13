@@ -2,6 +2,8 @@ package com.kdb.it.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.kdb.it.common.mfa.exception.MfaErrorCode;
+import com.kdb.it.common.mfa.exception.MfaException;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +50,20 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).containsEntry("status", 400);
         assertThat(response.getBody()).containsEntry("message", "비즈니스 로직 오류 메시지");
         assertThat(response.getBody()).containsKey("timestamp");
+    }
+
+    @Test
+    void handleMfaException_공급자코드와메시지_응답에포함() {
+        MfaException ex =
+                new MfaException(MfaErrorCode.MFA_UNAVAILABLE, "100108", "등록되지 않은 사용자 입니다.");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleMfaException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody())
+                .containsEntry("code", "MFA_UNAVAILABLE")
+                .containsEntry("providerCode", "100108")
+                .containsEntry("providerMessage", "등록되지 않은 사용자 입니다.");
     }
 
     /** IllegalArgumentException 발생 시 400 Bad Request 와 오류 메시지를 반환해야 합니다. */

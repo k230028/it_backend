@@ -109,7 +109,8 @@ public final class OnePassClient {
 
     private MfaChallengeData challenge(Map<String, Object> response, MfaStartContext context) {
         if (!success(response)) {
-            throw new IllegalStateException("OnePass MFA 요청에 실패했습니다.");
+            throw new OnePassProviderException(
+                    text(response, "resultCode"), text(response, "resultMsg"));
         }
         Map<String, Object> resultData = resultData(response);
         String challengeId = text(resultData, "trId");

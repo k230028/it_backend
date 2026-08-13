@@ -68,6 +68,10 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
 
         String getBbrC();
 
+        default String getBbrNm() {
+            return null;
+        }
+
         String getEtrMilAddrNm();
 
         String getInleNo();

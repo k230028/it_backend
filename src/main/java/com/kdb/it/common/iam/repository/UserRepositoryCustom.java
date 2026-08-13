@@ -4,6 +4,9 @@ import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.entity.CuserI;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /**
  * 사용자(CuserI) 커스텀 리포지토리 인터페이스
@@ -22,6 +25,10 @@ import java.util.Optional;
  * </ul>
  */
 public interface UserRepositoryCustom {
+
+    Page<UserRepository.AdminUserView> findAdminUserPage(String search, Pageable pageable);
+
+    List<UserRepository.AdminUserView> findAdminUsersForExport(String search, Sort sort);
 
     /**
      * 부서코드로 사용자 목록 응답 행을 조회합니다.

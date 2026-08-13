@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.SortDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -250,8 +251,18 @@ public class AdminController {
      */
     @GetMapping("/users")
     @Operation(summary = "사용자 목록 조회", description = "삭제되지 않은 전체 사용자를 반환합니다.")
-    public ResponseEntity<List<AdminDto.UserResponse>> getUsers() {
-        return ResponseEntity.ok(adminService.getUsers());
+    public ResponseEntity<Page<AdminDto.UserResponse>> getUsers(
+            @RequestParam(name = "search", required = false) String search,
+            @ParameterObject @PageableDefault(size = 50, sort = "eno") Pageable pageable) {
+        return ResponseEntity.ok(adminService.getUsers(search, pageable));
+    }
+
+    @GetMapping("/users/export")
+    @Operation(summary = "사용자 엑셀 조회", description = "현재 검색·정렬 조건에 맞는 전체 사용자를 반환합니다.")
+    public ResponseEntity<List<AdminDto.UserResponse>> exportUsers(
+            @RequestParam(name = "search", required = false) String search,
+            @ParameterObject @SortDefault(sort = "eno") Sort sort) {
+        return ResponseEntity.ok(adminService.getUsersForExport(search, sort));
     }
 
     /**

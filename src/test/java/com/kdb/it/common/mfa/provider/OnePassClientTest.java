@@ -247,11 +247,21 @@ class OnePassClientTest {
         startServer(
                 exchange -> {
                     requestBody(exchange);
-                    respond(exchange, 200, "{\"resultCode\":\"900001\"}");
+                    respond(
+                            exchange,
+                            200,
+                            "{\"resultCode\":\"100108\",\"resultMsg\":\"등록되지 않은 사용자 입니다.\"}");
                 });
 
-        assertThatThrownBy(() -> client().requestMotpChallenge(context()))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> client(Duration.ofSeconds(10)).requestMotpChallenge(context()))
+                .isInstanceOf(OnePassProviderException.class)
+                .satisfies(
+                        throwable -> {
+                            OnePassProviderException exception =
+                                    (OnePassProviderException) throwable;
+                            assertThat(exception.providerCode()).isEqualTo("100108");
+                            assertThat(exception.providerMessage()).isEqualTo("등록되지 않은 사용자 입니다.");
+                        });
     }
 
     @Test

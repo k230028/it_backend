@@ -5,6 +5,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -34,6 +39,9 @@ public class Cinfmm extends BaseEntity {
     public static final String DISPATCH_PENDING = "01";
     public static final String DISPATCH_SENT = "02";
     public static final String DISPATCH_FAILED = "03";
+
+    /** {@code ERR_CONE} 물리 컬럼 상한 — 바이트 시맨틱 기준 100바이트. */
+    private static final int ERR_CONE_MAX_BYTES = 100;
 
     /** 알림메시지번호: 기본키. 형식 {@code INF-{YYYY}-{NEXTVAL:08}} */
     @Id
@@ -134,10 +142,40 @@ public class Cinfmm extends BaseEntity {
         this.infmSdStsC = DISPATCH_FAILED;
         this.reTryNot = (this.reTryNot == null ? 0 : this.reTryNot) + 1;
         this.sdDtm = LocalDateTime.now();
-        this.errCone =
-                errorMessage == null
-                        ? null
-                        : errorMessage.substring(0, Math.min(100, errorMessage.length()));
+        this.errCone = clampToBytes(errorMessage, ERR_CONE_MAX_BYTES);
+    }
+
+    /**
+     * 오류내용을 물리 컬럼 상한에 맞게 바이트 기준으로 자릅니다.
+     *
+     * <p>{@code ERR_CONE}은 바이트 시맨틱 컬럼이므로 문자 수로 자르면 한글이 섞였을 때 상한을 넘겨 {@code ORA-12899}가 납니다. 그러면 발송
+     * 실패 기록 트랜잭션 자체가 롤백되어 상태가 PENDING·재시도 횟수 0으로 남고, 재시도가 소진되지 않아 스케줄러가 같은 알림을 무한히 재처리합니다. 다바이트 문자가
+     * 잘려 깨지지 않도록 문자 경계를 지키며 자릅니다.
+     *
+     * @param value 원본 메시지 (null 허용)
+     * @param maxBytes 허용 최대 바이트 수
+     * @return 상한 이하로 자른 문자열. 입력이 null이면 null
+     */
+    private static String clampToBytes(String value, int maxBytes) {
+        if (value == null) {
+            return null;
+        }
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length <= maxBytes) {
+            return value;
+        }
+        // 상한에서 잘린 마지막 불완전 바이트열은 IGNORE 정책으로 버려져 문자 깨짐이 생기지 않는다.
+        CharsetDecoder decoder =
+                StandardCharsets.UTF_8
+                        .newDecoder()
+                        .onMalformedInput(CodingErrorAction.IGNORE)
+                        .onUnmappableCharacter(CodingErrorAction.IGNORE);
+        try {
+            return decoder.decode(ByteBuffer.wrap(bytes, 0, maxBytes)).toString();
+        } catch (CharacterCodingException e) {
+            // IGNORE 정책에서는 도달하지 않지만, 오류내용 때문에 발송 상태 기록이 실패하지 않도록 방어한다.
+            return "";
+        }
     }
 
     /** 최대 시도 횟수에 도달하지 않은 미발송 알림인지 반환합니다. */

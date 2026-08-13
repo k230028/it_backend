@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -34,6 +35,7 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -42,6 +44,8 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
@@ -615,32 +619,34 @@ class AdminServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("getUsers: 삭제되지 않은 사용자 목록을 반환한다")
-    void getUsers_삭제되지않은목록반환() {
-        // given: DEL_YN='N'/'Y' 혼합
-        given(userRepository.findAdminUserViewsByDelYn("N"))
-                .willReturn(List.of(new AdminUserView("10001", "홍길동")));
+    @DisplayName("getUsers: 검색어를 정리하고 페이지 크기를 최대 200건으로 제한한다")
+    void getUsers_검색어정리와페이지크기제한() {
+        given(userRepository.findAdminUserPage(eq("홍"), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(new AdminUserView("10001", "홍길동"))));
 
-        // when
-        List<AdminDto.UserResponse> result = adminService.getUsers();
+        Page<AdminDto.UserResponse> result =
+                adminService.getUsers(
+                        "  홍  ", PageRequest.of(0, 999, Sort.by("unknown").descending()));
 
-        // then: DEL_YN='Y' 항목 제외하여 1건만 반환
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).eno()).isEqualTo("10001");
-        assertThat(result.get(0).usrNm()).isEqualTo("홍길동");
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(userRepository).findAdminUserPage(eq("홍"), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(200);
+        assertThat(pageableCaptor.getValue().getSort()).isEqualTo(Sort.by("eno").ascending());
+        assertThat(result.getContent())
+                .extracting(AdminDto.UserResponse::eno)
+                .containsExactly("10001");
     }
 
     @Test
-    @DisplayName("getUsers: 사용자가 없으면 빈 목록을 반환한다")
-    void getUsers_빈목록반환() {
-        // given
-        given(userRepository.findAdminUserViewsByDelYn("N")).willReturn(Collections.emptyList());
+    @DisplayName("getUsersForExport: 검색어와 허용된 정렬을 전체 결과 조회에 전달한다")
+    void getUsersForExport_검색어와정렬전달() {
+        given(userRepository.findAdminUsersForExport("kim", Sort.by(Sort.Direction.DESC, "usrNm")))
+                .willReturn(List.of(new AdminUserView("10001", "김사원")));
 
-        // when
-        List<AdminDto.UserResponse> result = adminService.getUsers();
+        List<AdminDto.UserResponse> result =
+                adminService.getUsersForExport(" kim ", Sort.by(Sort.Direction.DESC, "usrNm"));
 
-        // then
-        assertThat(result).isEmpty();
+        assertThat(result).extracting(AdminDto.UserResponse::eno).containsExactly("10001");
     }
 
     // =========================================================================

@@ -3,17 +3,15 @@
   IT Portal 백엔드 로깅 설정.
   - Spring Boot 기본 변환 규칙(컬러/패턴)을 포함하고, 콘솔 + 파일 appender를 구성합니다.
   - 파일 로그는 1개월 단위로 롤오버합니다(fileNamePattern의 %d{yyyy-MM}).
-  - 로그 저장 경로는 프로파일별로 분기합니다.
-      dev / prod : /log/springitp
-      그 외       : c:/itp_log
+  - 모든 프로파일의 로그 저장 경로는 /log/springitp입니다.
   - 로그 레벨(logging.level.*)은 application*.properties에서 계속 제어합니다.
 -->
 <configuration>
     <!-- Spring Boot 기본 정의: CONSOLE_LOG_PATTERN, FILE_LOG_PATTERN 등 -->
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
-    <!-- 미열거 프로파일(test, test-it 등)도 로컬 기본 경로를 사용 -->
-    <property name="LOG_PATH" value="c:/itp_log"/>
+    <!-- 프로파일 누락 시에도 서버 공통 로그 경로를 사용 -->
+    <property name="LOG_PATH" value="/log/springitp"/>
 
     <!-- 서버 프로파일은 전용 로그 경로로 재정의 -->
     <springProfile name="dev,prod">

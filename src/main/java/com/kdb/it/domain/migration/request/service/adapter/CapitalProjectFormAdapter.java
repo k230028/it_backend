@@ -122,11 +122,12 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             return null;
         }
         if (!resolution.candidates().isEmpty()) {
-            // 기본값으로 정했지만 대안이 있는 경우다. 그대로 반입하면 틀릴 수 있어 확인을 요청한다.
+            // 기본값으로 정했지만 대안이 있는 경우다. 반영은 막지 않고 확인만 요청한다 —
+            // 여기서 막으면 개발비·기타무형자산 품목이 있는 파일이 전부 차단된다.
             diagnostics.add(
                     itemDiagnostic(
                             row,
-                            RequestFormDiagnosticCode.CODE_AMBIGUOUS,
+                            RequestFormDiagnosticCode.CODE_DEFAULTED,
                             "품목 구분 `%s`는 `%s`로 기본 설정했습니다. 다른 비목이면 골라 주세요."
                                     .formatted(row.group(), resolution.code()),
                             resolution));
