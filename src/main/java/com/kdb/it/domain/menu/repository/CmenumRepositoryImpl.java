@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,16 +55,54 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
             """;
 
     /**
-     * IMK_NM 컬럼 존재 여부 캐시. 스키마는 런타임에 바뀌지 않으므로 실제 판정에 성공한 값만 최초 1회 캐시한다. 판정 자체가 실패한 경우는 캐시하지 않고 다음
-     * 호출에서 재시도한다(아래 {@link #probeIconColumn()} 참조).
+     * IMK_NM 컬럼 존재 여부 캐시. 스키마는 런타임에 바뀌지 않으므로 실제 판정에 성공한 값(true/false 무관)만 최초 1회 캐시한다. 판정 자체가 실패한
+     * 경우는 캐시하지 않되, 아래 {@link #probeFailureCooldownNanos} 동안은 재시도를 억제하고 다음 호출에서 재시도한다(아래 {@link
+     * #probeIconColumn()} 참조).
      */
     private volatile Boolean iconColumnPresent;
+
+    /**
+     * 판정 실패 후 재시도를 억제하는 기본 냉각 시간.
+     *
+     * <p>실패를 전혀 캐시하지 않고 매번 재시도하면, 커넥션 풀 장애처럼 지속되는 DB 문제 상황에서 `/api/menus`가 호출될 때마다(페이지 로드마다) 이미
+     * 트랜잭션 커넥션을 쥔 채로 두 번째 커넥션을 기다리게 되어 Hikari {@code connectionTimeout}(기본 30초)까지 블로킹하며 풀 고갈을 스스로
+     * 심화시킨다. 반대로 실패를 영구 캐시하면(이전 동작) 일시적 순단 한 번이 프로세스 수명 내내 폴백 모드에 고정된다. 60초는 일시적 장애가 1분 안에 스스로
+     * 회복되도록 하면서도, 장애가 이어지는 동안에는 매 요청이 매번 풀을 두드리지 않도록 억제하는 절충값이다.
+     */
+    private static final long DEFAULT_PROBE_FAILURE_COOLDOWN_NANOS = TimeUnit.SECONDS.toNanos(60);
+
+    /** 냉각 시간(나노초). 테스트에서만 {@link #setProbeFailureCooldownNanos(long)}로 조정한다. */
+    private long probeFailureCooldownNanos = DEFAULT_PROBE_FAILURE_COOLDOWN_NANOS;
+
+    /** 마지막 판정 실패 시각({@link System#nanoTime()} 기준). 실패한 적이 없으면 {@code null}. */
+    private volatile Long lastProbeFailureNanos;
+
+    /**
+     * 테스트에서 냉각 시간을 조정하기 위한 패키지 전용 설정자. 운영 코드 경로에서는 호출하지 않는다.
+     *
+     * @param probeFailureCooldownNanos 새 냉각 시간(나노초)
+     */
+    void setProbeFailureCooldownNanos(long probeFailureCooldownNanos) {
+        this.probeFailureCooldownNanos = probeFailureCooldownNanos;
+    }
 
     @Override
     public boolean isIconColumnPresent() {
         Boolean cached = iconColumnPresent;
         if (cached != null) return cached;
+        if (isWithinFailureCooldown()) return false;
         return probeIconColumn();
+    }
+
+    /**
+     * 직전 판정 실패로부터 냉각 시간이 지나지 않았는지 확인한다.
+     *
+     * @return 냉각 시간 내이면 {@code true}. 이 경우 호출자는 커넥션을 열지 않고 곧바로 '없음'을 반환해야 한다
+     */
+    private boolean isWithinFailureCooldown() {
+        Long failedAtNanos = lastProbeFailureNanos;
+        if (failedAtNanos == null) return false;
+        return System.nanoTime() - failedAtNanos < probeFailureCooldownNanos;
     }
 
     /**
@@ -78,14 +117,21 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
      * 놓고 ALL_TAB_COLUMNS를 본다.
      *
      * <p>조회 실패를 이번 호출 한정으로만 '없음'으로 접는 것은 의도적이다("Repository는 DB 예외를 전파한다" it_backend/CLAUDE.md §4의
-     * 예외). 업무 조회가 아니라 카탈로그 탐지이며, 반대로 판정하면 메뉴 조회 전체가 ORA-00904로 죽는다. 실패를 캐시하면 기동 직후의 일시적 DB 장애 한 번이
-     * 프로세스 수명 내내 폴백 모드에 고정되므로, 실패는 캐시하지 않고 실제 판정에 성공한 값만 캐시한다.
+     * 예외). 업무 조회가 아니라 카탈로그 탐지이며, 반대로 판정하면 메뉴 조회 전체가 ORA-00904로 죽는다. 다만 실패를 전혀 캐시하지 않으면 지속되는 DB 장애
+     * 동안 매 호출이 새 커넥션을 기다리며 풀 고갈을 심화시키므로, 실패 시점만 기록해 {@link #probeFailureCooldownNanos} 동안 재판정을
+     * 억제한다({@link #isWithinFailureCooldown()} 참조). 실제 판정에 성공한 값(true/false 모두)은 냉각 없이 프로세스 수명 동안
+     * 캐시한다.
      */
     private boolean probeIconColumn() {
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(PROBE_ICON_COLUMN_SQL);
                 ResultSet rs = ps.executeQuery()) {
-            rs.next();
+            if (!rs.next()) {
+                // COUNT(*)는 항상 한 행을 반환하므로 정상 상황에서는 도달하지 않는다. 방어적으로 '없음'을 확정값으로 캐시해
+                // getInt(1) 호출이 예외를 던져 정상 판정이 실패로 오분류되는 것을 막는다.
+                iconColumnPresent = false;
+                return false;
+            }
             boolean present = rs.getInt(1) > 0;
             iconColumnPresent = present;
             if (!present) {
@@ -95,7 +141,10 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
             }
             return present;
         } catch (SQLException | RuntimeException e) {
-            log.warn("TPRMPP_CMENUM.IMK_NM 컬럼 존재 판정에 실패했습니다. 이번 호출만 '없음'으로 처리하며 캐시하지 않습니다.", e);
+            lastProbeFailureNanos = System.nanoTime();
+            log.warn(
+                    "TPRMPP_CMENUM.IMK_NM 컬럼 존재 판정에 실패했습니다. 냉각 시간 동안 재시도를 억제하고 이번 호출은 '없음'으로 처리합니다.",
+                    e);
             return false;
         }
     }
@@ -117,8 +166,8 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
      * 차단되며, Hibernate의 typed-null 렌더링 동작에 의존하지 않는다. 9인자 보조 생성자가 imkNm을 null로 채운다.
      *
      * <p>분기 조건을 인자로 받는 이유는 테스트 가능성이다. {@code isIconColumnPresent()}를 내부에서 직접 호출하면 컬럼 부재 분기는 실제로 컬럼이
-     * 없는 Oracle 스키마에서만 재현되어 단위 테스트로 다다를 수 없다. 호출부({@code findActiveMenuTreeRows()})는 여전히 {@code
-     * isIconColumnPresent()}의 실측값을 전달하므로 동작은 그대로다.
+     * 없는 Oracle 스키마에서만 재현되어 단위 테스트로 다다를 수 없다. 이제 이 메서드 자신은 {@code isIconColumnPresent()}를 호출하지 않고,
+     * 호출부인 {@code MenuQueryService}가 판정값을 한 번 구해 {@code findActiveMenuTreeRows(boolean)}에 인자로 전달한다.
      *
      * @param iconColumnPresent IMK_NM 컬럼 존재 여부. true면 10인자(imkNm 포함), false면 9인자(imkNm 제외) 프로젝션을
      *     반환한다
