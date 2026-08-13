@@ -57,7 +57,7 @@ class MenuQueryServiceTest {
     @Test
     void buildsTree_andFiltersByRole_pruningEmptyGroups() {
         // GRP 'G' (admin-only) with one PGE child 'C'; and public PGE 'P'
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(
                                 node("G", null, "GRP", 1, "/G"),
@@ -82,7 +82,7 @@ class MenuQueryServiceTest {
     @Test
     void tree_carriesMenuIcon() {
         // 아이콘은 프론트 하드코딩 맵이 아니라 메뉴 행이 단일 출처다 — 트리에 실려 나가야 한다.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(
                                 row("A", null, "PGE", 1, "/A", null, "pi pi-home"),
@@ -99,7 +99,7 @@ class MenuQueryServiceTest {
     @Test
     void userTree_carriesAthIds_forCrownIndicator() {
         // 사용자 트리도 노드별 athIds를 실어야 사이드바/헤더가 관리자(왕관) 메뉴를 표시할 수 있다.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(node("A", null, "PGE", 1, "/A"), node("P", null, "PGE", 1, "/P")));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("A", Set.of("ITPAD001")));
@@ -117,7 +117,7 @@ class MenuQueryServiceTest {
 
     @Test
     void adminTree_returnsEverything_withoutPruning() {
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(List.of(node("H", null, "PGE", 1, "/H")));
         // 관리 트리는 가지치기 없이 전체를 반환하고, 편집 폼용으로 노드별 athIds를 함께 싣는다.
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of("H", Set.of("ITPAD001")));
@@ -148,7 +148,7 @@ class MenuQueryServiceTest {
     @Test
     void boardMenu_isHiddenFromUserTree_whenLinkedBoardIsInactive() {
         // 게시판이 삭제·미사용으로 바뀌어도 메뉴 행은 남는다 — 사용자 트리에서만 감춰야 한다.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(
                                 node("MBRD0001", null, "GRP", 1, "/MBRD0001"),
@@ -168,7 +168,7 @@ class MenuQueryServiceTest {
     @Test
     void boardMenu_staysInAdminTree_evenWhenLinkedBoardIsInactive() {
         // 관리자는 끊어진 연결을 보고 고쳐야 하므로 관리 트리에서는 감추지 않는다.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(
                                 node("MBRD0001", null, "GRP", 1, "/MBRD0001"),
@@ -185,7 +185,7 @@ class MenuQueryServiceTest {
     @Test
     void boardListIsNotQueried_whenTreeHasNoBoardMenu() {
         // 게시판 메뉴가 없는 트리에서까지 게시판을 조회하면 메뉴 조회마다 불필요한 쿼리가 는다.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(
                                 node("P", null, "PGE", 1, "/P"),
@@ -208,7 +208,7 @@ class MenuQueryServiceTest {
     @Test
     void malformedBoardPath_isHiddenFromUserTree() {
         // /board/ 접두사로 시작한 값은 형식이 깨져도 게시판 후보이므로 사용자에게 노출하지 않는다.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(
                                 node("MBRD0001", null, "GRP", 1, "/MBRD0001"),
@@ -232,7 +232,7 @@ class MenuQueryServiceTest {
     @Test
     void rootGroup_isPruned_whenAllChildrenUnauthorized_butKept_whenPlaceholderVisible() {
         // 관리자 그룹 H1: admin 전용 자식 A. CDP 그룹 H2: 공개 플레이스홀더 P.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(
                         List.of(
                                 node("H1", null, "GRP", 1, "/H1"),
@@ -260,7 +260,7 @@ class MenuQueryServiceTest {
     void grp_keepsStaticChildrenFromMenuTable() {
         MenuTreeRow grp = node("G1", null, "GRP", 1, "/G1");
         MenuTreeRow child = node("C1", "G1", "PGE", 2, "/G1/C1");
-        given(cmenumRepository.findActiveMenuTreeRows()).willReturn(List.of(grp, child));
+        given(cmenumRepository.findActiveMenuTreeRows(true)).willReturn(List.of(grp, child));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
 
         List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPZZ001"));
@@ -279,7 +279,7 @@ class MenuQueryServiceTest {
     @DisplayName("컬럼이 없으면 사용자 트리에 메뉴별 기본 아이콘이 채워진다")
     void userTree_fillsDefaultIcons_whenIconColumnMissing() {
         given(cmenumRepository.isIconColumnPresent()).willReturn(false);
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(false))
                 .willReturn(
                         List.of(
                                 // 스냅샷에 있는 메뉴 → 기본 아이콘
@@ -299,7 +299,7 @@ class MenuQueryServiceTest {
     @DisplayName("컬럼이 없으면 관리 트리에도 같은 기본 아이콘이 채워진다")
     void adminTree_fillsDefaultIcons_whenIconColumnMissing() {
         given(cmenumRepository.isIconColumnPresent()).willReturn(false);
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(false))
                 .willReturn(List.of(node("MADM0001", null, "PGE", 1, "/MADM0001")));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
 
@@ -312,7 +312,7 @@ class MenuQueryServiceTest {
     @DisplayName("컬럼이 있으면 DB의 null을 기본 아이콘으로 되살리지 않는다")
     void iconColumnPresent_keepsNullAsNull() {
         // 관리자가 일부러 비운 아이콘을 서버가 되살리면 '아이콘 단일 출처 = 메뉴 행'이 깨진다.
-        given(cmenumRepository.findActiveMenuTreeRows())
+        given(cmenumRepository.findActiveMenuTreeRows(true))
                 .willReturn(List.of(node("MHED0001", null, "PGE", 1, "/MHED0001")));
         given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
 

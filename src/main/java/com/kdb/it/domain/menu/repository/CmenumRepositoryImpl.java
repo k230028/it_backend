@@ -6,17 +6,25 @@ import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
+import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
+@Slf4j
 /** QueryDSL 하위 트리 조회와 Oracle 시퀀스 기반 메뉴 ID 채번을 구현합니다. */
 public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
     private final EntityManager entityManager;
+    private final DataSource dataSource;
 
     @Override
     public List<Cmenum> findSubtreeByPathPrefix(String pathPrefix) {
@@ -37,51 +45,66 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
         return "MNU" + String.format("%07d", n);
     }
 
-    /** IMK_NM 컬럼 존재 여부 캐시. 스키마는 런타임에 바뀌지 않으므로 최초 1회만 판정한다. */
+    private static final String PROBE_ICON_COLUMN_SQL =
+            """
+            SELECT COUNT(*) FROM ALL_TAB_COLUMNS
+             WHERE OWNER = SYS_CONTEXT('USERENV','CURRENT_SCHEMA')
+               AND TABLE_NAME = 'TPRMPP_CMENUM'
+               AND COLUMN_NAME = 'IMK_NM'
+            """;
+
+    /**
+     * IMK_NM 컬럼 존재 여부 캐시. 스키마는 런타임에 바뀌지 않으므로 실제 판정에 성공한 값만 최초 1회 캐시한다. 판정 자체가 실패한 경우는 캐시하지 않고 다음
+     * 호출에서 재시도한다(아래 {@link #probeIconColumn()} 참조).
+     */
     private volatile Boolean iconColumnPresent;
 
     @Override
     public boolean isIconColumnPresent() {
         Boolean cached = iconColumnPresent;
         if (cached != null) return cached;
-        boolean present = probeIconColumn();
-        iconColumnPresent = present;
-        return present;
+        return probeIconColumn();
     }
 
     /**
      * 데이터 사전에서 TPRMPP_CMENUM.IMK_NM을 찾는다.
      *
+     * <p>JPA {@code EntityManager}가 아니라 {@link DataSource}에서 직접 얻은 커넥션으로 조회한다. {@code
+     * EntityManager#createNativeQuery}로 조회하면 예외 발생 시 JPA가 영속성 컨텍스트가 속한 트랜잭션을 rollback-only로 표시해,
+     * {@code MenuQueryService}처럼 {@code @Transactional(readOnly = true)}인 호출부에서 "판정 실패도 메뉴 조회 자체는
+     * 성공한다"는 계약이 커밋 시점에 깨진다. 커넥션을 직접 열고 닫으면 이 문제가 없다.
+     *
      * <p>접속 계정(ITPAPP)과 객체 소유 스키마(ITPOWN)가 달라 USER_TAB_COLUMNS로는 보이지 않는다. 세션 CURRENT_SCHEMA를 소유자로
      * 놓고 ALL_TAB_COLUMNS를 본다.
      *
-     * <p>조회 실패를 '없음'으로 접는 것은 "Repository는 DB 예외를 전파한다"(it_backend/CLAUDE.md §4)에 대한 의도적 예외다. 업무 조회가
-     * 아니라 카탈로그 탐지이며, 반대로 판정하면 메뉴 조회 전체가 ORA-00904로 죽는다. 이 방향의 오판은 아이콘이 기본값으로 표시될 뿐이다.
+     * <p>조회 실패를 이번 호출 한정으로만 '없음'으로 접는 것은 의도적이다("Repository는 DB 예외를 전파한다" it_backend/CLAUDE.md §4의
+     * 예외). 업무 조회가 아니라 카탈로그 탐지이며, 반대로 판정하면 메뉴 조회 전체가 ORA-00904로 죽는다. 실패를 캐시하면 기동 직후의 일시적 DB 장애 한 번이
+     * 프로세스 수명 내내 폴백 모드에 고정되므로, 실패는 캐시하지 않고 실제 판정에 성공한 값만 캐시한다.
      */
     private boolean probeIconColumn() {
-        try {
-            Number count =
-                    (Number)
-                            entityManager
-                                    .createNativeQuery(
-                                            """
-                                            SELECT COUNT(*) FROM ALL_TAB_COLUMNS
-                                             WHERE OWNER = SYS_CONTEXT('USERENV','CURRENT_SCHEMA')
-                                               AND TABLE_NAME = 'TPRMPP_CMENUM'
-                                               AND COLUMN_NAME = 'IMK_NM'
-                                            """)
-                                    .getSingleResult();
-            return count.intValue() > 0;
-        } catch (RuntimeException e) {
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(PROBE_ICON_COLUMN_SQL);
+                ResultSet rs = ps.executeQuery()) {
+            rs.next();
+            boolean present = rs.getInt(1) > 0;
+            iconColumnPresent = present;
+            if (!present) {
+                log.warn(
+                        "TPRMPP_CMENUM.IMK_NM 컬럼이 없습니다. 마이그레이션(V20260806_002)이 적용될 때까지 메뉴 아이콘은"
+                                + " MenuIconDefaults 스냅샷으로 대체됩니다.");
+            }
+            return present;
+        } catch (SQLException | RuntimeException e) {
+            log.warn("TPRMPP_CMENUM.IMK_NM 컬럼 존재 판정에 실패했습니다. 이번 호출만 '없음'으로 처리하며 캐시하지 않습니다.", e);
             return false;
         }
     }
 
     @Override
-    public List<MenuTreeRow> findActiveMenuTreeRows() {
+    public List<MenuTreeRow> findActiveMenuTreeRows(boolean iconColumnPresent) {
         QCmenum m = QCmenum.cmenum;
         return queryFactory
-                .select(menuTreeRowProjection(m, isIconColumnPresent()))
+                .select(menuTreeRowProjection(m, iconColumnPresent))
                 .from(m)
                 .where(m.delYn.eq("N"))
                 .fetch();

@@ -39,8 +39,8 @@ public class MenuQueryService {
      *     MenuIconDefaults} 스냅샷으로 아이콘을 채운다.
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
-        List<MenuTreeRow> all = cmenumRepository.findActiveMenuTreeRows();
         boolean iconColumnPresent = cmenumRepository.isIconColumnPresent();
+        List<MenuTreeRow> all = cmenumRepository.findActiveMenuTreeRows(iconColumnPresent);
         Map<String, Set<String>> athByMenu = menuAuthMapProvider.getMenuAuthMap();
         Set<String> userAths = new HashSet<>(athIds == null ? List.of() : athIds);
         Set<String> activeBoardPaths = activeBoardPaths(all);
@@ -61,13 +61,15 @@ public class MenuQueryService {
     /**
      * 관리화면용 전체 메뉴 트리를 조회합니다.
      *
-     * @return 숨김·권한·빈 그룹을 제거하지 않고 노드별 권한ID를 포함한 전체 트리
+     * @return 숨김·권한·빈 그룹을 제거하지 않고 노드별 권한ID를 포함한 전체 트리. {@code IMK_NM} 컬럼이 없는 환경에서는 {@link
+     *     MenuIconDefaults} 스냅샷으로 아이콘을 채운다
      */
     public List<MenuDto.Node> getAdminMenuTree() {
+        boolean iconColumnPresent = cmenumRepository.isIconColumnPresent();
         List<MenuDto.Node> tree =
                 buildTree(
-                        cmenumRepository.findActiveMenuTreeRows(),
-                        cmenumRepository.isIconColumnPresent());
+                        cmenumRepository.findActiveMenuTreeRows(iconColumnPresent),
+                        iconColumnPresent);
         applyAthIds(tree, menuAuthMapProvider.getMenuAuthMap());
         return tree;
     }

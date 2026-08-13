@@ -74,11 +74,11 @@ public final class MenuIconDefaults {
     }
 
     /**
-     * 스냅샷 전량.
+     * 스냅샷 전량. 운영 코드에서는 호출하지 않으며 {@code MenuIconDefaultsTest}의 스냅샷 계약 검증 전용이다.
      *
      * @return 불변 {@code MNU_ID → 아이콘 클래스} 맵
      */
-    public static Map<String, String> all() {
+    static Map<String, String> all() {
         return ICONS;
     }
 }

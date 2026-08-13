@@ -20,8 +20,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("메뉴 트리 프로젝션의 IMK_NM 컬럼 존재/부재 분기")
 class MenuTreeRowProjectionTest {
 
-    // 생성자 인자만 사용하며 queryFactory/entityManager는 이 메서드에서 참조되지 않는다.
-    private final CmenumRepositoryImpl repository = new CmenumRepositoryImpl(null, null);
+    // 생성자 인자만 사용하며 queryFactory/entityManager/dataSource는 이 메서드에서 참조되지 않는다.
+    private final CmenumRepositoryImpl repository = new CmenumRepositoryImpl(null, null, null);
 
     private final QCmenum m = QCmenum.cmenum;
 

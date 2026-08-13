@@ -43,7 +43,7 @@ class CmenumMenuTreeProjectionIt extends AbstractOracleRepositoryTest {
                         .filter(e -> e.getMnuId().startsWith("ZZPRJ"))
                         .collect(Collectors.toMap(Cmenum::getMnuId, Function.identity()));
         Map<String, MenuTreeRow> rows =
-                menuRepository.findActiveMenuTreeRows().stream()
+                menuRepository.findActiveMenuTreeRows(menuRepository.isIconColumnPresent()).stream()
                         .filter(r -> r.mnuId().startsWith("ZZPRJ"))
                         .collect(Collectors.toMap(MenuTreeRow::mnuId, Function.identity()));
 
@@ -73,7 +73,7 @@ class CmenumMenuTreeProjectionIt extends AbstractOracleRepositoryTest {
     @Test
     @DisplayName("전체 활성 메뉴 건수가 엔티티 조회와 일치한다")
     void rowCount_matchesEntityQuery() {
-        assertThat(menuRepository.findActiveMenuTreeRows())
+        assertThat(menuRepository.findActiveMenuTreeRows(menuRepository.isIconColumnPresent()))
                 .hasSameSizeAs(menuRepository.findAllActive());
     }
 
