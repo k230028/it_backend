@@ -2,6 +2,7 @@ package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,13 +16,13 @@ import java.util.List;
  * @param projects 생성할 사업 요청 (품목 포함)
  * @param costs 생성할 전산업무비 요청
  * @param diagnostics 어댑터가 낸 해석 진단
- * @param suggestedGeneralExpenseMultiplier 시트 ③ 단위 제안값. 시트 ③이 없으면 null
+ * @param suggestedGeneralExpenseUnit 시트 ③ 단위 제안값. 시트 ③이 없으면 null
  */
 public record FormAdapterOutput(
         List<ProjectDto.CreateRequest> projects,
         List<CostDto.CreateRequest> costs,
         List<RequestFormDto.FormDiagnostic> diagnostics,
-        Long suggestedGeneralExpenseMultiplier) {
+        AmountUnit suggestedGeneralExpenseUnit) {
 
     /**
      * 산출물이 없는 결과를 만듭니다.
@@ -49,8 +50,8 @@ public record FormAdapterOutput(
                 List.copyOf(mergedProjects),
                 List.copyOf(mergedCosts),
                 List.copyOf(mergedDiagnostics),
-                suggestedGeneralExpenseMultiplier != null
-                        ? suggestedGeneralExpenseMultiplier
-                        : other.suggestedGeneralExpenseMultiplier());
+                suggestedGeneralExpenseUnit != null
+                        ? suggestedGeneralExpenseUnit
+                        : other.suggestedGeneralExpenseUnit());
     }
 }

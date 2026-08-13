@@ -142,6 +142,6 @@ public class RequestFormFileImporter {
                 status,
                 diagnostics,
                 created,
-                output.suggestedGeneralExpenseMultiplier());
+                output.suggestedGeneralExpenseUnit());
     }
 }

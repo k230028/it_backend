@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
@@ -81,7 +82,11 @@ class RequestFormImportServiceTest {
                         .map(
                                 key ->
                                         new RequestFormDto.FileEntry(
-                                                key, key.split("/")[0], null, 1L, "571"))
+                                                key,
+                                                key.split("/")[0],
+                                                null,
+                                                AmountUnit.WON,
+                                                "571"))
                         .toList();
         return new RequestFormDto.ImportManifest("2026", entries, List.of());
     }
@@ -93,7 +98,7 @@ class RequestFormImportServiceTest {
                 RequestFormDto.FileStatus.APPLIED,
                 List.of(),
                 List.of(new RequestFormDto.CreatedRecord("BCOSTM", "COST-2026-0001", "계약")),
-                1L);
+                AmountUnit.WON);
     }
 
     @Test

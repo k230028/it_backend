@@ -166,7 +166,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         }
         if (actual.signum() == 0) return;
 
-        if (AmountUnitResolver.inferMultiplier(declaredYearTotal, actual).isEmpty()) {
+        if (AmountUnitResolver.inferUnit(declaredYearTotal, actual).isEmpty()) {
             diagnostics.add(
                     RequestFormDto.FormDiagnostic.of(
                             FormSheetKind.CAPITAL_OVERVIEW,

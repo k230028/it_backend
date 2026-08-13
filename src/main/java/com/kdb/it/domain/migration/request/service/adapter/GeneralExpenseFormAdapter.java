@@ -3,6 +3,7 @@ package com.kdb.it.domain.migration.request.service.adapter;
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
@@ -75,32 +76,31 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         if (rows.isEmpty()) return FormAdapterOutput.empty();
 
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
-        long multiplier = resolveMultiplier(context, rows, diagnostics);
+        AmountUnit unit = resolveUnit(context, rows, diagnostics);
 
         List<CostDto.CreateRequest> costs = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
-            costs.add(toCreateRequest(row, context, multiplier, diagnostics));
+            costs.add(toCreateRequest(row, context, unit, diagnostics));
         }
-        return new FormAdapterOutput(
-                List.of(), List.copyOf(costs), List.copyOf(diagnostics), multiplier);
+        return new FormAdapterOutput(List.of(), List.copyOf(costs), List.copyOf(diagnostics), unit);
     }
 
     /** 사용자가 지정한 배수를 우선하고, 없으면 제안값을 계산해 확인 경고를 남깁니다. */
-    private long resolveMultiplier(
+    private AmountUnit resolveUnit(
             FormAdapterContext context,
             List<GeneralExpenseRow> rows,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        Long specified = context.entry().generalExpenseMultiplier();
+        AmountUnit specified = context.entry().generalExpenseUnit();
         if (specified != null) return specified;
 
-        long suggested = AmountUnitResolver.suggestGeneralExpenseMultiplier(krwAnnualAmounts(rows));
+        AmountUnit suggested = AmountUnitResolver.suggestGeneralExpenseUnit(krwAnnualAmounts(rows));
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.of(
                         FormSheetKind.GENERAL_EXPENSE,
                         null,
-                        "generalExpenseMultiplier",
+                        "generalExpenseUnit",
                         RequestFormDiagnosticCode.UNIT_UNCERTAIN,
-                        "금액 단위를 %s 단위로 추정했습니다. 확인해 주세요.".formatted(unitLabel(suggested)),
+                        "금액 단위를 %s 단위로 추정했습니다. 확인해 주세요.".formatted(suggested.label()),
                         List.of()));
         return suggested;
     }
@@ -108,7 +108,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
     private CostDto.CreateRequest toCreateRequest(
             GeneralExpenseRow row,
             FormAdapterContext context,
-            long multiplier,
+            AmountUnit unit,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         CostDto.CreateRequest request = new CostDto.CreateRequest();
         request.setBseYy(context.bseYy());
@@ -123,7 +123,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         request.setDfrCleC(row.monthly() != null ? CYCLE_MONTHLY : CYCLE_YEARLY);
 
         applyIoe(row, context, request, diagnostics);
-        applyCurrencyAndAmount(row, request, multiplier);
+        applyCurrencyAndAmount(row, request, unit);
         applyFlags(row, request, diagnostics);
         return request;
     }
@@ -178,18 +178,21 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
      * 환율`로 재계산하므로 여기서 채우면 그 값이 그대로 버려집니다.
      */
     private void applyCurrencyAndAmount(
-            GeneralExpenseRow row, CostDto.CreateRequest request, long multiplier) {
+            GeneralExpenseRow row, CostDto.CreateRequest request, AmountUnit unit) {
         String currency = row.currency();
         request.setCurC(currency);
         if (row.annual() == null) return;
 
         if ("KRW".equalsIgnoreCase(currency)) {
-            request.setCostTotXpAmt(AmountUnitResolver.applyMultiplier(row.annual(), multiplier));
+            request.setCostTotXpAmt(unit.toWon(row.annual()));
             request.setFcAmt(null);
             return;
         }
-        long foreignMultiplier = "JPY".equalsIgnoreCase(currency) ? JPY_MULTIPLIER : 1L;
-        request.setFcAmt(AmountUnitResolver.applyMultiplier(row.annual(), foreignMultiplier));
+        BigDecimal foreignAmount =
+                "JPY".equalsIgnoreCase(currency)
+                        ? row.annual().multiply(BigDecimal.valueOf(JPY_MULTIPLIER))
+                        : row.annual();
+        request.setFcAmt(foreignAmount);
         request.setCostTotXpAmt(null);
         request.setXcr(null);
     }
@@ -233,12 +236,6 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             }
         }
         return amounts;
-    }
-
-    private static String unitLabel(long multiplier) {
-        if (multiplier == AmountUnitResolver.UNIT_MILLION) return "백만원";
-        if (multiplier == AmountUnitResolver.UNIT_THOUSAND) return "천원";
-        return "원";
     }
 
     private static Map<String, List<String>> columnAliases() {

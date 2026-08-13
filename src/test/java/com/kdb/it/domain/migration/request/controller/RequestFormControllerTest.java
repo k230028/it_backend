@@ -16,6 +16,7 @@ import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.RequestFormImportService;
 import java.nio.charset.StandardCharsets;
@@ -114,7 +115,7 @@ class RequestFormControllerTest {
                         "26",
                         List.of(
                                 new RequestFormDto.FileEntry(
-                                        "자금운용실/요청서.xls", "자금운용실", null, 1L, null)),
+                                        "자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, null)),
                         List.of());
 
         mockMvc.perform(
@@ -175,7 +176,9 @@ class RequestFormControllerTest {
     private static RequestFormDto.ImportManifest validManifest() {
         return new RequestFormDto.ImportManifest(
                 "2026",
-                List.of(new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, 1L, "571")),
+                List.of(
+                        new RequestFormDto.FileEntry(
+                                "자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571")),
                 List.of());
     }
 
@@ -194,7 +197,7 @@ class RequestFormControllerTest {
                                         : List.of(
                                                 new RequestFormDto.CreatedRecord(
                                                         "BCOSTM", "COST-2026-0001", "계약")),
-                                1L)));
+                                AmountUnit.WON)));
     }
 
     /** 사번 999999의 관리자 인증 principal. 반입이 이 사번을 그대로 서비스에 넘기는지 검증하는 데 사용합니다. */

@@ -14,6 +14,7 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.service.ProjectService;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
@@ -38,7 +39,7 @@ class RequestFormFileImporterTest {
     @Mock private RequestFormValidator validator;
 
     private static final RequestFormDto.FileEntry ENTRY =
-            new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, 1L, "571");
+            new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571");
 
     private RequestFormFileImporter importer() {
         return new RequestFormFileImporter(costService, projectService, stamper, validator);
@@ -138,7 +139,7 @@ class RequestFormFileImporterTest {
                                         RequestFormDiagnosticCode.OPTIONAL_MISSING,
                                         "공란",
                                         List.of())),
-                        1L);
+                        AmountUnit.WON);
         when(validator.validate(any(), anyString()))
                 .thenReturn(
                         List.of(
@@ -157,7 +158,7 @@ class RequestFormFileImporterTest {
                 .containsExactlyInAnyOrder(
                         RequestFormDiagnosticCode.OPTIONAL_MISSING,
                         RequestFormDiagnosticCode.REQUIRED_MISSING);
-        assertThat(result.suggestedGeneralExpenseMultiplier()).isEqualTo(1L);
+        assertThat(result.suggestedGeneralExpenseUnit()).isEqualTo(AmountUnit.WON);
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.BLOCKED);
     }
 

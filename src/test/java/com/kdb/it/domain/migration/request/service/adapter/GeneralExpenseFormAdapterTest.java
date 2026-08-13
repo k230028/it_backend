@@ -3,10 +3,10 @@ package com.kdb.it.domain.migration.request.service.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
-import com.kdb.it.domain.migration.request.service.AmountUnitResolver;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.service.WorkbookReader;
 import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
@@ -23,15 +23,15 @@ class GeneralExpenseFormAdapterTest {
     private final GeneralExpenseFormAdapter adapter =
             new GeneralExpenseFormAdapter(new SheetAnchorScanner());
 
-    private FormAdapterContext contextOf(byte[] workbookBytes, Long multiplier) {
-        return contextOf(workbookBytes, multiplier, Map.of());
+    private FormAdapterContext contextOf(byte[] workbookBytes, AmountUnit unit) {
+        return contextOf(workbookBytes, unit, Map.of());
     }
 
     private FormAdapterContext contextOf(
-            byte[] workbookBytes, Long multiplier, Map<String, String> overrides) {
+            byte[] workbookBytes, AmountUnit unit, Map<String, String> overrides) {
         Map<FormSheetKind, Sheet> sheets = reader.classify(reader.open(workbookBytes, "픽스처.xls"));
         RequestFormDto.FileEntry entry =
-                new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, multiplier, "571");
+                new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, unit, "571");
         return new FormAdapterContext(
                 sheets,
                 "2026",
@@ -47,7 +47,8 @@ class GeneralExpenseFormAdapterTest {
     @Test
     @DisplayName("비목명과 세부비목 쌍으로 비목코드를 확정해 전산업무비를 만든다")
     void buildsCostFromDetailPair() {
-        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), 1L));
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.WON));
 
         assertThat(output.costs()).hasSize(2);
         CostDto.CreateRequest first = output.costs().get(0);
@@ -68,7 +69,8 @@ class GeneralExpenseFormAdapterTest {
     @Test
     @DisplayName("양식 표기가 공통코드와 달라도 대조표로 되돌려 확정한다")
     void resolvesIoeThroughLexicon() {
-        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), 1L));
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.WON));
 
         // 양식은 `국외전산유지보수료`, 공통코드 014는 `국외유지보수료`
         assertThat(output.costs().get(1).getIoeC()).isEqualTo("014");
@@ -78,7 +80,7 @@ class GeneralExpenseFormAdapterTest {
     @DisplayName("A·B열 병합으로 빈 행은 위 값을 이어받는다")
     void forwardFillsMergedCategoryColumns() {
         FormAdapterOutput output =
-                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), 1L));
+                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), AmountUnit.WON));
 
         assertThat(output.costs()).hasSize(2);
         assertThat(output.costs().get(1).getIoeC()).isEqualTo("013");
@@ -88,7 +90,8 @@ class GeneralExpenseFormAdapterTest {
     @Test
     @DisplayName("계속·신규 표시를 사업구분코드로 바꾼다")
     void mapsContinuedAndNew() {
-        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), 1L));
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.WON));
 
         assertThat(output.costs().get(0).getAbusTc()).isEqualTo("20");
         assertThat(output.costs().get(1).getAbusTc()).isEqualTo("10");
@@ -97,7 +100,8 @@ class GeneralExpenseFormAdapterTest {
     @Test
     @DisplayName("월간 값이 있으면 지급주기를 월로, 없으면 년으로 정한다")
     void derivesPaymentCycleFromMonthlyColumn() {
-        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), 1L));
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.WON));
 
         assertThat(output.costs().get(0).getDfrCleC()).isEqualTo("M");
         assertThat(output.costs().get(1).getDfrCleC()).isEqualTo("Y");
@@ -107,7 +111,7 @@ class GeneralExpenseFormAdapterTest {
     @DisplayName("외화 행은 FC_AMT만 채우고 원화금액은 서버 재계산에 맡긴다")
     void leavesForeignKrwAmountToServer() {
         FormAdapterOutput output =
-                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), 1L));
+                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), AmountUnit.WON));
 
         CostDto.CreateRequest gbpRow = output.costs().get(0);
         assertThat(gbpRow.getCurC()).isEqualTo("GBP");
@@ -120,10 +124,7 @@ class GeneralExpenseFormAdapterTest {
     @DisplayName("지정 배수를 원화 행에만 적용한다")
     void appliesMultiplierToKrwRowsOnly() {
         FormAdapterOutput thousand =
-                adapter.adapt(
-                        contextOf(
-                                RequestFormFixtures.fullFormXls(),
-                                AmountUnitResolver.UNIT_THOUSAND));
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.THOUSAND));
 
         assertThat(thousand.costs().get(0).getCostTotXpAmt())
                 .isEqualByComparingTo(new BigDecimal("841854085000"));
@@ -135,8 +136,7 @@ class GeneralExpenseFormAdapterTest {
         FormAdapterOutput output =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), null));
 
-        assertThat(output.suggestedGeneralExpenseMultiplier())
-                .isEqualTo(AmountUnitResolver.UNIT_WON);
+        assertThat(output.suggestedGeneralExpenseUnit()).isEqualTo(AmountUnit.WON);
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .contains(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
@@ -146,7 +146,7 @@ class GeneralExpenseFormAdapterTest {
     @DisplayName("정보보호 표기의 로마숫자 X를 N으로 접는다")
     void normalizesRomanNumeralX() {
         FormAdapterOutput output =
-                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), 1L));
+                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), AmountUnit.WON));
 
         assertThat(output.costs().get(0).getSectSysUtzYn()).isEqualTo("N");
     }
@@ -160,7 +160,8 @@ class GeneralExpenseFormAdapterTest {
                         "011");
 
         FormAdapterOutput output =
-                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), 1L, overrides));
+                adapter.adapt(
+                        contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.WON, overrides));
 
         assertThat(output.costs().get(0).getIoeC()).isEqualTo("011");
     }
@@ -174,7 +175,8 @@ class GeneralExpenseFormAdapterTest {
                         "999");
 
         FormAdapterOutput output =
-                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), 1L, overrides));
+                adapter.adapt(
+                        contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.WON, overrides));
 
         assertThat(output.costs().get(0).getIoeC()).isNull();
         assertThat(output.diagnostics())
@@ -191,7 +193,8 @@ class GeneralExpenseFormAdapterTest {
                 new FormAdapterContext(
                         sheets,
                         "2026",
-                        new RequestFormDto.FileEntry("a/b.xlsx", "IT기획부", null, 1L, null),
+                        new RequestFormDto.FileEntry(
+                                "a/b.xlsx", "IT기획부", null, AmountUnit.WON, null),
                         "0100",
                         "IT기획부",
                         null,

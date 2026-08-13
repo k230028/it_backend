@@ -26,8 +26,7 @@ class RequestFormOpenApiContractTest {
         assertAllPropertiesRequired(RequestFormDto.ImportResponse.class);
         assertAllPropertiesRequired(RequestFormDto.ImportSummary.class);
         assertAllPropertiesRequired(RequestFormDto.CreatedRecord.class);
-        assertAllPropertiesRequired(
-                RequestFormDto.FileResult.class, "suggestedGeneralExpenseMultiplier");
+        assertAllPropertiesRequired(RequestFormDto.FileResult.class, "suggestedGeneralExpenseUnit");
         assertAllPropertiesRequired(
                 RequestFormDto.FormDiagnostic.class, "sheet", "excelRow", "field");
     }
@@ -39,7 +38,7 @@ class RequestFormOpenApiContractTest {
         assertAllPropertiesRequired(
                 RequestFormDto.FileEntry.class,
                 "deptCodeOverride",
-                "generalExpenseMultiplier",
+                "generalExpenseUnit",
                 "bgUntAbusC");
         assertAllPropertiesRequired(RequestFormDto.CellOverride.class, "sheet", "excelRow");
     }
@@ -85,6 +84,25 @@ class RequestFormOpenApiContractTest {
     @DisplayName("파일 상태 enum 값 집합이 고정되어 있다")
     void fileStatusEnumIsFixed() {
         assertEnum(RequestFormDto.FileResult.class, "status", "APPLIED", "BLOCKED", "FAILED");
+    }
+
+    /**
+     * 금액 단위를 숫자가 아니라 enum으로 주고받는지 고정합니다.
+     *
+     * <p>{@code Long}에 {@code allowableValues}를 붙이면 OpenAPI가 값 집합을 문자열 enum으로 내보내 프론트 생성 타입이 {@code
+     * "1" | "1000" | "1000000"}이 되고 서버의 {@code Long}과 어긋납니다. 이 계약이 되돌아가면 프론트가 숫자를 보내도 역직렬화가 깨집니다.
+     */
+    @Test
+    @DisplayName("금액 단위는 숫자가 아니라 enum으로 주고받는다")
+    void amountUnitIsEnumNotNumber() {
+        assertEnum(
+                RequestFormDto.FileEntry.class, "generalExpenseUnit", "WON", "THOUSAND", "MILLION");
+        assertEnum(
+                RequestFormDto.FileResult.class,
+                "suggestedGeneralExpenseUnit",
+                "WON",
+                "THOUSAND",
+                "MILLION");
     }
 
     @Test

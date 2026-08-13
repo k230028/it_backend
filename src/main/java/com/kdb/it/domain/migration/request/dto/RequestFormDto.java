@@ -33,7 +33,7 @@ public final class RequestFormDto {
      * @param fileKey 브라우저 `webkitRelativePath`. 파일 파트와 결과를 잇는 키
      * @param deptName 최상위 폴더명에서 뽑은 부서명
      * @param deptCodeOverride 미리보기에서 사용자가 고른 부서코드. 없으면 null
-     * @param generalExpenseMultiplier 시트 ③ 금액 배수(1·1000·1000000). 없으면 서버가 제안값을 씁니다
+     * @param generalExpenseUnit 시트 ③ 금액 기재 단위. 없으면 서버가 제안값을 씁니다
      * @param bgUntAbusC 시트 ③ 사업코드. 양식에 없어 사용자가 지정합니다. 없으면 null
      */
     @Schema(name = "RequestFormFileEntry", description = "업로드 파일 부가 정보")
@@ -49,11 +49,10 @@ public final class RequestFormDto {
                             nullable = true)
                     String deptCodeOverride,
             @Schema(
-                            description = "시트 ③ 금액 배수",
-                            allowableValues = {"1", "1000", "1000000"},
+                            description = "시트 ③ 금액 기재 단위",
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             nullable = true)
-                    Long generalExpenseMultiplier,
+                    AmountUnit generalExpenseUnit,
             @Schema(
                             description = "시트 ③ 사업코드",
                             requiredMode = Schema.RequiredMode.REQUIRED,
@@ -202,7 +201,7 @@ public final class RequestFormDto {
      * @param status 반영 상태
      * @param diagnostics 진단 목록. 없으면 빈 목록
      * @param created 생성된 원장. dry-run이거나 반영하지 않았으면 빈 목록
-     * @param suggestedGeneralExpenseMultiplier 시트 ③ 단위 제안값. 시트 ③이 없으면 null
+     * @param suggestedGeneralExpenseUnit 시트 ③ 단위 제안값. 시트 ③이 없으면 null
      */
     @Schema(name = "RequestFormFileResult", description = "파일 처리 결과")
     public record FileResult(
@@ -218,10 +217,9 @@ public final class RequestFormDto {
                     List<CreatedRecord> created,
             @Schema(
                             description = "시트 ③ 단위 제안값",
-                            allowableValues = {"1", "1000", "1000000"},
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             nullable = true)
-                    Long suggestedGeneralExpenseMultiplier) {}
+                    AmountUnit suggestedGeneralExpenseUnit) {}
 
     /**
      * 배치 요약입니다.
