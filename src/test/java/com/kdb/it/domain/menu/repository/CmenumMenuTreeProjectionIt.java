@@ -77,6 +77,52 @@ class CmenumMenuTreeProjectionIt extends AbstractOracleRepositoryTest {
                 .hasSameSizeAs(menuRepository.findAllActive());
     }
 
+    @Test
+    @DisplayName("IMK_NM이 있는 로컬 스키마에서도 false 인자는 컬럼 부재 환경과 같은 행·필드를 반환하고 아이콘만 null로 접는다")
+    void findActiveMenuTreeRows_falseBranch_matchesTrueBranchExceptIcon() {
+        // 로컬 스키마는 IMK_NM 컬럼이 있어 findActiveMenuTreeRows(false)를 호출해도 컬럼이 없는
+        // 환경을 실제로 재현할 수는 없다. 하지만 false를 넘기면 QueryDSL이 IMK_NM을 select 목록에서
+        // 아예 빼고 9인자 보조 생성자로 행을 만드는 것은 이 스키마에서도 동일하게 유효한 SQL이므로,
+        // 컬럼 부재 환경이 받게 될 select문과 결과 조립 경로를 이 스키마에서 그대로 실 DB로 검증할 수 있다.
+        String iconId = "ZZCOL00001";
+        String plainId = "ZZCOL00002";
+
+        menuRepository.saveAllAndFlush(
+                List.of(menu(iconId, "pi pi-star", "N"), menu(plainId, null, "N")));
+
+        Map<String, MenuTreeRow> withIcon =
+                menuRepository.findActiveMenuTreeRows(true).stream()
+                        .filter(r -> r.mnuId().startsWith("ZZCOL"))
+                        .collect(Collectors.toMap(MenuTreeRow::mnuId, Function.identity()));
+        Map<String, MenuTreeRow> withoutIcon =
+                menuRepository.findActiveMenuTreeRows(false).stream()
+                        .filter(r -> r.mnuId().startsWith("ZZCOL"))
+                        .collect(Collectors.toMap(MenuTreeRow::mnuId, Function.identity()));
+
+        // 컬럼 부재 분기라고 해서 행이 빠지거나 늘어나서는 안 된다
+        assertThat(withoutIcon.keySet()).containsExactlyInAnyOrderElementsOf(withIcon.keySet());
+        assertThat(withoutIcon).hasSameSizeAs(withIcon);
+
+        for (Map.Entry<String, MenuTreeRow> entry : withIcon.entrySet()) {
+            MenuTreeRow trueRow = entry.getValue();
+            MenuTreeRow falseRow = withoutIcon.get(entry.getKey());
+            // imkNm을 제외한 나머지 필드는 9인자 보조 생성자가 인자 순서를 그대로 옮겨 채운다는 증거다
+            assertThat(falseRow.mnuId()).isEqualTo(trueRow.mnuId());
+            assertThat(falseRow.hrkMnuId()).isEqualTo(trueRow.hrkMnuId());
+            assertThat(falseRow.mnuNm()).isEqualTo(trueRow.mnuNm());
+            assertThat(falseRow.mnuTpC()).isEqualTo(trueRow.mnuTpC());
+            assertThat(falseRow.srePth()).isEqualTo(trueRow.srePth());
+            assertThat(falseRow.mnuSotSqnSno()).isEqualTo(trueRow.mnuSotSqnSno());
+            assertThat(falseRow.hidYn()).isEqualTo(trueRow.hidYn());
+            assertThat(falseRow.mnuDep()).isEqualTo(trueRow.mnuDep());
+            assertThat(falseRow.whlMnuPth()).isEqualTo(trueRow.whlMnuPth());
+        }
+
+        // DB 값이 non-null인 행(iconId)도 false 분기에서는 무조건 null이어야 한다 — 이 분기의 핵심 계약
+        assertThat(withIcon.get(iconId).imkNm()).isEqualTo("pi pi-star");
+        assertThat(withoutIcon.values()).extracting(MenuTreeRow::imkNm).containsOnlyNulls();
+    }
+
     private Cmenum menu(String mnuId, String imkNm, String delYn) {
         LocalDateTime now = LocalDateTime.of(2026, 8, 13, 12, 0);
         return Cmenum.builder()
