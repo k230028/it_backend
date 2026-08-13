@@ -2,8 +2,8 @@ package com.kdb.it.domain.menu.service;
 
 import com.kdb.it.common.board.service.BoardMetaService;
 import com.kdb.it.domain.menu.dto.MenuDto;
-import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
+import com.kdb.it.domain.menu.repository.MenuTreeRow;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -35,22 +35,24 @@ public class MenuQueryService {
      *
      * @param athIds JWT 클레임에서 복원한 자격등급 ID 목록. null이면 공개 메뉴만 반환한다.
      * @return 숨김 메뉴, 권한 불일치 메뉴, 사용 중이 아닌 게시판을 가리키는 PGE 메뉴를 제거하고, 빈 GRP 노드를 가지치기한 트리. 각 노드의 {@code
-     *     athIds}에는 왕관 아이콘 표시 판정용 권한ID 목록이 채워진다.
+     *     athIds}에는 왕관 아이콘 표시 판정용 권한ID 목록이 채워진다. {@code IMK_NM} 컬럼이 없는 환경에서는 {@link
+     *     MenuIconDefaults} 스냅샷으로 아이콘을 채운다.
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
-        List<Cmenum> all = cmenumRepository.findAllActive();
+        List<MenuTreeRow> all = cmenumRepository.findActiveMenuTreeRows();
+        boolean iconColumnPresent = cmenumRepository.isIconColumnPresent();
         Map<String, Set<String>> athByMenu = menuAuthMapProvider.getMenuAuthMap();
         Set<String> userAths = new HashSet<>(athIds == null ? List.of() : athIds);
         Set<String> activeBoardPaths = activeBoardPaths(all);
 
-        List<Cmenum> visible =
+        List<MenuTreeRow> visible =
                 all.stream()
-                        .filter(m -> !"Y".equals(m.getHidYn()))
-                        .filter(m -> isAllowed(m.getMnuId(), athByMenu, userAths))
+                        .filter(m -> !"Y".equals(m.hidYn()))
+                        .filter(m -> isAllowed(m.mnuId(), athByMenu, userAths))
                         .filter(m -> isLinkedBoardUsable(m, activeBoardPaths))
                         .toList();
 
-        List<MenuDto.Node> tree = prune(buildTree(visible), true);
+        List<MenuDto.Node> tree = prune(buildTree(visible, iconColumnPresent), true);
         // 사이드바/헤더가 관리자 전용 메뉴에 왕관 아이콘을 표시할 수 있도록 노드별 권한ID를 함께 싣는다.
         applyAthIds(tree, athByMenu);
         return tree;
@@ -62,7 +64,10 @@ public class MenuQueryService {
      * @return 숨김·권한·빈 그룹을 제거하지 않고 노드별 권한ID를 포함한 전체 트리
      */
     public List<MenuDto.Node> getAdminMenuTree() {
-        List<MenuDto.Node> tree = buildTree(cmenumRepository.findAllActive());
+        List<MenuDto.Node> tree =
+                buildTree(
+                        cmenumRepository.findActiveMenuTreeRows(),
+                        cmenumRepository.isIconColumnPresent());
         applyAthIds(tree, menuAuthMapProvider.getMenuAuthMap());
         return tree;
     }
@@ -92,9 +97,8 @@ public class MenuQueryService {
      *
      * <p>게시판 경로가 하나도 없으면 게시판을 조회하지 않는다 — 메뉴 조회는 모든 화면 진입마다 도는 경로라 쓰이지 않을 쿼리를 붙이지 않는다.
      */
-    private Set<String> activeBoardPaths(List<Cmenum> rows) {
-        boolean hasBoardMenu =
-                rows.stream().anyMatch(m -> BoardScreenPath.isBoardPath(m.getSrePth()));
+    private Set<String> activeBoardPaths(List<MenuTreeRow> rows) {
+        boolean hasBoardMenu = rows.stream().anyMatch(m -> BoardScreenPath.isBoardPath(m.srePth()));
         if (!hasBoardMenu) return Set.of();
         return boardMetaService.getAllActive().stream()
                 .map(b -> BoardScreenPath.pathOf(b.getBlbMngNo()))
@@ -107,21 +111,21 @@ public class MenuQueryService {
      * <p>게시판이 삭제·미사용으로 바뀌어도 메뉴 행은 남긴다(관리자가 다른 게시판으로 바꾸거나 지울 수 있어야 한다). 대신 사용자 트리에서만 감춰 죽은 링크가 노출되지
      * 않게 한다.
      */
-    private boolean isLinkedBoardUsable(Cmenum m, Set<String> activeBoardPaths) {
-        if (!BoardScreenPath.isBoardPath(m.getSrePth())) return true;
-        return activeBoardPaths.contains(m.getSrePth());
+    private boolean isLinkedBoardUsable(MenuTreeRow m, Set<String> activeBoardPaths) {
+        if (!BoardScreenPath.isBoardPath(m.srePth())) return true;
+        return activeBoardPaths.contains(m.srePth());
     }
 
-    private List<MenuDto.Node> buildTree(List<Cmenum> rows) {
+    private List<MenuDto.Node> buildTree(List<MenuTreeRow> rows, boolean iconColumnPresent) {
         Map<String, MenuDto.Node> byId = new HashMap<>();
-        for (Cmenum m : rows) byId.put(m.getMnuId(), toNode(m));
+        for (MenuTreeRow m : rows) byId.put(m.mnuId(), toNode(m, iconColumnPresent));
         List<MenuDto.Node> roots = new ArrayList<>();
-        for (Cmenum m : rows) {
-            MenuDto.Node nodeDto = byId.get(m.getMnuId());
-            if (m.getHrkMnuId() == null) {
+        for (MenuTreeRow m : rows) {
+            MenuDto.Node nodeDto = byId.get(m.mnuId());
+            if (m.hrkMnuId() == null) {
                 roots.add(nodeDto);
             } else {
-                MenuDto.Node parent = byId.get(m.getHrkMnuId());
+                MenuDto.Node parent = byId.get(m.hrkMnuId());
                 // 부모가 권한 필터로 제외되어 보이지 않으면 자식(고아 노드)도 노출하지 않는다.
                 if (parent == null) continue;
                 if (parent.getChildren() == null) parent.setChildren(new ArrayList<>());
@@ -155,18 +159,26 @@ public class MenuQueryService {
         return kept;
     }
 
-    private MenuDto.Node toNode(Cmenum m) {
+    /**
+     * 메뉴 행을 트리 노드로 변환한다.
+     *
+     * @param m 메뉴 행
+     * @param iconColumnPresent {@code TPRMPP_CMENUM.IMK_NM}이 실제 스키마에 있는지 여부
+     * @return 트리 노드. 컬럼이 있으면 DB 값을 그대로 싣고(관리자가 비운 null도 그대로), 없으면 {@link MenuIconDefaults} 스냅샷으로
+     *     채운다
+     */
+    private MenuDto.Node toNode(MenuTreeRow m, boolean iconColumnPresent) {
         return MenuDto.Node.builder()
-                .mnuId(m.getMnuId())
-                .hrkMnuId(m.getHrkMnuId())
-                .mnuNm(m.getMnuNm())
-                .mnuTpC(m.getMnuTpC())
-                .srePth(m.getSrePth())
-                .mnuSotSqnSno(m.getMnuSotSqnSno())
-                .hidYn(m.getHidYn())
-                .mnuDep(m.getMnuDep())
-                .whlMnuPth(m.getWhlMnuPth())
-                .imkNm(m.getImkNm())
+                .mnuId(m.mnuId())
+                .hrkMnuId(m.hrkMnuId())
+                .mnuNm(m.mnuNm())
+                .mnuTpC(m.mnuTpC())
+                .srePth(m.srePth())
+                .mnuSotSqnSno(m.mnuSotSqnSno())
+                .hidYn(m.hidYn())
+                .mnuDep(m.mnuDep())
+                .whlMnuPth(m.whlMnuPth())
+                .imkNm(iconColumnPresent ? m.imkNm() : MenuIconDefaults.iconOf(m.mnuId()))
                 .children(new ArrayList<>())
                 .build();
     }
