@@ -80,7 +80,11 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
     @Override
     public List<MenuTreeRow> findActiveMenuTreeRows() {
         QCmenum m = QCmenum.cmenum;
-        return queryFactory.select(menuTreeRowProjection(m)).from(m).where(m.delYn.eq("N")).fetch();
+        return queryFactory
+                .select(menuTreeRowProjection(m, isIconColumnPresent()))
+                .from(m)
+                .where(m.delYn.eq("N"))
+                .fetch();
     }
 
     /**
@@ -88,9 +92,16 @@ public class CmenumRepositoryImpl implements CmenumRepositoryCustom {
      *
      * <p>컬럼이 없을 때 null 리터럴을 select에 넣지 않고 목록에서 아예 뺀다. 생성되는 SQL에 IMK_NM이 등장할 여지가 없어야 ORA-00904가 원천
      * 차단되며, Hibernate의 typed-null 렌더링 동작에 의존하지 않는다. 9인자 보조 생성자가 imkNm을 null로 채운다.
+     *
+     * <p>분기 조건을 인자로 받는 이유는 테스트 가능성이다. {@code isIconColumnPresent()}를 내부에서 직접 호출하면 컬럼 부재 분기는 실제로 컬럼이
+     * 없는 Oracle 스키마에서만 재현되어 단위 테스트로 다다를 수 없다. 호출부({@code findActiveMenuTreeRows()})는 여전히 {@code
+     * isIconColumnPresent()}의 실측값을 전달하므로 동작은 그대로다.
+     *
+     * @param iconColumnPresent IMK_NM 컬럼 존재 여부. true면 10인자(imkNm 포함), false면 9인자(imkNm 제외) 프로젝션을
+     *     반환한다
      */
-    private ConstructorExpression<MenuTreeRow> menuTreeRowProjection(QCmenum m) {
-        if (isIconColumnPresent()) {
+    ConstructorExpression<MenuTreeRow> menuTreeRowProjection(QCmenum m, boolean iconColumnPresent) {
+        if (iconColumnPresent) {
             return Projections.constructor(
                     MenuTreeRow.class,
                     m.mnuId,
