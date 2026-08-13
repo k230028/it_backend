@@ -87,6 +87,38 @@ class WorkbookReaderTest {
     }
 
     @Test
+    @DisplayName("형식은 맞지만 내용이 깨진 파일은 원래 예외를 원인으로 달아 거부한다")
+    void wrapsParseFailureWithCause() {
+        // ZIP 시그니처만 맞고 뒤가 잘린 바이트 — POI가 파싱 중에 실패한다.
+        // 원인 예외를 버리면 로그에 "열지 못했습니다"만 남아 무엇이 깨졌는지 알 수 없다.
+        byte[] truncatedZip = {0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00};
+
+        assertThatThrownBy(() -> reader.open(truncatedZip, "잘린.xlsx"))
+                .isInstanceOf(WorkbookReader.WorkbookOpenException.class)
+                .hasMessageContaining("열지 못했습니다")
+                .hasCauseInstanceOf(Throwable.class);
+    }
+
+    @Test
+    @DisplayName("null 바이트도 비어 있는 것으로 보아 거부한다")
+    void rejectsNullBytes() {
+        assertThatThrownBy(() -> reader.open(null, "없음.xlsx"))
+                .isInstanceOf(WorkbookReader.WorkbookOpenException.class)
+                .hasMessageContaining("비어");
+    }
+
+    @Test
+    @DisplayName("인식할 수 없는 시트만 있으면 빈 맵을 돌려준다")
+    void classifiesNothingWhenNoFormSheet() {
+        WorkbookReader wide = new WorkbookReader(10_485_760L, 20, 5000);
+        Workbook workbook = wide.open(RequestFormFixtures.capitalOnlyXlsx(), "자료1.xlsx");
+        workbook.setSheetName(0, "Sheet1");
+        workbook.setSheetName(1, "Sheet2");
+
+        assertThat(wide.classify(workbook)).isEmpty();
+    }
+
+    @Test
     @DisplayName("행 수 상한을 넘는 시트가 있으면 분류 단계에서 거부한다")
     void rejectsTooManyRows() {
         WorkbookReader shallow = new WorkbookReader(10_485_760L, 20, 3);
