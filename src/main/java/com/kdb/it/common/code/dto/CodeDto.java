@@ -3,8 +3,10 @@ package com.kdb.it.common.code.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CcodemResponseRow;
+import com.kdb.it.common.i18n.model.TranslationColumns;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -212,17 +214,28 @@ public class CodeDto {
          * @return 응답 DTO (row가 null이면 null)
          */
         public static Response fromRow(CcodemResponseRow row) {
+            return fromRow(row, Map.of());
+        }
+
+        /** 원본 프로젝션에 필드별 번역을 덮어써 사용자 표시 DTO를 생성합니다. */
+        public static Response fromRow(CcodemResponseRow row, Map<String, String> translations) {
             if (row == null) return null;
             return Response.builder()
                     .cId(row.cId())
                     .cdva(row.cdva())
-                    .cdvaNm(row.cdvaNm())
-                    .cNm(row.cNm())
-                    .cdvaDes(row.cdvaDes())
-                    .cdvaDtl(row.cdvaDtl())
+                    .cdvaNm(translations.getOrDefault(TranslationColumns.CDVA_NM, row.cdvaNm()))
+                    .cNm(translations.getOrDefault(TranslationColumns.CO_C_NM, row.cNm()))
+                    .cdvaDes(
+                            translations.getOrDefault(
+                                    TranslationColumns.CO_CDVA_ABV_NM, row.cdvaDes()))
+                    .cdvaDtl(
+                            translations.getOrDefault(
+                                    TranslationColumns.CO_CDVA_SPS, row.cdvaDtl()))
                     .cdvaDtlC(row.cdvaDtlC())
                     .cTp(row.cTp())
-                    .cTpDes(row.cTpDes())
+                    .cTpDes(
+                            translations.getOrDefault(
+                                    TranslationColumns.CO_C_INTN_CONE, row.cTpDes()))
                     .hrkC(row.hrkC())
                     .cSqn(row.cSqn())
                     .sttDt(row.sttDt())
