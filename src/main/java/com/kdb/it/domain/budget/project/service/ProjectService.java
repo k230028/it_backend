@@ -229,7 +229,12 @@ public class ProjectService {
                         ? svnTeam.temNm()
                         : firstNonBlank(orgNameResolver.resolveName(svnTemC), svnTeam.temNm());
         project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTemNm);
-        projectRepository.save(project);
+        // 반환값을 반드시 재대입한다: 요청이 관리번호를 이미 채워 보낸 경우(auto-채번 포함, 위에서
+        // request.setAbusMngNo로 채움) ID가 non-null이라 Spring Data의 isNew() 판정이 false가 되고
+        // SimpleJpaRepository.save가 entityManager.merge()를 타 별도의 영속 인스턴스를 반환한다.
+        // 로컬 project는 detached 상태로 남으므로, 이후 applyAmountSnapshot 등 저장 이후 변경은
+        // 반드시 이 반환값(managed 인스턴스)에 대해 이뤄져야 Dirty Checking으로 UPDATE가 발생한다.
+        project = projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====
         // 신규 등록 시 요청에 포함된 모든 품목은 신규 추가 대상

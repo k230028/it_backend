@@ -264,6 +264,10 @@ class ProjectServiceTest {
         given(securityContext.getAuthentication()).willReturn(authentication);
         given(authentication.getPrincipal()).willReturn(adminUser);
         SecurityContextHolder.setContext(securityContext);
+        // projectRepository.save mock: 인자로 받은 엔티티를 그대로 반환(실제 JPA merge/persist 동작 흉내).
+        // createProject가 이제 반환값을 project 변수에 재대입하므로(managed 인스턴스 캡처), 스텁하지
+        // 않으면 Mockito 기본값(null)이 대입되어 이후 모든 사용처에서 NPE가 난다.
+        given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         doAnswer(
                         invocation -> {
                             ProjectDto.Response response = invocation.getArgument(0);
@@ -3069,33 +3073,32 @@ class ProjectServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("생성 시 품목 합계를 금액 스냅샷으로 기록한다")
+    @DisplayName("생성 시 품목 재조회 합계를 금액 스냅샷으로 기록한다 (요청 합계와 다르게 스텁해 누적 구현을 배제)")
     void createProject_recordsAmountSnapshot() {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L, 2L);
-        given(
-                        bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                                anyString(), any(), anyString()))
-                .willReturn(
-                        List.of(
-                                Bitemm.builder()
-                                        .ioeC("A01")
-                                        .amt(new BigDecimal("1000"))
-                                        .mplAmt(new BigDecimal("300"))
-                                        .build(),
-                                Bitemm.builder()
-                                        .ioeC("B01")
-                                        .amt(new BigDecimal("500"))
-                                        .mplAmt(new BigDecimal("200"))
-                                        .build()));
+        // 재조회(findByAbusMngNoAndFntTbCrySnoAndDelYn) 결과 합계(1500/500)를 요청 품목 합계(300/100)와
+        // 일부러 다르게 둔다. 저장 루프 중 요청 품목을 누적하는(브리프가 금지한) 구현이었다면 1500이 아닌
+        // 300이 기록되어 이 단언이 실패한다 — applyAmountSnapshot이 반드시 재조회 결과를 쓰는지 검증한다.
+        stubActiveItems(
+                Bitemm.builder()
+                        .ioeC("A01")
+                        .amt(new BigDecimal("1000"))
+                        .mplAmt(new BigDecimal("300"))
+                        .build(),
+                Bitemm.builder()
+                        .ioeC("B01")
+                        .amt(new BigDecimal("500"))
+                        .mplAmt(new BigDecimal("200"))
+                        .build());
 
         ProjectDto.CreateRequest request = validCreateRequest();
         request.setDfrAmt(new BigDecimal("400"));
         request.setItems(
                 List.of(
-                        itemDto("A01", new BigDecimal("1000"), new BigDecimal("300")),
-                        itemDto("B01", new BigDecimal("500"), new BigDecimal("200"))));
+                        itemDto("A01", new BigDecimal("200"), new BigDecimal("50")),
+                        itemDto("B01", new BigDecimal("100"), new BigDecimal("50"))));
 
         projectService.createProject(request);
 
@@ -3113,24 +3116,22 @@ class ProjectServiceTest {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
-        given(
-                        bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                                anyString(), any(), anyString()))
-                .willReturn(
-                        List.of(
-                                Bitemm.builder()
-                                        .ioeC("A01")
-                                        .amt(new BigDecimal("1000"))
-                                        .mplAmt(BigDecimal.ZERO)
-                                        .build()));
+        stubActiveItems(
+                Bitemm.builder()
+                        .ioeC("A01")
+                        .amt(new BigDecimal("1000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .build());
 
         ProjectDto.CreateRequest request = validCreateRequest();
         request.setDfrAmt(new BigDecimal("-1"));
         request.setItems(List.of(itemDto("A01", new BigDecimal("1000"), BigDecimal.ZERO)));
 
+        // "기 지급예산" 부분 문자열은 음수·초과 두 메시지에 모두 포함되므로, 실제로 어느 분기가
+        // 던졌는지 구분되도록 각 메시지의 고유한 절로 단언한다.
         assertThatThrownBy(() -> projectService.createProject(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("기 지급예산");
+                .hasMessageContaining("0 이상");
     }
 
     @Test
@@ -3139,16 +3140,12 @@ class ProjectServiceTest {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
-        given(
-                        bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                                anyString(), any(), anyString()))
-                .willReturn(
-                        List.of(
-                                Bitemm.builder()
-                                        .ioeC("A01")
-                                        .amt(new BigDecimal("1000"))
-                                        .mplAmt(BigDecimal.ZERO)
-                                        .build()));
+        stubActiveItems(
+                Bitemm.builder()
+                        .ioeC("A01")
+                        .amt(new BigDecimal("1000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .build());
 
         ProjectDto.CreateRequest request = validCreateRequest();
         request.setDfrAmt(new BigDecimal("1001"));
@@ -3156,7 +3153,7 @@ class ProjectServiceTest {
 
         assertThatThrownBy(() -> projectService.createProject(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("기 지급예산");
+                .hasMessageContaining("초과할 수 없습니다");
     }
 
     @Test
@@ -3165,16 +3162,12 @@ class ProjectServiceTest {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
-        given(
-                        bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                                anyString(), any(), anyString()))
-                .willReturn(
-                        List.of(
-                                Bitemm.builder()
-                                        .ioeC("A01")
-                                        .amt(new BigDecimal("1000"))
-                                        .mplAmt(BigDecimal.ZERO)
-                                        .build()));
+        stubActiveItems(
+                Bitemm.builder()
+                        .ioeC("A01")
+                        .amt(new BigDecimal("1000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .build());
 
         ProjectDto.CreateRequest request = validCreateRequest();
         request.setDfrAmt(new BigDecimal("1000"));
@@ -3189,16 +3182,12 @@ class ProjectServiceTest {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
-        given(
-                        bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                                anyString(), any(), anyString()))
-                .willReturn(
-                        List.of(
-                                Bitemm.builder()
-                                        .ioeC("A01")
-                                        .amt(new BigDecimal("1000"))
-                                        .mplAmt(BigDecimal.ZERO)
-                                        .build()));
+        stubActiveItems(
+                Bitemm.builder()
+                        .ioeC("A01")
+                        .amt(new BigDecimal("1000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .build());
 
         ProjectDto.CreateRequest request = validCreateRequest();
         request.setDfrAmt(null);
@@ -3209,6 +3198,108 @@ class ProjectServiceTest {
         ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
         verify(projectRepository, atLeastOnce()).save(captor.capture());
         assertThat(captor.getValue().getDfrAmt()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("updateProject: 품목 동기화 후 재조회 합계로 금액 스냅샷을 기록한다 (soft-delete된 품목은 합계에서 빠진다)")
+    void updateProject_recordsAmountSnapshot_afterItemSync() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+        Bitemm keptItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-0001")
+                        .sno(1)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(1)
+                        .ioeC("A01")
+                        .gclNm("유지 품목")
+                        .curC("KRW")
+                        .amt(new BigDecimal("500"))
+                        .mplAmt(new BigDecimal("100"))
+                        .delYn("N")
+                        .build();
+        Bitemm removedItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-0002")
+                        .sno(2)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(1)
+                        .ioeC("B01")
+                        .gclNm("삭제 품목")
+                        .curC("KRW")
+                        .amt(new BigDecimal("300"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .delYn("N")
+                        .build();
+
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
+        // 1차 호출(품목 동기화 시작 시 기존 목록 조회)은 두 품목 모두 반환하고, 2차 호출
+        // (applyAmountSnapshot의 재조회)은 removedItem이 soft-delete되어 실제 DB라면 DEL_YN='N'
+        // 필터에서 빠졌을 상태를 흉내 낸다. 이 재조회 설계가 없었다면(=CUD 루프 중 누적) 300이 계속
+        // 합계에 남으므로, 최종 합계가 500(keptItem만)인지로 재조회 반영 여부를 검증한다.
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
+                .willReturn(List.of(keptItem, removedItem), List.of(keptItem));
+
+        ProjectDto.BitemmDto keptDto = new ProjectDto.BitemmDto();
+        keptDto.setGclMngNo("GCL-0001");
+        keptDto.setIoeC("A01");
+        keptDto.setGclNm("유지 품목");
+        keptDto.setCurC("KRW");
+        keptDto.setAmt(new BigDecimal("500"));
+        keptDto.setMplAmt(new BigDecimal("100"));
+
+        // 요청 품목에 keptItem만 포함 → removedItem은 요청에서 빠져 soft-delete 대상이 된다
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("수정 사업명")
+                        .dfrAmt(new BigDecimal("200"))
+                        .items(List.of(keptDto))
+                        .build();
+
+        projectService.updateProject(prjMngNo, request);
+
+        assertThat(removedItem.getDelYn()).isEqualTo("Y");
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("500");
+        assertThat(project.getMplAmt()).isEqualByComparingTo("100");
+        assertThat(project.getDfrAmt()).isEqualByComparingTo("200");
+    }
+
+    @Test
+    @DisplayName("updateProject: 기 지급예산이 총 예산을 넘으면 400으로 거부한다")
+    void updateProject_rejectsDfrAmtOverTotal() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
+        // items=null → 품목 CUD 동기화는 건너뛰지만, 스냅샷 재계산(applyAmountSnapshot)은
+        // 항상 수행되므로 재조회 결과(총 예산 1000) 기준으로 dfrAmt 검증이 이뤄진다.
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
+                .willReturn(
+                        List.of(
+                                Bitemm.builder()
+                                        .ioeC("A01")
+                                        .amt(new BigDecimal("1000"))
+                                        .mplAmt(BigDecimal.ZERO)
+                                        .build()));
+
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("수정 사업명")
+                        .dfrAmt(new BigDecimal("1001"))
+                        .build();
+
+        assertThatThrownBy(() -> projectService.updateProject(prjMngNo, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("초과할 수 없습니다");
     }
 
     /** 필수 필드만 채운 생성 요청. 개별 테스트가 필요한 필드만 덮어쓴다. */
@@ -3231,5 +3322,20 @@ class ProjectServiceTest {
         item.setAmt(amt);
         item.setMplAmt(mplAmt);
         return item;
+    }
+
+    /**
+     * 활성 품목 재조회({@code bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn}) 응답을 스텁한다.
+     *
+     * <p>사업관리번호·순번은 broad matcher로 받아, 자동 채번되어 테스트에서 값을 예측할 수 없는 {@code createProject} 경로에서도 재사용할 수
+     * 있게 한다.
+     *
+     * @param items 재조회가 반환할 활성 품목 목록
+     */
+    private void stubActiveItems(Bitemm... items) {
+        given(
+                        bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                                anyString(), any(), anyString()))
+                .willReturn(List.of(items));
     }
 }

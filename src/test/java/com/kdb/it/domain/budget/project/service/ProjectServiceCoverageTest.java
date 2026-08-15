@@ -200,6 +200,11 @@ class ProjectServiceCoverageTest {
         given(authentication.getPrincipal()).willReturn(adminUser);
         SecurityContextHolder.setContext(securityContext);
 
+        // projectRepository.save mock: 인자로 받은 엔티티를 그대로 반환(실제 JPA merge/persist 동작 흉내).
+        // createProject가 이제 반환값을 project 변수에 재대입하므로(managed 인스턴스 캡처), 스텁하지
+        // 않으면 Mockito 기본값(null)이 대입되어 이후 모든 사용처에서 NPE가 난다.
+        given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
+
         // projectBudgetSummaryService mock: 실제 구현 위임
         doAnswer(
                         invocation -> {
