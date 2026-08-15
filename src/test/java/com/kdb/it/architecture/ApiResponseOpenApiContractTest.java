@@ -14,6 +14,7 @@ import com.kdb.it.domain.bizplan.dto.BizplanDto;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
 import com.kdb.it.domain.budget.it.dto.ItBudgetDto;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.contract.dto.ContractDto;
@@ -585,6 +586,21 @@ class ApiResponseOpenApiContractTest {
                 "MISSING",
                 "FORBIDDEN",
                 "INVALID");
+    }
+
+    /**
+     * ProjectDto.Response는 필드 대부분이 requiredMode 미지정 상태라 {@link #assertAllPropertiesRequired}를 그대로 쓸
+     * 수 없다(전체 필드가 required여야 한다는 전제와 충돌). Task 4에서 신규로 노출한 3개 파생 금액 필드(prjBgAmt, mplAmt, dfrAmt)와
+     * 기존 totRqmAmt만 좁혀서 검증한다.
+     */
+    @Test
+    void projectResponseExposesAmountContracts() {
+        Schema<?> schema = resolve(ProjectDto.Response.class);
+        assertThat(schema.getRequired()).contains("prjBgAmt", "mplAmt", "dfrAmt", "totRqmAmt");
+        assertThat(Boolean.TRUE.equals(property(schema, "prjBgAmt").getNullable())).isFalse();
+        assertThat(Boolean.TRUE.equals(property(schema, "mplAmt").getNullable())).isFalse();
+        assertThat(Boolean.TRUE.equals(property(schema, "totRqmAmt").getNullable())).isFalse();
+        assertThat(Boolean.TRUE.equals(property(schema, "dfrAmt").getNullable())).isTrue();
     }
 
     private static void assertContract(Class<?> type, Set<String> required, Set<String> nullable) {

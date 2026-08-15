@@ -453,8 +453,8 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 프로젝트예산 (파생값: 품목 mplAmt 합산) */
-        @Schema(description = "프로젝트예산 (파생값)")
+        /** 당해예산 (파생값: 총 AMT − 총 MPL_AMT, 음수면 0으로 보정) */
+        @Schema(description = "당해예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal totRqmAmt;
 
         /** 예정자본금액 (파생값: 품목 mplAmt 자본예산 합산) */
@@ -464,6 +464,21 @@ public class ProjectDto {
         /** 예정관리비금액 (파생값: 품목 mplAmt 관리비 합산) */
         @Schema(description = "예정관리비금액 (파생값)")
         private BigDecimal mplMngcAmt;
+
+        /** 총 예산 (파생값: 활성 품목 AMT 합계). DB TOT_RQM_AMT와 같은 의미이며 totRqmAmt(당해예산)와 다르다. */
+        @Schema(description = "총 예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        private BigDecimal prjBgAmt;
+
+        /** 예산연도+1 이후 예산 (파생값: 활성 품목 MPL_AMT 합계) */
+        @Schema(description = "익년 이후 예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        private BigDecimal mplAmt;
+
+        /** 기 지급예산 (BPROJM.DFR_AMT 컬럼값) */
+        @Schema(
+                description = "기 지급예산",
+                requiredMode = Schema.RequiredMode.REQUIRED,
+                nullable = true)
+        private BigDecimal dfrAmt;
 
         /** 시작일자 */
         @Schema(description = "시작일자")
@@ -803,6 +818,7 @@ public class ProjectDto {
                     .odnYn(project.getOdnYn()) // 경상여부
                     .abusTc(project.getAbusTc()) // 사업구분
                     .cncdRfrNo(project.getCncdRfrNo()) // 관련프로젝트관리번호
+                    .dfrAmt(project.getDfrAmt()) // 기 지급예산
                     .fstEnrDtm(project.getFstEnrDtm()) // 최초 등록 일시
                     .fstEnrUsid(project.getFstEnrUsid()) // 최초 등록자
                     .lstChgDtm(project.getLstChgDtm()) // 마지막 수정 일시
