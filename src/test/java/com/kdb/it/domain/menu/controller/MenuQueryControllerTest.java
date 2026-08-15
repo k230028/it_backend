@@ -1,6 +1,8 @@
 package com.kdb.it.domain.menu.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -69,7 +71,7 @@ class MenuQueryControllerTest {
                         .mnuDep(1)
                         .children(List.of())
                         .build();
-        given(menuQueryService.getMenuTree(anyList())).willReturn(List.of(node));
+        given(menuQueryService.getMenuTree(anyList(), any())).willReturn(List.of(node));
 
         // when & then
         mockMvc.perform(get("/api/menus"))
@@ -100,7 +102,8 @@ class MenuQueryControllerTest {
                         .mnuDep(1)
                         .children(List.of())
                         .build();
-        given(menuQueryService.getMenuTree(anyList())).willReturn(List.of(adminMenu, userMenu));
+        given(menuQueryService.getMenuTree(anyList(), any()))
+                .willReturn(List.of(adminMenu, userMenu));
 
         // when & then
         mockMvc.perform(get("/api/menus"))
@@ -113,7 +116,7 @@ class MenuQueryControllerTest {
     @WithMockUser(username = "10001", roles = "USER")
     void getMenus_빈목록_200반환() throws Exception {
         // given: 권한 필터링으로 빈 목록
-        given(menuQueryService.getMenuTree(anyList())).willReturn(List.of());
+        given(menuQueryService.getMenuTree(anyList(), any())).willReturn(List.of());
 
         // when & then
         mockMvc.perform(get("/api/menus"))
@@ -144,7 +147,7 @@ class MenuQueryControllerTest {
                         .mnuDep(1)
                         .children(List.of(child))
                         .build();
-        given(menuQueryService.getMenuTree(anyList())).willReturn(List.of(parent));
+        given(menuQueryService.getMenuTree(anyList(), any())).willReturn(List.of(parent));
 
         // when & then
         mockMvc.perform(get("/api/menus"))
@@ -171,7 +174,7 @@ class MenuQueryControllerTest {
                         .mnuDep(1)
                         .children(List.of())
                         .build();
-        given(menuQueryService.getMenuTree(List.of(CustomUserDetails.ATH_ADMIN)))
+        given(menuQueryService.getMenuTree(eq(List.of(CustomUserDetails.ATH_ADMIN)), any()))
                 .willReturn(List.of(node));
 
         // when & then
