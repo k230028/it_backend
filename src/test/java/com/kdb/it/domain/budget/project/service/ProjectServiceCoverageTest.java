@@ -211,6 +211,16 @@ class ProjectServiceCoverageTest {
                         })
                 .when(projectBudgetSummaryService)
                 .applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+        // projectBudgetSummaryService.calculateAmountSnapshot mock: 실제 구현 위임
+        // (Mock 기본 응답은 record 타입에 대해 null이라 스텁하지 않으면 applyAmountSnapshot에서 NPE 발생)
+        doAnswer(
+                        invocation -> {
+                            List<Bitemm> items = invocation.getArgument(0);
+                            return new ProjectBudgetSummaryService(codeService)
+                                    .calculateAmountSnapshot(items);
+                        })
+                .when(projectBudgetSummaryService)
+                .calculateAmountSnapshot(anyList());
         // 작성자 조직 스냅샷 기본값: 생성 경로 NPE 방지용 빈 스냅샷
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())

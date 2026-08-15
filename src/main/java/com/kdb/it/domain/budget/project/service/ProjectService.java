@@ -79,6 +79,9 @@ public class ProjectService {
     /** 정보화사업 조회 전용 서비스 */
     private final ProjectQueryService projectQueryService;
 
+    /** 정보화사업 품목 기준 예산 합계 계산 서비스: 저장 시점 금액 스냅샷 계산용 */
+    private final ProjectBudgetSummaryService budgetSummaryService;
+
     /**
      * 삭제되지 않은 모든 정보화사업을 조회합니다.
      *
@@ -252,6 +255,9 @@ public class ProjectService {
                         buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
             }
         }
+
+        // 품목 저장이 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
+        applyAmountSnapshot(project, request.getDfrAmt());
 
         // 정보화사업관계(BPROJA) 적재: 예산편성 요청 작성중(IT_PTL_STS_TC='01').
         // 예산편성 단계는 별도 단계 문서가 없으므로 단계 key(CNCD_RFR_NO)는 프로젝트관리번호 자신으로 둔다.
@@ -591,7 +597,36 @@ public class ProjectService {
             }
         }
 
+        // 품목 동기화가 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
+        applyAmountSnapshot(project, request.getDfrAmt());
+
         return project.getAbusMngNo(); // 수정된 관리번호 반환
+    }
+
+    /**
+     * 품목 저장이 끝난 뒤 사업 단위 금액 스냅샷을 기록합니다.
+     *
+     * <p>활성 품목을 다시 조회해 합산합니다. 영속성 컨텍스트가 조회 전에 flush 되므로 방금 저장·수정·논리삭제한 품목이 모두 반영됩니다. 반환값을 쓰지 않고
+     * 엔티티에 바로 반영하며, Dirty Checking으로 UPDATE가 실행됩니다.
+     *
+     * @param project 대상 사업 엔티티 (영속 상태)
+     * @param requestedDfrAmt 요청이 보낸 기 지급예산 (null이면 0)
+     * @throws IllegalArgumentException 기 지급예산이 음수이거나 총 예산을 초과하는 경우
+     */
+    private void applyAmountSnapshot(Bprojm project, BigDecimal requestedDfrAmt) {
+        List<Bitemm> activeItems =
+                bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                        project.getAbusMngNo(), project.getSno(), "N");
+        ProjectBudgetSummaryService.AmountSnapshot snapshot =
+                budgetSummaryService.calculateAmountSnapshot(activeItems);
+        BigDecimal dfrAmt = requestedDfrAmt == null ? BigDecimal.ZERO : requestedDfrAmt;
+        if (dfrAmt.signum() < 0) {
+            throw new IllegalArgumentException("기 지급예산은 0 이상이어야 합니다.");
+        }
+        if (dfrAmt.compareTo(snapshot.totRqmAmt()) > 0) {
+            throw new IllegalArgumentException("기 지급예산은 총 예산을 초과할 수 없습니다.");
+        }
+        project.assignAmountSnapshot(snapshot.totRqmAmt(), snapshot.mplAmt(), dfrAmt);
     }
 
     /**

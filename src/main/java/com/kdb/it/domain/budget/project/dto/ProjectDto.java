@@ -193,6 +193,10 @@ public class ProjectDto {
         @Schema(description = "관련프로젝트관리번호")
         private String cncdRfrNo;
 
+        /** 기 지급예산: 이미 지급한 예산 금액. 미전송이면 0으로 저장한다. */
+        @Schema(description = "기 지급예산", nullable = true)
+        private BigDecimal dfrAmt;
+
         /**
          * 품목 목록
          *
@@ -394,6 +398,10 @@ public class ProjectDto {
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
         @Schema(description = "관련프로젝트관리번호")
         private String cncdRfrNo;
+
+        /** 기 지급예산: 이미 지급한 예산 금액. 미전송이면 0으로 저장한다. */
+        @Schema(description = "기 지급예산", nullable = true)
+        private BigDecimal dfrAmt;
 
         /**
          * 품목 목록 (동기화 대상)

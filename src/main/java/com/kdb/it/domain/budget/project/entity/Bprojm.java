@@ -587,6 +587,21 @@ public class Bprojm extends BaseEntity {
     }
 
     /**
+     * 사업 단위 금액 스냅샷 설정.
+     *
+     * <p>총 예산·익년 이후 예산은 품목 저장이 끝난 뒤의 합계이고, 기 지급예산은 사용자 입력값이다. 세 값이 항상 같은 시점을 가리키도록 한 번에 설정한다.
+     *
+     * @param totRqmAmt 총 예산 (활성 품목 AMT 합계)
+     * @param mplAmt 예산연도+1 이후 예산 (활성 품목 MPL_AMT 합계)
+     * @param dfrAmt 기 지급예산 (검증을 통과한 값)
+     */
+    public void assignAmountSnapshot(BigDecimal totRqmAmt, BigDecimal mplAmt, BigDecimal dfrAmt) {
+        this.totRqmAmt = totRqmAmt;
+        this.mplAmt = mplAmt;
+        this.dfrAmt = dfrAmt;
+    }
+
+    /**
      * 드롭다운/참조용 경량 DTO.
      *
      * <p>{@link Imported} 어노테이션은 JPQL {@code new} 생성자 표현식에서 짧은 이름({@code new Ref(...)})으로 참조하기 위해
