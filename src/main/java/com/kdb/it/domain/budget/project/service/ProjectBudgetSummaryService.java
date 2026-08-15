@@ -193,4 +193,36 @@ public class ProjectBudgetSummaryService {
     }
 
     private record BudgetValues(String ioeC, BigDecimal amt, BigDecimal mplAmt) {}
+
+    /**
+     * 사업 단위 금액 스냅샷.
+     *
+     * @param totRqmAmt 총 예산 (활성 품목 AMT 합계)
+     * @param mplAmt 예산연도+1 이후 예산 (활성 품목 MPL_AMT 합계)
+     */
+    public record AmountSnapshot(BigDecimal totRqmAmt, BigDecimal mplAmt) {}
+
+    /**
+     * 활성 품목으로 사업 단위 금액 스냅샷을 계산합니다.
+     *
+     * <p>화면 [총 예산]은 모든 품목 소계의 합이므로 비목 분류를 적용하지 않고 전체를 더합니다. 자본/관리비로 나누는 {@code applyBudgetSummary}와
+     * 달리, 어느 비목 집합에도 없는 품목도 합계에 포함됩니다.
+     *
+     * @param bitemms 활성 품목 목록 (null 금액은 0으로 취급, 빈 목록 허용)
+     * @return 총 예산과 익년 이후 예산 합계 (항상 non-null, 최소 0)
+     * @throws NullPointerException 품목 목록이 null인 경우
+     */
+    public AmountSnapshot calculateAmountSnapshot(List<Bitemm> bitemms) {
+        BigDecimal totRqmAmt = BigDecimal.ZERO;
+        BigDecimal mplAmt = BigDecimal.ZERO;
+        for (Bitemm item : bitemms) {
+            totRqmAmt = totRqmAmt.add(nvl(item.getAmt()));
+            mplAmt = mplAmt.add(nvl(item.getMplAmt()));
+        }
+        return new AmountSnapshot(totRqmAmt, mplAmt);
+    }
+
+    private static BigDecimal nvl(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
 }

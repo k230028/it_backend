@@ -264,4 +264,41 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(res.getMplCpitAmt()).isEqualByComparingTo("52000");
         assertThat(res.getTotRqmAmt()).isEqualByComparingTo("78000");
     }
+
+    @Test
+    @DisplayName("스냅샷 합계는 비목 분류와 무관하게 활성 품목 전체를 더한다")
+    void calculateAmountSnapshot_sumsAllItems() {
+        List<Bitemm> items =
+                List.of(
+                        Bitemm.builder()
+                                .ioeC("A01")
+                                .amt(new BigDecimal("1000"))
+                                .mplAmt(new BigDecimal("300"))
+                                .build(),
+                        Bitemm.builder()
+                                .ioeC("ZZ9") // 자본·관리비 어느 집합에도 없는 비목
+                                .amt(new BigDecimal("500"))
+                                .mplAmt(new BigDecimal("200"))
+                                .build());
+
+        ProjectBudgetSummaryService.AmountSnapshot snapshot =
+                service.calculateAmountSnapshot(items);
+
+        assertThat(snapshot.totRqmAmt()).isEqualByComparingTo("1500");
+        assertThat(snapshot.mplAmt()).isEqualByComparingTo("500");
+    }
+
+    @Test
+    @DisplayName("금액이 null이거나 품목이 없으면 0을 반환한다")
+    void calculateAmountSnapshot_nullSafe() {
+        ProjectBudgetSummaryService.AmountSnapshot empty =
+                service.calculateAmountSnapshot(List.of());
+        assertThat(empty.totRqmAmt()).isEqualByComparingTo("0");
+        assertThat(empty.mplAmt()).isEqualByComparingTo("0");
+
+        ProjectBudgetSummaryService.AmountSnapshot nulls =
+                service.calculateAmountSnapshot(List.of(Bitemm.builder().ioeC("A01").build()));
+        assertThat(nulls.totRqmAmt()).isEqualByComparingTo("0");
+        assertThat(nulls.mplAmt()).isEqualByComparingTo("0");
+    }
 }
