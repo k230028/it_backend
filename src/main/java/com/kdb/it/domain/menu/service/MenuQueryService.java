@@ -1,6 +1,10 @@
 package com.kdb.it.domain.menu.service;
 
 import com.kdb.it.common.board.service.BoardMetaService;
+import com.kdb.it.common.i18n.model.SupportedLanguage;
+import com.kdb.it.common.i18n.model.TranslationColumns;
+import com.kdb.it.common.i18n.model.TranslationTarget;
+import com.kdb.it.common.i18n.service.TranslationCatalogService;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import com.kdb.it.domain.menu.repository.MenuTreeRow;
@@ -30,6 +34,9 @@ public class MenuQueryService {
     /** 게시판 PGE 경로가 가리키는 게시판이 아직 사용 중인지 판정하는 원천. */
     private final BoardMetaService boardMetaService;
 
+    /** 메뉴 표시명 번역 카탈로그입니다. */
+    private final TranslationCatalogService translationCatalogService;
+
     /**
      * 사용자용 메뉴 트리를 조회한다.
      *
@@ -39,8 +46,18 @@ public class MenuQueryService {
      *     MenuIconDefaults} 스냅샷으로 아이콘을 채운다.
      */
     public List<MenuDto.Node> getMenuTree(List<String> athIds) {
+        return getMenuTree(athIds, SupportedLanguage.KO);
+    }
+
+    /** 선택 언어의 사용자용 메뉴 트리를 조회합니다. */
+    public List<MenuDto.Node> getMenuTree(List<String> athIds, SupportedLanguage language) {
         boolean iconColumnPresent = cmenumRepository.isIconColumnPresent();
         List<MenuTreeRow> all = cmenumRepository.findActiveMenuTreeRows(iconColumnPresent);
+        Map<String, Map<String, String>> translations =
+                translationCatalogService.findActive(
+                        TranslationTarget.MENU,
+                        language,
+                        all.stream().map(MenuTreeRow::mnuId).toList());
         Map<String, Set<String>> athByMenu = menuAuthMapProvider.getMenuAuthMap();
         Set<String> userAths = new HashSet<>(athIds == null ? List.of() : athIds);
         Set<String> activeBoardPaths = activeBoardPaths(all);
@@ -52,7 +69,7 @@ public class MenuQueryService {
                         .filter(m -> isLinkedBoardUsable(m, activeBoardPaths))
                         .toList();
 
-        List<MenuDto.Node> tree = prune(buildTree(visible, iconColumnPresent), true);
+        List<MenuDto.Node> tree = prune(buildTree(visible, iconColumnPresent, translations), true);
         // 사이드바/헤더가 관리자 전용 메뉴에 왕관 아이콘을 표시할 수 있도록 노드별 권한ID를 함께 싣는다.
         applyAthIds(tree, athByMenu);
         return tree;
@@ -69,7 +86,8 @@ public class MenuQueryService {
         List<MenuDto.Node> tree =
                 buildTree(
                         cmenumRepository.findActiveMenuTreeRows(iconColumnPresent),
-                        iconColumnPresent);
+                        iconColumnPresent,
+                        Map.of());
         applyAthIds(tree, menuAuthMapProvider.getMenuAuthMap());
         return tree;
     }
@@ -118,9 +136,14 @@ public class MenuQueryService {
         return activeBoardPaths.contains(m.srePth());
     }
 
-    private List<MenuDto.Node> buildTree(List<MenuTreeRow> rows, boolean iconColumnPresent) {
+    private List<MenuDto.Node> buildTree(
+            List<MenuTreeRow> rows,
+            boolean iconColumnPresent,
+            Map<String, Map<String, String>> translations) {
         Map<String, MenuDto.Node> byId = new HashMap<>();
-        for (MenuTreeRow m : rows) byId.put(m.mnuId(), toNode(m, iconColumnPresent));
+        for (MenuTreeRow m : rows) {
+            byId.put(m.mnuId(), toNode(m, iconColumnPresent, translations.get(m.mnuId())));
+        }
         List<MenuDto.Node> roots = new ArrayList<>();
         for (MenuTreeRow m : rows) {
             MenuDto.Node nodeDto = byId.get(m.mnuId());
@@ -169,11 +192,16 @@ public class MenuQueryService {
      * @return 트리 노드. 컬럼이 있으면 DB 값을 그대로 싣고(관리자가 비운 null도 그대로), 없으면 {@link MenuIconDefaults} 스냅샷으로
      *     채운다
      */
-    private MenuDto.Node toNode(MenuTreeRow m, boolean iconColumnPresent) {
+    private MenuDto.Node toNode(
+            MenuTreeRow m, boolean iconColumnPresent, Map<String, String> translations) {
+        String localizedName =
+                translations == null
+                        ? m.mnuNm()
+                        : translations.getOrDefault(TranslationColumns.MNU_NM, m.mnuNm());
         return MenuDto.Node.builder()
                 .mnuId(m.mnuId())
                 .hrkMnuId(m.hrkMnuId())
-                .mnuNm(m.mnuNm())
+                .mnuNm(localizedName)
                 .mnuTpC(m.mnuTpC())
                 .srePth(m.srePth())
                 .mnuSotSqnSno(m.mnuSotSqnSno())

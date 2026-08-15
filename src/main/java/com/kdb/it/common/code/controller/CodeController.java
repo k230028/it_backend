@@ -2,6 +2,7 @@ package com.kdb.it.common.code.controller;
 
 import com.kdb.it.common.code.dto.CodeDto;
 import com.kdb.it.common.code.service.CodeService;
+import com.kdb.it.common.i18n.model.SupportedLanguage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,9 +40,11 @@ public class CodeController {
             @Parameter(description = "기준일자 (yyyy-MM-dd)")
                     @RequestParam(value = "targetDate", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                    LocalDate targetDate) {
+                    LocalDate targetDate,
+            @RequestParam(value = "lang", required = false) String lang) {
 
-        return ResponseEntity.ok(codeService.getCcodemsByCId(cId, targetDate));
+        return ResponseEntity.ok(
+                codeService.getCcodemsByCId(cId, targetDate, SupportedLanguage.normalize(lang)));
     }
 
     /**
@@ -59,9 +62,11 @@ public class CodeController {
             @Parameter(description = "기준일자 (yyyy-MM-dd)")
                     @RequestParam(value = "targetDate", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                    LocalDate targetDate) {
+                    LocalDate targetDate,
+            @RequestParam(value = "lang", required = false) String lang) {
 
-        return ResponseEntity.ok(codeService.getCcodem(cId, cdva, targetDate));
+        return ResponseEntity.ok(
+                codeService.getCcodem(cId, cdva, targetDate, SupportedLanguage.normalize(lang)));
     }
 
     /**
@@ -130,9 +135,11 @@ public class CodeController {
             @Parameter(description = "기준일자 (yyyy-MM-dd)")
                     @RequestParam(value = "targetDate", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-                    LocalDate targetDate) {
+                    LocalDate targetDate,
+            @RequestParam(value = "lang", required = false) String lang) {
 
-        return ResponseEntity.ok(codeService.getCcodemsByCTp(cTp, targetDate));
+        return ResponseEntity.ok(
+                codeService.getCcodemsByCTp(cTp, targetDate, SupportedLanguage.normalize(lang)));
     }
 
     /** 예산 신청 기간 조회 */

@@ -1,5 +1,6 @@
 package com.kdb.it.domain.menu.controller;
 
+import com.kdb.it.common.i18n.model.SupportedLanguage;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.service.MenuQueryService;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -34,8 +36,10 @@ public class MenuQueryController {
      */
     @GetMapping
     public ResponseEntity<List<MenuDto.Node>> getMenus(
-            @AuthenticationPrincipal CustomUserDetails user) {
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(name = "lang", required = false) String lang) {
         List<String> athIds = user == null ? List.of() : user.getAthIds();
-        return ResponseEntity.ok(menuQueryService.getMenuTree(athIds));
+        return ResponseEntity.ok(
+                menuQueryService.getMenuTree(athIds, SupportedLanguage.normalize(lang)));
     }
 }

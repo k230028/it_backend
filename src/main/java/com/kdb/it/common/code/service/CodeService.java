@@ -5,9 +5,14 @@ import com.kdb.it.common.code.dto.CodeDto;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CcodemResponseRow;
 import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.common.i18n.model.SupportedLanguage;
+import com.kdb.it.common.i18n.model.TranslationTarget;
+import com.kdb.it.common.i18n.service.TranslationCatalogService;
+import com.kdb.it.common.i18n.service.TranslationTargetKey;
 import com.kdb.it.exception.CustomGeneralException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -30,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CodeService {
 
     private final CodeRepository codeRepository;
+    private final TranslationCatalogService translationCatalogService;
 
     /**
      * 공통코드 다건 조회 (코드ID 기준 카테고리 전체)
@@ -44,6 +50,13 @@ public class CodeService {
         return codeRepository.findResponseRowsByCIdWithValidDate(cId, targetDate).stream()
                 .map(CodeDto.Response::fromRow)
                 .toList();
+    }
+
+    /** 선택 언어로 코드ID의 공통코드 목록을 조회합니다. */
+    public List<CodeDto.Response> getCcodemsByCId(
+            String cId, LocalDate targetDate, SupportedLanguage language) {
+        return localize(
+                codeRepository.findResponseRowsByCIdWithValidDate(cId, targetDate), language);
     }
 
     /**
@@ -66,6 +79,19 @@ public class CodeService {
         return CodeDto.Response.fromRow(row);
     }
 
+    /** 선택 언어로 공통코드 한 건을 조회합니다. */
+    public CodeDto.Response getCcodem(
+            String cId, String cdva, LocalDate targetDate, SupportedLanguage language) {
+        CcodemResponseRow row =
+                codeRepository
+                        .findResponseRowByCIdAndCdvaWithValidDate(cId, cdva, targetDate)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "유효하지 않거나 존재하지 않는 코드입니다: " + cId + "/" + cdva));
+        return localize(List.of(row), language).getFirst();
+    }
+
     /**
      * 코드타입 기준 공통코드 다건 조회
      *
@@ -76,6 +102,35 @@ public class CodeService {
     public List<CodeDto.Response> getCcodemsByCTp(String cTp, LocalDate targetDate) {
         return codeRepository.findResponseRowsByCTpWithValidDate(cTp, targetDate).stream()
                 .map(CodeDto.Response::fromRow)
+                .toList();
+    }
+
+    /** 선택 언어로 코드유형의 공통코드 목록을 조회합니다. */
+    public List<CodeDto.Response> getCcodemsByCTp(
+            String cTp, LocalDate targetDate, SupportedLanguage language) {
+        return localize(
+                codeRepository.findResponseRowsByCTpWithValidDate(cTp, targetDate), language);
+    }
+
+    private List<CodeDto.Response> localize(
+            List<CcodemResponseRow> rows, SupportedLanguage language) {
+        if (language == SupportedLanguage.KO) {
+            return rows.stream().map(CodeDto.Response::fromRow).toList();
+        }
+        List<String> keys =
+                rows.stream()
+                        .map(row -> TranslationTargetKey.code(row.cId(), row.cdva(), row.sttDt()))
+                        .toList();
+        var translations =
+                translationCatalogService.findActive(TranslationTarget.COMMON_CODE, language, keys);
+        return rows.stream()
+                .map(
+                        row -> {
+                            String key =
+                                    TranslationTargetKey.code(row.cId(), row.cdva(), row.sttDt());
+                            return CodeDto.Response.fromRow(
+                                    row, translations.getOrDefault(key, Map.of()));
+                        })
                 .toList();
     }
 

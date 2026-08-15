@@ -8,6 +8,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.service.BoardMetaService;
+import com.kdb.it.common.i18n.model.SupportedLanguage;
+import com.kdb.it.common.i18n.model.TranslationColumns;
+import com.kdb.it.common.i18n.model.TranslationTarget;
+import com.kdb.it.common.i18n.service.TranslationCatalogService;
 import com.kdb.it.domain.menu.dto.MenuDto;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import com.kdb.it.domain.menu.repository.MenuTreeRow;
@@ -29,12 +33,18 @@ class MenuQueryServiceTest {
     @Mock MenuAuthMapProvider menuAuthMapProvider;
     // 게시판 PGE 경로가 가리키는 게시판이 아직 살아 있는지 판정하는 원천.
     @Mock BoardMetaService boardMetaService;
+    @Mock TranslationCatalogService translationCatalogService;
 
     MenuQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new MenuQueryService(cmenumRepository, menuAuthMapProvider, boardMetaService);
+        service =
+                new MenuQueryService(
+                        cmenumRepository,
+                        menuAuthMapProvider,
+                        boardMetaService,
+                        translationCatalogService);
         // 기본은 컬럼이 있는 정상 환경. 부재 시나리오 테스트만 이 스텁을 뒤집는다.
         lenient().when(cmenumRepository.isIconColumnPresent()).thenReturn(true);
     }
@@ -319,5 +329,26 @@ class MenuQueryServiceTest {
         List<MenuDto.Node> tree = service.getMenuTree(List.of("ITPZZ001"));
 
         assertThat(tree).extracting(MenuDto.Node::getImkNm).containsOnlyNulls();
+    }
+
+    @Test
+    void 영어메뉴는_번역된_필드만_덮어쓰고_나머지는_한국어를_유지한다() {
+        given(cmenumRepository.findActiveMenuTreeRows(true))
+                .willReturn(
+                        List.of(
+                                row("ROOT", null, "GRP", 1, "/ROOT", null, null),
+                                row("CHILD", "ROOT", "PGE", 2, "/ROOT/CHILD", null, null)));
+        given(menuAuthMapProvider.getMenuAuthMap()).willReturn(Map.of());
+        given(
+                        translationCatalogService.findActive(
+                                TranslationTarget.MENU,
+                                SupportedLanguage.EN,
+                                List.of("ROOT", "CHILD")))
+                .willReturn(Map.of("ROOT", Map.of(TranslationColumns.MNU_NM, "Administration")));
+
+        List<MenuDto.Node> tree = service.getMenuTree(List.of(), SupportedLanguage.EN);
+
+        assertThat(tree.getFirst().getMnuNm()).isEqualTo("Administration");
+        assertThat(tree.getFirst().getChildren().getFirst().getMnuNm()).isEqualTo("CHILD");
     }
 }
