@@ -3,8 +3,10 @@ package com.kdb.it.domain.budget.project.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -19,6 +21,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
@@ -83,6 +86,19 @@ class ProjectServiceXcrLookupTest {
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())
                 .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());
+
+        // projectRepository.save mock: 인자로 받은 엔티티를 그대로 반환(실제 JPA merge/persist 동작 흉내).
+        // createProject가 반환값을 project 변수에 재대입하므로(managed 인스턴스 캡처), 스텁하지 않으면
+        // Mockito 기본값(null)이 대입되어 이후 모든 사용처에서 NPE가 난다.
+        given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
+        // projectBudgetSummaryService.calculateAmountSnapshot mock: 실제 구현 위임
+        // (Mock 기본 응답은 record 타입에 대해 null이라 스텁하지 않으면 금액 스냅샷 기록에서 NPE 발생)
+        doAnswer(
+                        invocation ->
+                                new ProjectBudgetSummaryService(codeService)
+                                        .calculateAmountSnapshot(invocation.getArgument(0)))
+                .when(projectBudgetSummaryService)
+                .calculateAmountSnapshot(anyList());
     }
 
     @AfterEach
