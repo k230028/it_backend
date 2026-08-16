@@ -57,7 +57,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         List<ProjectDto.BitemmDto> items = readItems(context, diagnostics);
         project.setItems(items);
 
-        reconcileTotals(read.declaredYearTotal(), items, project.getAbusNm(), diagnostics);
+        reconcileTotals(read.amounts().yearTotalRaw(), items, project.getAbusNm(), diagnostics);
 
         return new FormAdapterOutput(List.of(project), List.of(), List.copyOf(diagnostics), null);
     }

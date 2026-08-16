@@ -3,6 +3,7 @@ package com.kdb.it.domain.migration.request.service.adapter;
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
@@ -47,6 +48,23 @@ public class CapitalOverviewReader {
     /** 요약표에서 `'26년도 합계` 열을 찾을 때 훑는 최대 열 수. */
     private static final int TOTAL_SCAN_WIDTH = 15;
 
+    /** 요약표 `'26년도 합계` 헤더의 정규화 접미사. 연도가 바뀌어도 맞도록 뒤 4글자만 봅니다. */
+    private static final String YEAR_TOTAL_SUFFIX = "년도합계";
+
+    /** 요약표 `'26년도 이후` 헤더의 정규화 접미사. */
+    private static final String LATER_TOTAL_SUFFIX = "년도이후";
+
+    /**
+     * `총 사업금액(전체기간)` 칸의 단위 접미사. <b>긴 접미사를 먼저 본다</b> — `백만원`이 `원`으로 먼저 잡히면 100만배 틀린다.
+     *
+     * <p>여기 없는 접미사(`억원` 등)는 요약표 배수로 폴백하지 않고 해석 실패로 처리합니다. 폴백이 틀리면 조용히 자릿수가 어긋난 금액이 원장에 남습니다.
+     */
+    private static final List<Map.Entry<String, AmountUnit>> WHOLE_PERIOD_SUFFIXES =
+            List.of(
+                    Map.entry("백만원", AmountUnit.MILLION),
+                    Map.entry("천원", AmountUnit.THOUSAND),
+                    Map.entry("원", AmountUnit.WON));
+
     /** 법규상 완료시기 필드 id. 다른 선택 항목과 처리 방식이 달라 따로 가릅니다. */
     private static final String COMPLETION_DEADLINE_FIELD = "flfFsgDt";
 
@@ -66,7 +84,7 @@ public class CapitalOverviewReader {
      * @param sheet 1-1 시트
      * @param context 어댑터 실행 맥락
      * @param catalogs 코드 해석에 쓰는 공통코드 묶음
-     * @return 사업 요청, 진단, 1-1 요약표의 `'26년도 합계` 기재값
+     * @return 사업 요청, 진단, 1-1이 선언한 금액
      */
     public Result read(Sheet sheet, FormAdapterContext context, FormCatalogs catalogs) {
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
@@ -95,7 +113,7 @@ public class CapitalOverviewReader {
         return new Result(
                 project,
                 stampProjectSubject(diagnostics, project.getAbusNm()),
-                declaredYearTotal(sheet));
+                declaredAmounts(sheet));
     }
 
     /**
@@ -417,23 +435,97 @@ public class CapitalOverviewReader {
     }
 
     /**
-     * 1-1 요약표의 `'26년도 합계` 기재값을 읽습니다.
+     * 1-1이 선언한 금액 3종을 읽습니다.
      *
-     * <p>적재하지 않고 1-2 품목 합계와 대사하는 데만 씁니다. 요약표를 읽지 못하면 null을 돌려주고 호출자가 대사를 건너뜁니다.
+     * <p>요약표를 못 찾으면 두 컬럼이 null이 되고, 호출자가 그것을 "산출 불가" 신호로 씁니다.
+     *
+     * @param sheet 1-1 시트
+     * @return 선언 금액. 어느 값도 못 읽으면 필드가 모두 비어 있습니다
      */
-    private BigDecimal declaredYearTotal(Sheet sheet) {
+    private DeclaredAmounts declaredAmounts(Sheet sheet) {
         Optional<Integer> totalRow = scanner.findLabelRow(sheet, new int[] {0, 2}, "총 계", "총계");
-        if (totalRow.isEmpty()) return null;
+        BigDecimal yearTotal =
+                totalRow.map(row -> summaryColumn(sheet, row, YEAR_TOTAL_SUFFIX)).orElse(null);
+        BigDecimal laterTotal =
+                totalRow.map(row -> summaryColumn(sheet, row, LATER_TOTAL_SUFFIX)).orElse(null);
+        return wholePeriod(sheet, yearTotal, laterTotal);
+    }
 
-        for (int rowIndex = 0; rowIndex < totalRow.get(); rowIndex++) {
+    /**
+     * 요약표 컬럼 하나를 읽습니다.
+     *
+     * <p>`총 계` 행이 제출자가 확정한 값이므로 먼저 봅니다. 그 칸이 비어 있으면 헤더 아래 데이터 행을 더해 보완합니다 — 실측 제출본에 `'26년도 이후`만 총 계
+     * 행이 빈 파일이 있어, 총 계 행만 보면 그 값을 통째로 놓칩니다.
+     *
+     * @param sheet 1-1 시트
+     * @param totalRow `총 계` 행의 0-based 행 번호
+     * @param headerSuffix 찾을 헤더의 정규화 접미사
+     * @return 기재값. 헤더를 못 찾거나 총 계 행·데이터 행에 숫자가 하나도 없으면 null
+     */
+    private BigDecimal summaryColumn(Sheet sheet, int totalRow, String headerSuffix) {
+        for (int rowIndex = 0; rowIndex < totalRow; rowIndex++) {
             for (int colIndex = 0; colIndex <= TOTAL_SCAN_WIDTH; colIndex++) {
                 String header =
                         SheetAnchorScanner.normalize(scanner.text(sheet, rowIndex, colIndex));
-                if (!header.endsWith("년도합계")) continue;
-                return parseAmount(scanner.text(sheet, totalRow.get(), colIndex));
+                if (!header.endsWith(headerSuffix)) continue;
+                BigDecimal declared = parseAmount(scanner.text(sheet, totalRow, colIndex));
+                return declared != null
+                        ? declared
+                        : sumDataRows(sheet, rowIndex, totalRow, colIndex);
             }
         }
         return null;
+    }
+
+    /**
+     * 헤더 다음 행부터 총 계 행 직전까지 같은 열을 더합니다.
+     *
+     * @param sheet 1-1 시트
+     * @param headerRow 헤더 행 번호
+     * @param totalRow `총 계` 행 번호
+     * @param colIndex 더할 열 번호
+     * @return 합계. 숫자가 하나도 없으면 null (0과 구분해야 "기재 없음"을 판정할 수 있습니다)
+     */
+    private BigDecimal sumDataRows(Sheet sheet, int headerRow, int totalRow, int colIndex) {
+        BigDecimal sum = null;
+        for (int rowIndex = headerRow + 1; rowIndex < totalRow; rowIndex++) {
+            BigDecimal value = parseAmount(scanner.text(sheet, rowIndex, colIndex));
+            if (value == null) continue;
+            sum = sum == null ? value : sum.add(value);
+        }
+        return sum;
+    }
+
+    /**
+     * `총 사업금액(전체기간)` 칸을 읽어 선언 금액을 완성합니다.
+     *
+     * <p>숫자 뒤에 붙은 단위 접미사를 인식하면 그 자리에서 원 단위로 폅니다. 접미사가 없으면 숫자만 남겨 호출자가 요약표 배수를 적용하게 하고, 모르는 접미사거나
+     * 숫자가 아니면 폴백을 금지하는 신호를 세웁니다.
+     *
+     * @param sheet 1-1 시트
+     * @param yearTotal 요약표 `'26년도 합계` 기재값
+     * @param laterTotal 요약표 `'26년도 이후` 기재값
+     * @return 선언 금액
+     */
+    private DeclaredAmounts wholePeriod(Sheet sheet, BigDecimal yearTotal, BigDecimal laterTotal) {
+        String raw = labelReader.value(sheet, "총 사업금액(전체기간)");
+        if (!hasText(raw)) {
+            return new DeclaredAmounts(null, null, false, yearTotal, laterTotal);
+        }
+        String trimmed = raw.trim();
+        for (Map.Entry<String, AmountUnit> suffix : WHOLE_PERIOD_SUFFIXES) {
+            if (!trimmed.endsWith(suffix.getKey())) continue;
+            BigDecimal number =
+                    parseAmount(trimmed.substring(0, trimmed.length() - suffix.getKey().length()));
+            return number == null
+                    ? new DeclaredAmounts(null, null, true, yearTotal, laterTotal)
+                    : new DeclaredAmounts(
+                            suffix.getValue().toWon(number), null, false, yearTotal, laterTotal);
+        }
+        BigDecimal number = parseAmount(trimmed);
+        return number == null
+                ? new DeclaredAmounts(null, null, true, yearTotal, laterTotal)
+                : new DeclaredAmounts(null, number, false, yearTotal, laterTotal);
     }
 
     private static BigDecimal parseAmount(String raw) {
@@ -489,10 +581,32 @@ public class CapitalOverviewReader {
      *
      * @param project 사업 생성 요청 (품목 미포함 — 어댑터가 1-2에서 채웁니다)
      * @param diagnostics 해석 진단
-     * @param declaredYearTotal 1-1 요약표의 `'26년도 합계` 기재값. 없으면 null
+     * @param amounts 1-1이 선언한 금액. 단위가 확정되지 않은 값이 섞여 있습니다
      */
     public record Result(
             ProjectDto.CreateRequest project,
             List<RequestFormDto.FormDiagnostic> diagnostics,
-            BigDecimal declaredYearTotal) {}
+            DeclaredAmounts amounts) {}
+
+    /**
+     * 1-1이 선언한 금액입니다. <b>요약표 두 값은 단위가 확정되지 않은 기재값 그대로</b>입니다.
+     *
+     * <p>요약표는 헤더에 `백만원`이라 적혀 있어도 실제 기재 단위가 부점마다 다릅니다(실측: 한 파일 `2637`, 다른 파일 `1014981660`). 배수는 1-2
+     * 품목 합계와 대사해야 정해지고 그 합계는 어댑터만 알고 있으므로, 리더는 판단하지 않고 raw로 넘깁니다.
+     *
+     * <p>반면 `총 사업금액(전체기간)`은 표 헤더에 딸린 칸이 아니라 제출자가 숫자와 단위를 함께 적는 자유 텍스트라, 적힌 접미사가 그 칸의 유일한 근거입니다. 그래서
+     * 여기서 원 단위로 확정합니다.
+     *
+     * @param wholePeriodWon 접미사로 원 단위가 확정된 총 사업금액. 접미사가 없거나 해석에 실패하면 null
+     * @param wholePeriodRaw 접미사가 없을 때의 기재 숫자. 호출자가 요약표 배수를 곱해 씁니다
+     * @param wholePeriodUnknownUnit 값은 있으나 숫자·단위로 해석하지 못했으면 true. <b>배수 폴백을 금지하는 신호</b>입니다
+     * @param yearTotalRaw 요약표 `'26년도 합계` 기재값 (단위 미확정). 요약표를 못 찾으면 null
+     * @param laterTotalRaw 요약표 `'26년도 이후` 기재값 (단위 미확정). 기재가 없으면 null
+     */
+    public record DeclaredAmounts(
+            BigDecimal wholePeriodWon,
+            BigDecimal wholePeriodRaw,
+            boolean wholePeriodUnknownUnit,
+            BigDecimal yearTotalRaw,
+            BigDecimal laterTotalRaw) {}
 }

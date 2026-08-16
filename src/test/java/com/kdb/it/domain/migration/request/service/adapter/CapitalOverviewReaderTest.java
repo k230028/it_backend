@@ -365,13 +365,160 @@ class CapitalOverviewReaderTest {
     void leavesDeclaredTotalNullWhenSummaryAbsent() {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업"));
 
-        assertThat(reader.read(sheet, context(Map.of()), FormCatalogs.empty()).declaredYearTotal())
+        assertThat(
+                        reader.read(sheet, context(Map.of()), FormCatalogs.empty())
+                                .amounts()
+                                .yearTotalRaw())
                 .isNull();
+    }
+
+    @Test
+    @DisplayName("요약표의 두 컬럼을 총 계 행에서 읽는다")
+    void readsSummaryColumnsFromTotalRow() {
+        Sheet sheet =
+                summarySheet("2,000백만원", Map.of(6, 1_265_624_700d, 7, 500_000_000d), Map.of());
+
+        CapitalOverviewReader.DeclaredAmounts amounts = amountsOf(sheet);
+
+        assertThat(amounts.yearTotalRaw()).isEqualByComparingTo("1265624700");
+        assertThat(amounts.laterTotalRaw()).isEqualByComparingTo("500000000");
+    }
+
+    @Test
+    @DisplayName("총 계 행의 칸이 비면 데이터 행을 더해 채운다")
+    void sumsDataRowsWhenTotalCellBlank() {
+        // 실측 제출본에 `'26년도 이후`만 총 계 행이 비어 있는 파일이 있다
+        Sheet sheet =
+                summarySheet(
+                        "2,000백만원",
+                        Map.of(6, 1_265_624_700d),
+                        Map.of(7, new double[] {300_000_000d, 200_000_000d}));
+
+        assertThat(amountsOf(sheet).laterTotalRaw()).isEqualByComparingTo("500000000");
+    }
+
+    @Test
+    @DisplayName("총 계 행과 데이터 행이 모두 비면 그 컬럼은 null이다")
+    void leavesColumnNullWhenNothingWritten() {
+        Sheet sheet = summarySheet("2,000백만원", Map.of(6, 1_265_624_700d), Map.of());
+
+        assertThat(amountsOf(sheet).laterTotalRaw()).isNull();
+    }
+
+    @Test
+    @DisplayName("요약표가 없으면 두 컬럼 모두 null이다")
+    void leavesSummaryNullWhenAbsent() {
+        CapitalOverviewReader.DeclaredAmounts amounts =
+                amountsOf(overviewSheet(Map.of("사업명", "사업")));
+
+        assertThat(amounts.yearTotalRaw()).isNull();
+        assertThat(amounts.laterTotalRaw()).isNull();
+    }
+
+    @Test
+    @DisplayName("총 사업금액의 단위 접미사를 원 단위로 편다")
+    void parsesWholePeriodUnitSuffix() {
+        assertThat(amountsOf(summarySheet("2,000백만원", Map.of(), Map.of())).wholePeriodWon())
+                .isEqualByComparingTo("2000000000");
+        assertThat(amountsOf(summarySheet("1,500천원", Map.of(), Map.of())).wholePeriodWon())
+                .isEqualByComparingTo("1500000");
+        assertThat(amountsOf(summarySheet("1,265,624,700원", Map.of(), Map.of())).wholePeriodWon())
+                .isEqualByComparingTo("1265624700");
+    }
+
+    @Test
+    @DisplayName("접미사가 없으면 원 단위로 확정하지 않고 기재값만 남긴다")
+    void keepsRawWhenNoSuffix() {
+        CapitalOverviewReader.DeclaredAmounts amounts =
+                amountsOf(summarySheet("2000", Map.of(), Map.of()));
+
+        assertThat(amounts.wholePeriodWon()).isNull();
+        assertThat(amounts.wholePeriodRaw()).isEqualByComparingTo("2000");
+        assertThat(amounts.wholePeriodUnknownUnit()).isFalse();
+    }
+
+    @Test
+    @DisplayName("모르는 접미사는 배수 폴백을 막기 위해 해석 실패로 표시한다")
+    void flagsUnknownSuffix() {
+        // `20억원`을 요약표 배수로 환산하면 100배 틀린 값이 조용히 들어간다
+        CapitalOverviewReader.DeclaredAmounts unknown =
+                amountsOf(summarySheet("20억원", Map.of(), Map.of()));
+        assertThat(unknown.wholePeriodWon()).isNull();
+        assertThat(unknown.wholePeriodRaw()).isNull();
+        assertThat(unknown.wholePeriodUnknownUnit()).isTrue();
+
+        CapitalOverviewReader.DeclaredAmounts text =
+                amountsOf(summarySheet("미정", Map.of(), Map.of()));
+        assertThat(text.wholePeriodUnknownUnit()).isTrue();
+    }
+
+    @Test
+    @DisplayName("총 사업금액 칸이 없으면 해석 실패가 아니라 미기재로 둔다")
+    void leavesWholePeriodEmptyWhenLabelAbsent() {
+        CapitalOverviewReader.DeclaredAmounts amounts =
+                amountsOf(summarySheet(null, Map.of(6, 100d), Map.of()));
+
+        assertThat(amounts.wholePeriodWon()).isNull();
+        assertThat(amounts.wholePeriodRaw()).isNull();
+        assertThat(amounts.wholePeriodUnknownUnit()).isFalse();
     }
 
     private String deadlineOf(String raw) {
         Sheet sheet =
                 overviewSheet(new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "법규상 완료시기", raw)));
         return reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project().getFlfFsgDt();
+    }
+
+    /**
+     * 요약표가 있는 1-1 시트를 만듭니다.
+     *
+     * <p>레이아웃은 실 제출본과 같습니다 — 헤더 행에 `'26년도 합계`(6열)·`'26년도 이후`(7열)를 놓고 데이터 행 2개 아래에 `총 계` 행을 둡니다.
+     *
+     * @param wholePeriod `총 사업금액(전체기간)` 칸에 적을 문자열. null이면 칸을 만들지 않습니다
+     * @param totalRowValues 총 계 행의 {열 번호 → 값}. 비워 두면 그 칸이 빈칸이 됩니다
+     * @param dataRowValues 데이터 행 2개의 {열 번호 → 값 2개}. 비워 두면 그 칸이 빈칸이 됩니다
+     */
+    private static Sheet summarySheet(
+            String wholePeriod,
+            Map<Integer, Double> totalRowValues,
+            Map<Integer, double[]> dataRowValues) {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("① (정보화사업) 1-1. 정보화사업 개요");
+            Row labelRow = sheet.createRow(0);
+            cell(labelRow, 2).setCellValue("사업명");
+            cell(labelRow, 3).setCellValue("사업");
+            if (wholePeriod != null) {
+                Row amountRow = sheet.createRow(1);
+                cell(amountRow, 7).setCellValue("총 사업금액(전체기간)");
+                cell(amountRow, 9).setCellValue(wholePeriod);
+            }
+            Row header = sheet.createRow(2);
+            cell(header, 6).setCellValue("'26년도 합계");
+            cell(header, 7).setCellValue("'26년도 이후");
+            cell(header, 8).setCellValue("전체 합계");
+            for (int offset = 0; offset < 2; offset++) {
+                Row dataRow = sheet.createRow(3 + offset);
+                cell(dataRow, 0).setCellValue(offset == 0 ? "자본예산" : "일반관리비");
+                for (Map.Entry<Integer, double[]> entry : dataRowValues.entrySet()) {
+                    cell(dataRow, entry.getKey()).setCellValue(entry.getValue()[offset]);
+                }
+            }
+            Row totalRow = sheet.createRow(5);
+            cell(totalRow, 0).setCellValue("총 계");
+            for (Map.Entry<Integer, Double> entry : totalRowValues.entrySet()) {
+                cell(totalRow, entry.getKey()).setCellValue(entry.getValue());
+            }
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                wb.write(out);
+                return new HSSFWorkbook(new java.io.ByteArrayInputStream(out.toByteArray()))
+                        .getSheetAt(0);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private CapitalOverviewReader.DeclaredAmounts amountsOf(Sheet sheet) {
+        return reader.read(sheet, context(Map.of()), FormCatalogs.empty()).amounts();
     }
 }
