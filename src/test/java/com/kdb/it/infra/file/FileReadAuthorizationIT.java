@@ -12,6 +12,7 @@ import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.service.FileService;
+import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import java.sql.Date;
 import java.sql.Types;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.ActiveProfiles;
@@ -63,6 +65,7 @@ import org.springframework.test.web.servlet.MockMvc;
         })
 @ActiveProfiles("test-it")
 @ExtendWith(OracleAvailableCondition.class)
+@Import(MfaTestSupportConfig.class)
 class FileReadAuthorizationIT {
 
     // ─────────────────────────────────────────

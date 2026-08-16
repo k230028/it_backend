@@ -14,6 +14,7 @@ import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.NotFoundException;
+import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -37,6 +38,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -52,6 +54,7 @@ import org.springframework.transaction.support.TransactionTemplate;
         properties = {"jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok"})
 @ActiveProfiles("test-it")
 @ExtendWith(OracleAvailableCondition.class)
+@Import(MfaTestSupportConfig.class)
 class BoardWriteConcurrencyIT {
 
     private static final String AUDITOR = "ITEST15";

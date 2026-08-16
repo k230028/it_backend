@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 
 import com.kdb.it.infra.file.repository.FileRepository;
+import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import java.time.Duration;
 import java.util.UUID;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -38,6 +40,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
         properties = {"jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok"})
 @ActiveProfiles("test-it")
 @ExtendWith(OracleAvailableCondition.class)
+@Import(MfaTestSupportConfig.class)
 class BoardPostFileCacheConcurrencyIT {
 
     private static final String PREFIX = "BRD11";

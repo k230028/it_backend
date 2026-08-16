@@ -16,6 +16,7 @@ import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.exception.LoginRejectedException;
+import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -76,6 +78,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @ActiveProfiles("test-it")
 @ExtendWith(OracleAvailableCondition.class)
+@Import(MfaTestSupportConfig.class)
 class AuthLoginFailureIsolationIT {
 
     private static final String LOGIN_URL = "/api/auth/login/start";

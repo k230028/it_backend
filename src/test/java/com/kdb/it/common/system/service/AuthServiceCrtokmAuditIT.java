@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.dto.AuthDto;
+import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -44,6 +46,7 @@ import org.springframework.test.context.ActiveProfiles;
         })
 @ActiveProfiles("test-it")
 @ExtendWith(OracleAvailableCondition.class)
+@Import(MfaTestSupportConfig.class)
 class AuthServiceCrtokmAuditIT {
 
     /** 테스트 전용 고정 사번 — FST_ENR_USID/LST_CHG_USID 컬럼 길이(14자, 실 스키마 확인) 이내로 제한한 13자 값. */

@@ -10,6 +10,7 @@ import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.AuthService;
 import com.kdb.it.exception.InvalidRefreshTokenException;
+import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -35,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -77,6 +79,7 @@ import org.springframework.test.context.ActiveProfiles;
         })
 @ActiveProfiles("test-it")
 @ExtendWith(OracleAvailableCondition.class)
+@Import(MfaTestSupportConfig.class)
 class RefreshTokenIsolationIT {
 
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenIsolationIT.class);
