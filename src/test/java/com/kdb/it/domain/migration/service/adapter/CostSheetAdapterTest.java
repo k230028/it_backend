@@ -145,6 +145,7 @@ class CostSheetAdapterTest {
                 .isEqualTo(AllocationIntent.MatchKey.Type.COST_DEPT_KEY);
         assertThat(intent.matchKey().deptCode()).isEqualTo("0210");
         assertThat(intent.matchKey().ioeC()).isEqualTo("011");
+        assertThat(intent.matchKey().vendorName()).isEqualTo("커브");
         assertThat(intent.matchKey().contractName()).isEqualTo("올인원워크스페이스");
         // 천원 단위 × DUP_IOE_MNGC(100%)
         assertThat(intent.targetByColumn().get("costAmount")).isEqualByComparingTo("15401000");

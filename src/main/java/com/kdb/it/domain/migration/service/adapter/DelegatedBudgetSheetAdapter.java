@@ -20,6 +20,10 @@ import org.springframework.stereotype.Component;
  * 담당자·기간이 없어 규칙으로 생성합니다 — 사업명은 `{연도}년 {부점명} 위임예산(경상)`, 기간은 해당 연도 전체, 담당자·IT담당자는 담당자 열이 없어 업로드 사용자
  * 사번을 그대로 넣습니다. 원화환산액이 이미 원 단위({@link com.kdb.it.domain.migration.service.MigrationAmounts})라 금액
  * 배수를 곱하지 않습니다. {@code XCR}은 설정하지 않습니다 — {@code ProjectService}가 다시 조회해 덮어쓰기 때문입니다.
+ *
+ * <p>다른 세 어댑터와 달리 이 어댑터의 {@link AdapterOutput}은 **행 단위가 아니라 부점 그룹 단위**입니다 — forward-fill로 묶은 부점
+ * 그룹마다 사업·배분 의도를 하나씩 냅니다. {@code costs}/{@code projects}와 {@code allocations}는 서로 인덱스 평행이지만
+ * {@code sheet.rows()}와는 1:1이 아니므로, 행 번호로 역인덱싱하면 안 됩니다.
  */
 @Component
 public class DelegatedBudgetSheetAdapter implements SheetAdapter {

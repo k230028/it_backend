@@ -189,6 +189,8 @@ public class MigrationImportService {
                 new LinkedHashMap<>(snapshot.projectNoByNormalizedName());
         Map<String, String> costNoByNaturalKey = new LinkedHashMap<>();
         // TODO(Task 9): AllocationIntent를 실효 편성률로 환산해 적용한다 — 지금은 수집만 하고 쓰지 않는다.
+        // 소비자가 없어 하반기 조정(PlanAdjustmentSheetAdapter, 기존 사업만 대상)이 완전히 무동작이 된다.
+        // 상세는 MigrationImportServiceTest.편성률items에_연도전체를_담는다의 Javadoc 참조.
         List<AllocationIntent> allocations = new ArrayList<>();
         List<PlanIntent> planIntents = new ArrayList<>();
         int costCount = 0;
@@ -276,9 +278,14 @@ public class MigrationImportService {
         // TODO(Task 9): AllocationIntent를 실효 편성률로 환산해 적용한다 — 지금은 기존 편성률 유지만 한다.
         // 종전 RateIntent 루프(편성률을 직접 덮어씀)는 AllocationIntent가 비율이 아니라 목표 "금액"을
         // 담고 있어 그대로 옮길 수 없어 제거했다. 그 결과 이번 반영은 종합본의 조정비율을 편성률에
-        // 반영하지 않고 2단계가 모은 기존 편성률(rateItems)을 그대로 적용한다. Task 9가
-        // MigrationLedgerMatcher·MigrationAllocationPlanner로 allocations를 실효 편성률로 환산해 이
-        // 자리를 채운다.
+        // 전혀 반영하지 않고 2단계가 모은 rateItems(스냅샷에서 역산한, 이관 이전부터 있던 기존 편성률)를
+        // 그대로 적용한다. 2단계는 "신규 생성분"을 모른다 — 신규 사업·전산업무비는 이번 반영에서 편성행을
+        // 아예 받지 못한다. 더 좁게 보면, PlanAdjustmentSheetAdapter(하반기 조정)는 사업을 새로 만들지
+        // 않고 언제나 기존 사업만 가리키는 AllocationIntent를 내는데, 그 목표액을 rateItems에 반영하던
+        // 유일한 소비자가 이 자리였다. 그래서 지금은 하반기 조정이 기존 사업 편성률에 대해 완전히
+        // 무동작이다 — AllocationIntent 재설계를 촉발한 바로 그 시나리오가 이번 패스에서 통째로 빠진다.
+        // Task 9가 MigrationLedgerMatcher·MigrationAllocationPlanner로 allocations를 실효 편성률로
+        // 환산해 신규·기존 원장 모두의 편성행을 채우면서 이 자리를 채운다.
         BudgetWorkDto.ApplyResponse applied =
                 budgetRateApplicationService.applyItemRates(
                         new BudgetWorkDto.ItemApplyRequest(bseYy, rateItems));

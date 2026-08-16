@@ -144,13 +144,24 @@ class MigrationImportServiceTest {
     /**
      * items에는 이관분과 기존 연도 데이터가 모두 담겨야 한다.
      *
-     * <p>Task 7 시점의 최소 보정 메모: 이 단정 중 "이관분(COST-2026-0001)도 items에 포함된다"는 부분은 어댑터가 낸 편성 의도로 신규 생성
-     * 원장에 편성행을 얹던 5단계 루프가 함께 지고 있던 책임이다. {@code AllocationIntent}는 비율이 아니라 목표 금액을 담아 그 루프를 그대로 옮길 수
-     * 없어 제거했고, 그 결과 신규 생성 원장은 이번 반영에서 편성행을 전혀 받지 못한다("기존 편성률 유지" 2단계 로직은 신규 원장을 모르므로 대상이 아니다). 기존
-     * 사업·전산업무비의 편성률을 스냅샷에서 역산해 유지하는 부분(2단계)은 그대로이므로 그 회귀는 여전히 막혀 있다. Task 9가 AllocationIntent를 실효
-     * 편성률로 환산해 신규 원장의 편성행을 채우면서 이 검증을 복구해야 한다.
+     * <p>Task 7 시점의 최소 보정 메모: 이 단정 중 "이관분(COST-2026-0001)도 items에 포함된다"는 부분은 어댑터가 낸 편성 의도로 원장에
+     * 편성행을 얹던 5단계 루프가 지고 있던 책임이다. {@code AllocationIntent}는 비율이 아니라 목표 금액을 담아 그 루프를 그대로 옮길 수 없어
+     * 제거했고, 그 결과 5단계가 만들던 편성행이 전부 사라졌다 — 2단계("기존 편성률 유지")는 대상이 다르다.
+     *
+     * <p><b>회귀 범위는 신규 생성 원장에 그치지 않는다.</b> 2단계가 채우는 {@code rateItems}는 {@code
+     * snapshot.itemsOfProject}/{@code existingItemRateByItemNo} 등 스냅샷에서 역산한 "이번 이관 전부터 있던 편성률"만
+     * 담으므로, 하반기 조정({@code PlanAdjustmentSheetAdapter})처럼 **기존** 사업의 편성률을 새 확정금액으로 갱신해야 하는
+     * {@code AllocationIntent}에 대해서는 아무 보호도 없다. 실제로 {@code PlanAdjustmentSheetAdapter}는 사업을 새로
+     * 만들지 않으므로({@code PlanAdjustmentSheetAdapterTest.원장_생성요청은_만들지_않는다}) 그 어댑터가 내는
+     * {@code AllocationIntent}는 언제나 기존 사업만 가리킨다. 그런데 그 목표액을 {@code rateItems}에 반영하던 유일한 소비자가
+     * 5단계였으므로, 지금은 <b>하반기 조정이 기존 사업 편성률에 대해 완전히 무동작이다</b> — "새 원장만 편성행을 못 받는다"가 아니라, 애초에
+     * {@code AllocationIntent} 재설계를 촉발한 그 시나리오(하반기 조정) 자체가 통째로 반영되지 않는다. Task 9가 {@code
+     * MigrationLedgerMatcher}·{@code MigrationAllocationPlanner}로 {@code allocations}를 실효 편성률로 환산해
+     * 신규·기존 원장 모두의 편성행을 채우면서 이 검증을 복구해야 한다.
      */
-    @Disabled("Task 9에서 AllocationIntent 기반 실효 편성률 적용과 함께 복구 — 5단계 제거로 신규 생성 원장이 편성행을 받지 못한다")
+    @Disabled(
+            "Task 9에서 AllocationIntent 기반 실효 편성률 적용과 함께 복구 — 5단계 제거로 신규·기존 원장 모두 편성행을 받지"
+                    + " 못하고, 특히 하반기 조정(기존 사업 대상)은 완전히 무동작이다")
     @Test
     @DisplayName("applyItemRates items에 이관분과 기존 연도 데이터를 함께 담는다")
     void 편성률items에_연도전체를_담는다() {
