@@ -65,6 +65,7 @@ class MigrationYearSnapshotTest {
         assertThat(data.costNoByDeptKey(key)).isEqualTo("COST-26-0001");
         assertThat(data.costNosByDeptAndIoe("0210", "001")).containsExactly("COST-26-0001");
         assertThat(data.costOf("COST-26-0001").amount()).isEqualByComparingTo("15401000");
+        assertThat(data.costOf("COST-26-0001").contractName()).isEqualTo("올인원워크스페이스");
         assertThat(data.bgUntAbusCOf("COST-26-0001")).isNull();
     }
 

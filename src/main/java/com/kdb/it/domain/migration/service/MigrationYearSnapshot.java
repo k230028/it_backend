@@ -57,10 +57,16 @@ public class MigrationYearSnapshot {
      * @param bgSno 예산일련번호 ({@code BBUGTM.FNT_TB_CRY_SNO})
      * @param ioeC 비목코드
      * @param amount 요청금액 ({@code COST_TOT_XP_AMT})
+     * @param contractName 매칭 비교용 계약명 원문 ({@code CTT_NM}). {@code label}은 표시용이므로 비교에 쓰지 않는다
      * @param label 후보 표시용 문구 (계약명 + 상대처)
      */
     public record CostRef(
-            String costBgNo, Integer bgSno, String ioeC, BigDecimal amount, String label) {}
+            String costBgNo,
+            Integer bgSno,
+            String ioeC,
+            BigDecimal amount,
+            String contractName,
+            String label) {}
 
     /**
      * 연도 스냅샷 데이터입니다.
@@ -174,6 +180,7 @@ public class MigrationYearSnapshot {
                             cost.getCostTotXpAmt() == null
                                     ? BigDecimal.ZERO
                                     : cost.getCostTotXpAmt(),
+                            cost.getCttNm(),
                             nz(cost.getCttNm()) + " / " + nz(cost.getCttOppNm())));
             costNoByDeptKey.putIfAbsent(
                     costDeptKey(

@@ -92,6 +92,7 @@ class MigrationLedgerMatcherTest {
                                         1,
                                         "001",
                                         new BigDecimal("15401000"),
+                                        "올인원워크스페이스",
                                         "올인원워크스페이스 / 커브")),
                         Map.of(key, "COST-26-0001"),
                         Map.of("0210|001", List.of("COST-26-0001")));
@@ -119,6 +120,7 @@ class MigrationLedgerMatcherTest {
                                         1,
                                         "001",
                                         new BigDecimal("15401000"),
+                                        "올인원워크스페이스",
                                         "올인원워크스페이스 / 커브")),
                         Map.of(key, "COST-26-0001"),
                         Map.of("0210|001", List.of("COST-26-0001")));
@@ -126,6 +128,35 @@ class MigrationLedgerMatcherTest {
         // 종합본에 상대처가 비어 있어도 부서+비목+계약명이 유일하면 매칭한다
         MigrationLedgerMatcher.Match match =
                 matcher.matchCost("2026", "0210", "001", "", "올인원워크스페이스", snapshot);
+
+        assertThat(match.outcome()).isEqualTo(MigrationLedgerMatcher.Outcome.MATCHED);
+        assertThat(match.pk()).isEqualTo("COST-26-0001");
+    }
+
+    @Test
+    @DisplayName("matchCost_상대처에_슬래시가_있어도_계약명_원문으로_비교한다")
+    void matchCost_상대처에_슬래시가_있어도_계약명_원문으로_비교한다() {
+        // label은 "계약명 / 상대처" 형식이라 상대처에 " / "가 섞이면 문자열 파싱으로는 계약명이 잘못 잘린다.
+        // contractName 원문으로 비교하면 이 문제가 생기지 않는다.
+        MigrationYearSnapshot.Data snapshot =
+                snapshot(
+                        Map.of(),
+                        Map.of(),
+                        Map.of(),
+                        Map.of(
+                                "COST-26-0001",
+                                new MigrationYearSnapshot.CostRef(
+                                        "COST-26-0001",
+                                        1,
+                                        "001",
+                                        new BigDecimal("15401000"),
+                                        "올인원워크스페이스",
+                                        "올인원워크스페이스 / A사 / B사업부")),
+                        Map.of(),
+                        Map.of("0210|001", List.of("COST-26-0001")));
+
+        MigrationLedgerMatcher.Match match =
+                matcher.matchCost("2026", "0210", "001", "A사 / B사업부", "올인원워크스페이스", snapshot);
 
         assertThat(match.outcome()).isEqualTo(MigrationLedgerMatcher.Outcome.MATCHED);
         assertThat(match.pk()).isEqualTo("COST-26-0001");
@@ -146,6 +177,7 @@ class MigrationLedgerMatcherTest {
                                         1,
                                         "001",
                                         new BigDecimal("15401000"),
+                                        "올인원워크스페이스",
                                         "올인원워크스페이스 / 커브")),
                         Map.of(),
                         Map.of("0210|001", List.of("COST-26-0001")));
@@ -157,6 +189,101 @@ class MigrationLedgerMatcherTest {
         assertThat(match.candidates())
                 .containsExactly(
                         new MigrationDto.Candidate("COST-26-0001", "올인원워크스페이스 / 커브"));
+    }
+
+    @Test
+    @DisplayName("matchCost_같은_계약명의_원장행이_둘이면_중의적이다")
+    void matchCost_같은_계약명의_원장행이_둘이면_중의적이다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshot(
+                        Map.of(),
+                        Map.of(),
+                        Map.of(),
+                        Map.of(
+                                "COST-26-0001",
+                                new MigrationYearSnapshot.CostRef(
+                                        "COST-26-0001",
+                                        1,
+                                        "001",
+                                        new BigDecimal("15401000"),
+                                        "올인원워크스페이스",
+                                        "올인원워크스페이스 / 커브"),
+                                "COST-26-0002",
+                                new MigrationYearSnapshot.CostRef(
+                                        "COST-26-0002",
+                                        1,
+                                        "001",
+                                        new BigDecimal("2000000"),
+                                        "올인원워크스페이스",
+                                        "올인원워크스페이스 / 다른상대처")),
+                        Map.of(),
+                        Map.of("0210|001", List.of("COST-26-0001", "COST-26-0002")));
+
+        MigrationLedgerMatcher.Match match =
+                matcher.matchCost("2026", "0210", "001", "제3의상대처", "올인원워크스페이스", snapshot);
+
+        assertThat(match.outcome()).isEqualTo(MigrationLedgerMatcher.Outcome.AMBIGUOUS);
+        assertThat(match.candidates()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("matchOrdinaryProject_부서코드가_null이면_전체_사업을_후보로_낸다")
+    void matchOrdinaryProject_부서코드가_null이면_전체_사업을_후보로_낸다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshot(
+                        Map.of(),
+                        Map.of("PRJ-2026-0002", "2026년 런던지점 위임예산(경상)"),
+                        Map.of("920", List.of("PRJ-2026-0002")),
+                        Map.of(),
+                        Map.of(),
+                        Map.of());
+
+        MigrationLedgerMatcher.Match match = matcher.matchOrdinaryProject(null, snapshot);
+
+        assertThat(match.outcome()).isEqualTo(MigrationLedgerMatcher.Outcome.NOT_FOUND);
+        assertThat(match.candidates())
+                .containsExactly(
+                        new MigrationDto.Candidate("PRJ-2026-0002", "2026년 런던지점 위임예산(경상)"));
+    }
+
+    @Test
+    @DisplayName("matchOrdinaryProject_부서코드가_공백이면_전체_사업을_후보로_낸다")
+    void matchOrdinaryProject_부서코드가_공백이면_전체_사업을_후보로_낸다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshot(
+                        Map.of(),
+                        Map.of("PRJ-2026-0002", "2026년 런던지점 위임예산(경상)"),
+                        Map.of("920", List.of("PRJ-2026-0002")),
+                        Map.of(),
+                        Map.of(),
+                        Map.of());
+
+        MigrationLedgerMatcher.Match match = matcher.matchOrdinaryProject("  ", snapshot);
+
+        assertThat(match.outcome()).isEqualTo(MigrationLedgerMatcher.Outcome.NOT_FOUND);
+        assertThat(match.candidates())
+                .containsExactly(
+                        new MigrationDto.Candidate("PRJ-2026-0002", "2026년 런던지점 위임예산(경상)"));
+    }
+
+    @Test
+    @DisplayName("matchOrdinaryProject_부서에_경상사업이_없으면_전체_사업을_후보로_낸다")
+    void matchOrdinaryProject_부서에_경상사업이_없으면_전체_사업을_후보로_낸다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshot(
+                        Map.of(),
+                        Map.of("PRJ-2026-0002", "2026년 런던지점 위임예산(경상)"),
+                        Map.of("920", List.of("PRJ-2026-0002")),
+                        Map.of(),
+                        Map.of(),
+                        Map.of());
+
+        MigrationLedgerMatcher.Match match = matcher.matchOrdinaryProject("0210", snapshot);
+
+        assertThat(match.outcome()).isEqualTo(MigrationLedgerMatcher.Outcome.NOT_FOUND);
+        assertThat(match.candidates())
+                .containsExactly(
+                        new MigrationDto.Candidate("PRJ-2026-0002", "2026년 런던지점 위임예산(경상)"));
     }
 
     private MigrationYearSnapshot.Data snapshotWithProject(

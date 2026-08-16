@@ -54,6 +54,8 @@ public class MigrationLedgerMatcher {
     /**
      * 정규화 사업명으로 정보화사업을 찾습니다.
      *
+     * <p>정규화 사업명은 스냅샷에서 사업관리번호로 1:1 색인되므로 구조상 {@code AMBIGUOUS}를 내지 않는다.
+     *
      * @param normalizedName {@link MigrationYearSnapshot#normalizeName}으로 정규화한 사업명
      * @param snapshot 연도 스냅샷
      * @return 매칭 결과. 못 찾으면 그 연도 사업 전체가 후보다
@@ -130,11 +132,9 @@ public class MigrationLedgerMatcher {
             if (ref == null) {
                 continue;
             }
-            // label은 "계약명 / 상대처" 형식이라 계약명만 떼어 비교한다
-            String label = ref.label();
-            int separator = label.lastIndexOf(" / ");
-            String ledgerContract = separator < 0 ? label : label.substring(0, separator);
-            if (MigrationYearSnapshot.normalizeText(ledgerContract).equals(normalizedContract)) {
+            // 표시용 label이 아니라 계약명 원문을 비교한다 — label에 든 구분자를 파싱하면
+            // 상대처에 "/"가 있을 때 조용히 어긋난다
+            if (MigrationYearSnapshot.normalizeText(ref.contractName()).equals(normalizedContract)) {
                 byContract.add(costNo);
             }
         }

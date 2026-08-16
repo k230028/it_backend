@@ -169,6 +169,7 @@ class MigrationImportServiceTest {
                                                 1,
                                                 "011",
                                                 new BigDecimal("2000"),
+                                                "계약명",
                                                 "라벨")),
                                 Map.of(),
                                 Map.of(),
