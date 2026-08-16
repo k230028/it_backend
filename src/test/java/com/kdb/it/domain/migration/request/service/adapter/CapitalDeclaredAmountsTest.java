@@ -31,11 +31,12 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 /**
- * 1-1 선언 금액 산출의 미적재 5조건을 시트를 직접 만들어 확인합니다.
+ * 1-1 선언 금액 산출의 미적재 6조건을 시트를 직접 만들어 확인합니다.
  *
- * <p>공용 픽스처는 정상 파일 하나를 재현한 것이라 "요약표가 없는 파일", "배수를 못 정하는 파일", "총액 표기를 해석 못하는 파일", "총액이 요약표 합계보다 작은
- * 파일", "산출값이 컬럼 용량을 넘는 파일" 같은 변형을 담지 못합니다. 조건 ①(요약표 없음)·②(배수 미확정)는 1-1만 담아 품목 합계를 0으로 비워 확인하고, 조건
- * ③(총액 표기 해석 실패)·④(지급금액 음수)·⑤(컬럼 용량 초과)는 1-2를 함께 만들어 배수를 먼저 확정한 뒤에야 그 분기에 닿습니다.
+ * <p>공용 픽스처는 정상 파일 하나를 재현한 것이라 "요약표가 없는 파일", "배수를 못 정하는 파일", "총액 표기를 해석 못하는 파일", "총액 칸의 단위 해석이 모호한
+ * 파일", "총액이 요약표 합계보다 작은 파일", "산출값이 컬럼 용량을 넘는 파일" 같은 변형을 담지 못합니다. 조건 ①(요약표 없음)·②(배수 미확정)는 1-1만 담아 품목
+ * 합계를 0으로 비워 확인하고, 조건 ③(총액 표기 해석 실패)·⑥(총액 단위 모호)·④(지급금액 음수)·⑤(컬럼 용량 초과)는 1-2를 함께 만들어 배수를 먼저 확정한 뒤에야
+ * 그 분기에 닿습니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -103,19 +104,72 @@ class CapitalDeclaredAmountsTest {
     @Test
     @DisplayName("[조건⑤] 산출한 금액이 컬럼 용량을 넘으면 적재하지 않고 경고만 낸다")
     void skipsAmountsWhenOverColumnCapacity() {
-        // 품목 합계 1,000,000,000원과 '26년도 합계 1,000이 백만원 단위로 대사되어 배수는 MILLION으로 확정된다.
-        // 그런데 `총 사업금액(전체기간)`은 접미사 없이 3,000,000,000이라 적혀 있어(제출자가 두 칸의 단위를 뒤섞은
-        // 경우) 그 배수로 폴백하면 3e15가 되고, NUMBER(18,3)의 정수부 15자리를 넘어 저장 시 ORA-01438이 난다
+        // 품목 합계 1,500,000,000원과 '26년도 합계 1,500이 백만원 단위로 대사되어 배수는 MILLION으로 확정된다.
+        // `총 사업금액(전체기간)`은 접미사 없이 1,000,000,000이라 적혀 있어 그 배수로 폴백하면 1e15가 되어
+        // NUMBER(18,3)의 정수부 15자리 상한에 닿는다. 원 단위 그대로(candidateB=1,000,000,000)로 읽으면
+        // 요약표 합계(1,500,000,000원)에도 못 미쳐 음수가 되므로 조건⑥(모호)에는 걸리지 않고 오직
+        // 컬럼 용량 문제로만 확정된다
         FormAdapterOutput output =
-                adaptWithResource("3000000000", 1_000d, 0d, "기계장치(HW)", 1_000_000_000d);
+                adaptWithResource("1000000000", 1_500d, 0d, "기계장치(HW)", 1_500_000_000d);
 
         assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
         assertThat(amountWarning(output)).contains("저장 가능한 범위를 넘습니다");
         // 다른 조건의 문구로 새지 않았는지 함께 본다
         assertThat(amountWarning(output)).doesNotContain("보다 작습니다");
+        assertThat(amountWarning(output)).doesNotContain("확정할 수 없습니다");
         // 미적재는 경고일 뿐이라 사업은 그대로 만들어 파일을 막지 않는다
         assertThat(output.projects()).hasSize(1);
         assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
+    }
+
+    @Test
+    @DisplayName("[조건⑥] 배수를 적용한 해석과 원 단위 해석이 둘 다 성립하면 모호하다고 보아 적재하지 않는다")
+    void skipsAmountsWhenFallbackInterpretationIsAmbiguous() {
+        // '26년도 합계 1,000(raw)이 품목 합계 1,000,000원과 THOUSAND 배수로 대사된다.
+        // `총 사업금액(전체기간)`은 접미사 없이 2,000,000이라 적혀 있어 폴백이 발동한다.
+        // candidateA(배수 적용)=20억, candidateB(원 단위 그대로)=2,000,000 모두 지급금액이
+        // 0 이상이라 어느 해석이 맞는지 확정할 수 없다
+        FormAdapterOutput output = adaptWithResource("2000000", 1000d, 0d, "기계장치(HW)", 1_000_000d);
+
+        assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
+        assertThat(amountWarning(output)).contains("확정할 수 없습니다");
+        // 다른 조건의 문구로 새지 않았는지 함께 본다
+        assertThat(amountWarning(output)).doesNotContain("보다 작습니다");
+        // 미적재는 경고일 뿐이라 사업은 그대로 만들어 파일을 막지 않는다
+        assertThat(output.projects()).hasSize(1);
+        assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
+    }
+
+    @Test
+    @DisplayName("[조건⑥ 대조] 원 단위 해석이 성립하지 않으면 모호하지 않아 그대로 적재한다")
+    void loadsAmountsWhenFallbackInterpretationIsUnambiguous() {
+        // '26년도 합계 1,200(raw)이 품목 합계 12억원과 MILLION 배수로 대사된다.
+        // `총 사업금액(전체기간)`은 접미사 없이 2,000이라 적혀 있어 폴백이 발동하지만,
+        // 원 단위 그대로 해석(candidateB=2,000)하면 지급금액이 음수가 되어 성립하지 않으므로
+        // 배수를 적용한 해석(candidateA=20억) 하나로만 확정된다
+        FormAdapterOutput output = adaptWithResource("2000", 1200d, 0d, "기계장치(HW)", 1_200_000_000d);
+
+        ProjectAmounts amounts = output.projectAmounts().get(0);
+        assertThat(amounts.isPresent()).isTrue();
+        assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
+        assertThat(amounts.mplAmt()).isEqualByComparingTo("0");
+        assertThat(amounts.dfrAmt()).isEqualByComparingTo("800000000");
+    }
+
+    @Test
+    @DisplayName("[조건⑥ 예외] 배수가 원 단위(WON)면 두 해석이 같은 값이라 모호 판정을 하지 않는다")
+    void doesNotFlagAmbiguityWhenResolvedUnitIsWon() {
+        // '26년도 합계 2,000,000(raw)이 품목 합계 2,000,000원과 WON 배수(1배)로 대사된다.
+        // 배수가 1이면 candidateA와 candidateB가 항상 같은 값이라 모호할 수 없다.
+        // 이 예외가 없으면 폴백 경로의 정상 파일(WON 단위)이 전부 미적재로 막힌다
+        FormAdapterOutput output =
+                adaptWithResource("5000000", 2_000_000d, 0d, "기계장치(HW)", 2_000_000d);
+
+        ProjectAmounts amounts = output.projectAmounts().get(0);
+        assertThat(amounts.isPresent()).isTrue();
+        assertThat(amounts.totRqmAmt()).isEqualByComparingTo("5000000");
+        assertThat(amounts.mplAmt()).isEqualByComparingTo("0");
+        assertThat(amounts.dfrAmt()).isEqualByComparingTo("3000000");
     }
 
     @Test

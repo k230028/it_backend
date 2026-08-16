@@ -265,8 +265,8 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
      * <p>산식은 {@code 총소요금액 = 총 사업금액(전체기간)}, {@code 예정금액 = '26년도 이후}, {@code 지급금액 = 총 사업금액 − '26년도 이후
      * − '26년도 합계}입니다. 요약표는 단위가 파일마다 다르므로 1-2 품목 합계로 역추정한 배수를 곱해 원 단위로 폅니다.
      *
-     * <p>환산 근거가 없거나, 지급금액이 음수거나, 산출값이 컬럼 용량을 넘으면 <b>적재하지 않고 경고만</b> 냅니다. 파일은 그대로 반영되고 세 컬럼은 품목 합계
-     * 스냅샷으로 남습니다 — 여기서 막으면 1-2가 정상인 파일까지 통째로 반입되지 못합니다.
+     * <p>환산 근거가 없거나, 총액 칸에 단위가 없어 요약표 배수 해석과 원 단위 해석이 모두 성립하거나, 지급금액이 음수거나, 산출값이 컬럼 용량을 넘으면 <b>적재하지
+     * 않고 경고만</b> 냅니다. 파일은 그대로 반영되고 세 컬럼은 품목 합계 스냅샷으로 남습니다 — 여기서 막으면 1-2가 정상인 파일까지 통째로 반입되지 못합니다.
      *
      * @param declared 1-1이 읽어 온 선언 금액
      * @param unit 요약표 기재 단위. 판정에 실패했으면 빈 Optional
@@ -313,6 +313,27 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                         ? BigDecimal.ZERO
                         : resolved.toWon(declared.laterTotalRaw());
         BigDecimal paid = whole.subtract(later).subtract(year);
+
+        // 조건 ⑥(모호): `총 사업금액(전체기간)`에 접미사가 없어 요약표 배수로 폴백한 경우에 한해,
+        // 배수를 적용한 해석(candidateA=whole, 현재 동작)과 원 단위 그대로라는 해석(candidateB)이
+        // 둘 다 지급금액을 음수로 만들지 않으면 어느 쪽이 맞는지 산술만으로 확정할 수 없다.
+        // 배수가 1(WON)이면 두 해석이 같은 값이라 애초에 모호할 수 없으므로 먼저 걸러낸다 —
+        // 빠뜨리면 폴백 경로의 정상 파일(WON 단위)이 전부 미적재로 돌아가는 회귀가 된다.
+        // whole은 이 판정과 무관하게 계속 candidateA를 쓴다: 이 조건은 적재 여부만 조이고
+        // 값을 candidateB로 바꾸지 않는다.
+        if (declared.wholePeriodWon() == null
+                && declared.wholePeriodRaw() != null
+                && resolved != AmountUnit.WON) {
+            BigDecimal candidateB = declared.wholePeriodRaw();
+            BigDecimal paidB = candidateB.subtract(later).subtract(year);
+            if (paid.signum() >= 0 && paidB.signum() >= 0) {
+                return skipAmounts(
+                        projectName,
+                        "`총 사업금액(전체기간)`에 단위가 적혀 있지 않아 요약표 단위(%s)로 읽었는데, 원 단위로 읽어도 계산이 맞아 어느 쪽인지 확정할 수 없습니다. 칸에 단위를 함께 적어 주세요."
+                                .formatted(resolved.label()),
+                        diagnostics);
+            }
+        }
         if (paid.signum() < 0) {
             return skipAmounts(
                     projectName,
