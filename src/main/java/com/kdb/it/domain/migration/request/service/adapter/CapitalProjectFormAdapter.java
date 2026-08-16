@@ -313,6 +313,27 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                         ? BigDecimal.ZERO
                         : resolved.toWon(declared.laterTotalRaw());
         BigDecimal paid = whole.subtract(later).subtract(year);
+
+        // 조건 ⑥(모호): `총 사업금액(전체기간)`에 접미사가 없어 요약표 배수로 폴백한 경우에 한해,
+        // 배수를 적용한 해석(candidateA=whole, 현재 동작)과 원 단위 그대로라는 해석(candidateB)이
+        // 둘 다 지급금액을 음수로 만들지 않으면 어느 쪽이 맞는지 산술만으로 확정할 수 없다.
+        // 배수가 1(WON)이면 두 해석이 같은 값이라 애초에 모호할 수 없으므로 먼저 걸러낸다 —
+        // 빠뜨리면 폴백 경로의 정상 파일(WON 단위)이 전부 미적재로 돌아가는 회귀가 된다.
+        // whole은 이 판정과 무관하게 계속 candidateA를 쓴다: 이 조건은 적재 여부만 조이고
+        // 값을 candidateB로 바꾸지 않는다.
+        if (declared.wholePeriodWon() == null
+                && declared.wholePeriodRaw() != null
+                && resolved != AmountUnit.WON) {
+            BigDecimal candidateB = declared.wholePeriodRaw();
+            BigDecimal paidB = candidateB.subtract(later).subtract(year);
+            if (paid.signum() >= 0 && paidB.signum() >= 0) {
+                return skipAmounts(
+                        projectName,
+                        "`총 사업금액(전체기간)`에 단위가 적혀 있지 않아 요약표 단위(%s)로 읽었는데, 원 단위로 읽어도 계산이 맞아 어느 쪽인지 확정할 수 없습니다. 칸에 단위를 함께 적어 주세요."
+                                .formatted(resolved.label()),
+                        diagnostics);
+            }
+        }
         if (paid.signum() < 0) {
             return skipAmounts(
                     projectName,
