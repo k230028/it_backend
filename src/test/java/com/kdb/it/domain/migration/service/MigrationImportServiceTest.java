@@ -151,14 +151,31 @@ class MigrationImportServiceTest {
                 .thenReturn(
                         new MigrationYearSnapshot.Data(
                                 "2026",
+                                Map.of(),
+                                Map.of(),
+                                Map.of(),
+                                Map.of(
+                                        "PRJ-2026-0099",
+                                        List.of(
+                                                new MigrationYearSnapshot.RequestItem(
+                                                        "GCL-2026-0001",
+                                                        1,
+                                                        "011",
+                                                        new BigDecimal("1000")))),
+                                Map.of(
+                                        "COST-2026-0099",
+                                        new MigrationYearSnapshot.CostRef(
+                                                "COST-2026-0099",
+                                                1,
+                                                "011",
+                                                new BigDecimal("2000"),
+                                                "라벨")),
+                                Map.of(),
+                                Map.of(),
+                                Map.of(),
                                 java.util.Set.of(),
-                                new java.util.LinkedHashMap<>(Map.of("기존사업", "PRJ-2026-0099")),
-                                java.util.Set.of(),
-                                new java.util.LinkedHashMap<>(Map.of("COST-2026-0099", 90)),
-                                new java.util.LinkedHashMap<>(
-                                        Map.of(
-                                                "PRJ-2026-0099",
-                                                new MigrationYearSnapshot.ProjectRate(80, 70))),
+                                Map.of("COST-2026-0099", new BigDecimal("90")),
+                                Map.of("GCL-2026-0001", new BigDecimal("80")),
                                 List.of("PRJ-2026-0099"),
                                 List.of("COST-2026-0099")));
 
@@ -171,21 +188,23 @@ class MigrationImportServiceTest {
         assertThat(captor.getValue().items())
                 .extracting(BudgetWorkDto.ItemRate::orcPkVl)
                 .contains("COST-2026-0001", "PRJ-2026-0099", "COST-2026-0099");
-        // 기존 사업의 편성률은 스냅샷이 품목 편성행에서 역산한 값을 그대로 실어야 한다.
-        // 'BPROJM|사업관리번호' 키를 찾던 구 구현은 항상 null을 받아 기본값 100으로 리셋했고,
-        // applyItemRates가 연도 전체를 재작성하므로 그 연도 모든 기존 사업의 편성률이 조용히 100이 됐다.
+        // 기존 사업·전산업무비의 편성률은 스냅샷이 품목·전산업무비 원본에서 역산한 값을 비목코드별로
+        // 실어야 한다. 'BPROJM|사업관리번호' 키를 찾던 구 구현은 항상 null을 받아 기본값 100으로
+        // 리셋했고, applyItemRates가 연도 전체를 재작성하므로 그 연도 모든 기존 사업의 편성률이 조용히
+        // 100이 됐다.
         assertThat(captor.getValue().items())
                 .filteredOn(i -> "PRJ-2026-0099".equals(i.orcPkVl()))
                 .singleElement()
                 .satisfies(
                         i -> {
-                            assertThat(i.assetDupRt()).isEqualTo(80);
-                            assertThat(i.costDupRt()).isEqualTo(70);
+                            assertThat(i.assetDupRt()).isNull();
+                            assertThat(i.costDupRt()).isNull();
+                            assertThat(i.ioeRates().get("011")).isEqualByComparingTo("80");
                         });
         assertThat(captor.getValue().items())
                 .filteredOn(i -> "COST-2026-0099".equals(i.orcPkVl()))
                 .singleElement()
-                .satisfies(i -> assertThat(i.assetDupRt()).isEqualTo(90));
+                .satisfies(i -> assertThat(i.ioeRates().get("011")).isEqualByComparingTo("90"));
     }
 
     /**

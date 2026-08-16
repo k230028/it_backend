@@ -159,28 +159,6 @@ class MigrationValidatorTest {
                         });
     }
 
-    /** 같은 자연키의 전산업무비가 이미 있으면 DUPLICATE_EXISTS. */
-    @Test
-    @DisplayName("자연키가 중복되면 DUPLICATE_EXISTS를 낸다")
-    void 자연키_중복은_블로커다() {
-        Map<String, String> cells =
-                costCells(
-                        Map.of(
-                                "abusCode", "571",
-                                "ioeName", "국내전산임차료",
-                                "vendorName", "커브",
-                                "requestDetail", "올인원워크스페이스"));
-
-        List<MigrationDto.CellDiagnostic> result =
-                validator.validate(
-                        List.of(costSheet(row(2, cells))),
-                        TestSnapshots.indexWithIoe("001", "국내전산임차료"),
-                        TestSnapshots.snapshotWithCostKey("2026", "2026|571|001|커브|올인원워크스페이스"),
-                        Map.of());
-
-        assertThat(result).anyMatch(d -> "DUPLICATE_EXISTS".equals(d.code()));
-    }
-
     /** 외화 재계산값이 엑셀 원화열과 1원 넘게 다르면 WARNING. */
     @Test
     @DisplayName("금액 불일치는 AMOUNT_MISMATCH WARNING이며 반영을 막지 않는다")

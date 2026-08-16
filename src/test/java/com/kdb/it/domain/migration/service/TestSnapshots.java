@@ -93,26 +93,17 @@ public final class TestSnapshots {
     public static MigrationYearSnapshot.Data empty(String bseYy) {
         return new MigrationYearSnapshot.Data(
                 bseYy,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
                 Set.of(),
-                new LinkedHashMap<>(),
-                Set.of(),
-                new LinkedHashMap<>(),
-                new LinkedHashMap<>(),
-                List.of(),
-                List.of());
-    }
-
-    /** 전산업무비 자연키 하나가 이미 있는 연도 스냅샷. */
-    public static MigrationYearSnapshot.Data snapshotWithCostKey(String bseYy, String naturalKey) {
-        Set<String> keys = new LinkedHashSet<>();
-        keys.add(naturalKey);
-        return new MigrationYearSnapshot.Data(
-                bseYy,
-                keys,
-                new LinkedHashMap<>(),
-                Set.of(),
-                new LinkedHashMap<>(),
-                new LinkedHashMap<>(),
+                Map.of(),
+                Map.of(),
                 List.of(),
                 List.of());
     }
@@ -123,27 +114,39 @@ public final class TestSnapshots {
         types.add(planType);
         return new MigrationYearSnapshot.Data(
                 bseYy,
-                Set.of(),
-                new LinkedHashMap<>(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
                 types,
-                new LinkedHashMap<>(),
-                new LinkedHashMap<>(),
+                Map.of(),
+                Map.of(),
                 List.of(),
                 List.of());
     }
 
-    /** 정규화 사업명 하나가 이미 있는 연도 스냅샷. CAPITAL_PROJECT의 DUPLICATE_EXISTS 픽스처용입니다. */
+    /** 정규화 사업명 하나가 이미 있는 연도 스냅샷. CAPITAL_PROJECT의 DUPLICATE_EXISTS·부문계획 매칭 픽스처용입니다. */
     public static MigrationYearSnapshot.Data snapshotWithProjectName(
             String bseYy, String normalizedName, String projectNo) {
         Map<String, String> byName = new LinkedHashMap<>();
         byName.put(normalizedName, projectNo);
         return new MigrationYearSnapshot.Data(
                 bseYy,
-                Set.of(),
                 byName,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
                 Set.of(),
-                new LinkedHashMap<>(),
-                new LinkedHashMap<>(),
+                Map.of(),
+                Map.of(),
                 List.of(projectNo),
                 List.of());
     }

@@ -191,26 +191,6 @@ public class MigrationValidator {
         }
 
         checkAmount(sheet, row, index, overrides, out);
-
-        if (ioeCode != null) {
-            String key =
-                    MigrationYearSnapshot.costNaturalKey(
-                            sheet.bseYy(),
-                            MigrationDiagnostics.cell(row, "abusCode", overrides, sheet),
-                            ioeCode,
-                            MigrationDiagnostics.cell(row, "vendorName", overrides, sheet),
-                            MigrationDiagnostics.cell(row, "requestDetail", overrides, sheet));
-            if (snapshot.costNaturalKeys().contains(key)) {
-                out.add(
-                        MigrationDiagnostics.blocker(
-                                sheet,
-                                row,
-                                null,
-                                "DUPLICATE_EXISTS",
-                                "같은 사업코드·비목·계약상대처·계약명의 전산업무비가 이미 있습니다. 이 행은 제외하거나 기존 행을 확인해 주세요.",
-                                List.of()));
-            }
-        }
     }
 
     private void validateProjectRow(

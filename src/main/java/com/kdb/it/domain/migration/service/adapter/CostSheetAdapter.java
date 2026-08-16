@@ -69,8 +69,8 @@ public class CostSheetAdapter implements SheetAdapter {
             rates.add(
                     new RateIntent(
                             "BCOSTM",
-                            MigrationYearSnapshot.costNaturalKey(
-                                    ctx.bseYy(), abusCode, ioeC, vendor, contractName),
+                            MigrationYearSnapshot.costDeptKey(
+                                    ctx.bseYy(), deptCode, ioeC, vendor, contractName),
                             100));
         }
         return new AdapterOutput(costs, List.of(), List.of(), rates);

@@ -164,20 +164,23 @@ public class MigrationImportService {
         // 기존 사업 전부를 기본값 100%로 올려 버리고, 벌크 논리삭제라 BBUGT_L에도 흔적이 남지 않는다.
         List<BudgetWorkDto.ItemRate> rateItems = new ArrayList<>();
         for (String projectNo : snapshot.allProjectNos()) {
-            MigrationYearSnapshot.ProjectRate rate = snapshot.existingProjectRateOf(projectNo);
-            rateItems.add(
-                    new BudgetWorkDto.ItemRate(
-                            "BPROJM",
-                            projectNo,
-                            rate == null ? MigrationYearSnapshot.DEFAULT_RATE : rate.assetRate(),
-                            rate == null ? MigrationYearSnapshot.DEFAULT_RATE : rate.costRate(),
-                            null));
+            Map<String, BigDecimal> rates = new LinkedHashMap<>();
+            for (MigrationYearSnapshot.RequestItem item : snapshot.itemsOfProject(projectNo)) {
+                BigDecimal existing = snapshot.existingItemRateByItemNo().get(item.gclMngNo());
+                if (existing != null && item.ioeC() != null) {
+                    rates.put(item.ioeC(), existing);
+                }
+            }
+            rateItems.add(new BudgetWorkDto.ItemRate("BPROJM", projectNo, null, null, rates));
         }
         for (String costNo : snapshot.allCostNos()) {
-            Integer rate = snapshot.existingCostRateOf(costNo);
-            rateItems.add(
-                    new BudgetWorkDto.ItemRate(
-                            "BCOSTM", costNo, orDefault(rate), orDefault(rate), null));
+            Map<String, BigDecimal> rates = new LinkedHashMap<>();
+            MigrationYearSnapshot.CostRef ref = snapshot.costOf(costNo);
+            BigDecimal existing = snapshot.existingCostRateOf(costNo);
+            if (existing != null && ref != null && ref.ioeC() != null) {
+                rates.put(ref.ioeC(), existing);
+            }
+            rateItems.add(new BudgetWorkDto.ItemRate("BCOSTM", costNo, null, null, rates));
         }
 
         // 3단계: 어댑터 순서대로 원장 생성. 부문계획은 자본예산이 만든 품목을 교체하므로 마지막에 처리한다
@@ -214,9 +217,9 @@ public class MigrationImportService {
                             CostRepresentativeSelector.pick(
                                     costRepository.findByCostBgNoAndDelYn(costNo, "N"));
                     costNoByNaturalKey.put(
-                            MigrationYearSnapshot.costNaturalKey(
+                            MigrationYearSnapshot.costDeptKey(
                                     bseYy,
-                                    cost.getBgUntAbusC(),
+                                    cost.getCostSvnDpmC(),
                                     cost.getIoeC(),
                                     cost.getCttOppNm(),
                                     cost.getCttNm()),
@@ -459,10 +462,5 @@ public class MigrationImportService {
                         "시트마다 예산연도가 다릅니다: " + bseYy + ", " + sheet.bseYy());
             }
         }
-    }
-
-    /** 기존 편성률이 없으면 100으로 둡니다. */
-    private static int orDefault(Integer rate) {
-        return rate == null ? 100 : rate;
     }
 }
