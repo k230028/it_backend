@@ -11,6 +11,7 @@ import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
 import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -76,6 +77,12 @@ class RequestFormImportIt {
 
     /** 전결권 자본예산 계열 코드(전무이사). */
     private static final String EDRT_TC = "21";
+
+    /**
+     * {@code fullFormXls()}의 정보화사업(①) 사업명. 같은 픽스처가 경상사업(②) 사업도 함께 만들어 테스트 연도에 사업이 2건 생기므로, 금액 3종을
+     * 읽을 때 이 이름으로 정보화사업 행만 좁힙니다.
+     */
+    private static final String CAPITAL_PROJECT_NAME = "국채전문유통시장 접속인프라 도입";
 
     @Autowired private RequestFormImportService service;
     @Autowired private EntityManager entityManager;
@@ -179,6 +186,16 @@ class RequestFormImportIt {
     }
 
     @Test
+    @DisplayName("반입한 사업의 금액 3종이 1-1 선언값과 일치한다")
+    void recordsDeclaredAmounts() {
+        commit(fullForm("요청서.xls"));
+
+        assertThat(amountOf("TOT_RQM_AMT")).isEqualByComparingTo("2000000000");
+        assertThat(amountOf("MPL_AMT")).isEqualByComparingTo("0");
+        assertThat(amountOf("DFR_AMT")).isEqualByComparingTo("734375300");
+    }
+
+    @Test
     @DisplayName("사전검증은 원장을 만들지 않는다")
     void dryRunWritesNothing() {
         RequestFormDto.ImportResponse response =
@@ -259,6 +276,27 @@ class RequestFormImportIt {
                                 .setParameter("yy", BSE_YY)
                                 .getSingleResult();
         return count.intValue();
+    }
+
+    /**
+     * 테스트 연도의 정보화사업 1건({@link #CAPITAL_PROJECT_NAME}) 금액 컬럼을 읽습니다.
+     *
+     * <p>{@code fullFormXls()}는 정보화사업과 경상사업 두 건을 함께 반입하므로 사업명으로 좁혀야 {@code getSingleResult}가 안전합니다.
+     */
+    private BigDecimal amountOf(String column) {
+        Number amount =
+                (Number)
+                        entityManager
+                                .createNativeQuery(
+                                        "SELECT "
+                                                + column
+                                                + " FROM TPRMPP_BPROJM"
+                                                + " WHERE BSE_YY = :yy AND DEL_YN = 'N' AND ABUS_NM ="
+                                                + " :name")
+                                .setParameter("yy", BSE_YY)
+                                .setParameter("name", CAPITAL_PROJECT_NAME)
+                                .getSingleResult();
+        return new BigDecimal(amount.toString());
     }
 
     private int countCompletedApprovals() {
