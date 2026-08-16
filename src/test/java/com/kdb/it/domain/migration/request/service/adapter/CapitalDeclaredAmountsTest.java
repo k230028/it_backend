@@ -31,11 +31,12 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 /**
- * 1-1 선언 금액 산출의 미적재 5조건을 시트를 직접 만들어 확인합니다.
+ * 1-1 선언 금액 산출의 미적재 6조건을 시트를 직접 만들어 확인합니다.
  *
- * <p>공용 픽스처는 정상 파일 하나를 재현한 것이라 "요약표가 없는 파일", "배수를 못 정하는 파일", "총액 표기를 해석 못하는 파일", "총액이 요약표 합계보다 작은
- * 파일", "산출값이 컬럼 용량을 넘는 파일" 같은 변형을 담지 못합니다. 조건 ①(요약표 없음)·②(배수 미확정)는 1-1만 담아 품목 합계를 0으로 비워 확인하고, 조건
- * ③(총액 표기 해석 실패)·④(지급금액 음수)·⑤(컬럼 용량 초과)는 1-2를 함께 만들어 배수를 먼저 확정한 뒤에야 그 분기에 닿습니다.
+ * <p>공용 픽스처는 정상 파일 하나를 재현한 것이라 "요약표가 없는 파일", "배수를 못 정하는 파일", "총액 표기를 해석 못하는 파일", "총액 칸의 단위 해석이 모호한
+ * 파일", "총액이 요약표 합계보다 작은 파일", "산출값이 컬럼 용량을 넘는 파일" 같은 변형을 담지 못합니다. 조건 ①(요약표 없음)·②(배수 미확정)는 1-1만 담아 품목
+ * 합계를 0으로 비워 확인하고, 조건 ③(총액 표기 해석 실패)·⑥(총액 단위 모호)·④(지급금액 음수)·⑤(컬럼 용량 초과)는 1-2를 함께 만들어 배수를 먼저 확정한 뒤에야
+ * 그 분기에 닿습니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -134,6 +135,9 @@ class CapitalDeclaredAmountsTest {
         assertThat(amountWarning(output)).contains("확정할 수 없습니다");
         // 다른 조건의 문구로 새지 않았는지 함께 본다
         assertThat(amountWarning(output)).doesNotContain("보다 작습니다");
+        // 미적재는 경고일 뿐이라 사업은 그대로 만들어 파일을 막지 않는다
+        assertThat(output.projects()).hasSize(1);
+        assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
     }
 
     @Test
