@@ -555,7 +555,7 @@ public class CostDto extends CostTerminalDto {
         private java.math.BigDecimal costDupBg;
 
         /**
-         * 전년도 예산: abusTc=02(계속)이면 bseYy-1 연도 예산 합계, 신규(abusTc=01)이면 0. 외화(curC≠'KRW') 행은
+         * 전년도 예산: abusTc=20(계속)이면 bseYy-1 연도 예산 합계, 신규(abusTc=10)이면 0. 외화(curC≠'KRW') 행은
          * FC_AMT(외화금액), 원화 행은 AMT(전산업무비예산금액) 기준.
          */
         @Schema(description = "전년도 예산 (계속 항목은 전년도 예산 합계 — 외화 행은 외화금액 기준, 신규는 0)", nullable = true)
