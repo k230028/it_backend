@@ -295,6 +295,10 @@ tasks.register('integrationTest', Test) {
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 	shouldRunAfter tasks.named('test')
+	// MIG-13: 통합 테스트는 @SpringBootTest 전체 컨텍스트를 여럿 띄우고 Spring이 그 컨텍스트를
+	// 캐시에 쌓아 두므로 Gradle 기본 힙(512MB)으로는 도중에 OutOfMemoryError가 난다. 어느 클래스가
+	// 터지는지가 실행마다 달라(실측 1건~12건) 무관한 도메인의 실패로 오인되기 쉬워 힙을 명시한다.
+	maxHeapSize = '2g'
 }
 
 tasks.named('processResources') {
