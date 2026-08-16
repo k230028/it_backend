@@ -226,6 +226,30 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
+    @DisplayName("1-1 선언 금액에서 금액 3종을 산출한다")
+    void derivesDeclaredAmountsFromOverview() {
+        // 총 사업금액 2,000백만원, '26년도 합계 1,265,624,700원, '26년도 이후 없음(0)
+        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
+
+        assertThat(output.projectAmounts()).hasSize(1);
+        ProjectAmounts amounts = output.projectAmounts().get(0);
+        assertThat(amounts.isPresent()).isTrue();
+        assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
+        assertThat(amounts.mplAmt()).isEqualByComparingTo("0");
+        assertThat(amounts.dfrAmt()).isEqualByComparingTo("734375300");
+    }
+
+    @Test
+    @DisplayName("금액을 산출하면 별도 경고를 내지 않는다")
+    void staysQuietWhenAmountsResolve() {
+        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
+
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.AMOUNT_MISMATCH);
+    }
+
+    @Test
     @DisplayName("인사 시스템에 없는 이름이어도 그대로 담고 차단하지 않는다")
     void keepsUnknownPersonNameWithoutBlocking() {
         // 사번 해석을 아예 하지 않으므로 동명이인·오탈자로 사업이 막히지 않는다

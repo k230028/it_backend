@@ -3302,6 +3302,73 @@ class ProjectServiceTest {
                 .hasMessageContaining("초과할 수 없습니다");
     }
 
+    // ───────────────────────────────────────────────────────
+    // assignDeclaredAmounts — 이관 전용 선언 금액 기록 (검증 없음)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("이관 경로는 선언 금액을 검증 없이 그대로 기록한다")
+    void assignDeclaredAmounts_writesWithoutValidation() {
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").build();
+        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+                .willReturn(Optional.of(project));
+
+        // 기 지급예산이 총 예산보다 큰 조합도 그대로 기록한다 — 선언값이 원본이다
+        projectService.assignDeclaredAmounts(
+                "PRJ-2026-0001",
+                new BigDecimal("2000000000"),
+                new BigDecimal("0"),
+                new BigDecimal("734375300"));
+
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("2000000000");
+        assertThat(project.getMplAmt()).isEqualByComparingTo("0");
+        assertThat(project.getDfrAmt()).isEqualByComparingTo("734375300");
+    }
+
+    @Test
+    @DisplayName("이관 경로가 사업을 못 찾으면 실패한다")
+    void assignDeclaredAmounts_failsWhenProjectMissing() {
+        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-9999", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                projectService.assignDeclaredAmounts(
+                                        "PRJ-2026-9999",
+                                        BigDecimal.ONE,
+                                        BigDecimal.ZERO,
+                                        BigDecimal.ZERO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("PRJ-2026-9999");
+    }
+
+    @Test
+    @DisplayName("반입으로 들어온 기 지급예산은 같은 값으로 다시 저장할 수 있다")
+    void updateProject_allowsResavingImportedDfrAmt() {
+        // 반입 사업은 DFR_AMT가 1-1 전체기간 총액 기준이라 품목 합계(1,000)보다 크다.
+        // 수정 화면이 그 값을 그대로 되돌려 보내므로, 상한이 품목 합계면 저장이 막힌다.
+        Bprojm project = existingProjectWithDfrAmt(new BigDecimal("734375300"));
+        ProjectDto.UpdateRequest request = validUpdateRequest();
+        request.setDfrAmt(new BigDecimal("734375300"));
+        request.setItems(List.of(itemDto("A01", new BigDecimal("1000"), BigDecimal.ZERO)));
+
+        assertThatCode(() -> projectService.updateProject(project.getAbusMngNo(), request))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("기존 기 지급예산보다 늘리는 수정은 여전히 거부한다")
+    void updateProject_stillRejectsIncreaseBeyondCeiling() {
+        Bprojm project = existingProjectWithDfrAmt(new BigDecimal("734375300"));
+        ProjectDto.UpdateRequest request = validUpdateRequest();
+        request.setDfrAmt(new BigDecimal("734375301"));
+        request.setItems(List.of(itemDto("A01", new BigDecimal("1000"), BigDecimal.ZERO)));
+
+        assertThatThrownBy(() -> projectService.updateProject(project.getAbusMngNo(), request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("기 지급예산");
+    }
+
     /** 필수 필드만 채운 생성 요청. 개별 테스트가 필요한 필드만 덮어쓴다. */
     private ProjectDto.CreateRequest validCreateRequest() {
         ProjectDto.CreateRequest request = new ProjectDto.CreateRequest();
@@ -3311,6 +3378,27 @@ class ProjectServiceTest {
         request.setDvmDpmC("D002");
         request.setAbusTc("10");
         return request;
+    }
+
+    /** 필수 필드만 채운 수정 요청. 개별 테스트가 필요한 필드만 덮어쓴다. */
+    private ProjectDto.UpdateRequest validUpdateRequest() {
+        ProjectDto.UpdateRequest request = new ProjectDto.UpdateRequest();
+        request.setAbusNm("수정 사업명");
+        return request;
+    }
+
+    /**
+     * 이미 기 지급예산이 기록된 기존 사업. 반입으로 들어온 사업을 재현한다.
+     *
+     * <p>{@code updateProject}의 다른 테스트와 같은 방식으로 {@code projectRepository.findByAbusMngNoAndDelYn}을
+     * 스텁해, 이 헬퍼가 반환한 사업을 곧바로 수정 대상으로 조회할 수 있게 한다.
+     */
+    private Bprojm existingProjectWithDfrAmt(BigDecimal dfrAmt) {
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").build();
+        project.assignAmountSnapshot(new BigDecimal("2000000000"), BigDecimal.ZERO, dfrAmt);
+        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+                .willReturn(Optional.of(project));
+        return project;
     }
 
     /** 합계 검증용 최소 품목 DTO. */
