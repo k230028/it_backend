@@ -299,6 +299,7 @@ public class MigrationValidator {
                 out,
                 "전결권",
                 true); // IT_PTL_EDRT_TC VARCHAR2(2)
+        checkCapitalIoeOverrides(sheet, row, index, overrides, out);
     }
 
     /** 사업명은 정보화사업 매칭 키({@code MatchKey.ofProjectName})의 재료라 항상 해석(존재 확인)합니다. */
@@ -312,13 +313,15 @@ public class MigrationValidator {
         checkYm(sheet, row, "startYm", overrides, out);
         checkYm(sheet, row, "endYm", overrides, out);
         checkRate(sheet, row, "adjustRate", overrides, out);
-        checkCapitalIoeOverrides(sheet, row, index, overrides, out);
     }
 
     /**
      * 품목 비목 보정값(`devAmountIoeC`·`hwAmountIoeC`·`swAmountIoeC`)이 자본예산 계열 비목코드인지 확인합니다.
      *
-     * <p>보정값이 없는 컬럼은 기본 비목({@link MigrationIoeCodes})을 그대로 쓰므로 검사하지 않습니다.
+     * <p>보정값이 없는 컬럼은 기본 비목({@link MigrationIoeCodes})을 그대로 쓰므로 검사하지 않습니다. 이 보정값은 품목을 새로 만들 때만
+     * 의미가 있어(매칭된 행은 품목을 만들지 않습니다) {@link #validateProjectRowForCreate}에서만 검사합니다 — {@code
+     * validateAlways}에 두면 관리자가 CREATE_NEW로 비목을 보정했다가 나중에 MATCH로 바꿔도 이미 무의미해진 값 때문에 풀 수 없는 BLOCKER가
+     * 남습니다.
      */
     private void checkCapitalIoeOverrides(
             MigrationDto.SheetPayload sheet,

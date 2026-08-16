@@ -602,7 +602,10 @@ class MigrationValidatorTest {
         assertThat(result).noneMatch(d -> "REQUIRED_MISSING".equals(d.code()));
     }
 
-    /** 자본예산 계열이 아닌 비목코드(999)로 개발비 비목을 보정하면 CODE_UNRESOLVED. */
+    /**
+     * 자본예산 계열이 아닌 비목코드(999)로 개발비 비목을 보정하면 CODE_UNRESOLVED. 이 보정값은 품목을 새로 만들 때만 의미가 있어 원장을 새로
+     * 만드는 행에만 검사를 건다.
+     */
     @Test
     @DisplayName("존재하지 않는 비목코드로 보정하면 devAmountIoeC에 CODE_UNRESOLVED를 낸다")
     void 미등록_비목코드_보정은_코드미해석이다() {
@@ -622,7 +625,7 @@ class MigrationValidatorTest {
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
                         overrides,
-                        Map.of());
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "devAmountIoeC".equals(d.column()))
@@ -653,7 +656,7 @@ class MigrationValidatorTest {
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
                         overrides,
-                        Map.of());
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "swAmountIoeC".equals(d.column()))
@@ -681,7 +684,7 @@ class MigrationValidatorTest {
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
                         overrides,
-                        Map.of());
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result).noneMatch(d -> "hwAmountIoeC".equals(d.column()));
     }
@@ -706,7 +709,7 @@ class MigrationValidatorTest {
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
                         overrides,
-                        Map.of());
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result).noneMatch(d -> "devAmountIoeC".equals(d.column()));
     }

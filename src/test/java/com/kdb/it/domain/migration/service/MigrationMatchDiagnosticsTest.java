@@ -115,7 +115,10 @@ class MigrationMatchDiagnosticsTest {
                         snapshot,
                         planner);
 
-        assertThat(out).extracting(MigrationDto.CellDiagnostic::code).contains("ITEM_BASE_ZERO");
+        MigrationDto.CellDiagnostic diagnostic =
+                out.stream().filter(d -> "ITEM_BASE_ZERO".equals(d.code())).findFirst().orElseThrow();
+        assertThat(diagnostic.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
+        assertThat(diagnostic.column()).isEqualTo("swAmount");
     }
 
     @Test
@@ -166,6 +169,29 @@ class MigrationMatchDiagnosticsTest {
                 rowOf(Map.of("swAmount", "1406", "adjustRate", "0.7", "swAdjustAmount", "984"));
 
         assertThat(diagnostics.checkRateReconcile(sheet(), row, Map.of())).isEmpty();
+    }
+
+    /**
+     * 두 열(dev·sw)이 동시에 어긋나면 삽입 순서(dev→hw→sw)대로 진단이 난다. {@code Map.of()}로 순회했다면 실행마다 순서가 달라져 이
+     * 단정이 흔들렸을 것이다 — hw는 조정열이 비어 건너뛰므로 dev 다음 곧바로 sw가 온다.
+     */
+    @Test
+    @DisplayName("checkRateReconcile_두_열이_동시에_어긋나면_dev_sw_순서로_난다")
+    void checkRateReconcile_두_열이_동시에_어긋나면_dev_sw_순서로_난다() {
+        MigrationDto.NormalizedRow row =
+                rowOf(
+                        Map.of(
+                                "devAmount", "1000",
+                                "adjustRate", "0.7",
+                                "devAdjustAmount", "100",
+                                "swAmount", "1406",
+                                "swAdjustAmount", "500"));
+
+        List<MigrationDto.CellDiagnostic> out = diagnostics.checkRateReconcile(sheet(), row, Map.of());
+
+        assertThat(out)
+                .extracting(MigrationDto.CellDiagnostic::column)
+                .containsExactly("devAdjustAmount", "swAdjustAmount");
     }
 
     /** 진단 좌표(시트 종류·행)만 필요한 테스트가 공유하는 자본예산 시트. 셀 내용은 checkRateReconcile이 받는 row가 따로 담당한다. */
