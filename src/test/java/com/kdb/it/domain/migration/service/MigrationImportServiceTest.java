@@ -66,7 +66,7 @@ class MigrationImportServiceTest {
     @DisplayName("BLOCKER가 있으면 원장을 하나도 쓰지 않고 실패한다")
     void 블로커가_있으면_아무것도_쓰지_않는다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any()))
+        when(validator.validate(any(), any(), any(), any(), any()))
                 .thenReturn(
                         List.of(
                                 new MigrationDto.CellDiagnostic(
@@ -94,7 +94,7 @@ class MigrationImportServiceTest {
     @DisplayName("WARNING만 있으면 반영을 진행한다")
     void 경고만_있으면_반영한다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any()))
+        when(validator.validate(any(), any(), any(), any(), any()))
                 .thenReturn(
                         List.of(
                                 new MigrationDto.CellDiagnostic(
@@ -118,7 +118,7 @@ class MigrationImportServiceTest {
     @DisplayName("원장 생성은 기간 검증을 생략하는 오버로드를 호출한다")
     void 기간검증_생략경로를_쓴다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
 
         service.commit(commitRequest(), "999999");
@@ -133,7 +133,7 @@ class MigrationImportServiceTest {
     @DisplayName("applyItemRates를 정확히 한 번만 호출한다")
     void 편성률적용은_한번만_호출한다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
 
         service.commit(commitRequest(), "999999");
@@ -144,18 +144,18 @@ class MigrationImportServiceTest {
     /**
      * items에는 이관분과 기존 연도 데이터가 모두 담겨야 한다.
      *
-     * <p>Task 7 시점의 최소 보정 메모: 이 단정 중 "이관분(COST-2026-0001)도 items에 포함된다"는 부분은 어댑터가 낸 편성 의도로 원장에
-     * 편성행을 얹던 5단계 루프가 지고 있던 책임이다. {@code AllocationIntent}는 비율이 아니라 목표 금액을 담아 그 루프를 그대로 옮길 수 없어
-     * 제거했고, 그 결과 5단계가 만들던 편성행이 전부 사라졌다 — 2단계("기존 편성률 유지")는 대상이 다르다.
+     * <p>Task 7 시점의 최소 보정 메모: 이 단정 중 "이관분(COST-2026-0001)도 items에 포함된다"는 부분은 어댑터가 낸 편성 의도로 원장에 편성행을
+     * 얹던 5단계 루프가 지고 있던 책임이다. {@code AllocationIntent}는 비율이 아니라 목표 금액을 담아 그 루프를 그대로 옮길 수 없어 제거했고, 그
+     * 결과 5단계가 만들던 편성행이 전부 사라졌다 — 2단계("기존 편성률 유지")는 대상이 다르다.
      *
      * <p><b>회귀 범위는 신규 생성 원장에 그치지 않는다.</b> 2단계가 채우는 {@code rateItems}는 {@code
      * snapshot.itemsOfProject}/{@code existingItemRateByItemNo} 등 스냅샷에서 역산한 "이번 이관 전부터 있던 편성률"만
-     * 담으므로, 하반기 조정({@code PlanAdjustmentSheetAdapter})처럼 **기존** 사업의 편성률을 새 확정금액으로 갱신해야 하는
-     * {@code AllocationIntent}에 대해서는 아무 보호도 없다. 실제로 {@code PlanAdjustmentSheetAdapter}는 사업을 새로
-     * 만들지 않으므로({@code PlanAdjustmentSheetAdapterTest.원장_생성요청은_만들지_않는다}) 그 어댑터가 내는
-     * {@code AllocationIntent}는 언제나 기존 사업만 가리킨다. 그런데 그 목표액을 {@code rateItems}에 반영하던 유일한 소비자가
-     * 5단계였으므로, 지금은 <b>하반기 조정이 기존 사업 편성률에 대해 완전히 무동작이다</b> — "새 원장만 편성행을 못 받는다"가 아니라, 애초에
-     * {@code AllocationIntent} 재설계를 촉발한 그 시나리오(하반기 조정) 자체가 통째로 반영되지 않는다. Task 9가 {@code
+     * 담으므로, 하반기 조정({@code PlanAdjustmentSheetAdapter})처럼 **기존** 사업의 편성률을 새 확정금액으로 갱신해야 하는 {@code
+     * AllocationIntent}에 대해서는 아무 보호도 없다. 실제로 {@code PlanAdjustmentSheetAdapter}는 사업을 새로 만들지
+     * 않으므로({@code PlanAdjustmentSheetAdapterTest.원장_생성요청은_만들지_않는다}) 그 어댑터가 내는 {@code
+     * AllocationIntent}는 언제나 기존 사업만 가리킨다. 그런데 그 목표액을 {@code rateItems}에 반영하던 유일한 소비자가 5단계였으므로, 지금은
+     * <b>하반기 조정이 기존 사업 편성률에 대해 완전히 무동작이다</b> — "새 원장만 편성행을 못 받는다"가 아니라, 애초에 {@code
+     * AllocationIntent} 재설계를 촉발한 그 시나리오(하반기 조정) 자체가 통째로 반영되지 않는다. Task 9가 {@code
      * MigrationLedgerMatcher}·{@code MigrationAllocationPlanner}로 {@code allocations}를 실효 편성률로 환산해
      * 신규·기존 원장 모두의 편성행을 채우면서 이 검증을 복구해야 한다.
      */
@@ -166,7 +166,7 @@ class MigrationImportServiceTest {
     @DisplayName("applyItemRates items에 이관분과 기존 연도 데이터를 함께 담는다")
     void 편성률items에_연도전체를_담는다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
         when(yearSnapshot.load("2026"))
                 .thenReturn(
@@ -265,7 +265,7 @@ class MigrationImportServiceTest {
     @DisplayName("생성한 전산업무비마다 실제 BG_SNO로 결재 받이를 만든다")
     void 원장마다_실제_버전으로_결재받이를_만든다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
         // 실제 저장된 행의 BG_SNO는 3 — 브리프 초안의 하드코딩(1)과 다른 값으로 고정해 오검출을 막는다.
         when(costRepository.findByCostBgNoAndDelYn("COST-2026-0001", "N"))
@@ -294,7 +294,7 @@ class MigrationImportServiceTest {
     @DisplayName("dry-run은 원장을 쓰지 않고 진단만 돌려준다")
     void dryRun은_쓰지_않는다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any()))
+        when(validator.validate(any(), any(), any(), any(), any()))
                 .thenReturn(
                         List.of(
                                 new MigrationDto.CellDiagnostic(
@@ -335,8 +335,9 @@ class MigrationImportServiceTest {
                         MigrationDto.Severity.BLOCKER,
                         "해석 실패",
                         List.of());
-        when(validator.validate(any(), any(), any(), eq(Map.of()))).thenReturn(List.of(blocker));
-        when(validator.validate(any(), any(), any(), eq(Map.of("COST|2|deptName", "0210"))))
+        when(validator.validate(any(), any(), any(), eq(Map.of()), any()))
+                .thenReturn(List.of(blocker));
+        when(validator.validate(any(), any(), any(), eq(Map.of("COST|2|deptName", "0210")), any()))
                 .thenReturn(List.of());
 
         MigrationDto.DryRunResponse withoutOverride =
@@ -380,7 +381,7 @@ class MigrationImportServiceTest {
                 .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
         when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
         when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
 
@@ -501,7 +502,7 @@ class MigrationImportServiceTest {
                 .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
         when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
         when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
 
@@ -546,7 +547,7 @@ class MigrationImportServiceTest {
     @DisplayName("부문계획 시트가 없으면 planReqDocNo는 null이다")
     void 부문계획시트가_없으면_planReqDocNo는_null이다() {
         MigrationImportService service = service();
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
 
         MigrationDto.CommitResponse response = service.commit(commitRequest(), "999999");
@@ -587,7 +588,7 @@ class MigrationImportServiceTest {
                 .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
         when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
         when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0005", "N", "Y"))
                 .thenReturn(List.of(Bitemm.builder().gclMngNo("GCL-2025-0001").sno(1).build()));
         when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any(), any()))
@@ -647,7 +648,7 @@ class MigrationImportServiceTest {
                 .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
         when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
         when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
-        when(validator.validate(any(), any(), any(), any())).thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
 

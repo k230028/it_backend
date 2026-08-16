@@ -26,6 +26,12 @@ import org.springframework.stereotype.Component;
  * <p><b>길이 검증의 단위</b>는 물리 컬럼의 문자 의미를 따릅니다. 대부분은 {@code CHAR} 의미라 문자 수로 검사하지만 {@code
  * CTT_OPP_NM}·{@code GCL_NM}은 {@code BYTE} 의미(100바이트)라 UTF-8 바이트 수로 검사합니다 — 문자 수로 검사하면 한글 34자에서 이미
  * 넘는 값을 통과시켜 {@code ORA-12899}가 commit에서 터집니다.
+ *
+ * <p><b>검증 범위는 행의 처리 방식에 따라 갈립니다.</b> 이 화면은 원장을 새로 만들지 않는 것이 기본이라(설계 §2.1), 기존 원장에 매칭되는 행은 물리
+ * 길이·필수값·코드 해석처럼 "원장을 새로 만들 때만" 의미 있는 검사를 걸지 않습니다 — 종합본의 긴 사업개요 한 칸 때문에 편성 전체가 막히면 안 됩니다. {@code
+ * createNewRows}에 속한 행에만 {@link #validateForCreate}를 걸고, 금액·통화·기간처럼 편성 계산에 항상 관여하는 검사와 매칭 키의
+ * 재료(부서·비목·사업명 등)가 되는 값의 해석은 행의 처리 방식과 무관하게 {@link #validateAlways}로 늘 검사합니다. 매칭 자체(어느 원장을 가리키는지,
+ * 원장 후보가 없는지)는 이 클래스가 아니라 {@link MigrationMatchDiagnostics}가 맡습니다.
  */
 @Component
 public class MigrationValidator {
@@ -55,13 +61,16 @@ public class MigrationValidator {
      * @param index 조직·비목·환율 조회 인덱스
      * @param snapshot 예산연도 기존 상태
      * @param overrides 보정값 맵 ({@link #overrideKey} 키)
+     * @param createNewRows 시트 종류 → 원장을 새로 만들 엑셀 행 번호 집합. 이 집합에 속하지 않은 행(매칭된 행)에는 {@link
+     *     #validateForCreate}를 걸지 않습니다
      * @return 진단 목록. 문제가 없으면 빈 목록
      */
     public List<MigrationDto.CellDiagnostic> validate(
             List<MigrationDto.SheetPayload> sheets,
             MigrationLookupIndex index,
             MigrationYearSnapshot.Data snapshot,
-            Map<String, String> overrides) {
+            Map<String, String> overrides,
+            Map<SheetKind, Set<Integer>> createNewRows) {
         List<MigrationDto.CellDiagnostic> out = new ArrayList<>();
         Set<String> namesInThisImport = collectProjectNames(sheets, overrides);
 
@@ -71,18 +80,17 @@ public class MigrationValidator {
             }
             // 같은 반영 안의 사업명 중복은 행 단위로는 보이지 않는다 — 시트별로 앞선 행을 기억해 뒤 행에서 짚는다
             Map<String, Integer> projectNameRows = new LinkedHashMap<>();
+            Set<Integer> createNewForSheet = createNewRows.getOrDefault(sheet.kind(), Set.of());
             for (MigrationDto.NormalizedRow row : sheet.rows()) {
-                switch (sheet.kind()) {
-                    case COST -> validateCostRow(sheet, row, index, snapshot, overrides, out);
-                    case CAPITAL_PROJECT -> {
-                        validateProjectRow(sheet, row, index, snapshot, overrides, out);
-                        checkIntraPayloadDuplicate(sheet, row, overrides, projectNameRows, out);
-                    }
-                    case DELEGATED_BUDGET ->
-                            validateDelegatedRow(sheet, row, index, overrides, out);
-                    case PLAN_ADJUSTMENT ->
-                            validatePlanRow(
-                                    sheet, row, index, snapshot, namesInThisImport, overrides, out);
+                boolean createNew = createNewForSheet.contains(row.excelRow());
+                // 매칭된 행은 원장을 만들지 않으므로 물리 길이·필수값·코드 해석을 검사하지 않는다.
+                // 전 행에 걸면 종합본의 긴 사업개요 하나 때문에 편성이 통째로 막힌다.
+                if (createNew) {
+                    validateForCreate(sheet, row, index, overrides, out);
+                }
+                validateAlways(sheet, row, index, snapshot, namesInThisImport, overrides, out);
+                if (sheet.kind() == SheetKind.CAPITAL_PROJECT) {
+                    checkIntraPayloadDuplicate(sheet, row, overrides, projectNameRows, out);
                 }
             }
         }
@@ -110,8 +118,9 @@ public class MigrationValidator {
      * 같은 반영 안에서 사업명이 중복되는지 확인합니다.
      *
      * <p>{@code MigrationImportService}의 {@code projectNoByName}은 정규화 사업명이 키라 같은 이름의 두 행 중 나중 것만
-     * 남습니다. 그러면 앞 행의 사업은 만들어졌는데 편성률 대상에서 빠져 편성행이 없는 고아가 됩니다 — 목록에는 보이고 모든 예산 화면에서는 0인 상태입니다. DB
-     * 스냅샷과의 중복({@link #validateProjectRow})과 달리 이 검사는 페이로드 안에서만 성립하므로 별도로 둡니다.
+     * 남습니다. 그러면 앞 행의 사업은 만들어졌는데 편성률 대상에서 빠져 편성행이 없는 고아가 됩니다 — 목록에는 보이고 모든 예산 화면에서는 0인 상태입니다. 기존
+     * 원장과의 일치는 이제 매칭 성공 조건이라({@link MigrationMatchDiagnostics}) 더 이상 BLOCKER가 아니지만, 이 검사는 페이로드 안에서만
+     * 성립하므로(같은 반영의 두 행이 같은 원장을 가리키면 배분이 서로를 덮어씁니다) 별도로 둡니다.
      *
      * @param seenRows 이미 등장한 정규화 사업명 → 첫 등장 행 번호 (시트 단위로 누적)
      */
@@ -140,22 +149,85 @@ public class MigrationValidator {
         }
     }
 
-    private void validateCostRow(
+    /**
+     * 원장을 새로 만들 때만 의미 있는 검사를 겁니다 — 물리 길이·필수값·코드 해석. 매칭된 행은 원장을 만들지 않으므로 이 검사를 받지 않습니다.
+     *
+     * @param sheet 시트 페이로드
+     * @param row 검사 대상 행
+     * @param index 조회 인덱스
+     * @param overrides 보정값 맵
+     * @param out 진단을 누적할 목록
+     */
+    private void validateForCreate(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            MigrationLookupIndex index,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        switch (sheet.kind()) {
+            case COST -> validateCostRowForCreate(sheet, row, index, overrides, out);
+            case CAPITAL_PROJECT -> validateProjectRowForCreate(sheet, row, index, overrides, out);
+            case DELEGATED_BUDGET -> validateDelegatedRowForCreate(sheet, row, overrides, out);
+            case PLAN_ADJUSTMENT -> validatePlanRowForCreate(sheet, row, overrides, out);
+        }
+    }
+
+    /**
+     * 행의 처리 방식과 무관하게 항상 거는 검사입니다 — 금액·통화·기간·편성률처럼 편성 계산에 항상 관여하는 값과, 매칭 키의 재료가 되는 값(부서·비목·사업명 등)의
+     * 해석입니다. 매칭 키 재료가 해석되지 않으면 매칭이 성립하지 않아 어차피 {@code LEDGER_NOT_MATCHED}가 나지만, 원인을 구체적으로 짚기 위해 여기서
+     * 먼저 검사합니다.
+     *
+     * @param sheet 시트 페이로드
+     * @param row 검사 대상 행
+     * @param index 조회 인덱스
+     * @param snapshot 예산연도 기존 상태 (부문계획의 사업 존재·계획 중복 판정용)
+     * @param namesInThisImport 같은 반영에 포함된 자본예산 사업명 (정규화)
+     * @param overrides 보정값 맵
+     * @param out 진단을 누적할 목록
+     */
+    private void validateAlways(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             MigrationLookupIndex index,
             MigrationYearSnapshot.Data snapshot,
+            Set<String> namesInThisImport,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        switch (sheet.kind()) {
+            case COST -> validateCostRowAlways(sheet, row, index, overrides, out);
+            case CAPITAL_PROJECT -> validateProjectRowAlways(sheet, row, index, overrides, out);
+            case DELEGATED_BUDGET -> validateDelegatedRowAlways(sheet, row, index, overrides, out);
+            case PLAN_ADJUSTMENT ->
+                    validatePlanRowAlways(sheet, row, snapshot, namesInThisImport, overrides, out);
+        }
+    }
+
+    private void validateCostRowForCreate(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            MigrationLookupIndex index,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
         requireText(sheet, row, "requestDetail", overrides, out);
         limitLength(sheet, row, "requestDetail", 100, overrides, out); // CTT_NM VARCHAR2(100 CHAR)
         limitBytes(sheet, row, "vendorName", 100, overrides, out); // CTT_OPP_NM VARCHAR2(100 BYTE)
         limitLength(sheet, row, "remark", 200, overrides, out); // IND_RSN VARCHAR2(200 CHAR)
-        resolveOrgCell(sheet, row, "deptName", index, overrides, out, true);
         resolveOrgCell(sheet, row, "teamName", index, overrides, out, false);
         resolveCodeCell(
                 sheet, row, "abusCode", index.abusUnitNameByCode(), overrides, out, "사업코드", false);
-        checkCurrency(sheet, row, index, overrides, out);
+    }
+
+    /**
+     * 부서·비목은 전산업무비 매칭 키({@link
+     * com.kdb.it.domain.migration.service.adapter.AllocationIntent.MatchKey#ofCost})의 재료라 항상 해석합니다.
+     */
+    private void validateCostRowAlways(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            MigrationLookupIndex index,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        resolveOrgCell(sheet, row, "deptName", index, overrides, out, true);
 
         String ioeName = MigrationDiagnostics.cell(row, "ioeName", overrides, sheet);
         String ioeOverride = overrides.get(overrideKey(sheet.kind(), row.excelRow(), "ioeName"));
@@ -190,17 +262,16 @@ public class MigrationValidator {
                                     MigrationDiagnostics.candidatesOfIoe(index, false)));
         }
 
+        checkCurrency(sheet, row, index, overrides, out);
         checkAmount(sheet, row, index, overrides, out);
     }
 
-    private void validateProjectRow(
+    private void validateProjectRowForCreate(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             MigrationLookupIndex index,
-            MigrationYearSnapshot.Data snapshot,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        requireText(sheet, row, "projectName", overrides, out);
         limitLength(sheet, row, "projectName", 100, overrides, out); // ABUS_NM VARCHAR2(100 CHAR)
         limitLength(sheet, row, "projectType", 300, overrides, out); // ABUS_PPO_CONE
         limitLength(sheet, row, "projectOutline", 1000, overrides, out); // ABUS_CONE
@@ -228,24 +299,20 @@ public class MigrationValidator {
                 out,
                 "전결권",
                 true); // IT_PTL_EDRT_TC VARCHAR2(2)
+    }
+
+    /** 사업명은 정보화사업 매칭 키({@code MatchKey.ofProjectName})의 재료라 항상 해석(존재 확인)합니다. */
+    private void validateProjectRowAlways(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            MigrationLookupIndex index,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        requireText(sheet, row, "projectName", overrides, out);
         checkYm(sheet, row, "startYm", overrides, out);
         checkYm(sheet, row, "endYm", overrides, out);
         checkRate(sheet, row, "adjustRate", overrides, out);
         checkCapitalIoeOverrides(sheet, row, index, overrides, out);
-
-        String normalized =
-                MigrationYearSnapshot.normalizeName(
-                        MigrationDiagnostics.cell(row, "projectName", overrides, sheet));
-        if (snapshot.projectNoByName(normalized) != null) {
-            out.add(
-                    MigrationDiagnostics.blocker(
-                            sheet,
-                            row,
-                            "projectName",
-                            "DUPLICATE_EXISTS",
-                            "같은 예산연도에 같은 사업명의 사업이 이미 있습니다.",
-                            List.of()));
-        }
     }
 
     /**
@@ -278,7 +345,8 @@ public class MigrationValidator {
      * 위임예산 시트 첫 행의 부점명을 확인합니다.
      *
      * <p>부점명은 병합 셀이라 이어지는 행에서 비는 것이 정상입니다(forward-fill 대상). 그러나 첫 행부터 비어 있으면 이후 행 전부를 귀속시킬 사업이 없으므로
-     * 시트 단위 BLOCKER로 막습니다. 행별 검사({@link #validateDelegatedRow})는 이 전제를 알고 부점명을 필수값으로 요구하지 않습니다.
+     * 시트 단위 BLOCKER로 막습니다. 행별 검사({@link #validateDelegatedRowAlways})는 이 전제를 알고 부점명을 필수값으로 요구하지
+     * 않습니다.
      */
     private void checkDelegatedFirstBranch(
             MigrationDto.SheetPayload sheet,
@@ -300,30 +368,44 @@ public class MigrationValidator {
         }
     }
 
-    private void validateDelegatedRow(
+    private void validateDelegatedRowForCreate(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        requireText(sheet, row, "itemName", overrides, out);
+        limitBytes(sheet, row, "itemName", 100, overrides, out); // GCL_NM VARCHAR2(100 BYTE)
+    }
+
+    /** 부점명은 경상사업 매칭 키({@code MatchKey.ofOrdinaryDept})의 재료라 항상 해석합니다. */
+    private void validateDelegatedRowAlways(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             MigrationLookupIndex index,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        requireText(sheet, row, "itemName", overrides, out);
-        limitBytes(sheet, row, "itemName", 100, overrides, out); // GCL_NM VARCHAR2(100 BYTE)
         // 부점명은 병합 셀이라 이어지는 행에서 비는 것이 정상이다(forward-fill). 첫 행 검사는 시트 단위로 별도 수행한다.
         resolveOrgCell(sheet, row, "branchName", index, overrides, out, false);
         checkCurrency(sheet, row, index, overrides, out);
         checkAmount(sheet, row, index, overrides, out);
     }
 
-    private void validatePlanRow(
+    private void validatePlanRowForCreate(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
-            MigrationLookupIndex index,
-            MigrationYearSnapshot.Data snapshot,
-            Set<String> namesInThisImport,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
         requireText(sheet, row, "projectName", overrides, out);
         limitLength(sheet, row, "projectName", 100, overrides, out);
+    }
+
+    private void validatePlanRowAlways(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            MigrationYearSnapshot.Data snapshot,
+            Set<String> namesInThisImport,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
         checkYm(sheet, row, "startYm", overrides, out);
         checkYm(sheet, row, "endYm", overrides, out);
 

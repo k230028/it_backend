@@ -110,9 +110,14 @@ public class MigrationImportService {
         requireSupported(request.sheets());
         String bseYy = request.sheets().get(0).bseYy();
         Map<String, String> overrides = foldOverrides(request.overrides());
+        // TODO(Task 9): 실제 CREATE_NEW 결정 행 집합을 넘긴다 — 지금은 빈 맵이라 원장 검증이 어느 행에도 걸리지 않는다.
         List<MigrationDto.CellDiagnostic> diagnostics =
                 validator.validate(
-                        request.sheets(), lookupIndex(), yearSnapshot.load(bseYy), overrides);
+                        request.sheets(),
+                        lookupIndex(),
+                        yearSnapshot.load(bseYy),
+                        overrides,
+                        Map.of());
 
         int totalRows = request.sheets().stream().mapToInt(s -> s.rows().size()).sum();
         int blockers =
@@ -145,8 +150,9 @@ public class MigrationImportService {
 
         // 1단계: 재검증 — BLOCKER가 남으면 아무것도 쓰지 않는다. 이 메서드에서 어댑터 맵(adapters)에
         // 처음 접근하는 지점은 이 return문 다음이므로, BLOCKER가 있는 한 어댑터에 도달할 방법이 없다.
+        // TODO(Task 9): 실제 CREATE_NEW 결정 행 집합을 넘긴다 — 지금은 빈 맵이라 원장 검증이 어느 행에도 걸리지 않는다.
         List<MigrationDto.CellDiagnostic> diagnostics =
-                validator.validate(request.sheets(), index, snapshot, overrides);
+                validator.validate(request.sheets(), index, snapshot, overrides, Map.of());
         long blockers =
                 diagnostics.stream()
                         .filter(d -> d.severity() == MigrationDto.Severity.BLOCKER)

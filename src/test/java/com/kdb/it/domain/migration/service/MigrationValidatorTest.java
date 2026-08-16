@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ class MigrationValidatorTest {
 
     private final MigrationValidator validator = new MigrationValidator();
 
-    /** 부서명이 CORGNI에 없으면 BLOCKER. */
+    /** 부서명이 CORGNI에 없으면 BLOCKER. deptName은 매칭 키 재료라 매칭 여부와 무관하게 항상 검사한다(createNewRows 없이도 발생). */
     @Test
     @DisplayName("미해석 부서명은 ORG_UNRESOLVED BLOCKER를 낸다")
     void 미해석_부서명은_블로커다() {
@@ -27,6 +28,7 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("deptName", "없는부서"))))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -48,6 +50,7 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("deptName", "금융공학"))))),
                         TestSnapshots.indexWithOrgs("0450", "금융공학실", "0451", "금융공학실 퀀트인프라팀"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -56,7 +59,7 @@ class MigrationValidatorTest {
                 .satisfies(d -> assertThat(d.candidates()).hasSize(2));
     }
 
-    /** 비목명이 코드표에 없으면 CODE_UNRESOLVED. 전산회의비·국외전산기타제비가 실제 사례다(§3.1). */
+    /** 비목명이 코드표에 없으면 CODE_UNRESOLVED. 전산회의비·국외전산기타제비가 실제 사례다(§3.1). ioeName도 매칭 키 재료라 항상 검사한다. */
     @Test
     @DisplayName("코드표에 없는 비목명은 CODE_UNRESOLVED를 낸다")
     void 미등록_비목명은_코드미해석이다() {
@@ -65,6 +68,7 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("ioeName", "전산회의비"))))),
                         TestSnapshots.indexWithIoe("001", "국내전산임차료"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -87,7 +91,8 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("ioeName", "외주용역비"))))),
                         TestSnapshots.indexWithIoe("008", "외주용역(외주운영/관제 등)"),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         assertThat(result)
                 .noneMatch(d -> "CODE_UNRESOLVED".equals(d.code()) && "ioeName".equals(d.column()));
@@ -109,7 +114,8 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("ioeName", "외주용역비"))))),
                         TestSnapshots.indexWithIoe("008", "외주용역(외주운영/관제 등)"),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         assertThat(result)
                 .filteredOn(d -> "CODE_UNRESOLVED".equals(d.code()) && "ioeName".equals(d.column()))
@@ -117,7 +123,7 @@ class MigrationValidatorTest {
                 .satisfies(d -> assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER));
     }
 
-    /** 필수값(계약명)이 비면 REQUIRED_MISSING. */
+    /** 필수값(계약명)이 비면 REQUIRED_MISSING. 물리 길이·필수값 검사는 원장을 새로 만드는 행에만 걸리므로 createNewRows에 그 행을 넣는다. */
     @Test
     @DisplayName("계약명이 비면 REQUIRED_MISSING을 낸다")
     void 계약명이_비면_필수값누락이다() {
@@ -128,7 +134,8 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, cells))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.COST, Set.of(2)));
 
         assertThat(result)
                 .anySatisfy(
@@ -138,7 +145,7 @@ class MigrationValidatorTest {
                         });
     }
 
-    /** 계약명 100자·비고 200자 초과는 LENGTH_EXCEEDED. */
+    /** 계약명 100자·비고 200자 초과는 LENGTH_EXCEEDED. 물리 길이 검사는 원장을 새로 만드는 행에만 건다. */
     @Test
     @DisplayName("물리 길이를 넘는 값은 LENGTH_EXCEEDED를 낸다")
     void 길이초과는_블로커다() {
@@ -149,7 +156,8 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, cells))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.COST, Set.of(2)));
 
         assertThat(result)
                 .anySatisfy(
@@ -177,6 +185,7 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, cells))),
                         TestSnapshots.indexWithXcr("GBP", "1924"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -199,6 +208,7 @@ class MigrationValidatorTest {
                                         SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -221,6 +231,7 @@ class MigrationValidatorTest {
                                         SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result).anyMatch(d -> "DATE_UNPARSEABLE".equals(d.code()));
@@ -244,6 +255,7 @@ class MigrationValidatorTest {
                                         SheetKind.PLAN_ADJUSTMENT, "2026", List.of(row(2, cells)))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result).anyMatch(d -> "PROJECT_NOT_FOUND".equals(d.code()));
@@ -273,12 +285,13 @@ class MigrationValidatorTest {
                                         SheetKind.PLAN_ADJUSTMENT, "2026", List.of(row(2, plan)))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result).noneMatch(d -> "PROJECT_NOT_FOUND".equals(d.code()));
     }
 
-    /** 담당자명이 인덱스에 전혀 없으면 USER_UNRESOLVED. */
+    /** 담당자명이 인덱스에 전혀 없으면 USER_UNRESOLVED. 담당자 해석은 원장을 새로 만드는 행에만 건다. */
     @Test
     @DisplayName("등록되지 않은 담당자명은 USER_UNRESOLVED를 낸다")
     void 미등록_담당자명은_사용자미해석이다() {
@@ -292,7 +305,8 @@ class MigrationValidatorTest {
                                         SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "managerName".equals(d.column()))
@@ -318,7 +332,8 @@ class MigrationValidatorTest {
                                         user("E001", "김성원", null, "0450", "T1", "금융공학팀"),
                                         user("E002", "김성원", null, "0451", "T2", "퀀트인프라팀"))),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "managerName".equals(d.column()))
@@ -353,7 +368,8 @@ class MigrationValidatorTest {
                                         user("E001", "김성원", null, "0450", "T1", "금융공학팀"),
                                         user("E002", "김성원", null, "0451", "T2", "퀀트인프라팀"))),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result).noneMatch(d -> "USER_AMBIGUOUS".equals(d.code()));
     }
@@ -369,6 +385,7 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, cells))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -395,34 +412,98 @@ class MigrationValidatorTest {
                                         SheetKind.PLAN_ADJUSTMENT, "2026", List.of(row(2, cells)))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.snapshotWithPlanType("2026", "조정"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result).filteredOn(d -> "DUPLICATE_EXISTS".equals(d.code())).isNotEmpty();
     }
 
-    /** 같은 연도에 같은 정규화 사업명이 이미 있으면 자본예산 행은 DUPLICATE_EXISTS. */
+    /**
+     * 매칭된 행(원장을 새로 만들지 않는 행)에는 물리 길이 검사를 걸지 않는다 — 매칭된 행은 새 원장을 만들지 않으므로 물리 컬럼 제약을 검증할 이유가 없다. 전 행에
+     * 걸면 종합본의 긴 사업개요 하나 때문에 편성 전체가 막힌다.
+     */
     @Test
-    @DisplayName("같은 사업명이 이미 있는 연도의 자본예산 행은 DUPLICATE_EXISTS를 낸다")
-    void 사업명_중복은_블로커다() {
-        Map<String, String> cells = new LinkedHashMap<>(capitalCells());
-        cells.put("projectName", "웹한글 기안기 도입");
+    @DisplayName("validate_매칭된_행에는_길이초과_검증을_걸지_않는다")
+    void validate_매칭된_행에는_길이초과_검증을_걸지_않는다() {
+        MigrationDto.SheetPayload sheet =
+                capitalSheet(
+                        row(
+                                2,
+                                capitalCellsWith(
+                                        Map.of(
+                                                "projectName",
+                                                "가".repeat(150),
+                                                "swAmount",
+                                                "100"))));
 
-        List<MigrationDto.CellDiagnostic> result =
+        // createNewRows가 비어 있다 = 이 행은 매칭됐다
+        List<MigrationDto.CellDiagnostic> out =
                 validator.validate(
-                        List.of(
-                                new MigrationDto.SheetPayload(
-                                        SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
+                        List.of(sheet),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of(),
+                        Map.of());
+
+        assertThat(out)
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .doesNotContain("LENGTH_EXCEEDED");
+    }
+
+    /** 같은 행이 CREATE_NEW로 결정되면 원장을 새로 만들므로 물리 길이 검사가 다시 걸린다. */
+    @Test
+    @DisplayName("validate_CREATE_NEW_행에는_길이초과_검증을_건다")
+    void validate_CREATE_NEW_행에는_길이초과_검증을_건다() {
+        MigrationDto.SheetPayload sheet =
+                capitalSheet(
+                        row(
+                                2,
+                                capitalCellsWith(
+                                        Map.of(
+                                                "projectName",
+                                                "가".repeat(150),
+                                                "swAmount",
+                                                "100"))));
+
+        List<MigrationDto.CellDiagnostic> out =
+                validator.validate(
+                        List.of(sheet),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of(),
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
+
+        assertThat(out).extracting(MigrationDto.CellDiagnostic::code).contains("LENGTH_EXCEEDED");
+    }
+
+    /**
+     * 기존 원장의 사업명과 같아도 더 이상 DUPLICATE_EXISTS를 내지 않는다 — 편성요청서가 원장을 만들고 이 화면은 그 원장에 편성률만 반영하므로, 기존 원장의
+     * 존재는 이제 매칭 성공 조건이지 중복이 아니다({@link MigrationMatchDiagnostics}가 매칭을 담당한다).
+     */
+    @Test
+    @DisplayName("validate_기존_사업명이_있어도_DUPLICATE_EXISTS를_내지_않는다")
+    void validate_기존_사업명이_있어도_DUPLICATE_EXISTS를_내지_않는다() {
+        MigrationDto.SheetPayload sheet =
+                capitalSheet(
+                        row(
+                                2,
+                                capitalCellsWith(
+                                        Map.of("projectName", "웹한글 기안기 도입", "swAmount", "100"))));
+
+        List<MigrationDto.CellDiagnostic> out =
+                validator.validate(
+                        List.of(sheet),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.snapshotWithProjectName(
                                 "2026",
                                 MigrationYearSnapshot.normalizeName("웹한글 기안기 도입"),
                                 "PRJ-2026-0001"),
+                        Map.of(),
                         Map.of());
 
-        assertThat(result)
-                .filteredOn(d -> "projectName".equals(d.column()))
-                .filteredOn(d -> "DUPLICATE_EXISTS".equals(d.code()))
-                .isNotEmpty();
+        assertThat(out)
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .doesNotContain("DUPLICATE_EXISTS");
     }
 
     /**
@@ -457,6 +538,7 @@ class MigrationValidatorTest {
                                         List.of(row(2, cells)))),
                         TestSnapshots.indexWithXcr("USD", "1300"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -482,6 +564,7 @@ class MigrationValidatorTest {
                                         List.of(row(2, first), row(3, second)))),
                         TestSnapshots.indexWithOrgs("0910", "런던"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -510,6 +593,7 @@ class MigrationValidatorTest {
                                         List.of(row(2, first), row(3, second)))),
                         TestSnapshots.indexWithOrgs("0910", "런던"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -537,7 +621,8 @@ class MigrationValidatorTest {
                                         List.of(row(2, capitalCells())))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         assertThat(result)
                 .filteredOn(d -> "devAmountIoeC".equals(d.column()))
@@ -567,7 +652,8 @@ class MigrationValidatorTest {
                                         List.of(row(2, capitalCells())))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         assertThat(result)
                 .filteredOn(d -> "swAmountIoeC".equals(d.column()))
@@ -594,7 +680,8 @@ class MigrationValidatorTest {
                                         List.of(row(2, capitalCells())))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         assertThat(result).noneMatch(d -> "hwAmountIoeC".equals(d.column()));
     }
@@ -618,7 +705,8 @@ class MigrationValidatorTest {
                                         List.of(row(2, capitalCells())))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         assertThat(result).noneMatch(d -> "devAmountIoeC".equals(d.column()));
     }
@@ -627,7 +715,7 @@ class MigrationValidatorTest {
 
     /**
      * 추진가능성 실 데이터는 `추진계획 검토중`(8자)인데 `EXE_PTT_YN`은 `VARCHAR2(1)`이다. 검증이 막지 않으면 dry-run이 초록인 채
-     * commit에서 ORA-12899가 나고 셀을 짚지 못하는 500으로 끝난다.
+     * commit에서 ORA-12899가 나고 셀을 짚지 못하는 500으로 끝난다. 코드 해석은 원장을 새로 만드는 행에만 건다.
      */
     @Test
     @DisplayName("추진가능성 라벨이 코드표에 없으면 CODE_UNRESOLVED와 코드셋 전체 후보를 낸다")
@@ -642,7 +730,8 @@ class MigrationValidatorTest {
                                                         Map.of("feasibility", "추진계획 검토중"))))),
                         catalogIndex(),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "feasibility".equals(d.column()))
@@ -667,7 +756,8 @@ class MigrationValidatorTest {
                                         row(2, capitalCellsWith(Map.of("feasibility", "확정"))))),
                         catalogIndex(),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result).noneMatch(d -> "feasibility".equals(d.column()));
     }
@@ -685,7 +775,8 @@ class MigrationValidatorTest {
                                                         Map.of("delegationLabel", "지점장 전결"))))),
                         catalogIndex(),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "delegationLabel".equals(d.column()))
@@ -707,7 +798,8 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("abusCode", "9999"))))),
                         catalogIndexWith(TestSnapshots.indexWithIoe("001", "국내전산임차료")),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.COST, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "abusCode".equals(d.column()))
@@ -721,7 +813,10 @@ class MigrationValidatorTest {
                         });
     }
 
-    /** `CTT_OPP_NM`은 `VARCHAR2(100 BYTE)`라 한글 34자에서 이미 넘는다. 형제 컬럼 `CTT_NM`(100 CHAR)과 단위가 다르다. */
+    /**
+     * `CTT_OPP_NM`은 `VARCHAR2(100 BYTE)`라 한글 34자에서 이미 넘는다. 형제 컬럼 `CTT_NM`(100 CHAR)과 단위가 다르다. 물리 길이
+     * 검사는 원장을 새로 만드는 행에만 건다.
+     */
     @Test
     @DisplayName("계약업체명이 100바이트를 넘으면 LENGTH_EXCEEDED를 낸다")
     void 계약업체명_바이트초과는_블로커다() {
@@ -732,7 +827,8 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("vendorName", longVendor))))),
                         TestSnapshots.indexWithIoe("001", "국내전산임차료"),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.COST, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "vendorName".equals(d.column()))
@@ -754,6 +850,7 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("deptName", "런던PF데스크"))))),
                         TestSnapshots.indexWithOrgs("0910", "런던지점", "0920", "뉴욕지점"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -778,6 +875,7 @@ class MigrationValidatorTest {
                         List.of(costSheet(row(2, costCells(Map.of("deptName", ""))))),
                         TestSnapshots.indexWithOrgs("0910", "런던지점"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -797,7 +895,8 @@ class MigrationValidatorTest {
                         TestSnapshots.indexWithUsers(
                                 List.of(user("K1", "김성원", "과장", "180", "18001", "IT기획팀"))),
                         TestSnapshots.empty("2026"),
-                        Map.of());
+                        Map.of(),
+                        Map.of(SheetKind.CAPITAL_PROJECT, Set.of(2)));
 
         assertThat(result)
                 .filteredOn(d -> "managerName".equals(d.column()))
@@ -827,6 +926,7 @@ class MigrationValidatorTest {
                                                                 "krwAmount", "100"))))),
                         TestSnapshots.indexWithXcr("GBP", "1924"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -861,6 +961,7 @@ class MigrationValidatorTest {
                                                                         "hwKrwAmount", "0")))))),
                         TestSnapshots.indexWithOrgs("0910", "런던지점"),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
@@ -891,7 +992,8 @@ class MigrationValidatorTest {
                                                                 "krwAmount", "999999"))))),
                         TestSnapshots.indexWithXcr("GBP", "1924"),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         // 1,000 GBP × 1,924 = 1,924,000원 = 보정된 엑셀 1,924천원이라 정확히 일치한다.
         // 보정 이전 값(999,999천원)을 읽으면 AMOUNT_MISMATCH가 남는다.
@@ -917,7 +1019,8 @@ class MigrationValidatorTest {
                                         List.of(row(2, Map.of("projectName", "웹한글 기안기 도입"))))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
-                        overrides);
+                        overrides,
+                        Map.of());
 
         // 보정 이전 값(오타 사업명)만 모으면 부문계획 행이 PROJECT_NOT_FOUND로 잘못 막힌다.
         assertThat(result).noneMatch(d -> "PROJECT_NOT_FOUND".equals(d.code()));
@@ -927,7 +1030,7 @@ class MigrationValidatorTest {
 
     /**
      * 같은 이름의 두 행은 사업을 둘 만들지만 {@code projectNoByName}에는 나중 것만 남아, 앞 사업이 편성행 없는 고아가 된다(목록에는 보이고 모든 예산
-     * 화면에서 0).
+     * 화면에서 0). 이 검사는 매칭 여부와 무관하게 항상 건다 — 같은 반영의 두 행이 같은 원장을 가리키면 배분이 서로를 덮어쓴다.
      */
     @Test
     @DisplayName("같은 반영 안에 사업명이 중복되면 뒤 행에 DUPLICATE_EXISTS를 낸다")
@@ -951,6 +1054,7 @@ class MigrationValidatorTest {
                                                                         "같은  사업")))))),
                         TestSnapshots.emptyIndex(),
                         TestSnapshots.empty("2026"),
+                        Map.of(),
                         Map.of());
 
         assertThat(result)
