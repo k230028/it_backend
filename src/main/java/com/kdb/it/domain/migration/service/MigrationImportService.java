@@ -170,12 +170,14 @@ public class MigrationImportService {
                             "BPROJM",
                             projectNo,
                             rate == null ? MigrationYearSnapshot.DEFAULT_RATE : rate.assetRate(),
-                            rate == null ? MigrationYearSnapshot.DEFAULT_RATE : rate.costRate()));
+                            rate == null ? MigrationYearSnapshot.DEFAULT_RATE : rate.costRate(),
+                            null));
         }
         for (String costNo : snapshot.allCostNos()) {
             Integer rate = snapshot.existingCostRateOf(costNo);
             rateItems.add(
-                    new BudgetWorkDto.ItemRate("BCOSTM", costNo, orDefault(rate), orDefault(rate)));
+                    new BudgetWorkDto.ItemRate(
+                            "BCOSTM", costNo, orDefault(rate), orDefault(rate), null));
         }
 
         // 3단계: 어댑터 순서대로 원장 생성. 부문계획은 자본예산이 만든 품목을 교체하므로 마지막에 처리한다
@@ -282,7 +284,7 @@ public class MigrationImportService {
                                     && existing.orcPkVl().equals(pk));
             rateItems.add(
                     new BudgetWorkDto.ItemRate(
-                            intent.orcTb(), pk, intent.percent(), intent.percent()));
+                            intent.orcTb(), pk, intent.percent(), intent.percent(), null));
         }
         BudgetWorkDto.ApplyResponse applied =
                 budgetRateApplicationService.applyItemRates(

@@ -165,14 +165,14 @@ public class BudgetRateApplicationService {
                     item.costDupRt() != null
                             ? BigDecimal.valueOf(item.costDupRt())
                             : DEFAULT_DUP_RT;
+            Map<String, BigDecimal> ioeRates =
+                    item.ioeRates() == null ? Map.of() : item.ioeRates();
             if ("BPROJM".equals(item.orcTb())) {
                 for (Bitemm source :
                         projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(
                                 item.orcPkVl(), "N", "Y")) {
                     BigDecimal rate =
-                            isCapitalIoeCode(source.getIoeC(), capitalPrefixes)
-                                    ? assetRate
-                                    : costRate;
+                            rateOf(source.getIoeC(), ioeRates, assetRate, costRate, capitalPrefixes);
                     BigDecimal requestAmount =
                             source.getAmt() != null ? source.getAmt() : BigDecimal.ZERO;
                     bbugtmRepository.save(
@@ -192,9 +192,7 @@ public class BudgetRateApplicationService {
                 for (Bcostm source :
                         costRepository.findByCostBgNoAndDelYnAndLstYn(item.orcPkVl(), "N", "Y")) {
                     BigDecimal rate =
-                            isCapitalIoeCode(source.getIoeC(), capitalPrefixes)
-                                    ? assetRate
-                                    : costRate;
+                            rateOf(source.getIoeC(), ioeRates, assetRate, costRate, capitalPrefixes);
                     bbugtmRepository.save(
                             newBudget(
                                     bgMngNo,
@@ -258,6 +256,34 @@ public class BudgetRateApplicationService {
     private boolean isCapitalIoeCode(String ioeC, Set<String> capitalPrefixes) {
         if (ioeC == null) return false;
         return capitalPrefixes.stream().anyMatch(ioeC::startsWith);
+    }
+
+    /**
+     * 이 비목에 적용할 편성률을 정합니다.
+     *
+     * <p>비목별 편성률이 지정돼 있으면 그것이 이깁니다. 지정되지 않은 비목만 자본·일반 2버킷으로 떨어지므로,
+     * 종합본이 일부 비목만 채워 보내도 나머지가 조용히 0이 되지 않습니다.
+     *
+     * @param ioeC 품목·전산업무비의 비목코드 (null 허용)
+     * @param ioeRates 비목별 편성률. 비어 있으면 2버킷만 씁니다
+     * @param assetRate 자본예산 계열 기본 편성률
+     * @param costRate 그 밖의 기본 편성률
+     * @param capitalPrefixes 자본예산 계열 판정용 접두어 집합
+     * @return 적용할 편성률
+     */
+    private BigDecimal rateOf(
+            String ioeC,
+            Map<String, BigDecimal> ioeRates,
+            BigDecimal assetRate,
+            BigDecimal costRate,
+            Set<String> capitalPrefixes) {
+        if (ioeC != null) {
+            BigDecimal explicit = ioeRates.get(ioeC.trim());
+            if (explicit != null) {
+                return explicit;
+            }
+        }
+        return isCapitalIoeCode(ioeC, capitalPrefixes) ? assetRate : costRate;
     }
 
     /**

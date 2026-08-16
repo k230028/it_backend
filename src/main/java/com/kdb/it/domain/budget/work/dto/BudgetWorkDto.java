@@ -66,13 +66,20 @@ public class BudgetWorkDto {
      * @param orcPkVl 원본 PK (prjMngNo / itMngcNo)
      * @param assetDupRt 자본예산 편성률 (0~100, null=해당없음)
      * @param costDupRt 일반관리비 편성률 (0~100)
+     * @param ioeRates 비목코드별 편성률 (0~100, 소수 허용). null·빈 맵이면 위 2버킷을 쓰고, 값이 있는 비목만
+     *     그 편성률로 덮습니다. 종합본 반입처럼 한 사업 안에서 비목그룹마다 편성률이 다른 경우에만 채웁니다
      */
     @Schema(name = "BudgetWorkItemRate", description = "개별 사업 편성률 (자본예산/일반관리비 분리)")
     public record ItemRate(
             @Schema(description = "원본 테이블", example = "BPROJM") String orcTb,
             @Schema(description = "원본 PK", example = "PRJ-2026-0001") String orcPkVl,
-            @Schema(description = "자본예산 편성률 (0~100, null=해당없음)") Integer assetDupRt,
-            @Schema(description = "일반관리비 편성률 (0~100)") Integer costDupRt) {}
+            @Schema(description = "자본예산 편성률 (0~100, null=해당없음)", nullable = true)
+                    Integer assetDupRt,
+            @Schema(description = "일반관리비 편성률 (0~100)", nullable = true) Integer costDupRt,
+            @Schema(
+                            description = "비목코드별 편성률 (0~100, 소수 허용). 비면 2버킷을 사용",
+                            nullable = true)
+                    Map<String, BigDecimal> ioeRates) {}
 
     /**
      * 편성비목 목록 조회 응답 DTO

@@ -21,6 +21,9 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,6 +59,16 @@ class BudgetRateApplicationServiceTest {
         for (String cttTp : DETAIL_CTT_TPS) {
             given(codeRepository.findByCIdWithValidDate(cttTp, null)).willReturn(List.of());
         }
+    }
+
+    private Bitemm itemOf(String gclMngNo, int sno, String ioeC, BigDecimal amt) {
+        return Bitemm.builder()
+                .gclMngNo(gclMngNo)
+                .sno(sno)
+                .abusMngNo("PRJ-2026-0001")
+                .ioeC(ioeC)
+                .amt(amt)
+                .build();
     }
 
     private BudgetSummaryService summaryService;
@@ -240,7 +253,7 @@ class BudgetRateApplicationServiceTest {
     void applyItemRates_BCOSTM항목_save호출() {
         // given: BCOSTM 원본 1건
         BudgetWorkDto.ItemRate itemRate =
-                new BudgetWorkDto.ItemRate("BCOSTM", "COST_2026_0001", 100, 80);
+                new BudgetWorkDto.ItemRate("BCOSTM", "COST_2026_0001", 100, 80, null);
         BudgetWorkDto.ItemApplyRequest request =
                 new BudgetWorkDto.ItemApplyRequest("2026", List.of(itemRate));
 
@@ -327,7 +340,7 @@ class BudgetRateApplicationServiceTest {
     @DisplayName("applyItemRates: BPROJM 사업의 품목에 대해 편성금액 계산 후 save 한다")
     void applyItemRates_BPROJM사업_save호출() {
         BudgetWorkDto.ItemRate itemRate =
-                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 80);
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 80, null);
         BudgetWorkDto.ItemApplyRequest request =
                 new BudgetWorkDto.ItemApplyRequest("2026", List.of(itemRate));
 
@@ -398,9 +411,9 @@ class BudgetRateApplicationServiceTest {
                 new BudgetWorkDto.ItemApplyRequest(
                         "2026",
                         List.of(
-                                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40),
+                                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40, null),
                                 new BudgetWorkDto.ItemRate(
-                                        "BCOSTM", "COST_2026_0001", null, null)));
+                                        "BCOSTM", "COST_2026_0001", null, null, null)));
         Ccodem capitalCode = Ccodem.builder().cdva("IOE-351-0100").build();
         Bitemm capitalItem = mock(Bitemm.class);
         given(capitalItem.getGclMngNo()).willReturn("GCL-0001");
@@ -464,8 +477,8 @@ class BudgetRateApplicationServiceTest {
                 new BudgetWorkDto.ItemApplyRequest(
                         "2026",
                         List.of(
-                                new BudgetWorkDto.ItemRate("UNKNOWN", "UNK-1", 10, 20),
-                                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40)));
+                                new BudgetWorkDto.ItemRate("UNKNOWN", "UNK-1", 10, 20, null),
+                                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40, null)));
         Ccodem capitalCodeWithoutDash = Ccodem.builder().cdva("IOE351").build();
         Bitemm item = mock(Bitemm.class);
         given(item.getIoeC()).willReturn(null);
@@ -504,7 +517,7 @@ class BudgetRateApplicationServiceTest {
         // given: codeRepository.findByCIdWithValidDate("IOE_C", null)이 IOE_CPIT cTp 코드 반환
         // → lambda$applyItemRates$0(isCapitalCTp 필터 람다) 실행
         BudgetWorkDto.ItemRate itemRate =
-                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 80, 60);
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 80, 60, null);
         BudgetWorkDto.ItemApplyRequest request =
                 new BudgetWorkDto.ItemApplyRequest("2026", List.of(itemRate));
 
@@ -716,7 +729,7 @@ class BudgetRateApplicationServiceTest {
                                 "2026",
                                 List.of(
                                         new BudgetWorkDto.ItemRate(
-                                                "BCOSTM", "COST-2026-0002", 100, 80))));
+                                                "BCOSTM", "COST-2026-0002", 100, 80, null))));
 
         ArgumentCaptor<Bbugtm> saved = ArgumentCaptor.forClass(Bbugtm.class);
         InOrder order = inOrder(bbugtmRepository, summaryMock);
@@ -759,5 +772,66 @@ class BudgetRateApplicationServiceTest {
         budget.update(new BigDecimal("984000000.000"), new BigDecimal("70.00000"));
         assertThat(budget.getAsgRt()).isEqualByComparingTo("70.00000");
         assertThat(budget.getBgDupAmt()).isEqualByComparingTo("984000000.000");
+    }
+
+    // =========================================================================
+    // applyItemRates — 비목별 편성률(ioeRates) 경로 (Task 2)
+    // =========================================================================
+
+    @Test
+    @DisplayName("applyItemRates_비목별편성률_비목마다_다른_편성률이_적용된다")
+    void applyItemRates_비목별편성률_비목마다_다른_편성률이_적용된다() {
+        Bitemm dev = itemOf("GCL-2026-0001", 1, "103", new BigDecimal("1000"));
+        Bitemm hw = itemOf("GCL-2026-0002", 1, "101", new BigDecimal("2000"));
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(dev, hw));
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
+        given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null)).willReturn(List.of());
+
+        BudgetWorkDto.ItemRate rate =
+                new BudgetWorkDto.ItemRate(
+                        "BPROJM",
+                        "PRJ-2026-0001",
+                        100,
+                        100,
+                        Map.of(
+                                "103", new BigDecimal("70.00000"),
+                                "101", new BigDecimal("29.58748")));
+
+        budgetWorkService.applyItemRates(
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate)));
+
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository, Mockito.times(2)).save(captor.capture());
+        Map<String, Bbugtm> saved =
+                captor.getAllValues().stream()
+                        .collect(Collectors.toMap(Bbugtm::getIoeC, Function.identity()));
+
+        assertThat(saved.get("103").getAsgRt()).isEqualByComparingTo("70.00000");
+        assertThat(saved.get("103").getBgDupAmt()).isEqualByComparingTo("700.000");
+        assertThat(saved.get("101").getAsgRt()).isEqualByComparingTo("29.58748");
+        assertThat(saved.get("101").getBgDupAmt()).isEqualByComparingTo("591.750");
+    }
+
+    @Test
+    @DisplayName("applyItemRates_ioeRates가_비어있으면_종전_2버킷이_적용된다")
+    void applyItemRates_ioeRates가_비어있으면_종전_2버킷이_적용된다() {
+        Bitemm dev = itemOf("GCL-2026-0001", 1, "103", new BigDecimal("1000"));
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(dev));
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
+        // "103"을 자본예산 비목으로 분류해 2버킷 중 assetDupRt(70)가 적용되도록 한다.
+        given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null))
+                .willReturn(List.of(Ccodem.builder().cdva("103").build()));
+
+        budgetWorkService.applyItemRates(
+                new BudgetWorkDto.ItemApplyRequest(
+                        "2026",
+                        List.of(new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 70, 100, null))));
+
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository).save(captor.capture());
+        assertThat(captor.getValue().getAsgRt()).isEqualByComparingTo("70");
+        assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo("700.000");
     }
 }

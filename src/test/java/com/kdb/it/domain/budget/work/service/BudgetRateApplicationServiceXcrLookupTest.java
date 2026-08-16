@@ -94,7 +94,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
         BudgetWorkDto.ItemRate rate =
-                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100);
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100, null);
         BudgetWorkDto.ItemApplyRequest request =
                 new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
 
@@ -134,7 +134,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
         BudgetWorkDto.ItemRate rate =
-                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100);
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 100, 100, null);
         BudgetWorkDto.ItemApplyRequest request =
                 new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
 
@@ -170,7 +170,7 @@ class BudgetRateApplicationServiceXcrLookupTest {
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of());
 
         BudgetWorkDto.ItemRate rate =
-                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0002", 100, 100);
+                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0002", 100, 100, null);
         BudgetWorkDto.ItemApplyRequest request =
                 new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate));
 
