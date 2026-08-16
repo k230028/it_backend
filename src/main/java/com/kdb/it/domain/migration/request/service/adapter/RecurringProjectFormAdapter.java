@@ -3,6 +3,7 @@ package com.kdb.it.domain.migration.request.service.adapter;
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
+import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
@@ -28,6 +29,7 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
 
     private final FormLabelReader labelReader;
     private final ResourceTableReader resourceTableReader;
+    private final FormApproverReader approverReader;
 
     @Override
     public FormSheetKind trigger() {
@@ -39,7 +41,7 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         Sheet sheet = context.sheets().get(FormSheetKind.RECURRING);
         if (sheet == null) return FormAdapterOutput.empty();
 
-        Optional<ResourceTableReader.Result> table = resourceTableReader.read(sheet, 0, false);
+        Optional<ResourceTableReader.Result> table = resourceTableReader.readRecurring(sheet);
         boolean hasResources = table.isPresent() && !table.get().rows().isEmpty();
         String projectName = resolveProjectName(sheet, context);
 
@@ -49,13 +51,15 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
         if (projectName == null) {
             diagnostics.add(
-                    RequestFormDto.FormDiagnostic.of(
+                    RequestFormDto.FormDiagnostic.decide(
                             FormSheetKind.RECURRING,
                             null,
                             "abusNm",
+                            null,
                             RequestFormDiagnosticCode.REQUIRED_MISSING,
                             "경상사업의 사업명이 비어 있습니다. 미리보기에서 입력해 주세요.",
-                            List.of()));
+                            List.of(),
+                            RequestFormDecisionKind.TEXT));
             return new FormAdapterOutput(List.of(), List.of(), List.copyOf(diagnostics), null);
         }
 
@@ -71,6 +75,16 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         project.setCpnSafCone(labelReader.value(sheet, "(현황)"));
         project.setAbusRngCone(labelReader.value(sheet, "(추진내용)"));
         project.setPlmDes(labelReader.value(sheet, "(미추진시 문제점)"));
+        // 이 시트에는 `관련 조직` 블록이 없다. 상단 머리말의 확인자·작성자가 주관팀장·담당자다
+        project.setTlrUsid(
+                FormPersonNames.fit(
+                        approverReader.confirmer(sheet),
+                        "확인자",
+                        FormSheetKind.RECURRING,
+                        diagnostics));
+        project.setUsid(
+                FormPersonNames.fit(
+                        approverReader.author(sheet), "작성자", FormSheetKind.RECURRING, diagnostics));
 
         List<ProjectDto.BitemmDto> items = new ArrayList<>();
         if (hasResources) {
@@ -98,35 +112,37 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         if (override.isPresent() && context.ioeIndex().exists(override.get()))
             return override.get();
 
-        boolean domestic = "KRW".equalsIgnoreCase(row.currency());
+        boolean domestic = !context.foreignBranch();
         IoeHierarchyIndex.Resolution resolution =
                 context.ioeIndex().resolveByGroup(row.group(), domestic);
         if (resolution.code() != null) {
             if (!resolution.candidates().isEmpty()) {
                 // 기본값으로 정했지만 대안이 있다. 반영은 막지 않고 확인만 요청한다.
                 diagnostics.add(
-                        RequestFormDto.FormDiagnostic.of(
+                        RequestFormDto.FormDiagnostic.about(
                                 FormSheetKind.RECURRING,
                                 row.excelRow(),
                                 "ioeC",
+                                row.itemName(),
                                 RequestFormDiagnosticCode.CODE_DEFAULTED,
-                                "품목 구분 `%s`는 `%s`로 기본 설정했습니다. 다른 비목이면 골라 주세요."
-                                        .formatted(row.group(), resolution.code()),
-                                resolution.candidates()));
+                                "품목 `%s`(구분 `%s`)의 비목을 `%s`로 기본 설정했습니다. 다른 비목이면 골라 주세요."
+                                        .formatted(row.itemName(), row.group(), resolution.label()),
+                                IoeCandidates.orAll(resolution, context)));
             }
             return resolution.code();
         }
 
         diagnostics.add(
-                RequestFormDto.FormDiagnostic.of(
+                RequestFormDto.FormDiagnostic.about(
                         FormSheetKind.RECURRING,
                         row.excelRow(),
                         "ioeC",
+                        row.itemName(),
                         resolution.isAmbiguous()
                                 ? RequestFormDiagnosticCode.CODE_AMBIGUOUS
                                 : RequestFormDiagnosticCode.CODE_UNRESOLVED,
-                        "품목 구분 `%s`의 비목을 정하지 못했습니다.".formatted(row.group()),
-                        resolution.candidates()));
+                        "구분 `%s`의 비목을 정하지 못했습니다.".formatted(row.group()),
+                        IoeCandidates.orAll(resolution, context)));
         return null;
     }
 

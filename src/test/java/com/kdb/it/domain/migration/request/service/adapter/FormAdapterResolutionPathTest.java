@@ -60,7 +60,7 @@ class FormAdapterResolutionPathTest {
                 .thenReturn(
                         new OrgIdentityResolver.Resolution("12345678", "담당자", List.of(), false));
         return new CapitalProjectFormAdapter(
-                new CapitalOverviewReader(scanner, labelReader),
+                new CapitalOverviewReader(scanner, labelReader, new FormCheckboxReader()),
                 resourceTableReader,
                 catalogReader);
     }
@@ -146,7 +146,8 @@ class FormAdapterResolutionPathTest {
     @DisplayName("경상사업 품목 비목을 못 정하면 미해석 진단을 낸다")
     void recurringItemIoeUnresolved() {
         RecurringProjectFormAdapter adapter =
-                new RecurringProjectFormAdapter(labelReader, resourceTableReader);
+                new RecurringProjectFormAdapter(
+                        labelReader, resourceTableReader, new FormApproverReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(recurringWithUnknownGroup(), Map.of()));
 
@@ -160,7 +161,8 @@ class FormAdapterResolutionPathTest {
     @DisplayName("경상사업 품목 비목 보정값이 있으면 자동 해석보다 우선한다")
     void recurringItemIoeOverride() {
         RecurringProjectFormAdapter adapter =
-                new RecurringProjectFormAdapter(labelReader, resourceTableReader);
+                new RecurringProjectFormAdapter(
+                        labelReader, resourceTableReader, new FormApproverReader(scanner));
         Map<String, String> overrides =
                 Map.of(FormAdapterContext.overrideKey(FormSheetKind.RECURRING, 10, "ioeC"), "101");
 
@@ -172,7 +174,8 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③ 정보보호 표기를 해석하지 못하면 미해석 진단을 낸다")
     void generalExpenseInfoSecUnresolved() {
-        GeneralExpenseFormAdapter adapter = new GeneralExpenseFormAdapter(scanner);
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(generalExpenseSheet("해당없음", "GBP"), Map.of()));
@@ -186,7 +189,8 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③에 원화 행이 없으면 단위 제안이 원 단위로 떨어진다")
     void generalExpenseWithoutKrwRowSuggestsWon() {
-        GeneralExpenseFormAdapter adapter = new GeneralExpenseFormAdapter(scanner);
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
         FormAdapterContext context =
                 new FormAdapterContext(
                         workbookReader.classify(
@@ -211,7 +215,8 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("연간 금액이 비면 금액을 채우지 않는다")
     void generalExpenseWithoutAnnualLeavesAmountNull() {
-        GeneralExpenseFormAdapter adapter = new GeneralExpenseFormAdapter(scanner);
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(generalExpenseWithoutAnnual(), Map.of()));
@@ -225,7 +230,8 @@ class FormAdapterResolutionPathTest {
     @DisplayName("존재하지 않는 비목코드로 보정하면 자동 해석으로 되돌아간다")
     void recurringIgnoresUnknownOverrideCode() {
         RecurringProjectFormAdapter adapter =
-                new RecurringProjectFormAdapter(labelReader, resourceTableReader);
+                new RecurringProjectFormAdapter(
+                        labelReader, resourceTableReader, new FormApproverReader(scanner));
         Map<String, String> overrides =
                 Map.of(FormAdapterContext.overrideKey(FormSheetKind.RECURRING, 10, "ioeC"), "999");
 
@@ -242,7 +248,8 @@ class FormAdapterResolutionPathTest {
     @DisplayName("사업명만 있고 소요자원이 없으면 품목 없는 사업을 만든다")
     void recurringWithoutResourcesStillCreatesProject() {
         RecurringProjectFormAdapter adapter =
-                new RecurringProjectFormAdapter(labelReader, resourceTableReader);
+                new RecurringProjectFormAdapter(
+                        labelReader, resourceTableReader, new FormApproverReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(recurringNameOnly("경상사업"), Map.of()));
 
@@ -255,7 +262,8 @@ class FormAdapterResolutionPathTest {
     @DisplayName("사업명 라벨은 있는데 값이 공백이면 필수값 누락으로 본다")
     void recurringTreatsBlankNameAsMissing() {
         RecurringProjectFormAdapter adapter =
-                new RecurringProjectFormAdapter(labelReader, resourceTableReader);
+                new RecurringProjectFormAdapter(
+                        labelReader, resourceTableReader, new FormApproverReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(recurringNameOnly("   "), Map.of()));
 
@@ -267,7 +275,8 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③ 헤더가 한 행뿐이면 바로 다음 행부터 데이터로 읽는다")
     void generalExpenseWithSingleRowHeader() {
-        GeneralExpenseFormAdapter adapter = new GeneralExpenseFormAdapter(scanner);
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(generalExpenseSingleRowHeader(), Map.of()));
@@ -279,7 +288,8 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③의 서식만 남은 빈 행은 건너뛴다")
     void generalExpenseSkipsFormattingOnlyRows() {
-        GeneralExpenseFormAdapter adapter = new GeneralExpenseFormAdapter(scanner);
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(generalExpenseWithBlankRow(), Map.of()));
 

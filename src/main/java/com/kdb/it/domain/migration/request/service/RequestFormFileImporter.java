@@ -42,6 +42,9 @@ public class RequestFormFileImporter {
     /** 원천테이블명: 전산업무비 마스터. */
     private static final String TABLE_COST = "BCOSTM";
 
+    /** 상시운영여부. 경상사업이면 `Y`이고 정보화사업과 같은 테이블에 들어갑니다. */
+    private static final String RECURRING_FLAG = "Y";
+
     private final CostService costService;
     private final ProjectService projectService;
     private final MigrationApprovalStamper approvalStamper;
@@ -142,6 +145,24 @@ public class RequestFormFileImporter {
                 status,
                 diagnostics,
                 created,
+                countOf(output),
                 output.suggestedGeneralExpenseUnit());
+    }
+
+    /**
+     * 조립 결과의 원장 건수를 종류별로 셉니다.
+     *
+     * <p>{@code created}가 아니라 조립 결과를 세는 이유는 dry-run과 <b>차단된 파일에도</b> 같은 건수를 채우기 위해서입니다. 사전검증에서 알고
+     * 싶은 것은 "차단을 풀면 무엇이 몇 건 생기는가"인데 생성된 원장 목록은 두 경우 모두 비어 있어, 그 목록을 세면 화면이 늘 0건으로 보입니다. 반영 경로에서는 이
+     * 조립 결과가 그대로 원장이 되므로 두 값이 일치합니다.
+     */
+    private RequestFormDto.RecordCounts countOf(FormAdapterOutput output) {
+        int capital = 0;
+        int recurring = 0;
+        for (ProjectDto.CreateRequest project : output.projects()) {
+            if (RECURRING_FLAG.equals(project.getOdnYn())) recurring++;
+            else capital++;
+        }
+        return new RequestFormDto.RecordCounts(capital, recurring, output.costs().size());
     }
 }

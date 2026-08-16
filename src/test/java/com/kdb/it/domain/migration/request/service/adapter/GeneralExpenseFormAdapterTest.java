@@ -20,8 +20,9 @@ import org.junit.jupiter.api.Test;
 class GeneralExpenseFormAdapterTest {
 
     private final WorkbookReader reader = new WorkbookReader(10_485_760L, 20, 5000);
+    private final SheetAnchorScanner scanner = new SheetAnchorScanner();
     private final GeneralExpenseFormAdapter adapter =
-            new GeneralExpenseFormAdapter(new SheetAnchorScanner());
+            new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
 
     private FormAdapterContext contextOf(byte[] workbookBytes, AmountUnit unit) {
         return contextOf(workbookBytes, unit, Map.of());
@@ -61,7 +62,8 @@ class GeneralExpenseFormAdapterTest {
         assertThat(first.getBseYy()).isEqualTo("2026");
         assertThat(first.getCostSvnDpmC()).isEqualTo("0210");
         assertThat(first.getBgUntAbusC()).isEqualTo("571");
-        assertThat(first.getCgprId()).isEqualTo("12345678");
+        // 담당자는 상단 머리말의 작성자다. 업로드 사용자를 담당자로 박지 않는다
+        assertThat(first.getCgprId()).isEqualTo("최민호 대리");
         assertThat(first.getXcrBseDt()).isEqualTo("20260101");
         assertThat(first.getTmnYn()).isEqualTo("N");
     }

@@ -60,7 +60,6 @@ public class ProjectDto {
         @Schema(description = "프로젝트관리번호")
         private String abusMngNo;
 
-        /** 프로젝트명 */
         @Schema(description = "프로젝트명")
         private String abusNm;
 
@@ -107,11 +106,14 @@ public class ProjectDto {
         @Schema(description = "주관본부/부문")
         private String prlmHrkOgzCCone;
 
+        /** 주관팀명. 팀코드를 얻을 수 없는 경로(편성요청서 반입)의 대체값이며 다른 근거가 있으면 그쪽이 우선입니다. */
+        @Schema(description = "주관팀명 (팀코드를 확정할 수 없을 때의 대체값)")
+        private String svnTemNm;
+
         /** 전결권 (결재 권한 범위) */
         @Schema(description = "전결권")
         private String edrtTc;
 
-        /** 사업설명 */
         @Schema(description = "사업설명")
         private String abusCone;
 
@@ -269,11 +271,9 @@ public class ProjectDto {
     @Builder
     @Schema(name = "ProjectUpdateRequest")
     public static class UpdateRequest {
-        /** 프로젝트명 */
         @Schema(description = "프로젝트명")
         private String abusNm;
 
-        /** 프로젝트유형 */
         @Schema(description = "프로젝트유형")
         private String bzTpC;
 

@@ -106,7 +106,8 @@ class FormAdapterEdgeCaseTest {
     @Test
     @DisplayName("시트 ③의 표 헤더를 못 찾으면 앵커 실패 진단을 낸다")
     void generalExpenseReportsMissingAnchor() {
-        GeneralExpenseFormAdapter adapter = new GeneralExpenseFormAdapter(scanner);
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(emptyShellWorkbook()));
 
@@ -123,15 +124,23 @@ class FormAdapterEdgeCaseTest {
         when(catalogReader.exePttCodeByName()).thenReturn(Map.of());
         when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of());
 
-        assertThat(new GeneralExpenseFormAdapter(scanner).adapt(context).costs()).isEmpty();
         assertThat(
-                        new RecurringProjectFormAdapter(labelReader, resourceTableReader)
+                        new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner))
+                                .adapt(context)
+                                .costs())
+                .isEmpty();
+        assertThat(
+                        new RecurringProjectFormAdapter(
+                                        labelReader,
+                                        resourceTableReader,
+                                        new FormApproverReader(scanner))
                                 .adapt(context)
                                 .projects())
                 .isEmpty();
         assertThat(
                         new CapitalProjectFormAdapter(
-                                        new CapitalOverviewReader(scanner, labelReader),
+                                        new CapitalOverviewReader(
+                                                scanner, labelReader, new FormCheckboxReader()),
                                         resourceTableReader,
                                         catalogReader)
                                 .adapt(context)
@@ -143,7 +152,8 @@ class FormAdapterEdgeCaseTest {
     @DisplayName("빈 껍데기 시트 ②는 진단 없이 건너뛴다")
     void recurringSkipsEmptyShellWithoutDiagnostics() {
         RecurringProjectFormAdapter adapter =
-                new RecurringProjectFormAdapter(labelReader, resourceTableReader);
+                new RecurringProjectFormAdapter(
+                        labelReader, resourceTableReader, new FormApproverReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(emptyShellWorkbook()));
 
@@ -158,7 +168,7 @@ class FormAdapterEdgeCaseTest {
         when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of());
         CapitalProjectFormAdapter adapter =
                 new CapitalProjectFormAdapter(
-                        new CapitalOverviewReader(scanner, labelReader),
+                        new CapitalOverviewReader(scanner, labelReader, new FormCheckboxReader()),
                         resourceTableReader,
                         catalogReader);
 
@@ -180,7 +190,7 @@ class FormAdapterEdgeCaseTest {
                         new OrgIdentityResolver.Resolution("12345678", "담당자", List.of(), false));
         CapitalProjectFormAdapter adapter =
                 new CapitalProjectFormAdapter(
-                        new CapitalOverviewReader(scanner, labelReader),
+                        new CapitalOverviewReader(scanner, labelReader, new FormCheckboxReader()),
                         resourceTableReader,
                         catalogReader);
 

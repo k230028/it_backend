@@ -31,7 +31,7 @@ public final class RequestFormDto {
      * 업로드한 파일 1건의 부가 정보입니다.
      *
      * @param fileKey 브라우저 `webkitRelativePath`. 파일 파트와 결과를 잇는 키
-     * @param deptName 최상위 폴더명에서 뽑은 부서명
+     * @param deptName 최상위 폴더명 원문. 부점은 `부서명(부서코드)`로 만들며 서버가 병기된 코드를 우선 기준으로 삼습니다
      * @param deptCodeOverride 미리보기에서 사용자가 고른 부서코드. 없으면 null
      * @param generalExpenseUnit 시트 ③ 금액 기재 단위. 없으면 서버가 제안값을 씁니다
      * @param bgUntAbusC 시트 ③ 사업코드. 양식에 없어 사용자가 지정합니다. 없으면 null
@@ -118,10 +118,12 @@ public final class RequestFormDto {
      * @param sheet 대상 시트. 파일 단위 진단은 null
      * @param excelRow 엑셀 행 번호(1-based). 행에 매이지 않으면 null
      * @param field 대상 필드 id. 필드에 매이지 않으면 null
+     * @param subject 진단이 가리키는 대상의 이름 (사업명·품목명·계약명). 파일·시트 단위 진단은 null
      * @param code 진단 코드
      * @param severity 심각도. `code.severity()`와 항상 같습니다
      * @param message 사용자 문구
      * @param candidates 보정 후보. 없으면 빈 목록
+     * @param decision 해소에 필요한 입력 종류. 화면의 `결정` 열이 이 값으로 위젯을 고릅니다
      */
     @Schema(name = "RequestFormDiagnostic", description = "편성요청서 반입 진단")
     public record FormDiagnostic(
@@ -140,6 +142,11 @@ public final class RequestFormDto {
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             nullable = true)
                     String field,
+            @Schema(
+                            description = "대상 이름 (사업명·품목명·계약명)",
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            nullable = true)
+                    String subject,
             @Schema(description = "진단 코드", requiredMode = Schema.RequiredMode.REQUIRED)
                     RequestFormDiagnosticCode code,
             @Schema(description = "심각도", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -147,10 +154,12 @@ public final class RequestFormDto {
             @Schema(description = "사용자 문구", requiredMode = Schema.RequiredMode.REQUIRED)
                     String message,
             @Schema(description = "보정 후보", requiredMode = Schema.RequiredMode.REQUIRED)
-                    List<MigrationDto.Candidate> candidates) {
+                    List<MigrationDto.Candidate> candidates,
+            @Schema(description = "해소에 필요한 입력 종류", requiredMode = Schema.RequiredMode.REQUIRED)
+                    RequestFormDecisionKind decision) {
 
         /**
-         * 코드의 심각도를 따라 진단을 만듭니다.
+         * 대상 이름 없이 진단을 만듭니다. 파일·시트 단위 진단에 씁니다.
          *
          * @param sheet 대상 시트 (null 허용)
          * @param excelRow 엑셀 행 번호 (null 허용)
@@ -167,14 +176,80 @@ public final class RequestFormDto {
                 RequestFormDiagnosticCode code,
                 String message,
                 List<MigrationDto.Candidate> candidates) {
+            return about(sheet, excelRow, field, null, code, message, candidates);
+        }
+
+        /**
+         * 코드의 심각도를 따라 진단을 만듭니다.
+         *
+         * <p>대상 이름을 함께 담습니다. 한 파일이 사업·품목·계약을 수십 건 만들기 때문에, 같은 문구의 진단이 여러 줄 늘어서면 어느 것을 고쳐야 하는지 알 수
+         * 없습니다(실측: `품목 비목코드가 비어 있습니다`가 구분 없이 3줄).
+         *
+         * @param sheet 대상 시트 (null 허용)
+         * @param excelRow 엑셀 행 번호 (null 허용)
+         * @param field 필드 id (null 허용)
+         * @param subject 대상 이름 (null·공백이면 담지 않습니다)
+         * @param code 진단 코드
+         * @param message 사용자 문구
+         * @param candidates 보정 후보. null이면 빈 목록으로 접습니다
+         * @return 진단
+         */
+        public static FormDiagnostic about(
+                FormSheetKind sheet,
+                Integer excelRow,
+                String field,
+                String subject,
+                RequestFormDiagnosticCode code,
+                String message,
+                List<MigrationDto.Candidate> candidates) {
+            return decide(
+                    sheet,
+                    excelRow,
+                    field,
+                    subject,
+                    code,
+                    message,
+                    candidates,
+                    candidates == null || candidates.isEmpty()
+                            ? RequestFormDecisionKind.NONE
+                            : RequestFormDecisionKind.SELECT);
+        }
+
+        /**
+         * 해소 입력 종류를 직접 지정해 진단을 만듭니다.
+         *
+         * <p>후보 목록이 없어도 사람이 고칠 수 있는 진단(사업명 입력·완료기한 입력·금액 단위 지정)에 씁니다. 지정한 종류의 보정값을 서버가 실제로 읽는지 확인하고
+         * 지정하십시오 — 화면에만 입력칸이 생기고 서버가 무시하면 같은 진단이 되풀이됩니다.
+         *
+         * @param sheet 대상 시트 (null 허용)
+         * @param excelRow 엑셀 행 번호 (null 허용)
+         * @param field 필드 id (null 허용)
+         * @param subject 대상 이름 (null·공백이면 담지 않습니다)
+         * @param code 진단 코드
+         * @param message 사용자 문구
+         * @param candidates 보정 후보. null이면 빈 목록으로 접습니다
+         * @param decision 해소에 필요한 입력 종류
+         * @return 진단
+         */
+        public static FormDiagnostic decide(
+                FormSheetKind sheet,
+                Integer excelRow,
+                String field,
+                String subject,
+                RequestFormDiagnosticCode code,
+                String message,
+                List<MigrationDto.Candidate> candidates,
+                RequestFormDecisionKind decision) {
             return new FormDiagnostic(
                     sheet,
                     excelRow,
                     field,
+                    subject == null || subject.isBlank() ? null : subject.trim(),
                     code,
                     code.severity(),
                     message,
-                    candidates == null ? List.of() : List.copyOf(candidates));
+                    candidates == null ? List.of() : List.copyOf(candidates),
+                    decision);
         }
     }
 
@@ -194,6 +269,48 @@ public final class RequestFormDto {
                     String label) {}
 
     /**
+     * 원장 종류별 건수입니다.
+     *
+     * <p>사업(`BPROJM`)은 한 테이블이지만 화면에서는 정보화사업과 경상사업을 따로 셉니다 — 두 시트에서 오고 담당자가 보는 단위도 다릅니다.
+     * 상시운영여부(`ODN_YN`)로 가릅니다.
+     *
+     * <p>이 건수는 {@code created}와 달리 <b>dry-run과 차단된 파일에도 채웁니다</b>. 사전검증의 목적이 "차단을 풀면 무엇이 몇 건 생기는가"를
+     * 미리 보는 것인데, 생성된 원장 목록은 두 경우 모두 비어 있어 화면이 항상 0건으로 보입니다. 파일 단위 표기는 "이 파일에 무엇이 들어 있나"이고, 실제로 반영되는
+     * 합계는 {@link ImportSummary#created()}가 따로 셉니다.
+     *
+     * @param capitalProjects 정보화사업 수 (시트 ①)
+     * @param recurringProjects 경상사업 수 (시트 ②)
+     * @param costs 전산업무비 수 (시트 ③)
+     */
+    @Schema(name = "RequestFormRecordCounts", description = "원장 종류별 건수")
+    public record RecordCounts(
+            @Schema(description = "정보화사업 수", requiredMode = Schema.RequiredMode.REQUIRED)
+                    int capitalProjects,
+            @Schema(description = "경상사업 수", requiredMode = Schema.RequiredMode.REQUIRED)
+                    int recurringProjects,
+            @Schema(description = "전산업무비 수", requiredMode = Schema.RequiredMode.REQUIRED)
+                    int costs) {
+
+        /** 아무것도 만들지 않는 건수입니다. */
+        public static RecordCounts zero() {
+            return new RecordCounts(0, 0, 0);
+        }
+
+        /**
+         * 두 건수를 더합니다. 배치 요약을 만들 때 씁니다.
+         *
+         * @param other 더할 건수
+         * @return 합계
+         */
+        public RecordCounts plus(RecordCounts other) {
+            return new RecordCounts(
+                    capitalProjects + other.capitalProjects,
+                    recurringProjects + other.recurringProjects,
+                    costs + other.costs);
+        }
+    }
+
+    /**
      * 파일 1건의 처리 결과입니다.
      *
      * @param fileKey 파일 상대경로
@@ -201,6 +318,7 @@ public final class RequestFormDto {
      * @param status 반영 상태
      * @param diagnostics 진단 목록. 없으면 빈 목록
      * @param created 생성된 원장. dry-run이거나 반영하지 않았으면 빈 목록
+     * @param counts 파일에서 읽어낸 원장 종류별 건수. 차단된 파일도 채우므로 실제 반영 여부는 `status`로 판단합니다
      * @param suggestedGeneralExpenseUnit 시트 ③ 단위 제안값. 시트 ③이 없으면 null
      */
     @Schema(name = "RequestFormFileResult", description = "파일 처리 결과")
@@ -215,6 +333,8 @@ public final class RequestFormDto {
                     List<FormDiagnostic> diagnostics,
             @Schema(description = "생성된 원장", requiredMode = Schema.RequiredMode.REQUIRED)
                     List<CreatedRecord> created,
+            @Schema(description = "원장 종류별 건수", requiredMode = Schema.RequiredMode.REQUIRED)
+                    RecordCounts counts,
             @Schema(
                             description = "시트 ③ 단위 제안값",
                             requiredMode = Schema.RequiredMode.REQUIRED,
@@ -227,9 +347,7 @@ public final class RequestFormDto {
      * @param totalFiles 보낸 파일 수
      * @param appliedFiles 반영된 파일 수. dry-run이면 반영 가능한 파일 수
      * @param blockedFiles BLOCKER가 남은 파일 수
-     * @param createdProjects 생성된 사업 수
-     * @param createdItems 생성된 품목 수
-     * @param createdCosts 생성된 전산업무비 수
+     * @param created 반영된 파일들의 원장 종류별 합계. dry-run이면 반영 시 생길 합계
      */
     @Schema(name = "RequestFormImportSummary", description = "반입 배치 요약")
     public record ImportSummary(
@@ -239,12 +357,8 @@ public final class RequestFormDto {
                     int appliedFiles,
             @Schema(description = "차단된 파일 수", requiredMode = Schema.RequiredMode.REQUIRED)
                     int blockedFiles,
-            @Schema(description = "생성된 사업 수", requiredMode = Schema.RequiredMode.REQUIRED)
-                    int createdProjects,
-            @Schema(description = "생성된 품목 수", requiredMode = Schema.RequiredMode.REQUIRED)
-                    int createdItems,
-            @Schema(description = "생성된 전산업무비 수", requiredMode = Schema.RequiredMode.REQUIRED)
-                    int createdCosts) {}
+            @Schema(description = "원장 종류별 합계", requiredMode = Schema.RequiredMode.REQUIRED)
+                    RecordCounts created) {}
 
     /**
      * 반입 응답입니다. dry-run과 commit이 같은 형태를 씁니다.

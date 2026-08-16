@@ -34,6 +34,9 @@ public final class FormLexicon {
     /** 양식 표기(정규화 키) → 공통코드(IOE_C) 코드값명. */
     private static final Map<String, String> IOE_CANONICAL = ioeCanonical();
 
+    /** 체크박스 문구(정규화 키) → 공통코드 코드값명. 문구와 코드값명이 어긋나는 것만 담습니다. */
+    private static final Map<String, String> OPTION_CANONICAL = optionCanonical();
+
     /** 긍정 표기 집합. 양식마다 O·√·● 등이 섞여 있습니다. */
     private static final Set<String> AFFIRMATIVE =
             Set.of("O", "o", "○", "◯", "０", "0", "√", "∨", "V", "v", "Y", "y", "●", "◎");
@@ -146,6 +149,35 @@ public final class FormLexicon {
         map.put(SheetAnchorScanner.normalize(korean), List.of(english));
     }
 
+    /**
+     * 체크박스 문구를 공통코드 코드값명으로 되돌립니다.
+     *
+     * <p>양식은 체크박스 옆에 설명을 덧붙이지만(`부문(본부장) 보고`) 코드표는 짧은 이름(`부문(본부)장`)을 씁니다. 대조표에 없으면 원문을 그대로 넘겨 코드
+     * 조회에서 걸러지게 합니다.
+     *
+     * @param raw 체크박스 문구
+     * @return 공통코드 표기. 대조표에 없으면 원문 그대로. null이면 빈 문자열
+     */
+    public static String canonicalOptionName(String raw) {
+        if (raw == null) return "";
+        String canonical = OPTION_CANONICAL.get(SheetAnchorScanner.normalize(raw));
+        return canonical == null ? raw.trim() : canonical;
+    }
+
+    private static Map<String, String> optionCanonical() {
+        Map<String, String> map = new LinkedHashMap<>();
+        // 최종보고 (IT_PTL_RPR_STS_TC)
+        alias(map, "부문(본부장) 보고", "부문(본부)장");
+        alias(map, "부서장 보고", "부서장");
+        // 추진가능성 (EXE_PTT_YN)
+        alias(map, "확정(변동가능성 無)", "확정");
+        alias(map, "추진계획 검토중", "미정(검토중)");
+        alias(map, "변동가능성 有", "미정(검토중)");
+        // 전결권자 (IT_PTL_EDRT_TC). 부점은 직위 통칭을 쓰지만 코드표는 직명을 씁니다
+        alias(map, "수석부행장", "전무이사");
+        return Map.copyOf(map);
+    }
+
     private static Map<String, String> ioeCanonical() {
         Map<String, String> map = new LinkedHashMap<>();
         // 국문 양식 표기와 공통코드 표기가 어긋나는 것만 담는다.
@@ -159,6 +191,8 @@ public final class FormLexicon {
         alias(map, "IT Expenses", "전산제비");
         alias(map, "IT Lease", "전산임차료");
         alias(map, "IT Travel", "전산여비");
+        // 자본예산 중분류. 시트 1-2·②의 `구분` 열과 시트 ③의 세부비목 열 양쪽에 나타납니다.
+        alias(map, "Machinery", "기계장치(HW)");
         return Map.copyOf(map);
     }
 

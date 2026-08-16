@@ -119,6 +119,20 @@ class WorkbookReaderTest {
     }
 
     @Test
+    @DisplayName("맨 아래에 서식만 남은 빈 행이 있어도 실제 행 레코드 수로 판정해 통과시킨다")
+    void allowsStrayTrailingRow() {
+        // 자금운용실 샘플 시트 ③의 실측 형태: 데이터는 20행인데 65534행에 서식만 남은 빈 행이 하나 있다.
+        // 마지막 행 '번호'로 재면 5000행 상한에 걸려 정상 파일이 통째로 차단된다.
+        Workbook workbook = reader.open(RequestFormFixtures.fullFormXls(), "요청서.xls");
+        Sheet generalExpense = workbook.getSheetAt(3);
+        generalExpense.createRow(65534);
+        assertThat(generalExpense.getLastRowNum()).isEqualTo(65534);
+        assertThat(generalExpense.getPhysicalNumberOfRows()).isLessThan(5000);
+
+        assertThat(reader.classify(workbook)).containsKey(FormSheetKind.GENERAL_EXPENSE);
+    }
+
+    @Test
     @DisplayName("행 수 상한을 넘는 시트가 있으면 분류 단계에서 거부한다")
     void rejectsTooManyRows() {
         WorkbookReader shallow = new WorkbookReader(10_485_760L, 20, 3);

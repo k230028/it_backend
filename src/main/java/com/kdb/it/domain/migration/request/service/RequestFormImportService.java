@@ -120,7 +120,9 @@ public class RequestFormImportService {
                         "인식할 수 있는 편성요청서 시트가 없습니다.");
             }
 
-            OrgIdentityResolver.Resolution deptResolution = orgIndex.resolveOrg(entry.deptName());
+            // 폴더명은 `부서명(부서코드)` 표기이므로 이름이 아니라 병기된 코드를 우선 기준으로 삼는다
+            OrgIdentityResolver.Resolution deptResolution =
+                    orgIndex.resolveOrgFolder(entry.deptName());
             String deptCode =
                     entry.deptCodeOverride() != null
                             ? entry.deptCodeOverride()
@@ -179,25 +181,16 @@ public class RequestFormImportService {
             int totalFiles, List<RequestFormDto.FileResult> results) {
         int applied = 0;
         int blocked = 0;
-        int projects = 0;
-        int items = 0;
-        int costs = 0;
+        RequestFormDto.RecordCounts created = RequestFormDto.RecordCounts.zero();
         for (RequestFormDto.FileResult result : results) {
-            if (result.status() == RequestFormDto.FileStatus.APPLIED) applied++;
             if (result.status() == RequestFormDto.FileStatus.BLOCKED) blocked++;
-            for (RequestFormDto.CreatedRecord created : result.created()) {
-                switch (created.table()) {
-                    case "BPROJM" -> projects++;
-                    case "BITEMM" -> items++;
-                    case "BCOSTM" -> costs++;
-                    default -> {
-                        // 알 수 없는 원천은 집계하지 않는다
-                    }
-                }
-            }
+            if (result.status() != RequestFormDto.FileStatus.APPLIED) continue;
+            // 요약은 실제로 반영되는 것만 센다. 파일별 건수는 차단된 파일도 담고 있어 그대로 더하면
+            // "반영 0건 / 사업 12건" 같은 모순이 생긴다.
+            applied++;
+            created = created.plus(result.counts());
         }
-        return new RequestFormDto.ImportSummary(
-                totalFiles, applied, blocked, projects, items, costs);
+        return new RequestFormDto.ImportSummary(totalFiles, applied, blocked, created);
     }
 
     private RequestFormDto.FileResult failed(
@@ -210,6 +203,7 @@ public class RequestFormImportService {
                         RequestFormDto.FormDiagnostic.of(
                                 null, null, null, code, message, List.of())),
                 List.of(),
+                RequestFormDto.RecordCounts.zero(),
                 null);
     }
 
@@ -232,6 +226,7 @@ public class RequestFormImportService {
                                 "폴더명 `%s`에 해당하는 부서를 확정하지 못했습니다.".formatted(entry.deptName()),
                                 resolution.candidates())),
                 List.of(),
+                RequestFormDto.RecordCounts.zero(),
                 null);
     }
 

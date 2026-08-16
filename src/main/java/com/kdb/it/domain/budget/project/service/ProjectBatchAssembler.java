@@ -11,6 +11,7 @@ import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.CodeNameMapBuilder;
+import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.dto.ProjectResponseMapper;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -328,18 +329,28 @@ final class ProjectBatchAssembler {
         }
     }
 
+    /**
+     * 담당자 사번 일괄 조회 결과로 사용자명·직위명을 채웁니다.
+     *
+     * <p>담당자 컬럼은 사번 또는 이름을 담으므로, 사번 조회가 비면 {@link UserNameResolver}가 저장값 자체를 이름으로 사용할지 판정합니다. 직위명은
+     * 사번 조회가 성공한 경우에만 채웁니다.
+     */
     private static void applyUserNames(
             ProjectDto.Response response,
             Map<String, String> names,
             Map<String, String> positions) {
-        response.setDvmUsidNm(getOrNull(names, response.getDvmUsid()));
+        response.setDvmUsidNm(resolveName(names, response.getDvmUsid()));
         response.setDvmUsidPtCNm(getOrNull(positions, response.getDvmUsid()));
-        response.setTlrUsidNm(getOrNull(names, response.getTlrUsid()));
+        response.setTlrUsidNm(resolveName(names, response.getTlrUsid()));
         response.setTlrUsidPtCNm(getOrNull(positions, response.getTlrUsid()));
-        response.setUsidNm(getOrNull(names, response.getUsid()));
+        response.setUsidNm(resolveName(names, response.getUsid()));
         response.setUsidPtCNm(getOrNull(positions, response.getUsid()));
-        response.setDvmTlrUsidNm(getOrNull(names, response.getDvmTlrUsid()));
+        response.setDvmTlrUsidNm(resolveName(names, response.getDvmTlrUsid()));
         response.setDvmTlrUsidPtCNm(getOrNull(positions, response.getDvmTlrUsid()));
+    }
+
+    private static String resolveName(Map<String, String> names, String userId) {
+        return UserNameResolver.resolve(userId, getOrNull(names, userId));
     }
 
     private static String getOrNull(Map<String, String> values, String key) {

@@ -9,6 +9,8 @@ import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
@@ -169,6 +171,90 @@ class RequestFormValidatorTest {
         assertThat(validator().validate(projectsOf(withBadItem), "2026"))
                 .filteredOn(d -> d.code() == RequestFormDiagnosticCode.REQUIRED_MISSING)
                 .hasSize(2);
+    }
+
+    @Test
+    @DisplayName("품목 진단은 어느 사업의 몇 번 품목인지 대상으로 짚어 준다")
+    void namesTheItemBehindEachDiagnostic() {
+        // 한 사업이 품목을 수십 건 담아 같은 문구가 여러 줄 늘어서므로 대상이 없으면 짚어낼 수 없다
+        ProjectDto.CreateRequest project = project("국채 접속인프라");
+        ProjectDto.BitemmDto first = new ProjectDto.BitemmDto();
+        first.setSno(1);
+        first.setGclNm("Rack");
+        ProjectDto.BitemmDto second = new ProjectDto.BitemmDto();
+        second.setSno(2);
+        project.setItems(List.of(first, second));
+
+        assertThat(validator().validate(projectsOf(project), "2026"))
+                .filteredOn(d -> "ioeC".equals(d.field()))
+                .extracting(RequestFormDto.FormDiagnostic::subject)
+                .containsExactly("국채 접속인프라 · 품목 1 Rack", "국채 접속인프라 · 품목 2 품목명 미기재");
+    }
+
+    @Test
+    @DisplayName("어댑터가 이미 짚은 비목은 필수값 누락으로 다시 보고하지 않는다")
+    void doesNotRepeatIoeAlreadyReportedByAdapter() {
+        // 같은 사건을 두 번 내면 행 진단에서 비목을 골라도 고칠 수 없는 차단이 남아 파일이 계속 막힌다
+        ProjectDto.CreateRequest project = project("사업");
+        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+        item.setSno(1);
+        item.setGclNm("전용망 회선 이용료");
+        project.setItems(List.of(item));
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(project),
+                        List.of(),
+                        List.of(
+                                RequestFormDto.FormDiagnostic.about(
+                                        FormSheetKind.CAPITAL_RESOURCE,
+                                        22,
+                                        "ioeC",
+                                        "전용망 회선 이용료",
+                                        RequestFormDiagnosticCode.CODE_AMBIGUOUS,
+                                        "구분 `전산제비`의 비목을 정하지 못했습니다.",
+                                        List.of(new MigrationDto.Candidate("013", "국외회선사용료")))),
+                        null);
+
+        assertThat(validator().validate(output, "2026"))
+                .extracting(RequestFormDto.FormDiagnostic::field)
+                .doesNotContain("ioeC");
+    }
+
+    @Test
+    @DisplayName("어댑터가 짚지 않은 품목의 비목 누락은 그대로 보고한다")
+    void stillReportsIoeMissingWithoutAdapterDiagnostic() {
+        ProjectDto.CreateRequest project = project("사업");
+        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+        item.setSno(1);
+        item.setGclNm("다른 품목");
+        project.setItems(List.of(item));
+
+        assertThat(validator().validate(projectsOf(project), "2026"))
+                .extracting(RequestFormDto.FormDiagnostic::field)
+                .contains("ioeC");
+    }
+
+    @Test
+    @DisplayName("전산업무비 진단은 계약명을 대상으로 짚어 준다")
+    void namesTheContractBehindEachDiagnostic() {
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(),
+                        List.of(cost(null, "블룸버그 회선사용료", new BigDecimal("1000"))),
+                        List.of(),
+                        null);
+
+        assertThat(validator().validate(output, "2026"))
+                .filteredOn(d -> "ioeC".equals(d.field()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            // 대상은 subject가 들고, 문구는 무엇이 문제인지만 말한다 (화면에서 중복 표기 방지)
+                            assertThat(d.subject()).isEqualTo("블룸버그 회선사용료");
+                            assertThat(d.message())
+                                    .startsWith("비목코드이(가) 비어 있습니다.")
+                                    .doesNotContain("블룸버그");
+                        });
     }
 
     @Test

@@ -3,8 +3,11 @@ package com.kdb.it.domain.migration.service;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +51,17 @@ public class MigrationIoeCatalogReader {
      */
     public Map<String, String> exePttCodeByName() {
         return codeByName(CommonCodeGroups.EXE_POSSIBLE, null);
+    }
+
+    /**
+     * 보고상태(`IT_PTL_RPR_STS_TC`) 코드값명 → 코드값 맵을 만듭니다.
+     *
+     * <p>1-1 시트의 `최종보고` 체크박스 문구를 코드로 되돌리는 데 씁니다. 물리 컬럼이 2자리 코드라 코드값명을 그대로 저장할 수 없습니다.
+     *
+     * @return 예: `{"부문(본부)장" → "04", "부서장" → "05"}`
+     */
+    public Map<String, String> reportStatusCodeByName() {
+        return codeByName(CommonCodeGroups.REPORT_STS, null);
     }
 
     /**
@@ -106,6 +120,26 @@ public class MigrationIoeCatalogReader {
             }
         }
         return out;
+    }
+
+    /**
+     * 공통코드 그룹의 선택 후보를 만듭니다.
+     *
+     * <p>편성요청서의 선택 항목은 저장 형태가 둘로 갈립니다 — 업무구분·사업유형처럼 <b>코드값명</b>을 그대로 담는 컬럼과, 보고상태·추진가능성처럼
+     * <b>코드</b>를 담는 컬럼입니다. 미리보기에서 고른 값이 그대로 저장값이 되어야 하므로 후보의 `code`를 저장 형태에 맞춰 만듭니다.
+     *
+     * @param cId 공통코드 그룹 id
+     * @param storeName true면 후보값으로 코드값명을, false면 코드값을 씁니다
+     * @return 후보 목록. 코드값명이 없는 행은 건너뜁니다
+     */
+    public List<MigrationDto.Candidate> candidates(String cId, boolean storeName) {
+        List<MigrationDto.Candidate> out = new ArrayList<>();
+        for (Ccodem code : codeRepository.findByCIdAndDelYn(cId, "N")) {
+            if (code.getCdvaNm() == null) continue;
+            String name = code.getCdvaNm().trim();
+            out.add(new MigrationDto.Candidate(storeName ? name : code.getCdva().trim(), name));
+        }
+        return List.copyOf(out);
     }
 
     /**

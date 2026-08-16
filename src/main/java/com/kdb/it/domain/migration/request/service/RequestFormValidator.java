@@ -40,6 +40,9 @@ public class RequestFormValidator {
     private static final int PROJECT_NAME_LIMIT = 100;
     private static final int ITEM_NAME_LIMIT = 100;
 
+    /** 비목코드 필드 id. 어댑터가 이미 보고한 대상은 여기서 다시 보지 않습니다. */
+    private static final String IOE_FIELD = "ioeC";
+
     /**
      * 자연키 구성요소 구분자.
      *
@@ -61,14 +64,36 @@ public class RequestFormValidator {
     @Transactional(readOnly = true)
     public List<RequestFormDto.FormDiagnostic> validate(FormAdapterOutput output, String bseYy) {
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
-        validateCosts(output.costs(), bseYy, diagnostics);
-        validateProjects(output.projects(), bseYy, diagnostics);
+        Set<String> alreadyReported = ioeSubjectsAlreadyReported(output);
+        validateCosts(output.costs(), bseYy, alreadyReported, diagnostics);
+        validateProjects(output.projects(), bseYy, alreadyReported, diagnostics);
         return List.copyOf(diagnostics);
+    }
+
+    /**
+     * 어댑터가 이미 비목 진단을 낸 대상(품목명·계약명)을 모읍니다.
+     *
+     * <p>비목이 비어 있는 이유는 <b>어댑터가 해석하지 못했기 때문</b>이고, 어댑터는 그 사실을 행 좌표와 후보까지 붙여 이미 보고했습니다. 여기서 같은 사건을
+     * 필수값 누락으로 한 번 더 내면 사용자에게는 <b>고칠 수 없는 차단</b>이 하나 더 생깁니다 — 행 진단에서 비목을 골라도 이 중복이 남아 파일이 계속 막힙니다
+     * (실측: 자금운용실 품목 3·4·5).
+     *
+     * @param output 어댑터가 조립한 생성 요청
+     * @return 어댑터가 짚은 대상 이름 집합. 이름이 없는 진단은 담지 않습니다
+     */
+    private static Set<String> ioeSubjectsAlreadyReported(FormAdapterOutput output) {
+        Set<String> subjects = new HashSet<>();
+        for (RequestFormDto.FormDiagnostic diagnostic : output.diagnostics()) {
+            if (IOE_FIELD.equals(diagnostic.field()) && diagnostic.subject() != null) {
+                subjects.add(diagnostic.subject());
+            }
+        }
+        return subjects;
     }
 
     private void validateCosts(
             List<CostDto.CreateRequest> costs,
             String bseYy,
+            Set<String> ioeAlreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (costs.isEmpty()) return;
         Set<String> existing = new HashSet<>();
@@ -83,35 +108,62 @@ public class RequestFormValidator {
         Set<String> withinBatch = new HashSet<>();
 
         for (CostDto.CreateRequest cost : costs) {
-            requireText(cost.getIoeC(), FormSheetKind.GENERAL_EXPENSE, "ioeC", "비목코드", diagnostics);
+            String subject = subjectOf(cost.getCttNm(), "계약명 미기재");
+            if (!ioeAlreadyReported.contains(nullSafe(cost.getCttNm()))) {
+                requireText(
+                        cost.getIoeC(),
+                        FormSheetKind.GENERAL_EXPENSE,
+                        IOE_FIELD,
+                        subject,
+                        "비목코드",
+                        diagnostics);
+            }
             requireText(
-                    cost.getCttNm(), FormSheetKind.GENERAL_EXPENSE, "cttNm", "계약명", diagnostics);
-            requireText(cost.getCurC(), FormSheetKind.GENERAL_EXPENSE, "curC", "통화", diagnostics);
+                    cost.getCttNm(),
+                    FormSheetKind.GENERAL_EXPENSE,
+                    "cttNm",
+                    subject,
+                    "계약명",
+                    diagnostics);
+            requireText(
+                    cost.getCurC(),
+                    FormSheetKind.GENERAL_EXPENSE,
+                    "curC",
+                    subject,
+                    "통화",
+                    diagnostics);
             if (cost.getCostTotXpAmt() == null && cost.getFcAmt() == null) {
                 diagnostics.add(
                         blocker(
                                 FormSheetKind.GENERAL_EXPENSE,
                                 "amt",
+                                subject,
                                 RequestFormDiagnosticCode.REQUIRED_MISSING,
-                                "`%s`의 금액이 비어 있습니다.".formatted(nullSafe(cost.getCttNm()))));
+                                "금액이 비어 있습니다."));
             }
             limit(
                     cost.getCttNm(),
                     CONTRACT_NAME_LIMIT,
                     FormSheetKind.GENERAL_EXPENSE,
                     "cttNm",
+                    subject,
+                    "계약명",
                     diagnostics);
             limit(
                     cost.getCttOppNm(),
                     COUNTERPARTY_LIMIT,
                     FormSheetKind.GENERAL_EXPENSE,
                     "cttOppNm",
+                    subject,
+                    "상대처",
                     diagnostics);
             limit(
                     cost.getIndRsn(),
                     INCREASE_REASON_LIMIT,
                     FormSheetKind.GENERAL_EXPENSE,
                     "indRsn",
+                    subject,
+                    "비고",
                     diagnostics);
 
             String key =
@@ -125,9 +177,9 @@ public class RequestFormValidator {
                         blocker(
                                 FormSheetKind.GENERAL_EXPENSE,
                                 "cttNm",
+                                subject,
                                 RequestFormDiagnosticCode.DUPLICATE_EXISTS,
-                                "`%s`는 이미 반입된 전산업무비입니다. 덮어쓰지 않고 건너뜁니다."
-                                        .formatted(nullSafe(cost.getCttNm()))));
+                                "이미 반입된 전산업무비입니다. 덮어쓰지 않고 건너뜁니다."));
             }
         }
     }
@@ -135,6 +187,7 @@ public class RequestFormValidator {
     private void validateProjects(
             List<ProjectDto.CreateRequest> projects,
             String bseYy,
+            Set<String> ioeAlreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (projects.isEmpty()) return;
         Set<String> existing = new HashSet<>();
@@ -148,9 +201,17 @@ public class RequestFormValidator {
                     "Y".equals(project.getOdnYn())
                             ? FormSheetKind.RECURRING
                             : FormSheetKind.CAPITAL_OVERVIEW;
-            requireText(project.getAbusNm(), sheet, "abusNm", "사업명", diagnostics);
-            limit(project.getAbusNm(), PROJECT_NAME_LIMIT, sheet, "abusNm", diagnostics);
-            validateItems(project, sheet, diagnostics);
+            String subject = subjectOf(project.getAbusNm(), "사업명 미기재");
+            requireText(project.getAbusNm(), sheet, "abusNm", subject, "사업명", diagnostics);
+            limit(
+                    project.getAbusNm(),
+                    PROJECT_NAME_LIMIT,
+                    sheet,
+                    "abusNm",
+                    subject,
+                    "사업명",
+                    diagnostics);
+            validateItems(project, sheet, subject, ioeAlreadyReported, diagnostics);
 
             String key = normalizeProjectName(project.getAbusNm());
             if (key.isEmpty()) continue;
@@ -159,28 +220,45 @@ public class RequestFormValidator {
                         blocker(
                                 sheet,
                                 "abusNm",
+                                subject,
                                 RequestFormDiagnosticCode.DUPLICATE_EXISTS,
-                                "`%s`는 이미 반입된 사업입니다. 덮어쓰지 않고 건너뜁니다."
-                                        .formatted(nullSafe(project.getAbusNm()))));
+                                "이미 반입된 사업입니다. 덮어쓰지 않고 건너뜁니다."));
             }
         }
     }
 
+    /**
+     * 품목을 검증합니다. 대상 표기는 `사업명 · 품목 순번 품목명` 형태로 만듭니다.
+     *
+     * <p>한 사업이 품목을 수십 건 담기 때문에 사업명만으로는 어느 줄을 고쳐야 하는지 알 수 없습니다. 품목명이 비어 있는 행도 순번으로 짚을 수 있게 순번을 앞에
+     * 붙입니다.
+     */
     private void validateItems(
             ProjectDto.CreateRequest project,
             FormSheetKind sheet,
+            String projectSubject,
+            Set<String> ioeAlreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (project.getItems() == null) return;
         for (ProjectDto.BitemmDto item : project.getItems()) {
-            requireText(item.getIoeC(), sheet, "ioeC", "품목 비목코드", diagnostics);
-            limit(item.getGclNm(), ITEM_NAME_LIMIT, sheet, "gclNm", diagnostics);
+            String subject =
+                    "%s · 품목 %d %s"
+                            .formatted(
+                                    projectSubject,
+                                    item.getSno() == null ? 0 : item.getSno(),
+                                    subjectOf(item.getGclNm(), "품목명 미기재"));
+            if (!ioeAlreadyReported.contains(nullSafe(item.getGclNm()))) {
+                requireText(item.getIoeC(), sheet, IOE_FIELD, subject, "비목코드", diagnostics);
+            }
+            limit(item.getGclNm(), ITEM_NAME_LIMIT, sheet, "gclNm", subject, "품목명", diagnostics);
             if (item.getAmt() == null && item.getFcAmt() == null) {
                 diagnostics.add(
                         blocker(
                                 sheet,
                                 "amt",
+                                subject,
                                 RequestFormDiagnosticCode.REQUIRED_MISSING,
-                                "품목 `%s`의 금액이 비어 있습니다.".formatted(nullSafe(item.getGclNm()))));
+                                "금액이 비어 있습니다."));
             }
         }
     }
@@ -224,6 +302,7 @@ public class RequestFormValidator {
             String value,
             FormSheetKind sheet,
             String field,
+            String subject,
             String label,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (value != null && !value.isBlank()) return;
@@ -231,8 +310,9 @@ public class RequestFormValidator {
                 blocker(
                         sheet,
                         field,
+                        subject,
                         RequestFormDiagnosticCode.REQUIRED_MISSING,
-                        "`%s`이(가) 비어 있습니다.".formatted(label)));
+                        "%s이(가) 비어 있습니다.".formatted(label)));
     }
 
     private void limit(
@@ -240,19 +320,32 @@ public class RequestFormValidator {
             int max,
             FormSheetKind sheet,
             String field,
+            String subject,
+            String label,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (value == null || value.length() <= max) return;
         diagnostics.add(
                 blocker(
                         sheet,
                         field,
+                        subject,
                         RequestFormDiagnosticCode.LENGTH_EXCEEDED,
-                        "`%s` 값이 %d자를 넘습니다(%d자).".formatted(field, max, value.length())));
+                        "%s이(가) %d자를 넘습니다(%d자).".formatted(label, max, value.length())));
     }
 
     private RequestFormDto.FormDiagnostic blocker(
-            FormSheetKind sheet, String field, RequestFormDiagnosticCode code, String message) {
-        return RequestFormDto.FormDiagnostic.of(sheet, null, field, code, message, List.of());
+            FormSheetKind sheet,
+            String field,
+            String subject,
+            RequestFormDiagnosticCode code,
+            String message) {
+        return RequestFormDto.FormDiagnostic.about(
+                sheet, null, field, subject, code, message, List.of());
+    }
+
+    /** 대상 표기를 만듭니다. 이름이 비어 있으면 자리를 짚을 수 있는 대체 문구를 씁니다. */
+    private static String subjectOf(String name, String fallback) {
+        return name == null || name.isBlank() ? fallback : name.trim();
     }
 
     private static String nullSafe(String value) {

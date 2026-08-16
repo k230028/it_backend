@@ -261,6 +261,11 @@ public final class RequestFormFixtures {
     private static void writeRecurring(Workbook wb, String name, boolean withName) {
         Sheet s = wb.createSheet(name);
         put(s, 0, 0, withName ? "2. 경상적인 사업" : "2. Recurring business");
+        // 상단 머리말 — 확인자가 주관팀장, 작성자가 담당자다 (런던 실측: 라벨과 이름이 다른 칸)
+        put(s, 1, 6, "(확인자)");
+        put(s, 1, 7, "신원석 부부장");
+        put(s, 1, 8, "(작성자)");
+        put(s, 1, 9, "Luke Buckingham-Brown 과장");
         put(s, 2, 0, withName ? "사업명" : "Business Name");
         if (withName) put(s, 2, 2, "2026년 IT기계장치 구입");
         put(s, 3, 0, withName ? "사업 개요" : "Business Overview");
@@ -305,6 +310,10 @@ public final class RequestFormFixtures {
     /** 시트 ③을 씁니다. `english=true`면 런던 샘플처럼 라벨·비목명이 영문입니다. */
     private static void writeGeneralExpense(Workbook wb, String name, boolean english) {
         Sheet s = wb.createSheet(name);
+        // 상단 머리말 — 런던 실측은 라벨과 이름이 같은 칸에 붙어 있다
+        put(s, 1, 8, "(확인자)");
+        put(s, 1, 9, "박은지 팀장");
+        put(s, 1, 10, "(작성자) 최민호 대리");
         put(
                 s,
                 0,

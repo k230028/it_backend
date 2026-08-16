@@ -51,7 +51,7 @@ class RequestFormImportServiceTest {
 
         when(orgIdentityResolver.snapshot()).thenReturn(orgIndex);
         when(ioeHierarchyIndex.snapshot()).thenReturn(ioeSnapshot);
-        when(orgIndex.resolveOrg(anyString()))
+        when(orgIndex.resolveOrgFolder(anyString()))
                 .thenReturn(new OrgIdentityResolver.Resolution("0210", "자금운용실", List.of(), false));
 
         when(capitalAdapter.trigger()).thenReturn(FormSheetKind.CAPITAL_OVERVIEW);
@@ -98,6 +98,7 @@ class RequestFormImportServiceTest {
                 RequestFormDto.FileStatus.APPLIED,
                 List.of(),
                 List.of(new RequestFormDto.CreatedRecord("BCOSTM", "COST-2026-0001", "계약")),
+                new RequestFormDto.RecordCounts(0, 0, 1),
                 AmountUnit.WON);
     }
 
@@ -118,7 +119,7 @@ class RequestFormImportServiceTest {
         assertThat(response.dryRun()).isFalse();
         assertThat(response.summary().totalFiles()).isEqualTo(1);
         assertThat(response.summary().appliedFiles()).isEqualTo(1);
-        assertThat(response.summary().createdCosts()).isEqualTo(1);
+        assertThat(response.summary().created().costs()).isEqualTo(1);
     }
 
     @Test
@@ -165,9 +166,27 @@ class RequestFormImportServiceTest {
     }
 
     @Test
+    @DisplayName("폴더명 원문을 폴더 해석기에 그대로 넘겨 부서코드 병기를 살린다")
+    void passesRawFolderNameToFolderResolver() {
+        when(fileImporter.preview(any(), any(), anyString()))
+                .thenReturn(applied("자금운용실(420)/요청서.xls"));
+
+        service(50)
+                .importBatch(
+                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                        manifest("자금운용실(420)/요청서.xls"),
+                        "12345678",
+                        true);
+
+        // 이름만 남기는 가공 없이 원문을 넘겨야 Index가 괄호 안 코드를 볼 수 있다
+        org.mockito.Mockito.verify(orgIndex).resolveOrgFolder("자금운용실(420)");
+        org.mockito.Mockito.verify(orgIndex, org.mockito.Mockito.never()).resolveOrg(anyString());
+    }
+
+    @Test
     @DisplayName("부서를 확정하지 못하면 차단하고 후보를 담아 돌려준다")
     void blocksWhenDepartmentUnresolved() {
-        when(orgIndex.resolveOrg(anyString()))
+        when(orgIndex.resolveOrgFolder(anyString()))
                 .thenReturn(new OrgIdentityResolver.Resolution(null, "미등록부서", List.of(), false));
 
         RequestFormDto.ImportResponse response =

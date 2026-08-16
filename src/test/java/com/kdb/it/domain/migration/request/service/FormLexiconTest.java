@@ -74,8 +74,28 @@ class FormLexiconTest {
     @DisplayName("대조표에 없는 비목명은 원문 그대로 넘겨 미해석 진단으로 이어지게 한다")
     void keepsUnknownIoeNameAsIs() {
         assertThat(FormLexicon.canonicalIoeName("국외전산기타제비")).isEqualTo("국외전산기타제비");
-        assertThat(FormLexicon.canonicalIoeName("Machinery")).isEqualTo("Machinery");
+        assertThat(FormLexicon.canonicalIoeName("Cloud Subscription"))
+                .isEqualTo("Cloud Subscription");
         assertThat(FormLexicon.canonicalIoeName(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("영문 양식의 자본예산 중분류 `Machinery`를 기계장치로 되돌린다")
+    void mapsMachineryToCapitalGroup() {
+        // 런던 제출본은 시트 ②의 `구분` 열과 시트 ③의 세부비목 열 양쪽에 이 표기를 씁니다.
+        assertThat(FormLexicon.canonicalIoeName("Machinery")).isEqualTo("기계장치(HW)");
+    }
+
+    @Test
+    @DisplayName("체크박스·전결권자 문구를 공통코드 코드값명으로 되돌린다")
+    void canonicalizesOptionNames() {
+        // 양식은 설명을 덧붙이거나 통칭을 쓰고, 코드표는 짧은 직명·코드값명을 쓴다
+        assertThat(FormLexicon.canonicalOptionName("부문(본부장) 보고")).isEqualTo("부문(본부)장");
+        assertThat(FormLexicon.canonicalOptionName("확정(변동가능성 無)")).isEqualTo("확정");
+        assertThat(FormLexicon.canonicalOptionName("수석부행장")).isEqualTo("전무이사");
+        // 대조표에 없으면 원문 그대로 넘겨 코드 조회에서 걸러지게 한다
+        assertThat(FormLexicon.canonicalOptionName("이사회")).isEqualTo("이사회");
+        assertThat(FormLexicon.canonicalOptionName(null)).isEmpty();
     }
 
     @Test

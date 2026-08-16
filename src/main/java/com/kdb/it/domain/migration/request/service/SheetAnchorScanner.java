@@ -55,11 +55,46 @@ public class SheetAnchorScanner {
                         && cell.getCachedFormulaResultType() == CellType.ERROR)) {
             return FormulaError.forInt(cell.getErrorCellValue()).getString();
         }
+        if (cell.getCellType() == CellType.FORMULA) {
+            return formatCachedResult(cell);
+        }
         return formatter.formatCellValue(cell).trim();
     }
 
     /**
+     * 수식 셀의 <b>캐시된 계산 결과</b>를 문자열로 만듭니다.
+     *
+     * <p>{@code DataFormatter.formatCellValue(cell)}에 평가기를 주지 않으면 수식 셀은 계산 결과가 아니라 수식 원문을
+     * 돌려줍니다(`SUM(E10*F10)`). 그 값이 숫자 파싱에 실패해 행이 통째로 버려지므로, 소요예산을 수식으로 적어 낸 제출본이 진단 한 줄 없이 사라집니다(실측:
+     * 런던지점 시트 ②의 소요자원 7행 전량).
+     *
+     * <p>평가기로 <b>다시 계산하지 않습니다</b>. 참조가 깨진 수식이나 지원하지 않는 함수가 있으면 평가가 예외로 끝나 파일 전체를 잃는데, 부점이 저장한 시점의
+     * 값은 이미 캐시에 들어 있어 그대로 쓰면 됩니다. 오류 결과는 호출부에서 이미 걸러 이 메서드로 오지 않습니다.
+     *
+     * @param cell 수식 셀
+     * @return 캐시 결과를 셀 서식으로 그린 문자열. 숫자·문자열·논리값이 아니면 빈 문자열
+     */
+    private String formatCachedResult(Cell cell) {
+        return switch (cell.getCachedFormulaResultType()) {
+            case NUMERIC ->
+                    formatter
+                            .formatRawCellContents(
+                                    cell.getNumericCellValue(),
+                                    cell.getCellStyle().getDataFormat(),
+                                    cell.getCellStyle().getDataFormatString())
+                            .trim();
+            case STRING -> cell.getRichStringCellValue().getString().trim();
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            default -> "";
+        };
+    }
+
+    /**
      * 라벨이 있는 행을 찾습니다.
+     *
+     * <p>행 번호 0부터 마지막 번호까지가 아니라 <b>실재하는 행만</b> 오름차순으로 훑습니다. `.xls` 제출본에는 서식만 남은 빈 행이 시트 맨
+     * 아래(65534행)에 붙어 있는 경우가 있어, 번호로 돌면 존재하지 않는 6만여 행마다 병합영역 목록을 새로 만들어 훑게 됩니다. 라벨은 병합 영역의 좌상단 셀에 있고
+     * 그 행에는 행 레코드가 있으므로, 실재하는 행만 봐도 같은 행을 찾습니다.
      *
      * @param sheet 대상 시트
      * @param labelColumns 라벨이 있을 수 있는 0-based 열 번호들 (보통 `{0, 2}` — A열 대분류, C열 소분류)
@@ -70,11 +105,11 @@ public class SheetAnchorScanner {
         List<String> normalizedAliases = new ArrayList<>();
         for (String alias : labelAliases) normalizedAliases.add(normalize(alias));
 
-        for (int rowIndex = 0; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+        for (Row row : sheet) {
             for (int colIndex : labelColumns) {
-                String candidate = normalize(text(sheet, rowIndex, colIndex));
+                String candidate = normalize(text(sheet, row.getRowNum(), colIndex));
                 if (!candidate.isEmpty() && normalizedAliases.contains(candidate)) {
-                    return Optional.of(rowIndex);
+                    return Optional.of(row.getRowNum());
                 }
             }
         }
@@ -90,13 +125,32 @@ public class SheetAnchorScanner {
      * @return 첫 비어 있지 않은 값. 없으면 빈 Optional
      */
     public Optional<String> valueRightOf(Sheet sheet, int rowIndex, int labelColIndex) {
-        for (int colIndex = labelColIndex + 1;
+        for (int colIndex = mergedEndColumn(sheet, rowIndex, labelColIndex) + 1;
                 colIndex <= labelColIndex + VALUE_SCAN_WIDTH;
                 colIndex++) {
             String value = text(sheet, rowIndex, colIndex);
             if (!value.isEmpty() && !isSubheadingLabel(value)) return Optional.of(value);
         }
         return Optional.empty();
+    }
+
+    /**
+     * 셀이 속한 병합 영역의 마지막 열을 반환합니다. 값 탐색의 시작점을 정하는 데 씁니다.
+     *
+     * <p>실 제출본은 라벨 칸을 두 열에 걸쳐 병합합니다(`사업명`이 A:B). 병합 영역 안의 셀은 {@link #text}가 좌상단 값을 돌려주므로, 라벨 바로 오른쪽
+     * 칸을 값으로 읽으면 <b>라벨 자신</b>이 나옵니다. 그 값을 다음 라벨로 판정해 탐색을 접으면 항목이 통째로 비고, 1-1 시트를 낸 파일에서 사업이 하나도 생기지
+     * 않습니다(실측: IT기획부·자금운용실 두 건 모두).
+     *
+     * @param sheet 대상 시트
+     * @param rowIndex 0-based 행 번호
+     * @param colIndex 0-based 열 번호
+     * @return 병합 영역의 마지막 열. 병합이 아니면 {@code colIndex} 그대로
+     */
+    public int mergedEndColumn(Sheet sheet, int rowIndex, int colIndex) {
+        for (CellRangeAddress region : sheet.getMergedRegions()) {
+            if (region.isInRange(rowIndex, colIndex)) return region.getLastColumn();
+        }
+        return colIndex;
     }
 
     /**
@@ -143,7 +197,10 @@ public class SheetAnchorScanner {
             int fromRow,
             Map<String, List<String>> columnAliases,
             String... requiredColumns) {
-        for (int rowIndex = Math.max(fromRow, 0); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+        // 실재하는 행만 훑는 이유는 findLabelRow와 같다
+        for (Row row : sheet) {
+            int rowIndex = row.getRowNum();
+            if (rowIndex < fromRow) continue;
             HeaderMatch match = matchHeaderRow(sheet, rowIndex, columnAliases);
             if (match.covers(requiredColumns) && match.hasOwnLabel(requiredColumns)) {
                 return Optional.of(new HeaderMap(rowIndex, match.columnIndex()));

@@ -23,15 +23,17 @@ class RecurringProjectFormAdapterTest {
     private final SheetAnchorScanner scanner = new SheetAnchorScanner();
     private final RecurringProjectFormAdapter adapter =
             new RecurringProjectFormAdapter(
-                    new FormLabelReader(scanner), new ResourceTableReader(scanner));
+                    new FormLabelReader(scanner),
+                    new ResourceTableReader(scanner),
+                    new FormApproverReader(scanner));
 
     private FormAdapterContext contextOf(byte[] bytes, Map<String, String> overrides) {
         Map<FormSheetKind, Sheet> sheets = reader.classify(reader.open(bytes, "픽스처.xls"));
         return new FormAdapterContext(
                 sheets,
                 "2026",
-                new RequestFormDto.FileEntry("런던지점/붙임.xls", "런던지점", null, null, null),
-                "0930",
+                new RequestFormDto.FileEntry("런던지점(920)/붙임.xls", "런던지점(920)", null, null, null),
+                "920",
                 "런던지점",
                 null,
                 TestIoeIndex.snapshot(),
@@ -50,7 +52,7 @@ class RecurringProjectFormAdapterTest {
         assertThat(project.getAbusNm()).isEqualTo("2026년 IT기계장치 구입");
         assertThat(project.getOdnYn()).isEqualTo("Y");
         assertThat(project.getBseYy()).isEqualTo("2026");
-        assertThat(project.getSvnDpmC()).isEqualTo("0930");
+        assertThat(project.getSvnDpmC()).isEqualTo("920");
         assertThat(project.getSttDtm()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(project.getEndDtm()).isEqualTo(LocalDate.of(2026, 12, 31));
         assertThat(project.getItems()).hasSize(2);
@@ -71,16 +73,54 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("HW·SW 구분과 통화로 품목 비목을 정한다")
-    void resolvesItemIoeByGroupAndCurrency() {
+    @DisplayName("상단 머리말의 확인자를 주관팀장, 작성자를 담당자로 담는다")
+    void takesConfirmerAsTeamLeadAndAuthorAsStaff() {
+        // 이 시트에는 `관련 조직` 블록이 없어 머리말이 유일한 근거다
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), Map.of()))
                         .projects()
                         .get(0);
 
-        // GBP 행이므로 국외 계열
+        assertThat(project.getTlrUsid()).isEqualTo("신원석 부부장");
+        // 영문 성명은 컬럼(14자)을 넘어 잘린다
+        assertThat(project.getUsid()).isEqualTo("Luke Buckingha");
+    }
+
+    @Test
+    @DisplayName("HW·SW 구분과 부서코드로 품목 비목을 정한다")
+    void resolvesItemIoeByGroupAndDeptCode() {
+        // 부서코드 `920`은 국외 점포다. 국내·국외는 통화가 아니라 부점 소속으로 갈린다
+        ProjectDto.CreateRequest project =
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), Map.of()))
+                        .projects()
+                        .get(0);
+
         assertThat(project.getItems().get(0).getIoeC()).isEqualTo("102");
         assertThat(project.getItems().get(1).getIoeC()).isEqualTo("105");
+    }
+
+    @Test
+    @DisplayName("국내 부점이 외화로 적어도 국내 계열 비목을 쓴다")
+    void usesDomesticIoeForDomesticBranchPayingInForeignCurrency() {
+        // 픽스처 행은 GBP지만 부서코드가 국내(`420`)면 국내 비목이어야 한다
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls"));
+        FormAdapterContext domestic =
+                new FormAdapterContext(
+                        sheets,
+                        "2026",
+                        new RequestFormDto.FileEntry(
+                                "자금운용실(420)/붙임.xls", "자금운용실(420)", null, null, null),
+                        "420",
+                        "자금운용실",
+                        null,
+                        TestIoeIndex.snapshot(),
+                        Map.of(),
+                        "12345678");
+
+        ProjectDto.CreateRequest project = adapter.adapt(domestic).projects().get(0);
+
+        assertThat(project.getItems().get(0).getIoeC()).isEqualTo("101");
     }
 
     @Test

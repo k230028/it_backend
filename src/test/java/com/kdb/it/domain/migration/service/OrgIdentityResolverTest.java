@@ -104,6 +104,91 @@ class OrgIdentityResolverTest {
     }
 
     @Test
+    @DisplayName("폴더명에 병기된 부서코드로 확정하고 표시명은 조직 등록명을 쓴다")
+    void 폴더명의_부서코드로_확정한다() {
+        OrgIdentityResolver.Resolution result = index.resolveOrgFolder("IT기획부(0210)");
+
+        assertThat(result.code()).isEqualTo("0210");
+        assertThat(result.label()).isEqualTo("IT기획부");
+        assertThat(result.candidates()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("폴더명의 부서코드는 이름 매칭보다 우선한다 — 이름이 중의적이어도 확정한다")
+    void 폴더명의_부서코드는_이름보다_우선한다() {
+        // "금융공학"은 부분 일치가 둘(0450·0451)이라 이름만으로는 차단되는 값이다
+        OrgIdentityResolver.Resolution result = index.resolveOrgFolder("금융공학(0450)");
+
+        assertThat(result.code()).isEqualTo("0450");
+        assertThat(result.isAmbiguous()).isFalse();
+    }
+
+    @Test
+    @DisplayName("폴더명의 부서코드가 조직명과 어긋나도 코드를 기준으로 삼는다")
+    void 폴더명의_부서코드가_이름과_어긋나면_코드를_따른다() {
+        // 조직 개편으로 폴더의 부점명이 낡은 경우. 코드가 실재하면 코드가 기준이다
+        OrgIdentityResolver.Resolution result = index.resolveOrgFolder("옛IT기획부(0210)");
+
+        assertThat(result.code()).isEqualTo("0210");
+        assertThat(result.label()).isEqualTo("IT기획부");
+    }
+
+    @Test
+    @DisplayName("전각 괄호와 괄호 앞뒤 공백 표기도 부서코드로 읽는다")
+    void 전각괄호_폴더명도_부서코드로_읽는다() {
+        assertThat(index.resolveOrgFolder("IT기획부（0210）").code()).isEqualTo("0210");
+        assertThat(index.resolveOrgFolder("IT기획부 ( 0210 )").code()).isEqualTo("0210");
+    }
+
+    @Test
+    @DisplayName("폴더명에 코드가 없으면 종전대로 이름으로 해석한다")
+    void 코드가_없는_폴더명은_이름으로_해석한다() {
+        assertThat(index.resolveOrgFolder("IT기획부").code()).isEqualTo("0210");
+        assertThat(index.resolveOrgFolder("금융공학").isAmbiguous()).isTrue();
+    }
+
+    @Test
+    @DisplayName("괄호 안이 코드가 아닌 메모면 코드로 읽지 않고 폴더명 전체로 해석한다")
+    void 괄호안_메모는_코드로_읽지_않는다() {
+        OrgIdentityResolver.Resolution result = index.resolveOrgFolder("IT기획부(최종)");
+
+        assertThat(result.code()).isEqualTo("0210");
+    }
+
+    @Test
+    @DisplayName("조직에 없는 부서코드가 적혀 있으면 괄호를 뗀 이름으로 되돌아간다")
+    void 미등록_부서코드는_이름해석으로_되돌아간다() {
+        OrgIdentityResolver.Resolution result = index.resolveOrgFolder("IT기획부(9999)");
+
+        assertThat(result.code()).isEqualTo("0210");
+        assertThat(result.label()).isEqualTo("IT기획부");
+    }
+
+    @Test
+    @DisplayName("빈 폴더명은 후보 없이 미해석이며 예외를 던지지 않는다")
+    void 빈_폴더명은_미해석이다() {
+        assertThat(index.resolveOrgFolder(null).code()).isNull();
+        assertThat(index.resolveOrgFolder("").code()).isNull();
+        assertThat(index.resolveOrgFolder("-").code()).isNull();
+        assertThat(index.resolveOrgFolder("-").candidates()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("이름 없이 코드만 있는 폴더명도 코드로 확정한다")
+    void 코드만_있는_폴더명도_확정한다() {
+        assertThat(index.resolveOrgFolder("(0210)").code()).isEqualTo("0210");
+    }
+
+    @Test
+    @DisplayName("이름 없이 미등록 코드만 있는 폴더명은 후보 없이 미해석이다")
+    void 이름없는_미등록코드는_미해석이다() {
+        OrgIdentityResolver.Resolution result = index.resolveOrgFolder("(9999)");
+
+        assertThat(result.code()).isNull();
+        assertThat(result.candidates()).isEmpty();
+    }
+
+    @Test
     @DisplayName("이름+직위로 담당자 사번을 확정한다")
     void 이름과직위로_사번을_확정한다() {
         OrgIdentityResolver.Resolution result = index.resolveUser("김성원 과장", null);
@@ -178,6 +263,20 @@ class OrgIdentityResolverTest {
     void 조직코드로_조직명을_얻는다() {
         assertThat(index.orgNameOf("0210")).isEqualTo("IT기획부");
         assertThat(index.orgNameOf("9999")).isNull();
+    }
+
+    @Test
+    @DisplayName("조직코드로 상위조직명을 얻는다")
+    void 조직코드로_상위조직명을_얻는다() {
+        OrgIdentityResolver.Index built =
+                OrgIdentityResolver.Index.of(
+                        List.of(org("013", "기획부문"), childOrg("180", "IT기획부", "013")), List.of());
+
+        assertThat(built.parentOrgNameOf("180")).isEqualTo("기획부문");
+        // 상위가 없거나(최상위) 상위 코드가 스냅샷에 없으면 null
+        assertThat(built.parentOrgNameOf("013")).isNull();
+        assertThat(built.parentOrgNameOf("9999")).isNull();
+        assertThat(built.parentOrgNameOf(null)).isNull();
     }
 
     @Test
@@ -303,6 +402,10 @@ class OrgIdentityResolverTest {
 
     private static CorgnI org(String code, String name) {
         return CorgnI.builder().prlmOgzCCone(code).bbrNm(name).build();
+    }
+
+    private static CorgnI childOrg(String code, String name, String parentCode) {
+        return CorgnI.builder().prlmOgzCCone(code).bbrNm(name).prlmHrkOgzCCone(parentCode).build();
     }
 
     private static CuserI user(

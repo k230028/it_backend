@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
-import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
@@ -45,12 +44,14 @@ class CapitalProjectFormAdapterTest {
     void setUp() {
         adapter =
                 new CapitalProjectFormAdapter(
-                        new CapitalOverviewReader(scanner, new FormLabelReader(scanner)),
+                        new CapitalOverviewReader(
+                                scanner, new FormLabelReader(scanner), new FormCheckboxReader()),
                         new ResourceTableReader(scanner),
                         catalogReader);
 
         when(catalogReader.exePttCodeByName()).thenReturn(Map.of());
-        when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of("수석부행장", "21"));
+        // 코드표는 직명(`전무이사`)을 쓰고 양식은 통칭(`수석부행장`)을 쓴다. 픽스처 값은 통칭이다
+        when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of("전무이사", "21"));
         when(orgIndex.resolveOrg("자금운용실"))
                 .thenReturn(new OrgIdentityResolver.Resolution("0210", "자금운용실", List.of(), false));
         when(orgIndex.resolveOrg("원화유가증권팀"))
@@ -115,36 +116,43 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("주관부서/팀을 슬래시로 갈라 각각 해석한다")
-    void splitsDepartmentAndTeam() {
+    @DisplayName("주관부서·부문은 폴더 부서코드에서 끌어오고 팀은 이름만 담는다")
+    void takesDepartmentFromFolderCodeAndTeamByName() {
+        when(orgIndex.parentOrgNameOf("0210")).thenReturn("자금부문");
+
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls())).projects().get(0);
 
+        // 시트에 `자금운용실/원화유가증권팀`이 적혀 있어도 부서는 폴더 코드가 기준이다
         assertThat(project.getSvnDpmC()).isEqualTo("0210");
-        assertThat(project.getSvnTemC()).isEqualTo("02101");
+        assertThat(project.getPrlmHrkOgzCCone()).isEqualTo("자금부문");
+        assertThat(project.getSvnTemNm()).isEqualTo("원화유가증권팀");
+        assertThat(project.getSvnTemC()).isNull();
     }
 
     @Test
-    @DisplayName("확인자·작성자가 아니라 관련 조직의 팀장·실무자를 정본으로 삼는다")
+    @DisplayName("확인자·작성자가 아니라 관련 조직의 팀장·실무자 이름을 담는다")
     void usesRelatedOrganizationNotConfirmer() {
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls())).projects().get(0);
 
-        // 픽스처의 확인자는 `허인선 팀장`, 관련 조직의 팀장은 `윤소정`
-        assertThat(project.getTlrUsid()).isEqualTo("11111111");
-        assertThat(project.getUsid()).isEqualTo("22222222");
-        assertThat(project.getDvmTlrUsid()).isEqualTo("33333333");
-        assertThat(project.getDvmUsid()).isEqualTo("44444444");
+        // 픽스처의 확인자는 `허인선 팀장`, 관련 조직의 팀장은 `윤소정`. 사번이 아니라 이름을 담는다
+        assertThat(project.getTlrUsid()).isEqualTo("윤소정");
+        assertThat(project.getUsid()).isEqualTo("허진성");
+        assertThat(project.getDvmTlrUsid()).isEqualTo("공현순");
+        assertThat(project.getDvmUsid()).isEqualTo("최현식");
     }
 
     @Test
-    @DisplayName("실무자(정/부)에서 정만 담고 부는 미적재 경고를 낸다")
+    @DisplayName("실무자(정/부)에서 정만 담고 부는 조용히 버린다")
     void keepsPrimaryStaffOnly() {
         FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
 
+        // 픽스처는 `허진성/장준호`. 정만 담는 것이 정해진 규칙이라 경고를 내지 않는다
+        assertThat(output.projects().get(0).getUsid()).isEqualTo("허진성");
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
+                .doesNotContain(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
     }
 
     @Test
@@ -158,7 +166,7 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("전결권자 이름을 자본예산 계열 코드로 바꾼다")
+    @DisplayName("전결권자 통칭 `수석부행장`을 직명 `전무이사`의 코드로 바꾼다")
     void mapsDelegationCode() {
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls())).projects().get(0);
@@ -218,37 +226,19 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("사람 이름이 있는데 해석되지 않으면 차단 진단을 낸다")
-    void blocksWhenNamedUserUnresolved() {
-        when(orgIndex.resolveUser(eq("윤소정"), any()))
-                .thenReturn(new OrgIdentityResolver.Resolution(null, "윤소정", List.of(), false));
-
+    @DisplayName("인사 시스템에 없는 이름이어도 그대로 담고 차단하지 않는다")
+    void keepsUnknownPersonNameWithoutBlocking() {
+        // 사번 해석을 아예 하지 않으므로 동명이인·오탈자로 사업이 막히지 않는다
         FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
 
+        assertThat(output.projects().get(0).getTlrUsid()).isEqualTo("윤소정");
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.USER_UNRESOLVED);
-    }
-
-    @Test
-    @DisplayName("동명이인이면 후보를 담아 중의 진단을 낸다")
-    void reportsAmbiguousUserWithCandidates() {
-        when(orgIndex.resolveUser(eq("허진성"), any()))
-                .thenReturn(
-                        new OrgIdentityResolver.Resolution(
-                                null,
-                                "허진성",
-                                List.of(
-                                        new MigrationDto.Candidate("22222222", "허진성 과장"),
-                                        new MigrationDto.Candidate("55555555", "허진성 대리")),
-                                true));
-
-        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
-
-        assertThat(output.diagnostics())
-                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.USER_AMBIGUOUS)
-                .singleElement()
-                .satisfies(d -> assertThat(d.candidates()).hasSize(2));
+                .doesNotContain(
+                        RequestFormDiagnosticCode.USER_UNRESOLVED,
+                        RequestFormDiagnosticCode.USER_AMBIGUOUS,
+                        RequestFormDiagnosticCode.ORG_UNRESOLVED,
+                        RequestFormDiagnosticCode.ORG_AMBIGUOUS);
     }
 
     @Test

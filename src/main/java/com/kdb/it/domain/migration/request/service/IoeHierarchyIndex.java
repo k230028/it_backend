@@ -5,6 +5,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -137,6 +138,27 @@ public class IoeHierarchyIndex {
          */
         public boolean exists(String ioeCode) {
             return ioeCode != null && codes.contains(ioeCode.trim());
+        }
+
+        /**
+         * 비목 전체를 후보로 돌려줍니다.
+         *
+         * <p>해석이 좁혀지지 않았을 때 <b>고를 수단</b>을 주기 위한 마지막 보루입니다. "다른 비목이면 골라 주세요"라고 하면서 후보를 비워 두면 화면에
+         * 드롭다운이 그려지지 않아 사용자가 손댈 방법이 없습니다.
+         *
+         * @return 코드 오름차순 후보 목록
+         */
+        public List<MigrationDto.Candidate> allCandidates() {
+            List<Ccodem> all = new ArrayList<>();
+            for (List<Ccodem> group : byGroup.values()) all.addAll(group);
+            all.sort(Comparator.comparing(code -> code.getCdva().trim()));
+            List<MigrationDto.Candidate> out = new ArrayList<>();
+            for (Ccodem code : all) {
+                MigrationDto.Candidate candidate =
+                        new MigrationDto.Candidate(code.getCdva().trim(), code.getCdvaNm());
+                if (!out.contains(candidate)) out.add(candidate);
+            }
+            return List.copyOf(out);
         }
 
         private static String[] splitHierarchy(String hierarchy) {

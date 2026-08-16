@@ -1,12 +1,12 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
+import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
@@ -46,7 +46,8 @@ class CapitalOverviewReaderTest {
 
     private final SheetAnchorScanner scanner = new SheetAnchorScanner();
     private final CapitalOverviewReader reader =
-            new CapitalOverviewReader(scanner, new FormLabelReader(scanner));
+            new CapitalOverviewReader(
+                    scanner, new FormLabelReader(scanner), new FormCheckboxReader());
 
     /** 라벨-값 쌍만 담은 최소 1-1 시트를 만듭니다. 라벨은 C열, 값은 D열에 놓습니다. */
     private static Sheet overviewSheet(Map<String, String> labelToValue) {
@@ -93,56 +94,63 @@ class CapitalOverviewReaderTest {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업"));
 
         ProjectDto.CreateRequest project =
-                reader.read(sheet, context(Map.of()), Map.of(), Map.of()).project();
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
 
         assertThat(project.getSvnDpmC()).isEqualTo("0999");
         assertThat(project.getSvnTemC()).isNull();
     }
 
     @Test
-    @DisplayName("보정값이 있으면 조직 해석보다 우선한다")
-    void organizationOverrideWins() {
+    @DisplayName("시트에 적힌 부서명이 무엇이든 폴더 부서코드를 쓴다")
+    void alwaysTakesDepartmentFromFolderCode() {
+        // 조직 개편으로 낡은 부서명이 적혀 있어도 폴더 코드가 기준이라 흔들리지 않는다
         Sheet sheet = overviewSheet(Map.of("사업명", "사업", "주관부서/팀", "없는부서/없는팀"));
-        Map<String, String> overrides =
-                Map.of(
-                        FormAdapterContext.overrideKey(
-                                FormSheetKind.CAPITAL_OVERVIEW, null, "svnDpmC"),
-                        "0210",
-                        FormAdapterContext.overrideKey(
-                                FormSheetKind.CAPITAL_OVERVIEW, null, "svnTemC"),
-                        "02101");
+        when(orgIndex.parentOrgNameOf("0999")).thenReturn("어느부문");
 
         ProjectDto.CreateRequest project =
-                reader.read(sheet, context(overrides), Map.of(), Map.of()).project();
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
 
-        assertThat(project.getSvnDpmC()).isEqualTo("0210");
-        assertThat(project.getSvnTemC()).isEqualTo("02101");
+        assertThat(project.getSvnDpmC()).isEqualTo("0999");
+        assertThat(project.getPrlmHrkOgzCCone()).isEqualTo("어느부문");
+        assertThat(project.getSvnTemNm()).isEqualTo("없는팀");
+        assertThat(project.getSvnTemC()).isNull();
     }
 
     @Test
-    @DisplayName("조직이 중의적이면 후보를 담아 차단 진단을 낸다")
-    void reportsAmbiguousOrganization() {
-        when(orgIndex.resolveOrg(any()))
-                .thenReturn(
-                        new OrgIdentityResolver.Resolution(
-                                null,
-                                "여러부서",
-                                List.of(new MigrationDto.Candidate("0210", "자금운용실")),
-                                true));
-        Sheet sheet = overviewSheet(Map.of("사업명", "사업", "주관부서/팀", "여러부서"));
+    @DisplayName("주관부서/팀에 팀이 없으면 팀명을 비워 둔다")
+    void leavesTeamNameNullWhenAbsent() {
+        Sheet sheet = overviewSheet(Map.of("사업명", "사업", "주관부서/팀", "자금운용실"));
+
+        ProjectDto.CreateRequest project =
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
+
+        assertThat(project.getSvnTemNm()).isNull();
+    }
+
+    @Test
+    @DisplayName("조직·담당자를 코드로 해석하지 않으므로 미해석 차단 진단을 내지 않는다")
+    void neverBlocksOnOrganizationOrPerson() {
+        Sheet sheet =
+                overviewSheet(
+                        new java.util.LinkedHashMap<>(
+                                Map.of("사업명", "사업", "주관부서/팀", "없는부서/없는팀", "팀장", "없는사람")));
 
         CapitalOverviewReader.Result result =
-                reader.read(sheet, context(Map.of()), Map.of(), Map.of());
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty());
 
+        assertThat(result.project().getTlrUsid()).isEqualTo("없는사람");
         assertThat(result.diagnostics())
-                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.ORG_AMBIGUOUS)
-                .singleElement()
-                .satisfies(d -> assertThat(d.candidates()).hasSize(1));
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(
+                        RequestFormDiagnosticCode.ORG_UNRESOLVED,
+                        RequestFormDiagnosticCode.ORG_AMBIGUOUS,
+                        RequestFormDiagnosticCode.USER_UNRESOLVED,
+                        RequestFormDiagnosticCode.USER_AMBIGUOUS);
     }
 
     @Test
-    @DisplayName("담당자 보정값이 있으면 사용자 해석을 건너뛴다")
-    void userOverrideSkipsResolution() {
+    @DisplayName("담당자 보정값이 있으면 시트 기재값보다 우선한다")
+    void personOverrideWins() {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업", "팀장", "없는사람"));
         Map<String, String> overrides =
                 Map.of(
@@ -151,9 +159,24 @@ class CapitalOverviewReaderTest {
                         "K140024");
 
         ProjectDto.CreateRequest project =
-                reader.read(sheet, context(overrides), Map.of(), Map.of()).project();
+                reader.read(sheet, context(overrides), FormCatalogs.empty()).project();
 
         assertThat(project.getTlrUsid()).isEqualTo("K140024");
+    }
+
+    @Test
+    @DisplayName("담당자 이름이 컬럼 길이를 넘으면 잘라 담고 알린다")
+    void truncatesOverlongPersonName() {
+        // 영문 성명은 14자를 넘길 수 있다. 파일을 막는 대신 잘라 담는다
+        Sheet sheet = overviewSheet(Map.of("사업명", "사업", "팀장", "Luke Buckingham-Brown"));
+
+        CapitalOverviewReader.Result result =
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty());
+
+        assertThat(result.project().getTlrUsid()).isEqualTo("Luke Buckingha").hasSize(14);
+        assertThat(result.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .contains(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
     }
 
     @Test
@@ -162,7 +185,7 @@ class CapitalOverviewReaderTest {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업", "시작일자 (YY/MM)", "미정"));
 
         CapitalOverviewReader.Result result =
-                reader.read(sheet, context(Map.of()), Map.of(), Map.of());
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty());
 
         assertThat(result.project().getSttDtm()).isNull();
         assertThat(result.diagnostics())
@@ -182,19 +205,98 @@ class CapitalOverviewReaderTest {
                                         "종료일자 (YY/MM)", "26/02")));
 
         ProjectDto.CreateRequest project =
-                reader.read(sheet, context(Map.of()), Map.of(), Map.of()).project();
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
 
         assertThat(project.getSttDtm()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(project.getEndDtm()).isEqualTo(LocalDate.of(2026, 2, 28));
     }
 
     @Test
-    @DisplayName("법규상 완료시기를 YYYYMMDD로 펴고 월만 있으면 말일로 채운다")
-    void normalizesLegalDeadline() {
-        assertThat(deadlineOf("2026.02")).isEqualTo("20260228");
-        assertThat(deadlineOf("2026.02.15")).isEqualTo("20260215");
-        assertThat(deadlineOf("미정")).isNull();
-        assertThat(deadlineOf("2026.13")).isNull();
+    @DisplayName("법규상 완료시기는 구간 표기라 날짜로 반입하지 않고 안내만 남긴다")
+    void keepsLegalDeadlineUnimported() {
+        // 컬럼은 YYYYMMDD 의무완료기한인데 양식은 `2026년 이내`처럼 구간을 고르게 되어 있다.
+        // 추정한 날짜를 법규 기한 칸에 넣지 않고 사람이 상세 화면에서 채우도록 안내한다.
+        assertThat(deadlineOf("2026년 이내")).isNull();
+        assertThat(deadlineOf("2026.02")).isNull();
+
+        Sheet sheet =
+                overviewSheet(
+                        new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "법규상 완료시기", "2026년 이내")));
+
+        assertThat(reader.read(sheet, context(Map.of()), FormCatalogs.empty()).diagnostics())
+                .anyMatch(
+                        d ->
+                                "flfFsgDt".equals(d.field())
+                                        && d.code() == RequestFormDiagnosticCode.OPTIONAL_MISSING
+                                        && d.message().contains("정확한 기한"));
+    }
+
+    @Test
+    @DisplayName("선택 항목 보정값은 그대로 저장값이 되고 미기재 안내도 사라진다")
+    void optionalFieldOverrideBecomesStoredValue() {
+        Sheet sheet = overviewSheet(Map.of("사업명", "사업"));
+        Map<String, String> overrides =
+                Map.of(
+                        FormAdapterContext.overrideKey(
+                                FormSheetKind.CAPITAL_OVERVIEW, null, "bzDttNm"),
+                        "IT",
+                        FormAdapterContext.overrideKey(
+                                FormSheetKind.CAPITAL_OVERVIEW, null, "exePttYn"),
+                        "1",
+                        FormAdapterContext.overrideKey(
+                                FormSheetKind.CAPITAL_OVERVIEW, null, "flfFsgDt"),
+                        "20261231");
+
+        CapitalOverviewReader.Result result =
+                reader.read(sheet, context(overrides), FormCatalogs.empty());
+
+        assertThat(result.project().getBzDttNm()).isEqualTo("IT");
+        assertThat(result.project().getExePttYn()).isEqualTo("1");
+        assertThat(result.project().getFlfFsgDt()).isEqualTo("20261231");
+        assertThat(result.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::field)
+                .doesNotContain("bzDttNm", "exePttYn", "flfFsgDt");
+    }
+
+    @Test
+    @DisplayName("미기재 안내는 고를 후보와 입력 종류를 함께 담는다")
+    void optionalDiagnosticCarriesDecisionInput() {
+        // 화면 `결정` 열이 이 값으로 위젯을 고른다. 후보가 없는 항목도 입력 종류는 지정된다
+        Sheet sheet = overviewSheet(Map.of("사업명", "사업"));
+        FormCatalogs catalogs =
+                new FormCatalogs(
+                        Map.of(),
+                        Map.of(),
+                        Map.of(),
+                        Map.of("bzDttNm", List.of(new MigrationDto.Candidate("IT", "IT"))));
+
+        List<RequestFormDto.FormDiagnostic> diagnostics =
+                reader.read(sheet, context(Map.of()), catalogs).diagnostics();
+
+        assertThat(diagnostics)
+                .filteredOn(d -> "bzDttNm".equals(d.field()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.decision()).isEqualTo(RequestFormDecisionKind.SELECT);
+                            assertThat(d.candidates()).hasSize(1);
+                        });
+        assertThat(diagnostics)
+                .filteredOn(d -> "flfFsgDt".equals(d.field()))
+                .singleElement()
+                .satisfies(d -> assertThat(d.decision()).isEqualTo(RequestFormDecisionKind.DATE));
+    }
+
+    @Test
+    @DisplayName("법규상 완료시기가 `별도없음`이면 미기재 안내를 내지 않는다")
+    void treatsNoDeadlineAsAnswer() {
+        // 미기재가 아니라 "기한이 없다"는 확정된 답이다.
+        Sheet sheet =
+                overviewSheet(
+                        new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "법규상 완료시기", "별도없음")));
+
+        assertThat(reader.read(sheet, context(Map.of()), FormCatalogs.empty()).diagnostics())
+                .noneMatch(d -> "flfFsgDt".equals(d.field()));
     }
 
     @Test
@@ -204,7 +306,7 @@ class CapitalOverviewReaderTest {
                 overviewSheet(new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "중복 여부", "○")));
 
         ProjectDto.CreateRequest project =
-                reader.read(sheet, context(Map.of()), Map.of(), Map.of()).project();
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
 
         assertThat(project.getDplYn()).isEqualTo("Y");
     }
@@ -218,7 +320,14 @@ class CapitalOverviewReaderTest {
                                 Map.of("사업명", "사업", "추진가능성", "확정", "전결권자", "전무이사")));
 
         ProjectDto.CreateRequest project =
-                reader.read(sheet, context(Map.of()), Map.of("확정", "1"), Map.of("전무이사", "21"))
+                reader.read(
+                                sheet,
+                                context(Map.of()),
+                                new FormCatalogs(
+                                        Map.of("확정", "1"),
+                                        Map.of("전무이사", "21"),
+                                        Map.of(),
+                                        Map.of()))
                         .project();
 
         assertThat(project.getExePttYn()).isEqualTo("1");
@@ -232,7 +341,7 @@ class CapitalOverviewReaderTest {
                 overviewSheet(new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "전결권자", "없는직위")));
 
         CapitalOverviewReader.Result blocked =
-                reader.read(sheet, context(Map.of()), Map.of(), Map.of());
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty());
         assertThat(blocked.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .contains(RequestFormDiagnosticCode.CODE_UNRESOLVED);
@@ -243,7 +352,7 @@ class CapitalOverviewReaderTest {
                                 FormSheetKind.CAPITAL_OVERVIEW, null, "edrtTc"),
                         "21");
         CapitalOverviewReader.Result corrected =
-                reader.read(sheet, context(overrides), Map.of(), Map.of());
+                reader.read(sheet, context(overrides), FormCatalogs.empty());
 
         assertThat(corrected.project().getEdrtTc()).isEqualTo("21");
         assertThat(corrected.diagnostics())
@@ -256,13 +365,13 @@ class CapitalOverviewReaderTest {
     void leavesDeclaredTotalNullWhenSummaryAbsent() {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업"));
 
-        assertThat(reader.read(sheet, context(Map.of()), Map.of(), Map.of()).declaredYearTotal())
+        assertThat(reader.read(sheet, context(Map.of()), FormCatalogs.empty()).declaredYearTotal())
                 .isNull();
     }
 
     private String deadlineOf(String raw) {
         Sheet sheet =
                 overviewSheet(new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "법규상 완료시기", raw)));
-        return reader.read(sheet, context(Map.of()), Map.of(), Map.of()).project().getFlfFsgDt();
+        return reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project().getFlfFsgDt();
     }
 }

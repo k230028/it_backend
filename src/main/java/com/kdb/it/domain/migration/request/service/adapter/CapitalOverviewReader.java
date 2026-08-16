@@ -2,16 +2,15 @@ package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
+import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.FormLexicon;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
-import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,30 +44,31 @@ public class CapitalOverviewReader {
     private static final Pattern YEAR_MONTH_PATTERN =
             Pattern.compile("(\\d{2})\\s*/\\s*(\\d{1,2})");
 
-    /** `2026.02.28`·`202602` 등 완료기한 표기. */
-    private static final Pattern DATE_PATTERN =
-            Pattern.compile("(\\d{4})\\D?(\\d{1,2})\\D?(\\d{1,2})?");
-
     /** 요약표에서 `'26년도 합계` 열을 찾을 때 훑는 최대 열 수. */
     private static final int TOTAL_SCAN_WIDTH = 15;
 
+    /** 법규상 완료시기 필드 id. 다른 선택 항목과 처리 방식이 달라 따로 가릅니다. */
+    private static final String COMPLETION_DEADLINE_FIELD = "flfFsgDt";
+
+    /** 법규상 완료시기의 "기한 없음" 선택지. 미기재가 아니라 확정된 답입니다. */
+    private static final String NO_DEADLINE_OPTION = "별도없음";
+
+    /** 보고상태 필드 id. 코드 카탈로그를 가르는 데 씁니다. */
+    private static final String REPORT_STATUS_FIELD = "rprStsTc";
+
     private final SheetAnchorScanner scanner;
     private final FormLabelReader labelReader;
+    private final FormCheckboxReader checkboxReader;
 
     /**
      * 1-1 시트를 읽어 사업 생성 요청을 만듭니다.
      *
      * @param sheet 1-1 시트
      * @param context 어댑터 실행 맥락
-     * @param exePttCodes 추진가능성 코드값명 별 코드
-     * @param edrtCodes 전결권 자본예산 계열 코드값명 별 코드
+     * @param catalogs 코드 해석에 쓰는 공통코드 묶음
      * @return 사업 요청, 진단, 1-1 요약표의 `'26년도 합계` 기재값
      */
-    public Result read(
-            Sheet sheet,
-            FormAdapterContext context,
-            Map<String, String> exePttCodes,
-            Map<String, String> edrtCodes) {
+    public Result read(Sheet sheet, FormAdapterContext context, FormCatalogs catalogs) {
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
         ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
 
@@ -84,50 +84,214 @@ public class CapitalOverviewReader {
         project.setAbusRngCone(labelReader.multiRowValue(sheet, "사업 범위 (전산 요구사항)", MULTI_ROW_SPAN));
         project.setMnPrgCone(labelReader.multiRowValue(sheet, "추진경과", MULTI_ROW_SPAN));
         project.setHrfPlnCone(labelReader.multiRowValue(sheet, "향후계획", MULTI_ROW_SPAN));
-        project.setPrlmHrkOgzCCone(labelReader.value(sheet, "주관부문/본부"));
 
-        applyOptionalFields(sheet, project, exePttCodes, diagnostics);
-        applyOrganization(sheet, context, project, diagnostics);
+        applyOptionalFields(
+                sheet, context, project, catalogs, checkboxReader.read(sheet), diagnostics);
+        applyOrganization(sheet, context, project);
         applyPeople(sheet, context, project, diagnostics);
         applyPeriod(sheet, project, diagnostics);
-        applyDelegation(sheet, context, project, edrtCodes, diagnostics);
+        applyDelegation(sheet, context, project, catalogs.edrtCapitalCodeByName(), diagnostics);
 
-        return new Result(project, List.copyOf(diagnostics), declaredYearTotal(sheet));
+        return new Result(
+                project,
+                stampProjectSubject(diagnostics, project.getAbusNm()),
+                declaredYearTotal(sheet));
     }
 
+    /**
+     * 1-1 진단에 사업명을 대상으로 달아 줍니다.
+     *
+     * <p>이 시트의 진단은 대부분 사업 단위(전결권자·기간·선택 항목)라 항목별로 대상을 넘기는 대신 마지막에 한 번 붙입니다. 한 배치가 파일 수십 건을 다루므로 어느
+     * 사업의 이야기인지 없으면 결과 표에서 짚어낼 수 없습니다.
+     */
+    private static List<RequestFormDto.FormDiagnostic> stampProjectSubject(
+            List<RequestFormDto.FormDiagnostic> diagnostics, String projectName) {
+        if (projectName == null || projectName.isBlank()) return List.copyOf(diagnostics);
+        List<RequestFormDto.FormDiagnostic> stamped = new ArrayList<>();
+        for (RequestFormDto.FormDiagnostic diagnostic : diagnostics) {
+            stamped.add(
+                    diagnostic.subject() != null
+                            ? diagnostic
+                            // 결정 종류를 그대로 옮긴다 — 후보 유무로 다시 유추하면 후보 없는
+                            // 입력(완료기한 날짜 등)이 `해소 불가`로 뒤집힌다
+                            : RequestFormDto.FormDiagnostic.decide(
+                                    diagnostic.sheet(),
+                                    diagnostic.excelRow(),
+                                    diagnostic.field(),
+                                    projectName,
+                                    diagnostic.code(),
+                                    diagnostic.message(),
+                                    diagnostic.candidates(),
+                                    diagnostic.decision()));
+        }
+        return List.copyOf(stamped);
+    }
+
+    /**
+     * 선택 항목 8개를 채웁니다. 이 항목들은 셀이 아니라 <b>양식 컨트롤 체크박스</b>로 표시됩니다.
+     *
+     * <p>체크박스가 없는 변형 양식을 위해 셀 값 폴백을 남겨 둡니다({@link #optionsOf}). 그래서 두 표기 중 무엇으로 오든 같은 결과가 됩니다.
+     */
     private void applyOptionalFields(
             Sheet sheet,
+            FormAdapterContext context,
             ProjectDto.CreateRequest project,
-            Map<String, String> exePttCodes,
+            FormCatalogs catalogs,
+            List<FormCheckbox> checkboxes,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        Map<String, String> values = new LinkedHashMap<>();
+        Map<String, List<String>> values = new LinkedHashMap<>();
         OPTIONAL_FIELDS.forEach(
-                (field, label) -> values.put(field, labelReader.value(sheet, label)));
+                (field, label) -> values.put(field, optionsOf(sheet, checkboxes, label)));
         values.forEach(
-                (field, value) -> {
-                    if (hasText(value)) return;
+                (field, options) -> {
+                    // 보정값이 있으면 그 값이 최종값이므로 미기재 안내를 내지 않는다
+                    if (decisionOf(context, field).isPresent()) return;
+                    // 법규상 완료시기는 고른 값이 있어도 날짜가 아니라 따로 안내한다
+                    if (COMPLETION_DEADLINE_FIELD.equals(field) || !options.isEmpty()) return;
                     diagnostics.add(
-                            RequestFormDto.FormDiagnostic.of(
-                                    FormSheetKind.CAPITAL_OVERVIEW,
-                                    null,
+                            optionalDiagnostic(
                                     field,
-                                    RequestFormDiagnosticCode.OPTIONAL_MISSING,
-                                    "`%s` 항목이 비어 있습니다. 반입 후 사업 상세 화면에서 채울 수 있습니다."
+                                    "`%s` 항목이 비어 있습니다. 미리보기에서 고르거나 반입 후 사업 상세 화면에서 채울 수 있습니다."
                                             .formatted(OPTIONAL_FIELDS.get(field)),
-                                    List.of()));
+                                    catalogs.optionCandidates(field),
+                                    RequestFormDecisionKind.SELECT));
                 });
 
-        // 공통코드 코드값명을 그대로 저장하는 항목들 (Bprojm 필드 주석 참고)
-        project.setBzDttNm(values.get("bzDttNm"));
-        project.setBzTpC(values.get("bzTpC"));
-        project.setSklTpTc(values.get("sklTpTc"));
-        project.setCstTpTc(values.get("cstTpTc"));
-        if (hasText(values.get("dplYn"))) {
-            project.setDplYn(FormLexicon.toYn(values.get("dplYn")).orElse(null));
+        // 공통코드 코드값명을 그대로 저장하는 항목들 (Bprojm 필드 주석 참고). 복수 선택은 쉼표로 잇는다
+        project.setBzDttNm(decided(context, "bzDttNm", values));
+        project.setBzTpC(decided(context, "bzTpC", values));
+        project.setSklTpTc(decided(context, "sklTpTc", values));
+        project.setCstTpTc(decided(context, "cstTpTc", values));
+        project.setDplYn(
+                decisionOf(context, "dplYn").orElseGet(() -> duplicateYn(values.get("dplYn"))));
+        project.setFlfFsgDt(decisionOf(context, COMPLETION_DEADLINE_FIELD).orElse(null));
+        applyCompletionDeadlineNotice(context, values.get(COMPLETION_DEADLINE_FIELD), diagnostics);
+        project.setRprStsTc(firstMatchingCode(context, "rprStsTc", catalogs, values, diagnostics));
+        project.setExePttYn(firstMatchingCode(context, "exePttYn", catalogs, values, diagnostics));
+    }
+
+    /** 미리보기에서 고른 값을 읽습니다. 선택 항목의 보정값은 <b>그대로 저장값</b>입니다. */
+    private Optional<String> decisionOf(FormAdapterContext context, String field) {
+        return context.override(FormSheetKind.CAPITAL_OVERVIEW, null, field);
+    }
+
+    /** 보정값이 있으면 그 값을, 없으면 체크된 문구를 쉼표로 이어 씁니다. */
+    private String decided(
+            FormAdapterContext context, String field, Map<String, List<String>> values) {
+        return decisionOf(context, field)
+                .orElseGet(() -> CheckboxFieldReader.joined(values.get(field)));
+    }
+
+    /**
+     * 항목 하나가 고른 값들을 읽습니다. 체크박스가 놓여 있으면 체크된 문구, 없으면 셀 값을 씁니다.
+     *
+     * <p>범위는 라벨 열부터 <b>같은 행 다음 라벨 직전까지</b>입니다. 한 행에 항목이 둘 놓이는 배치(`중복 여부 … 법규상 완료시기 …`)에서 앞 항목이 뒤
+     * 항목의 체크박스까지 삼키지 않게 하는 경계입니다.
+     */
+    private List<String> optionsOf(Sheet sheet, List<FormCheckbox> checkboxes, String label) {
+        Optional<FormLabelReader.Anchor> anchor = labelReader.findLabel(sheet, label);
+        if (anchor.isEmpty()) return List.of();
+
+        int row = anchor.get().rowIndex();
+        int fromColumn = anchor.get().colIndex();
+        int toColumn = labelReader.nextLabelColumn(sheet, row, fromColumn);
+        if (CheckboxFieldReader.hasCheckbox(checkboxes, row, fromColumn, toColumn)) {
+            return CheckboxFieldReader.checkedCaptions(checkboxes, row, fromColumn, toColumn);
         }
-        project.setFlfFsgDt(toYyyyMmDd(values.get("flfFsgDt")));
-        project.setRprStsTc(values.get("rprStsTc"));
-        project.setExePttYn(lookup(exePttCodes, values.get("exePttYn")));
+        String cellValue = labelReader.value(sheet, label);
+        return hasText(cellValue) ? List.of(cellValue.trim()) : List.of();
+    }
+
+    /** 중복 여부는 `비중복(N)`·`중복(Y)` 표기라 괄호 안 문자를 우선 보고, 없으면 O/X 표기로 접습니다. */
+    private static String duplicateYn(List<String> options) {
+        String fromParenthesis = CheckboxFieldReader.toDuplicateYn(options);
+        if (fromParenthesis != null) return fromParenthesis;
+        return options.isEmpty() ? null : FormLexicon.toYn(options.get(0)).orElse(null);
+    }
+
+    /**
+     * 법규상 완료시기 체크 결과를 안내로 남깁니다. <b>값은 반입하지 않습니다.</b>
+     *
+     * <p>물리 컬럼({@code FLF_FSG_DT})은 법규상 반드시 완료해야 하는 <b>날짜</b>인데 양식은 `2026년 이내`처럼 구간을 고르게 되어 있어 날짜로
+     * 환산할 근거가 없습니다. 추정한 날짜를 법규 기한 칸에 넣으면 원장에 근거 없는 값이 남으므로, 사람이 상세 화면에서 채우도록 안내만 합니다.
+     *
+     * <p>`별도없음`은 "기한이 없다"는 <b>확정된 답</b>이므로 미기재 안내를 내지 않습니다.
+     */
+    private void applyCompletionDeadlineNotice(
+            FormAdapterContext context,
+            List<String> options,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        if (decisionOf(context, COMPLETION_DEADLINE_FIELD).isPresent()) return;
+        if (options.isEmpty()) {
+            diagnostics.add(
+                    optionalDiagnostic(
+                            COMPLETION_DEADLINE_FIELD,
+                            "`법규상 완료시기` 항목이 비어 있습니다. 기한이 있으면 미리보기에서 연월일을 입력해 주세요.",
+                            List.of(),
+                            RequestFormDecisionKind.DATE));
+            return;
+        }
+        if (options.stream().anyMatch(NO_DEADLINE_OPTION::equals)) return;
+        diagnostics.add(
+                optionalDiagnostic(
+                        COMPLETION_DEADLINE_FIELD,
+                        "`법규상 완료시기`가 `%s`로 체크되어 있습니다. 정확한 기한(연월일)을 입력해 주세요."
+                                .formatted(String.join(", ", options)),
+                        List.of(),
+                        RequestFormDecisionKind.DATE));
+    }
+
+    /**
+     * 고른 문구들 중 코드표에 맞는 <b>첫 값</b>의 코드를 돌려줍니다.
+     *
+     * <p>첫 문구가 아니라 첫 <b>매칭</b>을 쓰는 이유는 양식이 한 항목 안에 보조 체크박스를 끼워 넣기 때문입니다(추진가능성의 `유관부서검토 여부 : Y /
+     * N`). 그 문구들은 코드표에 없으므로 자연히 건너뛰어집니다.
+     */
+    private String firstMatchingCode(
+            FormAdapterContext context,
+            String field,
+            FormCatalogs catalogs,
+            Map<String, List<String>> values,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        Optional<String> decision = decisionOf(context, field);
+        if (decision.isPresent()) return decision.get();
+
+        Map<String, String> catalog =
+                REPORT_STATUS_FIELD.equals(field)
+                        ? catalogs.reportStatusCodeByName()
+                        : catalogs.exePttCodeByName();
+        List<String> options = values.get(field);
+        for (String option : options) {
+            String code = catalog.get(FormLexicon.canonicalOptionName(option));
+            if (code != null) return code;
+        }
+        if (!options.isEmpty()) {
+            diagnostics.add(
+                    optionalDiagnostic(
+                            field,
+                            "`%s`의 선택값 `%s`를 코드로 해석하지 못했습니다. 미리보기에서 골라 주세요."
+                                    .formatted(
+                                            OPTIONAL_FIELDS.get(field), String.join(", ", options)),
+                            catalogs.optionCandidates(field),
+                            RequestFormDecisionKind.SELECT));
+        }
+        return null;
+    }
+
+    private RequestFormDto.FormDiagnostic optionalDiagnostic(
+            String field,
+            String message,
+            List<MigrationDto.Candidate> candidates,
+            RequestFormDecisionKind decision) {
+        return RequestFormDto.FormDiagnostic.decide(
+                FormSheetKind.CAPITAL_OVERVIEW,
+                null,
+                field,
+                null,
+                RequestFormDiagnosticCode.OPTIONAL_MISSING,
+                message,
+                candidates,
+                decision);
     }
 
     /**
@@ -145,49 +309,31 @@ public class CapitalOverviewReader {
         return hasText(name) ? catalog.get(name.trim()) : null;
     }
 
+    /**
+     * 주관 조직을 채웁니다.
+     *
+     * <p><b>부서와 부문/본부는 폴더명에 병기된 부서코드가 기준</b>입니다. 시트의 `주관부서/팀` 기재값은 조직 개편으로 낡거나(`IT인프라팀`) 상·하위 조직이
+     * 함께 걸려 중의적이 되는 일이 잦아, 이름으로 조직을 찾는 대신 이미 확정된 부서코드에서 끌어옵니다. 부문/본부는 그 부서의 상위조직명입니다.
+     *
+     * <p><b>팀은 코드로 해석하지 않고 이름만</b> 담습니다. 팀코드(`SVN_TEM_C`)는 `CORGNI`에 없어 이름으로 찾을 수 없고, 팀명 컬럼
+     * (`SVN_TEM_NM`)이 따로 있어 기재값을 그대로 보관하는 편이 손실이 없습니다.
+     */
     private void applyOrganization(
-            Sheet sheet,
-            FormAdapterContext context,
-            ProjectDto.CreateRequest project,
-            List<RequestFormDto.FormDiagnostic> diagnostics) {
-        String raw = labelReader.value(sheet, "주관부서/팀");
-        if (!hasText(raw)) {
-            // 폼에 없으면 폴더명으로 확정한 부서를 쓴다
-            project.setSvnDpmC(context.resolvedDeptCode());
-            return;
-        }
-        String[] parts = raw.split("/", 2);
-        project.setSvnDpmC(
-                resolveOrg(context, parts[0].trim(), "svnDpmC", diagnostics)
-                        .orElse(context.resolvedDeptCode()));
-        if (parts.length == 2) {
-            resolveOrg(context, parts[1].trim(), "svnTemC", diagnostics)
-                    .ifPresent(project::setSvnTemC);
-        }
+            Sheet sheet, FormAdapterContext context, ProjectDto.CreateRequest project) {
+        String deptCode = context.resolvedDeptCode();
+        project.setSvnDpmC(deptCode);
+        project.setPrlmHrkOgzCCone(context.orgIndex().parentOrgNameOf(deptCode));
+        project.setSvnTemNm(teamNameOf(sheet));
     }
 
-    private Optional<String> resolveOrg(
-            FormAdapterContext context,
-            String name,
-            String field,
-            List<RequestFormDto.FormDiagnostic> diagnostics) {
-        Optional<String> override = context.override(FormSheetKind.CAPITAL_OVERVIEW, null, field);
-        if (override.isPresent()) return override;
-
-        OrgIdentityResolver.Resolution resolution = context.orgIndex().resolveOrg(name);
-        if (resolution.code() != null) return Optional.of(resolution.code());
-
-        diagnostics.add(
-                RequestFormDto.FormDiagnostic.of(
-                        FormSheetKind.CAPITAL_OVERVIEW,
-                        null,
-                        field,
-                        resolution.isAmbiguous()
-                                ? RequestFormDiagnosticCode.ORG_AMBIGUOUS
-                                : RequestFormDiagnosticCode.ORG_UNRESOLVED,
-                        "조직 `%s`를 확정하지 못했습니다.".formatted(name),
-                        resolution.candidates()));
-        return Optional.empty();
+    /** `주관부서/팀` 기재값에서 `/` 뒤의 팀명만 떼어냅니다. 팀이 없으면 null. */
+    private String teamNameOf(Sheet sheet) {
+        String raw = labelReader.value(sheet, "주관부서/팀");
+        if (!hasText(raw)) return null;
+        String[] parts = raw.split("/", 2);
+        if (parts.length < 2) return null;
+        String team = parts[1].trim();
+        return team.isEmpty() ? null : team;
     }
 
     private void applyPeople(
@@ -195,64 +341,33 @@ public class CapitalOverviewReader {
             FormAdapterContext context,
             ProjectDto.CreateRequest project,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        String deptHint = project.getSvnDpmC();
-        resolveUser(sheet, context, "팀장", "tlrUsid", deptHint, diagnostics)
-                .ifPresent(project::setTlrUsid);
-        resolveUser(sheet, context, "실무자(정/부)", "usid", deptHint, diagnostics)
-                .ifPresent(project::setUsid);
-        resolveUser(sheet, context, "IT팀장", "dvmTlrUsid", null, diagnostics)
-                .ifPresent(project::setDvmTlrUsid);
-        resolveUser(sheet, context, "IT실무자(정/부)", "dvmUsid", null, diagnostics)
-                .ifPresent(project::setDvmUsid);
+        project.setTlrUsid(personName(sheet, context, "팀장", "tlrUsid", diagnostics));
+        project.setUsid(personName(sheet, context, "실무자(정/부)", "usid", diagnostics));
+        project.setDvmTlrUsid(personName(sheet, context, "IT팀장", "dvmTlrUsid", diagnostics));
+        project.setDvmUsid(personName(sheet, context, "IT실무자(정/부)", "dvmUsid", diagnostics));
     }
 
     /**
-     * 담당자 칸을 읽어 사번을 해석합니다.
+     * 담당자 칸에서 <b>이름만</b> 읽습니다. 사번으로 해석하지 않습니다.
      *
-     * <p>`실무자(정/부)`는 `허진성/장준호`처럼 두 사람이 적힙니다. `BPROJM`에 부(뒤) 담당자를 담을 컬럼이 없어 정(앞)만 저장하고 미적재 경고를 남깁니다.
-     * 조용히 버리면 나중에 담당자가 왜 한 명뿐인지 아무도 설명하지 못합니다.
+     * <p>담당자 컬럼(`USID`·`TLR_USID` 등)은 사번과 이름을 모두 받는 자리입니다. 부점이 적어 내는 이름은 인사 시스템의 표기와 어긋나거나 동명이인이라
+     * 사번을 확정하지 못하는 경우가 많은데, 그때마다 파일을 차단하면 사람 이름 하나 때문에 사업 전체가 반입되지 못합니다. 이름을 그대로 담고 사번은 반입 후 상세
+     * 화면에서 맞춥니다.
+     *
+     * <p>`실무자(정/부)`는 `허진성/장준호`처럼 둘이 적히며 <b>정(앞)만</b> 담습니다. 부담당자를 담을 컬럼이 없습니다.
      */
-    private Optional<String> resolveUser(
+    private String personName(
             Sheet sheet,
             FormAdapterContext context,
             String label,
             String field,
-            String deptHint,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         Optional<String> override = context.override(FormSheetKind.CAPITAL_OVERVIEW, null, field);
-        if (override.isPresent()) return override;
+        String raw = override.orElseGet(() -> labelReader.value(sheet, label));
+        if (!hasText(raw)) return null;
 
-        String raw = labelReader.value(sheet, label);
-        if (!hasText(raw)) return Optional.empty();
-
-        String[] parts = raw.split("/");
-        if (parts.length > 1) {
-            diagnostics.add(
-                    RequestFormDto.FormDiagnostic.of(
-                            FormSheetKind.CAPITAL_OVERVIEW,
-                            null,
-                            field,
-                            RequestFormDiagnosticCode.SUBSTITUTE_DROPPED,
-                            "`%s`의 부담당자 `%s`는 담을 컬럼이 없어 반입하지 않습니다."
-                                    .formatted(label, parts[1].trim()),
-                            List.of()));
-        }
-        String primary = parts[0].trim();
-        OrgIdentityResolver.Resolution resolution =
-                context.orgIndex().resolveUser(primary, deptHint);
-        if (resolution.code() != null) return Optional.of(resolution.code());
-
-        diagnostics.add(
-                RequestFormDto.FormDiagnostic.of(
-                        FormSheetKind.CAPITAL_OVERVIEW,
-                        null,
-                        field,
-                        resolution.isAmbiguous()
-                                ? RequestFormDiagnosticCode.USER_AMBIGUOUS
-                                : RequestFormDiagnosticCode.USER_UNRESOLVED,
-                        "`%s`의 담당자 `%s`를 확정하지 못했습니다.".formatted(label, primary),
-                        resolution.candidates()));
-        return Optional.empty();
+        return FormPersonNames.fit(
+                raw.split("/")[0], label, FormSheetKind.CAPITAL_OVERVIEW, diagnostics);
     }
 
     private void applyPeriod(
@@ -285,7 +400,8 @@ public class CapitalOverviewReader {
 
         String name = labelReader.value(sheet, "전결권자");
         if (!hasText(name)) return;
-        String code = lookup(edrtCodes, name);
+        // 부점은 `수석부행장` 같은 통칭을 쓰고 코드표는 직명(`전무이사`)을 쓴다
+        String code = lookup(edrtCodes, FormLexicon.canonicalOptionName(name));
         if (code != null) {
             project.setEdrtTc(code);
             return;
@@ -349,22 +465,6 @@ public class CapitalOverviewReader {
         int month = Integer.parseInt(matcher.group(2));
         if (month < 1 || month > 12) return Optional.empty();
         return Optional.of(YearMonth.of(year, month));
-    }
-
-    /** `2026.02`·`20260228` 같은 표기를 `YYYYMMDD`로 폅니다. 해석 못 하면 null. */
-    private String toYyyyMmDd(String raw) {
-        if (!hasText(raw)) return null;
-        Matcher matcher = DATE_PATTERN.matcher(raw.trim());
-        if (!matcher.find()) return null;
-        int year = Integer.parseInt(matcher.group(1));
-        int month = Integer.parseInt(matcher.group(2));
-        if (month < 1 || month > 12) return null;
-        int day =
-                matcher.group(3) == null
-                        ? YearMonth.of(year, month).lengthOfMonth()
-                        : Integer.parseInt(matcher.group(3));
-        if (day < 1 || day > YearMonth.of(year, month).lengthOfMonth()) return null;
-        return LocalDate.of(year, month, day).format(DateTimeFormatter.BASIC_ISO_DATE);
     }
 
     private static boolean hasText(String value) {

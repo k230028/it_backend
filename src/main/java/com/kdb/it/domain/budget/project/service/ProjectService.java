@@ -226,10 +226,14 @@ public class ProjectService {
         // 주관부서명은 CORGNI 조회 스냅샷, 주관팀명은 담당자(CUSERI) 팀명 스냅샷으로 저장
         // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용).
         // 요청이 팀코드를 명시한 경우에만 그 코드로 조직명을 한 번 더 조회해 본다.
+        // 두 근거로도 팀명을 못 얻으면(팀코드도 없고 담당자가 사번이 아닌 경우) 요청이 준 팀명을 쓴다
         String svnTemNm =
-                isBlank(request.getSvnTemC())
-                        ? svnTeam.temNm()
-                        : firstNonBlank(orgNameResolver.resolveName(svnTemC), svnTeam.temNm());
+                firstNonBlank(
+                        isBlank(request.getSvnTemC())
+                                ? svnTeam.temNm()
+                                : firstNonBlank(
+                                        orgNameResolver.resolveName(svnTemC), svnTeam.temNm()),
+                        request.getSvnTemNm());
         project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTemNm);
         // 반환값을 반드시 재대입한다: 요청이 관리번호를 이미 채워 보낸 경우(auto-채번 포함, 위에서
         // request.setAbusMngNo로 채움) ID가 non-null이라 Spring Data의 isNew() 판정이 false가 되고

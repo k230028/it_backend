@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.status.repository;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.QCcodem;
 import com.kdb.it.common.iam.entity.QCorgnI;
+import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
 import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
@@ -239,18 +240,20 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                     t.get(p.svnDpmC),
                                     t.get(svnOrg.bbrNm),
                                     // tlrUsid(주관팀장), tlrUsidNm, usid(주관담당자), usidNm
+                                    // 담당자 컬럼은 사번 또는 이름을 담으므로 사번 조인이 비면 저장값을 이름으로 쓴다
                                     t.get(p.tlrUsid),
-                                    t.get(svnDpmTlrNm),
+                                    UserNameResolver.resolve(t.get(p.tlrUsid), t.get(svnDpmTlrNm)),
                                     t.get(p.usid),
-                                    t.get(svnDpmCgprNm),
+                                    UserNameResolver.resolve(t.get(p.usid), t.get(svnDpmCgprNm)),
                                     // dvmDpmC, dvmDpmCNm, dvmTlrUsid(IT팀장), dvmTlrUsidNm, dvmUsid,
                                     // dvmUsidNm
                                     t.get(p.dvmDpmC),
                                     t.get(itOrg.bbrNm),
                                     t.get(p.dvmTlrUsid),
-                                    t.get(itDpmTlrNm),
+                                    UserNameResolver.resolve(
+                                            t.get(p.dvmTlrUsid), t.get(itDpmTlrNm)),
                                     t.get(p.dvmUsid),
-                                    t.get(itDpmCgprNm),
+                                    UserNameResolver.resolve(t.get(p.dvmUsid), t.get(itDpmCgprNm)),
                                     // exePttYn, sttDt, endDt, rprSts, rprStsNm, edrt
                                     t.get(p.exePttYn),
                                     t.get(p.sttDtm),

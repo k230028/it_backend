@@ -24,6 +24,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ResourceTableReader {
 
+    /** 시트 1-2의 비목(중분류) 열. `소요예산 | 대분류 | 중분류 | 항목` 배치의 세 번째 열입니다. */
+    private static final int CAPITAL_RESOURCE_GROUP_COLUMN = 2;
+
     /** 지급주기: 해당없음. 자본예산 품목은 양식에 주기 열이 없어 이 값을 씁니다. */
     public static final String CYCLE_NOT_APPLICABLE = "0";
 
@@ -36,14 +39,41 @@ public class ResourceTableReader {
     private final SheetAnchorScanner scanner;
 
     /**
-     * 표를 찾아 데이터 행을 읽습니다.
+     * 시트 1-2 `소요자원 상세내용`의 표를 읽습니다.
      *
-     * @param sheet 대상 시트
+     * <p>비목(중분류)은 <b>C열 고정</b>입니다. 이 시트는 A열이 블록 라벨(`소요예산`), B열이 대분류(`자본예산`·`일반관리비`), C열이 중분류
+     * (`기계장치(HW)`·`전산제비` 등), D열이 항목명인 고정 배치입니다. 항목 열 기준으로 한 칸 왼쪽을 잡으면 부점이 열을 하나 끼워 넣은 파일에서 대분류나 빈
+     * 열을 비목으로 읽어 조용히 어긋납니다.
+     *
+     * @param sheet 1-2 시트
      * @param fromRow 이 행부터 헤더를 찾습니다
      * @param annualHeader true면 `연간 소요예산` 헤더(일반관리비 블록), false면 `소요예산` 헤더(자본예산 블록)
      * @return 헤더 위치와 행 목록. 표를 못 찾으면 빈 Optional
      */
-    public Optional<Result> read(Sheet sheet, int fromRow, boolean annualHeader) {
+    public Optional<Result> readCapitalResource(Sheet sheet, int fromRow, boolean annualHeader) {
+        return read(sheet, fromRow, annualHeader, CAPITAL_RESOURCE_GROUP_COLUMN);
+    }
+
+    /**
+     * 시트 ② `경상적인 사업`의 소요자원 표를 읽습니다.
+     *
+     * <p>1-2와 달리 블록 라벨 열이 없어 비목 열의 위치가 한 칸 당겨집니다(실측: 런던 제출본은 A열이 `구분`, B열이 중분류, C열이 항목). 고정 열을 쓸 수
+     * 없어 항목 열 바로 왼쪽으로 잡습니다.
+     *
+     * @param sheet ② 시트
+     * @return 헤더 위치와 행 목록. 표를 못 찾으면 빈 Optional
+     */
+    public Optional<Result> readRecurring(Sheet sheet) {
+        return read(sheet, 0, false, null);
+    }
+
+    /**
+     * 표를 찾아 데이터 행을 읽습니다.
+     *
+     * @param groupColumn 비목(중분류) 열. null이면 항목 열 바로 왼쪽으로 잡습니다
+     */
+    private Optional<Result> read(
+            Sheet sheet, int fromRow, boolean annualHeader, Integer groupColumn) {
         Map<String, List<String>> aliases =
                 FormLexicon.columnAliases(
                         Map.of(
@@ -63,9 +93,8 @@ public class ResourceTableReader {
         if (header.isEmpty()) return Optional.empty();
 
         SheetAnchorScanner.HeaderMap map = header.get();
-        int itemCol = map.column("item");
-        // 구분(대분류)·중분류는 헤더 라벨이 `구분` 하나로 병합돼 있어 항목 열의 바로 왼쪽으로 잡는다.
-        int groupCol = Math.max(itemCol - 1, 0);
+        // 구분(대분류)·중분류는 헤더 라벨이 `구분` 하나로 병합돼 있어 헤더에서 열을 찾을 수 없다.
+        int groupCol = groupColumn != null ? groupColumn : Math.max(map.column("item") - 1, 0);
 
         List<ResourceRow> rows = new ArrayList<>();
         String lastGroup = "";

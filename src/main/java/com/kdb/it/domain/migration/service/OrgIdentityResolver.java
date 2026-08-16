@@ -11,6 +11,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,15 @@ public class OrgIdentityResolver {
      * 스푸리어스 후보를 만듭니다.
      */
     private static final List<String> BLANK_TOKENS = List.of("", "-", "–", "—", "－", "없음", "해당없음");
+
+    /**
+     * 부서 폴더명에 부서코드를 병기하는 표기(`부서명(부서코드)`)에서 꼬리 괄호를 떼어냅니다.
+     *
+     * <p>괄호 안을 <b>영숫자로만</b> 제한합니다. 부점이 폴더명에 붙이는 괄호는 코드만 있는 것이 아니라 `2026년 요청서(최종)`처럼 한글 메모인 경우도 많은데,
+     * 이런 값을 코드 자리로 읽으면 조회가 헛돌고 이름 해석까지 늦어집니다. 반각·전각 괄호를 모두 받는 것은 부점 제출본에 전각 괄호가 섞여 오기 때문입니다.
+     */
+    private static final Pattern FOLDER_CODE_SUFFIX =
+            Pattern.compile("^(.*?)\\s*[(（]\\s*([0-9A-Za-z]{1,100})\\s*[)）]$");
 
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
@@ -111,6 +122,7 @@ public class OrgIdentityResolver {
         private final Map<String, CorgnI> orgByExactName = new LinkedHashMap<>();
         private final Map<String, CorgnI> orgByNormalizedName = new LinkedHashMap<>();
         private final Map<String, String> orgNameByCode = new LinkedHashMap<>();
+        private final Map<String, String> parentCodeByCode = new LinkedHashMap<>();
         private final List<CorgnI> allOrgs;
         private final List<CuserI> allUsers;
         private final Map<String, CuserI> userByEno = new LinkedHashMap<>();
@@ -138,10 +150,41 @@ public class OrgIdentityResolver {
                     orgByNormalizedName.putIfAbsent(normalize(org.getBbrNm()), org);
                 }
                 orgNameByCode.put(org.getPrlmOgzCCone(), org.getBbrNm());
+                parentCodeByCode.put(org.getPrlmOgzCCone(), org.getPrlmHrkOgzCCone());
             }
             for (CuserI user : users) {
                 userByEno.put(user.getEno(), user);
             }
+        }
+
+        /**
+         * 부서 폴더명을 조직코드로 해석합니다. 폴더에 코드가 적혀 있으면 <b>그 코드를 기준</b>으로 삼습니다.
+         *
+         * <p>부점이 올리는 폴더는 `자금운용실(420)`처럼 부서명 뒤에 부서코드를 병기합니다. 코드가 있으면 이름 매칭을 아예 거치지 않고 코드로 조직을 찾습니다 —
+         * 이름 매칭은 부분 일치 단계에서 `금융공학실`·`금융공학실 퀀트인프라팀`처럼 상·하위 조직이 함께 걸려 중의적으로 차단되거나, 조직 개편으로 부점명이 바뀌면
+         * 통째로 미해석이 되지만, 코드는 그런 흔들림이 없습니다.
+         *
+         * <p>폴더에 코드가 없거나 그 코드가 조직에 없으면 {@link #resolveOrg(String)} 이름 해석으로 되돌아갑니다. 이때 넘기는 값은 괄호를 뗀
+         * 이름 부분입니다 — 코드가 붙은 원문은 정확·정규화 일치를 모두 빗나가 부분 일치까지 흘러가므로, 이름만 남겨야 1단계에서 확정됩니다.
+         *
+         * @param folderName 최상위 폴더명. null·공백·`-` 같은 미지정 표기는 미해석으로 처리
+         * @return 해석 결과. 코드로 확정하면 표시명은 조직에 등록된 부점명입니다
+         */
+        public Resolution resolveOrgFolder(String folderName) {
+            if (isBlankToken(folderName)) {
+                return Resolution.unresolved(folderName == null ? "" : folderName);
+            }
+            Matcher matcher = FOLDER_CODE_SUFFIX.matcher(folderName.trim());
+            if (!matcher.matches()) {
+                return resolveOrg(folderName);
+            }
+            String code = matcher.group(2);
+            String name = matcher.group(1).trim();
+            if (orgNameByCode.containsKey(code)) {
+                String registeredName = orgNameByCode.get(code);
+                return Resolution.of(code, registeredName == null ? name : registeredName);
+            }
+            return resolveOrg(name.isEmpty() ? folderName : name);
         }
 
         /**
@@ -338,6 +381,21 @@ public class OrgIdentityResolver {
          */
         public String orgNameOf(String code) {
             return code == null ? null : orgNameByCode.get(code);
+        }
+
+        /**
+         * 조직코드의 <b>상위조직명</b>을 반환합니다. 부서코드로 주관부문/본부를 채우는 데 씁니다.
+         *
+         * <p>상위조직은 `CORGNI.PRLM_HRK_OGZ_C_CONE`이 가리키는 조직입니다(실측: `180 IT기획부` → `013`). 최상위 조직이거나 상위
+         * 코드가 스냅샷에 없으면 null입니다.
+         *
+         * @param code 조직코드
+         * @return 상위조직명. 상위가 없거나 미등록이면 null
+         */
+        public String parentOrgNameOf(String code) {
+            if (code == null) return null;
+            String parentCode = parentCodeByCode.get(code);
+            return parentCode == null ? null : orgNameByCode.get(parentCode);
         }
 
         /**

@@ -35,6 +35,24 @@ public record FormAdapterContext(
         Map<String, String> overrides,
         String actorEno) {
 
+    /** 국외 부점 부서코드의 앞자리. 실측 조직표에서 `9**`가 국외 점포입니다. */
+    private static final String FOREIGN_DEPT_PREFIX = "9";
+
+    /**
+     * 국외 부점인지 판정합니다.
+     *
+     * <p>비목이 국내·국외로 갈리는 항목(기계장치·회선사용료 등)에서 어느 쪽을 고를지 정하는 기준입니다. <b>부서코드가 `9`로 시작하면 국외</b>입니다(실측:
+     * 런던지점 `920`).
+     *
+     * <p>통화로 가르지 않는 이유는 통화가 부점 소속을 말해 주지 않기 때문입니다 — 국내 부점도 외화 계약을 맺고, 국외 점포도 원화로 적어 내는 행이 있습니다. 비목의
+     * 국내·국외는 <b>돈의 단위가 아니라 부점의 소속</b>으로 정해집니다.
+     *
+     * @return 국외 부점이면 true. 부서코드가 없으면 국내로 봅니다
+     */
+    public boolean foreignBranch() {
+        return resolvedDeptCode != null && resolvedDeptCode.startsWith(FOREIGN_DEPT_PREFIX);
+    }
+
     /**
      * 보정값을 찾습니다.
      *

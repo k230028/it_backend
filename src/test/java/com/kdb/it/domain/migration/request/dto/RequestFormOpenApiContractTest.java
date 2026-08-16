@@ -28,7 +28,7 @@ class RequestFormOpenApiContractTest {
         assertAllPropertiesRequired(RequestFormDto.CreatedRecord.class);
         assertAllPropertiesRequired(RequestFormDto.FileResult.class, "suggestedGeneralExpenseUnit");
         assertAllPropertiesRequired(
-                RequestFormDto.FormDiagnostic.class, "sheet", "excelRow", "field");
+                RequestFormDto.FormDiagnostic.class, "sheet", "excelRow", "field", "subject");
     }
 
     @Test

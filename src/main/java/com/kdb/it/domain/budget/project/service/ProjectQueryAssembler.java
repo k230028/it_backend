@@ -12,6 +12,7 @@ import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.CodeNameMapBuilder;
+import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.dto.ProjectResponseMapper;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -191,18 +192,22 @@ public class ProjectQueryAssembler {
         applyCodeName(CommonCodeGroups.EDRT, response.getEdrtTc(), response::setEdrtTcNm);
     }
 
+    /**
+     * 담당자 사번으로 사용자명·직위명을 채웁니다.
+     *
+     * <p>담당자 컬럼은 사번 또는 이름을 담으므로, 사번 조회가 비면 {@link UserNameResolver}가 저장값 자체를 이름으로 사용할지 판정합니다. 직위명은
+     * 사용자 조회가 성공한 경우에만 채웁니다.
+     */
     private void applyUserName(
             String userId, Consumer<String> nameSetter, Consumer<String> positionSetter) {
         if (!hasText(userId)) {
             return;
         }
-        userRepository
-                .findNameViewByEno(userId)
-                .ifPresent(
-                        view -> {
-                            nameSetter.accept(view.getUsrNm());
-                            positionSetter.accept(view.getPtCNm());
-                        });
+        UserRepository.UserNameView view = userRepository.findNameViewByEno(userId).orElse(null);
+        if (view != null) {
+            positionSetter.accept(view.getPtCNm());
+        }
+        nameSetter.accept(UserNameResolver.resolve(userId, view == null ? null : view.getUsrNm()));
     }
 
     private void applyCodeName(String group, String value, Consumer<String> setter) {

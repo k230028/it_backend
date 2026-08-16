@@ -43,7 +43,8 @@ class ResourceTableReaderTest {
     void capitalBlockStopsAtNextHeader() {
         Sheet sheet = sheetOf(RequestFormFixtures.fullFormXls(), FormSheetKind.CAPITAL_RESOURCE);
 
-        ResourceTableReader.Result capital = reader.read(sheet, 0, false).orElseThrow();
+        ResourceTableReader.Result capital =
+                reader.readCapitalResource(sheet, 0, false).orElseThrow();
 
         // 픽스처의 자본예산 블록은 2행. 일반관리비 블록(18행 헤더)의 행을 삼키면 3행이 된다.
         assertThat(capital.rows()).hasSize(2);
@@ -54,10 +55,10 @@ class ResourceTableReaderTest {
     @DisplayName("일반관리비 블록은 첫 블록 다음 행부터 따로 읽는다")
     void generalBlockIsReadSeparately() {
         Sheet sheet = sheetOf(RequestFormFixtures.fullFormXls(), FormSheetKind.CAPITAL_RESOURCE);
-        int firstHeader = reader.read(sheet, 0, false).orElseThrow().headerRow();
+        int firstHeader = reader.readCapitalResource(sheet, 0, false).orElseThrow().headerRow();
 
         ResourceTableReader.Result general =
-                reader.read(sheet, firstHeader + 1, true).orElseThrow();
+                reader.readCapitalResource(sheet, firstHeader + 1, true).orElseThrow();
 
         assertThat(general.rows()).extracting(ResourceRow::itemName).containsExactly("전용망 회선 이용료");
     }
@@ -67,7 +68,7 @@ class ResourceTableReaderTest {
     void stopsAtTotalRow() {
         Sheet sheet = sheetOf(RequestFormFixtures.fullFormXls(), FormSheetKind.RECURRING);
 
-        ResourceTableReader.Result table = reader.read(sheet, 0, false).orElseThrow();
+        ResourceTableReader.Result table = reader.readRecurring(sheet).orElseThrow();
 
         assertThat(table.rows()).extracting(ResourceRow::itemName).doesNotContain("계");
         assertThat(table.rows()).hasSize(2);
@@ -78,9 +79,25 @@ class ResourceTableReaderTest {
     void returnsEmptyWhenTableAbsent() {
         Sheet overview = sheetOf(RequestFormFixtures.fullFormXls(), FormSheetKind.CAPITAL_OVERVIEW);
 
-        Optional<ResourceTableReader.Result> result = reader.read(overview, 0, false);
+        Optional<ResourceTableReader.Result> result =
+                reader.readCapitalResource(overview, 0, false);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("1-2는 항목 열 위치와 무관하게 C열을 비목으로 읽는다")
+    void takesCapitalResourceGroupFromColumnC() {
+        // `소요예산 | 대분류 | 중분류 | 항목` 고정 배치. 항목 열 기준으로 한 칸 왼쪽을 잡으면
+        // 부점이 열을 끼워 넣은 파일에서 대분류나 빈 열을 비목으로 읽어 조용히 어긋난다.
+        Sheet sheet = sheetOf(RequestFormFixtures.fullFormXls(), FormSheetKind.CAPITAL_RESOURCE);
+
+        ResourceTableReader.Result capital =
+                reader.readCapitalResource(sheet, 0, false).orElseThrow();
+
+        assertThat(capital.rows())
+                .extracting(ResourceRow::group)
+                .allSatisfy(group -> assertThat(group).isNotEmpty());
     }
 
     @Test

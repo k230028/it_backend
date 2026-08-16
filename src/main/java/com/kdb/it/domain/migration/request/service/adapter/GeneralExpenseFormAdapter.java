@@ -5,6 +5,7 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
+import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.AmountUnitResolver;
@@ -42,6 +43,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
     private static final long JPY_MULTIPLIER = 1_000L;
 
     private final SheetAnchorScanner scanner;
+    private final FormApproverReader approverReader;
 
     @Override
     public FormSheetKind trigger() {
@@ -77,10 +79,17 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
 
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
         AmountUnit unit = resolveUnit(context, rows, diagnostics);
+        // 상단 머리말의 작성자가 이 시트의 담당자다. 없으면 비워 둔다
+        String author =
+                FormPersonNames.fit(
+                        approverReader.author(sheet),
+                        "작성자",
+                        FormSheetKind.GENERAL_EXPENSE,
+                        diagnostics);
 
         List<CostDto.CreateRequest> costs = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
-            costs.add(toCreateRequest(row, context, unit, diagnostics));
+            costs.add(toCreateRequest(row, context, unit, author, diagnostics));
         }
         return new FormAdapterOutput(List.of(), List.copyOf(costs), List.copyOf(diagnostics), unit);
     }
@@ -95,13 +104,15 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
 
         AmountUnit suggested = AmountUnitResolver.suggestGeneralExpenseUnit(krwAnnualAmounts(rows));
         diagnostics.add(
-                RequestFormDto.FormDiagnostic.of(
+                RequestFormDto.FormDiagnostic.decide(
                         FormSheetKind.GENERAL_EXPENSE,
                         null,
                         "generalExpenseUnit",
+                        null,
                         RequestFormDiagnosticCode.UNIT_UNCERTAIN,
                         "금액 단위를 %s 단위로 추정했습니다. 확인해 주세요.".formatted(suggested.label()),
-                        List.of()));
+                        List.of(),
+                        RequestFormDecisionKind.AMOUNT_UNIT));
         return suggested;
     }
 
@@ -109,13 +120,16 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             GeneralExpenseRow row,
             FormAdapterContext context,
             AmountUnit unit,
+            String author,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         CostDto.CreateRequest request = new CostDto.CreateRequest();
         request.setBseYy(context.bseYy());
         request.setCttNm(row.contractName());
         request.setCttOppNm(row.counterparty());
         request.setIndRsn(row.remarks());
-        request.setCgprId(context.actorEno());
+        // 적혀 있지 않으면 비워 둔다 — 업로드 사용자를 담당자로 박으면 원장에 사실이 아닌 이름이 남는다.
+        // 확인자(주관팀장)는 `BCOSTM`에 담을 컬럼이 없어 반입하지 않는다.
+        request.setCgprId(author);
         request.setCostSvnDpmC(context.resolvedDeptCode());
         request.setBgUntAbusC(context.entry().bgUntAbusC());
         request.setTmnYn("N");
@@ -150,13 +164,40 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             return;
         }
 
-        IoeHierarchyIndex.Resolution resolution =
+        IoeHierarchyIndex.Resolution byPair =
                 context.ioeIndex().resolveByDetail(row.midCategory(), row.detailName());
-        if (resolution.code() != null) {
-            request.setIoeC(resolution.code());
+        if (byPair.code() != null) {
+            request.setIoeC(byPair.code());
             return;
         }
-        boolean ambiguous = resolution.isAmbiguous();
+
+        // (중분류, 세부) 쌍이 빗나가면 A열·B열을 각각 중분류로 한 번 더 본다. 부점이 세부비목 칸에 중분류를
+        // 그대로 적어 내는 경우가 있고(런던 실측: `Machinery`), 그때는 통화의 국내·국외 구분이 두 번째 열쇠가
+        // 된다. B열을 먼저 보는 이유는 그쪽이 더 구체적이기 때문이다.
+        boolean domestic = !context.foreignBranch();
+        for (String groupLabel : List.of(row.detailName(), row.midCategory())) {
+            IoeHierarchyIndex.Resolution byGroup =
+                    context.ioeIndex().resolveByGroup(groupLabel, domestic);
+            if (byGroup.code() == null) continue;
+            request.setIoeC(byGroup.code());
+            // 쌍으로 확정한 게 아니라 중분류로 좁힌 값이므로 확인을 요청한다. 반영은 막지 않는다.
+            diagnostics.add(
+                    diagnostic(
+                            row,
+                            "ioeC",
+                            RequestFormDiagnosticCode.CODE_DEFAULTED,
+                            "비목 `%s`를 중분류 `%s`로 보고 `%s`로 정했습니다. 다른 비목이면 골라 주세요."
+                                    .formatted(row.detailName(), groupLabel, byGroup.label()),
+                            IoeCandidates.orAll(byGroup, context)));
+            return;
+        }
+
+        IoeHierarchyIndex.Resolution fallback =
+                context.ioeIndex().resolveByGroup(row.midCategory(), domestic);
+        List<MigrationDto.Candidate> candidates =
+                fallback.candidates().isEmpty() ? byPair.candidates() : fallback.candidates();
+        if (candidates.isEmpty()) candidates = context.ioeIndex().allCandidates();
+        boolean ambiguous = byPair.isAmbiguous() || !candidates.isEmpty();
         diagnostics.add(
                 diagnostic(
                         row,
@@ -168,7 +209,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                                 ? "비목 `%s`에 해당하는 코드가 여럿입니다. 하나를 골라 주세요.".formatted(row.detailName())
                                 : "비목 `%s`를 찾지 못했습니다. 기존 비목 중에서 골라 주세요."
                                         .formatted(row.detailName()),
-                        resolution.candidates()));
+                        candidates));
     }
 
     /**
@@ -224,8 +265,14 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             RequestFormDiagnosticCode code,
             String message,
             List<MigrationDto.Candidate> candidates) {
-        return RequestFormDto.FormDiagnostic.of(
-                FormSheetKind.GENERAL_EXPENSE, row.excelRow(), field, code, message, candidates);
+        return RequestFormDto.FormDiagnostic.about(
+                FormSheetKind.GENERAL_EXPENSE,
+                row.excelRow(),
+                field,
+                row.contractName(),
+                code,
+                message,
+                candidates);
     }
 
     private static List<BigDecimal> krwAnnualAmounts(List<GeneralExpenseRow> rows) {

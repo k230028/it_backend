@@ -86,7 +86,11 @@ public class WorkbookReader {
     /**
      * 워크북의 시트를 종류별로 분류합니다.
      *
-     * <p>내용이 전혀 없는 시트(마지막 행 번호가 음수)는 부점이 쓰지 않은 시트이므로 제외합니다. 같은 종류가 둘 이상이면 먼저 나온 시트를 씁니다.
+     * <p>행이 하나도 없는 시트는 부점이 쓰지 않은 시트이므로 제외합니다. 같은 종류가 둘 이상이면 먼저 나온 시트를 씁니다.
+     *
+     * <p>행 수 상한은 마지막 행 <b>번호</b>가 아니라 실제 행 레코드 수({@code getPhysicalNumberOfRows()})로 잽니다. `.xls`
+     * 제출본에는 데이터가 20행뿐인데 서식만 남은 빈 행이 시트 맨 아래(65534행)에 하나 붙어 있는 경우가 있어, 행 번호로 재면 정상 파일이 상한에 걸립니다(실측:
+     * 자금운용실 시트 ③). 이 상한의 목적은 뒤따르는 앵커 스캔의 작업량을 묶는 것이고 스캔은 실재하는 행만 훑으므로, 행 레코드 수가 재야 할 값입니다.
      *
      * @param workbook 열린 워크북
      * @return 종류별 시트. 인식된 시트가 없으면 빈 맵
@@ -97,8 +101,8 @@ public class WorkbookReader {
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
             Optional<FormSheetKind> kind = FormSheetKind.ofSheetName(sheet.getSheetName());
-            if (kind.isEmpty() || sheet.getLastRowNum() < 0) continue;
-            if (sheet.getLastRowNum() + 1 > maxRowsPerSheet) {
+            if (kind.isEmpty() || sheet.getPhysicalNumberOfRows() == 0) continue;
+            if (sheet.getPhysicalNumberOfRows() > maxRowsPerSheet) {
                 throw new WorkbookOpenException(
                         "시트 `%s`의 행 수가 상한(%d행)을 넘습니다"
                                 .formatted(sheet.getSheetName(), maxRowsPerSheet));

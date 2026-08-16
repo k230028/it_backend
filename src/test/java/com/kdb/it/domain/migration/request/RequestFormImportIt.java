@@ -133,8 +133,8 @@ class RequestFormImportIt {
 
         assertThat(response.files()).hasSize(1);
         assertThat(response.files().get(0).status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
-        assertThat(response.summary().createdProjects()).isPositive();
-        assertThat(response.summary().createdCosts()).isPositive();
+        assertThat(response.summary().created().capitalProjects()).isPositive();
+        assertThat(response.summary().created().costs()).isPositive();
 
         assertThat(countOf("TPRMPP_BPROJM")).isPositive();
         assertThat(countOf("TPRMPP_BCOSTM")).isPositive();

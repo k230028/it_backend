@@ -77,6 +77,37 @@ public class FormLabelReader {
         return lines.isEmpty() ? null : String.join("\n", lines);
     }
 
+    /**
+     * 라벨이 놓인 좌표를 찾습니다. 체크박스처럼 셀 밖에 있는 값을 그 라벨 범위에서 골라야 할 때 씁니다.
+     *
+     * @param sheet 대상 시트
+     * @param canonicalLabel 국문 정본 라벨
+     * @return 라벨 좌표. 없으면 빈 Optional
+     */
+    public Optional<Anchor> findLabel(Sheet sheet, String canonicalLabel) {
+        return findAnchor(sheet, canonicalLabel);
+    }
+
+    /**
+     * 라벨 오른쪽에서 <b>다음 라벨</b>이 놓인 열을 찾습니다.
+     *
+     * <p>한 행에 항목이 둘 놓이는 배치(`중복 여부 … 법규상 완료시기 …`)에서 앞 항목의 값 범위를 끊는 경계입니다.
+     *
+     * @param sheet 대상 시트
+     * @param rowIndex 라벨 행
+     * @param labelColIndex 라벨 열
+     * @return 다음 라벨의 0-based 열. 없으면 {@link Integer#MAX_VALUE}
+     */
+    public int nextLabelColumn(Sheet sheet, int rowIndex, int labelColIndex) {
+        for (int colIndex = scanner.mergedEndColumn(sheet, rowIndex, labelColIndex) + 1;
+                colIndex <= labelColIndex + VALUE_SCAN_WIDTH;
+                colIndex++) {
+            String text = scanner.text(sheet, rowIndex, colIndex);
+            if (!text.isEmpty() && isLabel(text)) return colIndex;
+        }
+        return Integer.MAX_VALUE;
+    }
+
     /** 라벨이 놓인 (행, 열)을 찾습니다. 행 전체를 훑습니다. */
     private Optional<Anchor> findAnchor(Sheet sheet, String canonicalLabel) {
         Set<String> aliases = new LinkedHashSet<>();
@@ -103,7 +134,9 @@ public class FormLabelReader {
      * @return 값. 없으면 빈 Optional
      */
     private Optional<String> valueRightOf(Sheet sheet, int rowIndex, int labelColIndex) {
-        for (int colIndex = labelColIndex + 1;
+        // 라벨 칸이 여러 열에 병합돼 있으면 그 영역을 건너뛴 다음 열부터 본다. 병합 안쪽 셀은
+        // 좌상단(=라벨) 값을 돌려주므로, 건너뛰지 않으면 라벨 자신을 다음 라벨로 오인해 값을 버린다.
+        for (int colIndex = scanner.mergedEndColumn(sheet, rowIndex, labelColIndex) + 1;
                 colIndex <= labelColIndex + VALUE_SCAN_WIDTH;
                 colIndex++) {
             String text = scanner.text(sheet, rowIndex, colIndex);
@@ -174,5 +207,5 @@ public class FormLabelReader {
      * @param rowIndex 0-based 행 번호
      * @param colIndex 0-based 열 번호
      */
-    private record Anchor(int rowIndex, int colIndex) {}
+    public record Anchor(int rowIndex, int colIndex) {}
 }

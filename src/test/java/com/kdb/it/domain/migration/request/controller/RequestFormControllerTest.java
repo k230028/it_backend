@@ -185,7 +185,7 @@ class RequestFormControllerTest {
     private static RequestFormDto.ImportResponse response(boolean dryRun) {
         return new RequestFormDto.ImportResponse(
                 dryRun,
-                new RequestFormDto.ImportSummary(1, 1, 0, 0, 0, 1),
+                new RequestFormDto.ImportSummary(1, 1, 0, new RequestFormDto.RecordCounts(0, 0, 1)),
                 List.of(
                         new RequestFormDto.FileResult(
                                 "자금운용실/요청서.xls",
@@ -197,6 +197,7 @@ class RequestFormControllerTest {
                                         : List.of(
                                                 new RequestFormDto.CreatedRecord(
                                                         "BCOSTM", "COST-2026-0001", "계약")),
+                                new RequestFormDto.RecordCounts(0, 0, 1),
                                 AmountUnit.WON)));
     }
 
