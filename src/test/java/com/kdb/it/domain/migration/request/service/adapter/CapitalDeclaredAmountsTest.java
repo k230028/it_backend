@@ -3,9 +3,9 @@ package com.kdb.it.domain.migration.request.service.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
-import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
+import com.kdb.it.domain.migration.request.support.FormDiagnostics;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
@@ -31,11 +31,11 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 /**
- * 1-1 선언 금액 산출의 미적재 4조건을 시트를 직접 만들어 확인합니다.
+ * 1-1 선언 금액 산출의 미적재 5조건을 시트를 직접 만들어 확인합니다.
  *
  * <p>공용 픽스처는 정상 파일 하나를 재현한 것이라 "요약표가 없는 파일", "배수를 못 정하는 파일", "총액 표기를 해석 못하는 파일", "총액이 요약표 합계보다 작은
- * 파일" 같은 변형을 담지 못합니다. 조건 ①(요약표 없음)·②(배수 미확정)는 1-1만 담아 품목 합계를 0으로 비워 확인하고, 조건 ③(총액 표기 해석 실패)·④(지급금액
- * 음수)는 1-2를 함께 만들어 배수를 먼저 확정한 뒤에야 그 분기에 닿습니다.
+ * 파일", "산출값이 컬럼 용량을 넘는 파일" 같은 변형을 담지 못합니다. 조건 ①(요약표 없음)·②(배수 미확정)는 1-1만 담아 품목 합계를 0으로 비워 확인하고, 조건
+ * ③(총액 표기 해석 실패)·④(지급금액 음수)·⑤(컬럼 용량 초과)는 1-2를 함께 만들어 배수를 먼저 확정한 뒤에야 그 분기에 닿습니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -101,6 +101,37 @@ class CapitalDeclaredAmountsTest {
     }
 
     @Test
+    @DisplayName("[조건⑤] 산출한 금액이 컬럼 용량을 넘으면 적재하지 않고 경고만 낸다")
+    void skipsAmountsWhenOverColumnCapacity() {
+        // 품목 합계 1,000,000,000원과 '26년도 합계 1,000이 백만원 단위로 대사되어 배수는 MILLION으로 확정된다.
+        // 그런데 `총 사업금액(전체기간)`은 접미사 없이 3,000,000,000이라 적혀 있어(제출자가 두 칸의 단위를 뒤섞은
+        // 경우) 그 배수로 폴백하면 3e15가 되고, NUMBER(18,3)의 정수부 15자리를 넘어 저장 시 ORA-01438이 난다
+        FormAdapterOutput output =
+                adaptWithResource("3000000000", 1_000d, 0d, "기계장치(HW)", 1_000_000_000d);
+
+        assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
+        assertThat(amountWarning(output)).contains("저장 가능한 범위를 넘습니다");
+        // 다른 조건의 문구로 새지 않았는지 함께 본다
+        assertThat(amountWarning(output)).doesNotContain("보다 작습니다");
+        // 미적재는 경고일 뿐이라 사업은 그대로 만들어 파일을 막지 않는다
+        assertThat(output.projects()).hasSize(1);
+        assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
+    }
+
+    @Test
+    @DisplayName("[조건②] 외화 품목 때문에 대사하지 못하면 단위 문구가 아니라 외화 문구를 낸다")
+    void reportsForeignCurrencyCauseWhenItemsAreNotKrw() {
+        // 외화 행은 AMT가 비고 FC_AMT만 채워져 1-2 원화 합계에서 빠진다. 합계가 0이 되어 어느 배수로도
+        // 대사되지 않는데, 실제 원인은 기재 단위가 아니라 외화 품목이다
+        FormAdapterOutput output =
+                adaptWithResource("2,000백만원", 1_265_624_700d, 0d, "기계장치(HW)", 1_000_000d, "USD");
+
+        assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
+        assertThat(amountWarning(output)).contains("외화 품목이 있어");
+        assertThat(amountWarning(output)).doesNotContain("기재 단위를 1-2 품목 합계로 확정하지 못했습니다");
+    }
+
+    @Test
     @DisplayName("사업은 그대로 만들어 파일을 막지 않는다")
     void stillProducesProject() {
         FormAdapterOutput output = adapt(overviewOnly("2,000백만원", 1_265_624_700d, 0d));
@@ -115,20 +146,31 @@ class CapitalDeclaredAmountsTest {
         return adapt(sheets);
     }
 
-    /** 1-1과 1-2를 함께 담은 워크북을 만들어 배수가 확정된 상태로 적재를 시도합니다. */
+    /** 원화 품목 1건을 담은 1-2를 함께 만들어 배수가 확정된 상태로 적재를 시도합니다. */
     private FormAdapterOutput adaptWithResource(
             String wholePeriod,
             Double yearTotal,
             Double laterTotal,
             String itemGroup,
             double itemAmount) {
+        return adaptWithResource(wholePeriod, yearTotal, laterTotal, itemGroup, itemAmount, "KRW");
+    }
+
+    /** 1-1과 1-2를 함께 담은 워크북을 만듭니다. 통화를 지정해 외화 품목(원화 합계에서 빠지는 행)도 만들 수 있습니다. */
+    private FormAdapterOutput adaptWithResource(
+            String wholePeriod,
+            Double yearTotal,
+            Double laterTotal,
+            String itemGroup,
+            double itemAmount,
+            String currency) {
         Workbook wb =
                 workbookOf(
                         w -> {
                             Sheet overview = w.createSheet(OVERVIEW_SHEET_NAME);
                             writeOverview(overview, wholePeriod, yearTotal, laterTotal);
                             Sheet resource = w.createSheet(RESOURCE_SHEET_NAME);
-                            writeResourceItem(resource, itemGroup, itemAmount);
+                            writeResourceItem(resource, itemGroup, itemAmount, currency);
                         });
         Map<FormSheetKind, Sheet> sheets = new EnumMap<>(FormSheetKind.class);
         sheets.put(FormSheetKind.CAPITAL_OVERVIEW, wb.getSheet(OVERVIEW_SHEET_NAME));
@@ -150,12 +192,13 @@ class CapitalDeclaredAmountsTest {
                         "12345678"));
     }
 
+    /**
+     * 산출 실패 경고(`field=declaredAmounts`)의 문구를 꺼냅니다.
+     *
+     * <p>같은 조건에서 대사 경고(`field=declaredYearTotal`)도 같은 코드로 나올 수 있으므로 코드가 아니라 필드로 좁힙니다.
+     */
     private static String amountWarning(FormAdapterOutput output) {
-        return output.diagnostics().stream()
-                .filter(d -> d.code() == RequestFormDiagnosticCode.AMOUNT_MISMATCH)
-                .map(RequestFormDto.FormDiagnostic::message)
-                .findFirst()
-                .orElse("");
+        return FormDiagnostics.messageOf(output.diagnostics(), "declaredAmounts");
     }
 
     private static final String OVERVIEW_SHEET_NAME = "① (정보화사업) 1-1. 정보화사업 개요";
@@ -193,7 +236,8 @@ class CapitalDeclaredAmountsTest {
     }
 
     /** 1-2 시트에 품목 1건을 채웁니다. `FormAdapterResolutionPathTest.writeResourceSheet`와 같은 레이아웃입니다. */
-    private static void writeResourceItem(Sheet sheet, String group, double amount) {
+    private static void writeResourceItem(
+            Sheet sheet, String group, double amount, String currency) {
         Row header = sheet.createRow(9);
         cell(header, 1).setCellValue("구분");
         cell(header, 3).setCellValue("항목");
@@ -204,7 +248,7 @@ class CapitalDeclaredAmountsTest {
         cell(item, 2).setCellValue(group);
         cell(item, 3).setCellValue("품목");
         cell(item, 4).setCellValue(1);
-        cell(item, 6).setCellValue("KRW");
+        cell(item, 6).setCellValue(currency);
         cell(item, 7).setCellValue(amount);
     }
 

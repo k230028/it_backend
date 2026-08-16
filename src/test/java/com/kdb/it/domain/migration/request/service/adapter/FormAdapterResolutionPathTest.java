@@ -12,6 +12,7 @@ import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.service.WorkbookReader;
+import com.kdb.it.domain.migration.request.support.FormDiagnostics;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
@@ -89,9 +90,12 @@ class FormAdapterResolutionPathTest {
         assertThat(project.getItems()).isEmpty();
         // 요약표가 없어 1-1 선언 금액을 산출하지 못하므로(Task 3) 사업은 그대로 만들되 경고를 낸다
         assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
-        assertThat(output.diagnostics())
+        // 산출 실패 경고는 나오되, 대사할 상대가 없으므로 대사 경고는 침묵해야 한다.
+        // 두 진단이 같은 코드를 쓰므로 code만 보면 이 보증이 사라진다 — field로 갈라서 본다.
+        assertThat(FormDiagnostics.byField(output.diagnostics(), "declaredYearTotal")).isEmpty();
+        assertThat(FormDiagnostics.byField(output.diagnostics(), "declaredAmounts"))
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.AMOUNT_MISMATCH);
+                .containsExactly(RequestFormDiagnosticCode.AMOUNT_MISMATCH);
     }
 
     @Test
@@ -101,9 +105,13 @@ class FormAdapterResolutionPathTest {
         FormAdapterOutput output =
                 capitalAdapter().adapt(contextOf(overviewWithResource(7d), Map.of()));
 
-        assertThat(output.diagnostics())
+        // 같은 조건에서 산출 실패 경고(field=declaredAmounts)도 같은 코드로 나온다.
+        // 대사 경고 자체를 검증하려면 field와 문구까지 좁혀야 한다.
+        assertThat(FormDiagnostics.byField(output.diagnostics(), "declaredYearTotal"))
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.AMOUNT_MISMATCH);
+                .containsExactly(RequestFormDiagnosticCode.AMOUNT_MISMATCH);
+        assertThat(FormDiagnostics.messageOf(output.diagnostics(), "declaredYearTotal"))
+                .contains("어느 단위로도 맞지 않습니다");
     }
 
     @Test
