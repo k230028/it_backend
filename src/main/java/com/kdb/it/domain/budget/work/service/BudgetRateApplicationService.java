@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BudgetRateApplicationService {
 
-    private static final int DEFAULT_DUP_RT = 100;
+    private static final BigDecimal DEFAULT_DUP_RT = BigDecimal.valueOf(100);
     private static final BigDecimal PERCENT_BASE = BigDecimal.valueOf(100);
 
     private final BbugtmRepository bbugtmRepository;
@@ -59,7 +59,7 @@ public class BudgetRateApplicationService {
         for (BudgetWorkDto.RateItem rate : request.rates()) {
             String prefix = ioeCatalog.extractPrefix(rate.cdId());
             Set<String> ioeCodes = prefixToIoeCodes.getOrDefault(prefix, Set.of());
-            Integer dupRt = rate.dupRt();
+            BigDecimal dupRt = rate.dupRt() == null ? null : BigDecimal.valueOf(rate.dupRt());
             for (Bcostm cost : bbugtmRepository.findApprovedCostsByIoeCValues(ioeCodes, bgYy)) {
                 String key = naturalKey(cost.getCostBgNo(), cost.getBgSno(), cost.getIoeC());
                 Bbugtm existing = existingCosts.get(key);
@@ -157,13 +157,19 @@ public class BudgetRateApplicationService {
         int nextSno = 0;
         int totalRecords = 0;
         for (BudgetWorkDto.ItemRate item : request.items()) {
-            int assetRate = item.assetDupRt() != null ? item.assetDupRt() : DEFAULT_DUP_RT;
-            int costRate = item.costDupRt() != null ? item.costDupRt() : DEFAULT_DUP_RT;
+            BigDecimal assetRate =
+                    item.assetDupRt() != null
+                            ? BigDecimal.valueOf(item.assetDupRt())
+                            : DEFAULT_DUP_RT;
+            BigDecimal costRate =
+                    item.costDupRt() != null
+                            ? BigDecimal.valueOf(item.costDupRt())
+                            : DEFAULT_DUP_RT;
             if ("BPROJM".equals(item.orcTb())) {
                 for (Bitemm source :
                         projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(
                                 item.orcPkVl(), "N", "Y")) {
-                    int rate =
+                    BigDecimal rate =
                             isCapitalIoeCode(source.getIoeC(), capitalPrefixes)
                                     ? assetRate
                                     : costRate;
@@ -185,7 +191,7 @@ public class BudgetRateApplicationService {
             } else if ("BCOSTM".equals(item.orcTb())) {
                 for (Bcostm source :
                         costRepository.findByCostBgNoAndDelYnAndLstYn(item.orcPkVl(), "N", "Y")) {
-                    int rate =
+                    BigDecimal rate =
                             isCapitalIoeCode(source.getIoeC(), capitalPrefixes)
                                     ? assetRate
                                     : costRate;
@@ -235,7 +241,7 @@ public class BudgetRateApplicationService {
             Integer sourceSno,
             String ioeC,
             BigDecimal amount,
-            Integer rate) {
+            BigDecimal rate) {
         return Bbugtm.builder()
                 .bgNo(bgNo)
                 .sno(sno)
@@ -269,10 +275,15 @@ public class BudgetRateApplicationService {
         return String.format("BG-%s-%04d", bgYy, bbugtmRepository.nextBgMngNoSeq());
     }
 
-    private BigDecimal calculateDupBg(BigDecimal requestAmount, Integer rate) {
+    /**
+     * 요청금액에 편성률을 적용해 편성금액을 계산합니다.
+     *
+     * @param requestAmount 요청금액. null이면 0원
+     * @param rate 편성률(0~100, 소수 허용). null이면 0원
+     * @return 편성금액. 물리 컬럼 스케일(3)로 반올림합니다
+     */
+    private BigDecimal calculateDupBg(BigDecimal requestAmount, BigDecimal rate) {
         if (requestAmount == null || rate == null) return BigDecimal.ZERO;
-        return requestAmount
-                .multiply(BigDecimal.valueOf(rate))
-                .divide(PERCENT_BASE, 2, RoundingMode.HALF_UP);
+        return requestAmount.multiply(rate).divide(PERCENT_BASE, 3, RoundingMode.HALF_UP);
     }
 }

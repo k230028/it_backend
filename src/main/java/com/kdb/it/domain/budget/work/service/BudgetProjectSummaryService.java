@@ -74,7 +74,7 @@ public class BudgetProjectSummaryService {
                 }
             }
         }
-        Map<String, Integer> rateByPrefix = new LinkedHashMap<>();
+        Map<String, BigDecimal> rateByPrefix = new LinkedHashMap<>();
         budgetsByPrefix.forEach(
                 (prefix, values) ->
                         rateByPrefix.put(
@@ -87,7 +87,7 @@ public class BudgetProjectSummaryService {
                             prefix,
                             resolveCategoryName(prefix, code, detailCodes),
                             code.getCdvaDes(),
-                            rateByPrefix.getOrDefault(prefix, 0)));
+                            rateByPrefix.getOrDefault(prefix, BigDecimal.ZERO)));
         }
 
         Set<String> itemPks =
@@ -301,11 +301,12 @@ public class BudgetProjectSummaryService {
     }
 
     private BigDecimal reverseRequestAmount(BudgetReadView budget) {
-        if (budget.getBgDupAmt() == null || budget.getAsgRt() == null || budget.getAsgRt() <= 0)
-            return BigDecimal.ZERO;
+        if (budget.getBgDupAmt() == null
+                || budget.getAsgRt() == null
+                || budget.getAsgRt().signum() <= 0) return BigDecimal.ZERO;
         return budget.getBgDupAmt()
                 .multiply(PERCENT_BASE)
-                .divide(BigDecimal.valueOf(budget.getAsgRt()), 2, RoundingMode.HALF_UP);
+                .divide(budget.getAsgRt(), 2, RoundingMode.HALF_UP);
     }
 
     private List<BudgetReadView> filterByApprovedSource(List<BudgetReadView> budgets, String bgYy) {

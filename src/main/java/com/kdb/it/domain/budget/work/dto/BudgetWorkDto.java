@@ -93,7 +93,7 @@ public class BudgetWorkDto {
             @Schema(description = "편성비목명", example = "전산임차료(SW)") String cdNm,
             @Schema(description = "코드값") String cdva,
             @Schema(description = "비목 접두어", example = "237") String prefix,
-            @Schema(description = "기존 편성률 (0~100)", nullable = true) Integer dupRt,
+            @Schema(description = "기존 편성률 (0~100, 소수 5자리)", nullable = true) BigDecimal dupRt,
             @Schema(description = "결재완료 요청금액 합계") BigDecimal requestAmount) {}
 
     /**
@@ -143,7 +143,7 @@ public class BudgetWorkDto {
             @Schema(description = "자본예산 여부") boolean capital,
             @Schema(description = "결재완료 요청금액 합계") BigDecimal requestAmount,
             @Schema(description = "편성금액 합계") BigDecimal dupAmount,
-            @Schema(description = "편성률 (0~100)") Integer dupRt) {}
+            @Schema(description = "편성률 (0~100, 소수 5자리)", nullable = true) BigDecimal dupRt) {}
 
     /**
      * 합계 DTO
@@ -207,7 +207,7 @@ public class BudgetWorkDto {
             @Schema(description = "비목 접두어", example = "IOE-237") String ioePrefix,
             @Schema(description = "비목명", example = "전산임차료") String cdNm,
             @Schema(description = "코드 설명", example = "전산임차료 편성 비율", nullable = true) String cdDes,
-            @Schema(description = "편성률 (0~100)") Integer dupRt) {}
+            @Schema(description = "편성률 (0~100, 소수 5자리)", nullable = true) BigDecimal dupRt) {}
 
     /**
      * 사업별 편성 결과 요약 항목 DTO

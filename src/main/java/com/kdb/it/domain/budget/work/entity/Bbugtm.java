@@ -83,13 +83,14 @@ public class Bbugtm extends BaseEntity {
     private BigDecimal bgDupAmt;
 
     /**
-     * 편성률: 0~100 사이의 정수.
+     * 편성률: 0~100 범위의 소수 5자리.
      *
-     * <p>물리컬럼 ASG_RT(메타표준=배정률)은 NUMBER(8,5)로 소수 5자리까지 저장 가능하나, 현재 도메인은 정수 편성률만 사용하므로 Integer로
-     * 매핑합니다.
+     * <p>물리컬럼 ASG_RT(메타표준=배정률)은 NUMBER(8,5)다. 종전에는 Integer로 매핑했으나, 하반기 계획 조정의 확정 편성금액
+     * (예: 요청 1,406에 대한 편성 416)은 29.58748%처럼 정수로 담기지 않는다. 물리 스케일을 그대로 쓰면
+     * `요청금액 × 편성률 = 편성금액` 불변식이 확정금액 조정에서도 성립한다.
      */
     @Column(name = "ASG_RT", precision = 8, scale = 5, comment = "편성률 (물리컬럼 ASG_RT=배정률)")
-    private Integer asgRt;
+    private BigDecimal asgRt;
 
     /**
      * 편성 정보 업데이트 메서드
@@ -98,9 +99,9 @@ public class Bbugtm extends BaseEntity {
      * 처리합니다.
      *
      * @param bgDupAmt 편성예산 (요청금액 × 편성률/100)
-     * @param asgRt 편성률 (0~100)
+     * @param asgRt 편성률 (0~100, 소수 5자리)
      */
-    public void update(BigDecimal bgDupAmt, Integer asgRt) {
+    public void update(BigDecimal bgDupAmt, BigDecimal asgRt) {
         this.bgDupAmt = bgDupAmt;
         this.asgRt = asgRt;
     }

@@ -43,6 +43,6 @@ public class BbugtL extends BaseLogEntity {
     @Column(name = "BG_DUP_AMT", precision = 18, scale = 3, comment = "편성예산금액")
     private BigDecimal bgDupAmt;
 
-    @Column(name = "ASG_RT", precision = 3, scale = 0, comment = "편성률")
-    private Integer asgRt;
+    @Column(name = "ASG_RT", precision = 8, scale = 5, comment = "편성률")
+    private BigDecimal asgRt;
 }

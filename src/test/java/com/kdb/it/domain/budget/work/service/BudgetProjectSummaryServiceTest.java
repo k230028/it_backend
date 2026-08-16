@@ -121,7 +121,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-0001")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bbugtm costBudget =
                 Bbugtm.builder()
@@ -129,7 +129,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-2026-0001")
                         .ioeC("102")
                         .bgDupAmt(BigDecimal.valueOf(500))
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .build();
         Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
         Ccodem ioeCode2 = Ccodem.builder().cdva("102").cNm("237-0200").cdvaDtlC("237-0200").build();
@@ -180,7 +180,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-2026-0001")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(500))
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .build();
         CostRepository.CostRepresentativeView oldHistory =
                 mock(CostRepository.CostRepresentativeView.class);
@@ -231,7 +231,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-MPL-001")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(1600))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bbugtm secondItemBudget =
                 Bbugtm.builder()
@@ -239,7 +239,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-MPL-002")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bitemm item =
                 Bitemm.builder()
@@ -295,7 +295,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-2026-0001")
                         .ioeC("001")
                         .bgDupAmt(BigDecimal.valueOf(70))
-                        .asgRt(70)
+                        .asgRt(new BigDecimal("70"))
                         .build();
         Bcostm cost = mock(Bcostm.class);
         given(cost.getCostBgNo()).willReturn("COST-2026-0001");
@@ -336,7 +336,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-001")
                         .ioeC("001")
                         .bgDupAmt(BigDecimal.valueOf(100))
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .build();
         Bcostm cost = mock(Bcostm.class);
         given(cost.getCostBgNo()).willReturn("COST-001");
@@ -373,7 +373,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-002")
                         .ioeC("005")
                         .bgDupAmt(BigDecimal.valueOf(200))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bcostm cost = mock(Bcostm.class);
         given(cost.getCostBgNo()).willReturn("COST-002");
@@ -428,7 +428,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-003")
                         .ioeC("007")
                         .bgDupAmt(BigDecimal.valueOf(100))
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .build();
         Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
         given(cost.getCostBgNo()).willReturn("COST-003");
@@ -458,7 +458,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm(null)
                         .ioeC("100")
                         .bgDupAmt(BigDecimal.TEN)
-                        .asgRt(10)
+                        .asgRt(new BigDecimal("10"))
                         .build();
         // asgRt=0 → requestAmt 역산 skip, bgDupAmt=100은 합산
         Bbugtm itemNoProject =
@@ -467,7 +467,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-MISSING")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(100))
-                        .asgRt(0)
+                        .asgRt(new BigDecimal("0"))
                         .build();
         // bgDupAmt=null → 금액 미합산
         Bbugtm costNoName =
@@ -485,7 +485,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("UNK-1")
                         .ioeC("NO-MATCH")
                         .bgDupAmt(BigDecimal.ONE)
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .build();
         Ccodem ioeCode0 = Ccodem.builder().cdva("100").cNm("237-0000").cdvaDtlC("237-0000").build();
         Ccodem ioeCode1 = Ccodem.builder().cdva("101").cNm("237-0100").cdvaDtlC("237-0100").build();
@@ -577,7 +577,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-2026-0001")
                         .fntTbCrySno(1)
                         .ioeC("001")
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .bgDupAmt(new BigDecimal("800"))
                         .build();
         Bbugtm newerRun =
@@ -588,7 +588,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-2026-0002")
                         .fntTbCrySno(1)
                         .ioeC("001")
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .bgDupAmt(new BigDecimal("500"))
                         .build();
 
@@ -605,7 +605,7 @@ class BudgetProjectSummaryServiceTest {
         BudgetWorkDto.ProjectSummaryResponse result = budgetWorkService.getProjectSummary("2026");
 
         // then: encounter order(80)가 아니라 최신 편성 실행(50) 기준
-        assertThat(result.categories().get(0).dupRt()).isEqualTo(50);
+        assertThat(result.categories().get(0).dupRt()).isEqualByComparingTo("50");
     }
 
     @Test
@@ -622,7 +622,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-1")
                         .fntTbCrySno(1)
                         .ioeC("001")
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .bgDupAmt(new BigDecimal("800"))
                         .build();
         Bitemm oldVersion =
@@ -660,7 +660,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-1")
                         .fntTbCrySno(1)
                         .ioeC("001")
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .bgDupAmt(new BigDecimal("800"))
                         .build();
         Bitemm item =
@@ -698,7 +698,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-1")
                         .fntTbCrySno(1)
                         .ioeC("001")
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .bgDupAmt(new BigDecimal("800"))
                         .build();
         Bitemm item =
@@ -736,7 +736,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("X-1")
                         .fntTbCrySno(1)
                         .ioeC("001")
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .bgDupAmt(new BigDecimal("800"))
                         .build();
         Bbugtm itemBudget =
@@ -747,7 +747,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-1")
                         .fntTbCrySno(1)
                         .ioeC("001")
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .bgDupAmt(new BigDecimal("400"))
                         .build();
         Bitemm item = Bitemm.builder().gclMngNo("GCL-1").sno(1).lstYn("Y").abusMngNo("X-1").build();
@@ -788,7 +788,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-0001")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bbugtm costBudget =
                 Bbugtm.builder()
@@ -796,7 +796,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("COST-2026-0001")
                         .ioeC("102")
                         .bgDupAmt(BigDecimal.valueOf(500))
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .build();
 
         // 배치 조회 결과: gclMngNo→abusMngNo, 사업명, 계약명
@@ -857,7 +857,7 @@ class BudgetProjectSummaryServiceTest {
                         .pkColNm("GCL-MISSING")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));

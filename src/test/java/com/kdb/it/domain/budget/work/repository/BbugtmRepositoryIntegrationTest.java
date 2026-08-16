@@ -45,7 +45,7 @@ class BbugtmRepositoryIntegrationTest extends AbstractOracleRepositoryTest {
                         .fntTbCrySno(sno)
                         .ioeC("001")
                         .bgDupAmt(BigDecimal.valueOf(1000))
-                        .asgRt(100)
+                        .asgRt(new BigDecimal("100"))
                         .delYn(delYn)
                         .fstEnrUsid("FIXTURE")
                         .fstEnrDtm(LocalDateTime.now())

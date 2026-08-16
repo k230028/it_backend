@@ -132,7 +132,7 @@ class BudgetSummaryServiceTest {
         Bbugtm existing =
                 Bbugtm.builder()
                         .ioeC("001") // V003 이후 단축 cdva 저장
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
@@ -145,7 +145,7 @@ class BudgetSummaryServiceTest {
         List<BudgetWorkDto.IoeCategoryResponse> result = budgetWorkService.getIoeCategories("2026");
 
         // then
-        assertThat(result.get(0).dupRt()).isEqualTo(80);
+        assertThat(result.get(0).dupRt()).isEqualByComparingTo("80");
         assertThat(result.get(0).requestAmount()).isEqualTo(BigDecimal.valueOf(1000000));
     }
 
@@ -154,7 +154,7 @@ class BudgetSummaryServiceTest {
     void getIoeCategories_기존편성행비매칭_편성률null() {
         Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
         Ccodem ioeCode = Ccodem.builder().cdva("001").cdvaDtlC("237-0700").build();
-        Bbugtm unmatched = Bbugtm.builder().ioeC("999").asgRt(80).build();
+        Bbugtm unmatched = Bbugtm.builder().ioeC("999").asgRt(new BigDecimal("80")).build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -175,9 +175,9 @@ class BudgetSummaryServiceTest {
         Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         Bbugtm olderRun =
-                Bbugtm.builder().bgNo("BG-2026-0001").sno(1).ioeC("001").asgRt(80).build();
+                Bbugtm.builder().bgNo("BG-2026-0001").sno(1).ioeC("001").asgRt(new BigDecimal("80")).build();
         Bbugtm newerRun =
-                Bbugtm.builder().bgNo("BG-2026-0002").sno(1).ioeC("001").asgRt(50).build();
+                Bbugtm.builder().bgNo("BG-2026-0002").sno(1).ioeC("001").asgRt(new BigDecimal("50")).build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -190,7 +190,7 @@ class BudgetSummaryServiceTest {
         List<BudgetWorkDto.IoeCategoryResponse> result = budgetWorkService.getIoeCategories("2026");
 
         // then: encounter order(80)가 아니라 최신 편성 실행(50) 기준
-        assertThat(result.get(0).dupRt()).isEqualTo(50);
+        assertThat(result.get(0).dupRt()).isEqualByComparingTo("50");
     }
 
     // =========================================================================
@@ -270,7 +270,7 @@ class BudgetSummaryServiceTest {
                         .cTp("IOE_IDR")
                         .build();
         Bbugtm bbugtm =
-                Bbugtm.builder().ioeC("101").bgDupAmt(BigDecimal.valueOf(800000)).asgRt(80).build();
+                Bbugtm.builder().ioeC("101").bgDupAmt(BigDecimal.valueOf(800000)).asgRt(new BigDecimal("80")).build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -321,7 +321,7 @@ class BudgetSummaryServiceTest {
                         .sno(99)
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bbugtm representative =
                 Bbugtm.builder()
@@ -329,7 +329,7 @@ class BudgetSummaryServiceTest {
                         .sno(1)
                         .ioeC("102")
                         .bgDupAmt(BigDecimal.valueOf(500))
-                        .asgRt(50)
+                        .asgRt(new BigDecimal("50"))
                         .build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
@@ -348,7 +348,7 @@ class BudgetSummaryServiceTest {
         BudgetWorkDto.SummaryItem result = budgetWorkService.getSummary("2026").data().get(0);
 
         assertThat(result.ioeC()).isEqualTo("102");
-        assertThat(result.dupRt()).isEqualTo(50);
+        assertThat(result.dupRt()).isEqualByComparingTo("50");
     }
 
     @Test
@@ -370,7 +370,7 @@ class BudgetSummaryServiceTest {
                         .pkColNm("GCL-1")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bitemm item =
                 Bitemm.builder()
@@ -421,21 +421,21 @@ class BudgetSummaryServiceTest {
                         .pkColNm("SRC-1")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bbugtm notSelected =
                 Bbugtm.builder()
                         .pkColNm("SRC-2")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(1600))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bbugtm notApproved =
                 Bbugtm.builder()
                         .pkColNm("SRC-3")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(2400))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
@@ -572,7 +572,7 @@ class BudgetSummaryServiceTest {
                         .pkColNm("GCL-MPL-001")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(1600)) // 편성액
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         // 품목: AMT=2000, MPL_AMT=800 (예정금액)
         Bitemm item =
@@ -643,7 +643,7 @@ class BudgetSummaryServiceTest {
                         .pkColNm("GCL-MPL-002")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(1600)) // 편성액
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         // 구버전(N): 리스트 앞, 다른 사업번호(PRJ-OLD)·다른 금액 — putIfAbsent였다면 이 행이 채택된다.
         Bitemm oldVersion =
@@ -718,7 +718,7 @@ class BudgetSummaryServiceTest {
                 Ccodem.builder().cdva("102").cNm("351-9999").cdvaDtlC("351-9999").build();
         // BBUGTM에는 "102"만 있음 (dupBgAmt=300)
         Bbugtm budget =
-                Bbugtm.builder().ioeC("102").bgDupAmt(BigDecimal.valueOf(300)).asgRt(30).build();
+                Bbugtm.builder().ioeC("102").bgDupAmt(BigDecimal.valueOf(300)).asgRt(new BigDecimal("30")).build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -780,10 +780,10 @@ class BudgetSummaryServiceTest {
                         .cTp("IOE_IDR")
                         .build();
         // dupBgAmt=null 레코드 (null 필터 분기)
-        Bbugtm nullBudget = Bbugtm.builder().ioeC("101").bgDupAmt(null).asgRt(80).build();
+        Bbugtm nullBudget = Bbugtm.builder().ioeC("101").bgDupAmt(null).asgRt(new BigDecimal("80")).build();
         // bgDupAmt=200 정상 레코드
         Bbugtm normalBudget =
-                Bbugtm.builder().ioeC("101").bgDupAmt(BigDecimal.valueOf(200)).asgRt(80).build();
+                Bbugtm.builder().ioeC("101").bgDupAmt(BigDecimal.valueOf(200)).asgRt(new BigDecimal("80")).build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
                 .willReturn(List.of(nullBudget, normalBudget));
@@ -827,7 +827,7 @@ class BudgetSummaryServiceTest {
                         .pkColNm("GCL-1")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bitemm item =
                 Bitemm.builder()
@@ -885,7 +885,7 @@ class BudgetSummaryServiceTest {
                         .pkColNm("GCL-1")
                         .ioeC("101")
                         .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(80)
+                        .asgRt(new BigDecimal("80"))
                         .build();
         Bitemm item =
                 Bitemm.builder()

@@ -62,7 +62,7 @@ public class BudgetSummaryService {
                                                                     && ioeCodes.contains(
                                                                             budget.getIoeC()))
                                             .toList();
-                            Integer rate =
+                            BigDecimal rate =
                                     candidates.isEmpty()
                                             ? null
                                             : BudgetRepresentativeSelector.pickView(candidates)

@@ -16,5 +16,5 @@ public interface BudgetReadView {
 
     BigDecimal getBgDupAmt();
 
-    Integer getAsgRt();
+    BigDecimal getAsgRt();
 }

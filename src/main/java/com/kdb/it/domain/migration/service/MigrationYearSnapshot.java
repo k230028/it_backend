@@ -135,7 +135,9 @@ public class MigrationYearSnapshot {
         Map<String, Integer> costRates = new LinkedHashMap<>();
         for (Bbugtm budget : budgets) {
             if ("BCOSTM".equals(budget.getFntTbNm())) {
-                costRates.putIfAbsent(budget.getPkColNm(), budget.getAsgRt());
+                costRates.putIfAbsent(
+                        budget.getPkColNm(),
+                        budget.getAsgRt() == null ? null : budget.getAsgRt().intValue());
             }
         }
         return new Data(
@@ -185,15 +187,16 @@ public class MigrationYearSnapshot {
             Map<String, Integer> target =
                     MigrationIoeCodes.isCapital(budget.getIoeC()) ? assetRates : costRates;
             Integer previous = target.get(projectNo);
+            int currentRate = budget.getAsgRt().intValue();
             if (previous == null) {
-                target.put(projectNo, budget.getAsgRt());
-            } else if (!previous.equals(budget.getAsgRt())) {
+                target.put(projectNo, currentRate);
+            } else if (!previous.equals(currentRate)) {
                 log.warn(
                         "사업 {}의 품목 편성률이 서로 다릅니다({} vs {}). 더 작은 값을 유지합니다.",
                         projectNo,
                         previous,
-                        budget.getAsgRt());
-                target.put(projectNo, Math.min(previous, budget.getAsgRt()));
+                        currentRate);
+                target.put(projectNo, Math.min(previous, currentRate));
             }
         }
 

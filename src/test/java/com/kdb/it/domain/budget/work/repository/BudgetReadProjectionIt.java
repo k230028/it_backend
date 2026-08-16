@@ -32,7 +32,7 @@ class BudgetReadProjectionIt extends AbstractOracleRepositoryTest {
                         .fntTbCrySno(3)
                         .ioeC("B3IOE01")
                         .bgDupAmt(new BigDecimal("123456.789"))
-                        .asgRt(73)
+                        .asgRt(new BigDecimal("73"))
                         .delYn("N")
                         .fstEnrDtm(now)
                         .fstEnrUsid("BE03-TEST")
@@ -60,7 +60,7 @@ class BudgetReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(view.getFntTbNm()).isEqualTo(loaded.getFntTbNm());
         assertThat(view.getIoeC()).isEqualTo(loaded.getIoeC());
         assertThat(view.getBgDupAmt()).isEqualByComparingTo(loaded.getBgDupAmt());
-        assertThat(view.getAsgRt()).isEqualTo(loaded.getAsgRt());
+        assertThat(view.getAsgRt()).isEqualByComparingTo(loaded.getAsgRt());
         assertThat(BudgetReadView.class.getDeclaredMethods()).hasSize(7);
     }
 }

@@ -256,11 +256,11 @@ class ApiResponseOpenApiContractTest {
     void budgetResponsesExposeRequiredAndNullableContracts() {
         assertAllPropertiesRequired(BudgetWorkDto.IoeCategoryResponse.class, "dupRt");
         assertAllPropertiesRequired(BudgetWorkDto.SummaryResponse.class);
-        assertAllPropertiesRequired(BudgetWorkDto.SummaryItem.class);
+        assertAllPropertiesRequired(BudgetWorkDto.SummaryItem.class, "dupRt");
         assertAllPropertiesRequired(BudgetWorkDto.SummaryTotals.class);
         assertAllPropertiesRequired(BudgetWorkDto.ApplyResponse.class);
         assertAllPropertiesRequired(BudgetWorkDto.ProjectSummaryResponse.class);
-        assertAllPropertiesRequired(BudgetWorkDto.ProjectSummaryCategory.class, "cdDes");
+        assertAllPropertiesRequired(BudgetWorkDto.ProjectSummaryCategory.class, "cdDes", "dupRt");
         assertAllPropertiesRequired(BudgetWorkDto.ProjectSummaryItem.class);
         assertAllPropertiesRequired(BudgetWorkDto.CategoryAmount.class);
 

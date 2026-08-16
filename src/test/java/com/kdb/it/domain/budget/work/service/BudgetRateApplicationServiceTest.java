@@ -228,7 +228,7 @@ class BudgetRateApplicationServiceTest {
 
         // then: 1건 처리, existing.update() 호출 확인 (JPA Dirty Checking)
         assertThat(result.totalRecords()).isEqualTo(1);
-        verify(existing).update(any(BigDecimal.class), any(Integer.class));
+        verify(existing).update(any(BigDecimal.class), any(BigDecimal.class));
     }
 
     // =========================================================================
@@ -449,10 +449,12 @@ class BudgetRateApplicationServiceTest {
         verify(bbugtmRepository, org.mockito.Mockito.times(2)).save(captor.capture());
         assertThat(captor.getAllValues())
                 .extracting(value -> value.getAsgRt())
-                .containsExactly(60, 100);
+                .usingElementComparator(BigDecimal::compareTo)
+                .containsExactly(new BigDecimal("60"), new BigDecimal("100"));
         assertThat(captor.getAllValues())
                 .extracting(value -> value.getBgDupAmt())
-                .containsExactly(new BigDecimal("600.00"), new BigDecimal("500.00"));
+                .usingElementComparator(BigDecimal::compareTo)
+                .containsExactly(new BigDecimal("600.000"), new BigDecimal("500.000"));
     }
 
     @Test
@@ -488,7 +490,7 @@ class BudgetRateApplicationServiceTest {
         assertThat(result.totalRecords()).isEqualTo(1);
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
-        assertThat(captor.getValue().getAsgRt()).isEqualTo(40);
+        assertThat(captor.getValue().getAsgRt()).isEqualByComparingTo("40");
         assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
@@ -532,7 +534,7 @@ class BudgetRateApplicationServiceTest {
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
         // IOE-351-0100 → 자본예산 → assetDupRt=80 적용
-        assertThat(captor.getValue().getAsgRt()).isEqualTo(80);
+        assertThat(captor.getValue().getAsgRt()).isEqualByComparingTo("80");
     }
 
     // =========================================================================
@@ -583,7 +585,7 @@ class BudgetRateApplicationServiceTest {
 
         // then: 1건 처리, existingBugtm.update() 호출 확인
         assertThat(result.totalRecords()).isEqualTo(1);
-        verify(existingBugtm).update(any(BigDecimal.class), any(Integer.class));
+        verify(existingBugtm).update(any(BigDecimal.class), any(BigDecimal.class));
     }
 
     // =========================================================================
@@ -673,7 +675,7 @@ class BudgetRateApplicationServiceTest {
         assertThat(saved.getValue().getIoeC()).isEqualTo("001");
         assertThat(saved.getValue().getBgDupAmt())
                 .isEqualByComparingTo(BigDecimal.valueOf(800_000));
-        assertThat(saved.getValue().getAsgRt()).isEqualTo(80);
+        assertThat(saved.getValue().getAsgRt()).isEqualByComparingTo("80");
         assertThat(response.totalRecords()).isEqualTo(1);
         assertThat(response.summary()).isSameAs(expectedSummary);
     }
@@ -730,8 +732,32 @@ class BudgetRateApplicationServiceTest {
         assertThat(saved.getValue().getIoeC()).isEqualTo("IOE-237-0700");
         assertThat(saved.getValue().getBgDupAmt())
                 .isEqualByComparingTo(BigDecimal.valueOf(400_000));
-        assertThat(saved.getValue().getAsgRt()).isEqualTo(80);
+        assertThat(saved.getValue().getAsgRt()).isEqualByComparingTo("80");
         assertThat(response.totalRecords()).isEqualTo(1);
         assertThat(response.summary()).isSameAs(expectedSummary);
+    }
+
+    @Test
+    @DisplayName("applyItemRates_소수편성률_저장값이_소수로_보존된다")
+    void applyItemRates_소수편성률_저장값이_소수로_보존된다() {
+        // 이 테스트는 Task 2에서 ioeRates 경로로 옮겨간다. 여기서는 엔티티 계약만 고정한다.
+        Bbugtm budget =
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .bseYy("2026")
+                        .fntTbNm("BITEMM")
+                        .pkColNm("GCL-2026-0001")
+                        .fntTbCrySno(1)
+                        .ioeC("106")
+                        .bgDupAmt(new BigDecimal("416000000.000"))
+                        .asgRt(new BigDecimal("29.58748"))
+                        .build();
+
+        assertThat(budget.getAsgRt()).isEqualByComparingTo("29.58748");
+
+        budget.update(new BigDecimal("984000000.000"), new BigDecimal("70.00000"));
+        assertThat(budget.getAsgRt()).isEqualByComparingTo("70.00000");
+        assertThat(budget.getBgDupAmt()).isEqualByComparingTo("984000000.000");
     }
 }

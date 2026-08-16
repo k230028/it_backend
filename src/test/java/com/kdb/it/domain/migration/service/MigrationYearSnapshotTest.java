@@ -12,6 +12,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,13 +77,13 @@ class MigrationYearSnapshotTest {
                                         .fntTbNm("BITEMM")
                                         .pkColNm("GCL-2026-0001")
                                         .ioeC("103")
-                                        .asgRt(80)
+                                        .asgRt(new BigDecimal("80"))
                                         .build(),
                                 Bbugtm.builder()
                                         .fntTbNm("BCOSTM")
                                         .pkColNm("COST-2026-0001")
                                         .ioeC("011")
-                                        .asgRt(90)
+                                        .asgRt(new BigDecimal("90"))
                                         .build()));
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");
@@ -122,14 +123,14 @@ class MigrationYearSnapshotTest {
                                         .fntTbNm("BITEMM")
                                         .pkColNm("GCL-2026-0001")
                                         .ioeC("103")
-                                        .asgRt(70)
+                                        .asgRt(new BigDecimal("70"))
                                         .build(),
                                 // 일반관리비 계열(유지보수료 011)은 90%
                                 Bbugtm.builder()
                                         .fntTbNm("BITEMM")
                                         .pkColNm("GCL-2026-0002")
                                         .ioeC("011")
-                                        .asgRt(90)
+                                        .asgRt(new BigDecimal("90"))
                                         .build()));
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");
@@ -161,13 +162,13 @@ class MigrationYearSnapshotTest {
                                         .fntTbNm("BITEMM")
                                         .pkColNm("GCL-2026-0001")
                                         .ioeC("101")
-                                        .asgRt(80)
+                                        .asgRt(new BigDecimal("80"))
                                         .build(),
                                 Bbugtm.builder()
                                         .fntTbNm("BITEMM")
                                         .pkColNm("GCL-2026-0002")
                                         .ioeC("106")
-                                        .asgRt(60)
+                                        .asgRt(new BigDecimal("60"))
                                         .build()));
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");
@@ -266,13 +267,13 @@ class MigrationYearSnapshotTest {
                                         .fntTbNm("BCOSTM")
                                         .pkColNm("COST-1")
                                         .ioeC("011")
-                                        .asgRt(80)
+                                        .asgRt(new BigDecimal("80"))
                                         .build(),
                                 Bbugtm.builder()
                                         .fntTbNm("BCOSTM")
                                         .pkColNm("COST-1")
                                         .ioeC("012")
-                                        .asgRt(50)
+                                        .asgRt(new BigDecimal("50"))
                                         .build()));
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");

@@ -37,7 +37,7 @@ final class ReadProjectionStubs {
                 return entity.getBgDupAmt();
             }
 
-            public Integer getAsgRt() {
+            public BigDecimal getAsgRt() {
                 return entity.getAsgRt();
             }
         };
