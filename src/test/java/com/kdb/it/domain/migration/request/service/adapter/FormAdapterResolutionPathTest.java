@@ -87,9 +87,11 @@ class FormAdapterResolutionPathTest {
         ProjectDto.CreateRequest project = output.projects().get(0);
         assertThat(project.getAbusNm()).isEqualTo("사업");
         assertThat(project.getItems()).isEmpty();
+        // 요약표가 없어 1-1 선언 금액을 산출하지 못하므로(Task 3) 사업은 그대로 만들되 경고를 낸다
+        assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .doesNotContain(RequestFormDiagnosticCode.AMOUNT_MISMATCH);
+                .contains(RequestFormDiagnosticCode.AMOUNT_MISMATCH);
     }
 
     @Test
@@ -358,13 +360,17 @@ class FormAdapterResolutionPathTest {
                 });
     }
 
-    /** 1-1 요약표(지정 합계) + 1-2 품목 1건(1,000,000원)을 담은 워크북. */
+    /** 1-1 요약표(지정 합계) + `총 사업금액(전체기간)` + 1-2 품목 1건(1,000,000원)을 담은 워크북. */
     private static byte[] overviewWithResource(double declaredTotal) {
         return build(
                 wb -> {
                     Sheet overview = wb.createSheet("① (정보화사업) 1-1. 정보화사업 개요");
                     put(overview, 0, 2, "사업명");
                     put(overview, 0, 3, "사업");
+                    // Task 3의 산출 로직이 `총 사업금액(전체기간)`을 요구하므로, 대사(reconcileTotals) 검증에만
+                    // 집중하는 이 픽스처도 지급금액이 음수가 되지 않도록 넉넉한 값을 채워 둔다
+                    put(overview, 1, 7, "총 사업금액(전체기간)");
+                    put(overview, 1, 9, "2백만원");
                     writeSummaryTable(overview, declaredTotal);
                     writeResourceSheet(wb, "기계장치(HW)", 1_000_000d);
                 });

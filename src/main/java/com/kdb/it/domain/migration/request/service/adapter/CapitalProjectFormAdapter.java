@@ -3,6 +3,7 @@ package com.kdb.it.domain.migration.request.service.adapter;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
@@ -57,9 +58,16 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         List<ProjectDto.BitemmDto> items = readItems(context, diagnostics);
         project.setItems(items);
 
-        reconcileTotals(read.amounts().yearTotalRaw(), items, project.getAbusNm(), diagnostics);
+        BigDecimal itemTotal = sumItemAmounts(items);
+        Optional<AmountUnit> unit =
+                AmountUnitResolver.inferUnit(read.amounts().yearTotalRaw(), itemTotal);
+        reconcileTotals(
+                read.amounts().yearTotalRaw(), itemTotal, unit, project.getAbusNm(), diagnostics);
+        ProjectAmounts amounts =
+                declaredAmounts(read.amounts(), unit, project.getAbusNm(), diagnostics);
 
-        return new FormAdapterOutput(List.of(project), List.of(), List.copyOf(diagnostics), null);
+        return new FormAdapterOutput(
+                List.of(project), List.of(), List.copyOf(diagnostics), null, List.of(amounts));
     }
 
     /**
@@ -179,38 +187,113 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 IoeCandidates.orAll(resolution, context));
     }
 
+    /** 활성 품목의 소요예산 합계를 원 단위로 더합니다. 1-2는 `수량 × 단가`라 항상 원 단위입니다. */
+    private static BigDecimal sumItemAmounts(List<ProjectDto.BitemmDto> items) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (ProjectDto.BitemmDto item : items) {
+            if (item.getAmt() != null) total = total.add(item.getAmt());
+        }
+        return total;
+    }
+
     /**
      * 1-1 요약표와 1-2 품목 합계를 대사합니다.
      *
-     * <p>어느 배수로도 맞지 않으면 단위 문제가 아니라 기재 오류이므로 경고를 냅니다. 요약표를 읽지 못했으면 대사할 수 없어 조용히 넘어갑니다 — 요약표는 적재 대상이
-     * 아니라 검증 근거일 뿐입니다.
+     * <p>어느 배수로도 맞지 않으면 단위 문제가 아니라 기재 오류이므로 경고를 냅니다. 요약표를 읽지 못했거나 품목이 없으면 대사할 수 없어 조용히 넘어갑니다 — 그
+     * 경우의 안내는 {@link #declaredAmounts}가 냅니다.
      */
     private void reconcileTotals(
             BigDecimal declaredYearTotal,
-            List<ProjectDto.BitemmDto> items,
+            BigDecimal itemTotal,
+            Optional<AmountUnit> unit,
             String projectName,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        if (declaredYearTotal == null || items.isEmpty()) return;
+        if (declaredYearTotal == null || itemTotal.signum() == 0) return;
+        if (unit.isPresent()) return;
 
-        BigDecimal actual = BigDecimal.ZERO;
-        for (ProjectDto.BitemmDto item : items) {
-            if (item.getAmt() != null) actual = actual.add(item.getAmt());
-        }
-        if (actual.signum() == 0) return;
+        diagnostics.add(
+                RequestFormDto.FormDiagnostic.about(
+                        FormSheetKind.CAPITAL_OVERVIEW,
+                        null,
+                        "declaredYearTotal",
+                        projectName,
+                        RequestFormDiagnosticCode.AMOUNT_MISMATCH,
+                        "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
+                                .formatted(
+                                        declaredYearTotal.toPlainString(),
+                                        itemTotal.toPlainString()),
+                        List.of()));
+    }
 
-        if (AmountUnitResolver.inferUnit(declaredYearTotal, actual).isEmpty()) {
-            diagnostics.add(
-                    RequestFormDto.FormDiagnostic.about(
-                            FormSheetKind.CAPITAL_OVERVIEW,
-                            null,
-                            "declaredYearTotal",
-                            projectName,
-                            RequestFormDiagnosticCode.AMOUNT_MISMATCH,
-                            "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
-                                    .formatted(
-                                            declaredYearTotal.toPlainString(),
-                                            actual.toPlainString()),
-                            List.of()));
+    /**
+     * 1-1 선언 금액에서 사업 단위 금액 3종을 산출합니다.
+     *
+     * <p>산식은 {@code 총소요금액 = 총 사업금액(전체기간)}, {@code 예정금액 = '26년도 이후}, {@code 지급금액 = 총 사업금액 − '26년도 이후
+     * − '26년도 합계}입니다. 요약표는 단위가 파일마다 다르므로 1-2 품목 합계로 역추정한 배수를 곱해 원 단위로 폅니다.
+     *
+     * <p>환산 근거가 없거나 지급금액이 음수면 <b>적재하지 않고 경고만</b> 냅니다. 파일은 그대로 반영되고 세 컬럼은 품목 합계 스냅샷으로 남습니다 — 여기서 막으면
+     * 1-2가 정상인 파일까지 통째로 반입되지 못합니다.
+     *
+     * @param declared 1-1이 읽어 온 선언 금액
+     * @param unit 요약표 기재 단위. 판정에 실패했으면 빈 Optional
+     * @param projectName 진단에 붙일 사업명
+     * @param diagnostics 진단 수집 목록 (실패 시 경고가 추가됩니다)
+     * @return 산출한 금액. 실패하면 {@link ProjectAmounts#none()}
+     */
+    private ProjectAmounts declaredAmounts(
+            CapitalOverviewReader.DeclaredAmounts declared,
+            Optional<AmountUnit> unit,
+            String projectName,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        if (declared.yearTotalRaw() == null) {
+            return skipAmounts(projectName, "1-1 요약표를 찾지 못했습니다.", diagnostics);
         }
+        if (unit.isEmpty()) {
+            return skipAmounts(projectName, "1-1 요약표의 기재 단위를 1-2 품목 합계로 확정하지 못했습니다.", diagnostics);
+        }
+
+        AmountUnit resolved = unit.get();
+        BigDecimal whole =
+                declared.wholePeriodWon() != null
+                        ? declared.wholePeriodWon()
+                        : resolved.toWon(declared.wholePeriodRaw());
+        if (whole == null) {
+            return skipAmounts(
+                    projectName,
+                    declared.wholePeriodUnknownUnit()
+                            ? "`총 사업금액(전체기간)`의 표기를 금액으로 해석하지 못했습니다."
+                            : "`총 사업금액(전체기간)` 칸이 비어 있습니다.",
+                    diagnostics);
+        }
+
+        BigDecimal year = resolved.toWon(declared.yearTotalRaw());
+        BigDecimal later =
+                declared.laterTotalRaw() == null
+                        ? BigDecimal.ZERO
+                        : resolved.toWon(declared.laterTotalRaw());
+        BigDecimal paid = whole.subtract(later).subtract(year);
+        if (paid.signum() < 0) {
+            return skipAmounts(
+                    projectName,
+                    "`총 사업금액(전체기간)`(%s)이 요약표 합계(%s)보다 작습니다."
+                            .formatted(whole.toPlainString(), year.add(later).toPlainString()),
+                    diagnostics);
+        }
+        return new ProjectAmounts(whole, later, paid);
+    }
+
+    /** 산출 실패를 경고로 남기고 빈 금액을 돌려줍니다. 문구에 후속 조치를 함께 적습니다. */
+    private ProjectAmounts skipAmounts(
+            String projectName, String reason, List<RequestFormDto.FormDiagnostic> diagnostics) {
+        diagnostics.add(
+                RequestFormDto.FormDiagnostic.about(
+                        FormSheetKind.CAPITAL_OVERVIEW,
+                        null,
+                        "declaredAmounts",
+                        projectName,
+                        RequestFormDiagnosticCode.AMOUNT_MISMATCH,
+                        "%s 기 지급예산을 산출하지 못했습니다. 반입 후 사업 수정 화면에서 입력해 주세요.".formatted(reason),
+                        List.of()));
+        return ProjectAmounts.none();
     }
 }
