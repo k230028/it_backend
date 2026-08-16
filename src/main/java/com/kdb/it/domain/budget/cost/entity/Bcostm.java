@@ -241,6 +241,19 @@ public class Bcostm extends BaseEntity {
     }
 
     /**
+     * 사업코드를 채웁니다. 편성요구서 종합에만 있는 값이라 편성요청서 반입 경로에서는 비어 있습니다.
+     *
+     * <p>이미 값이 있으면 덮지 않습니다 — 부서가 적어 낸 값을 종합본이 조용히 바꾸지 않게 합니다.
+     *
+     * @param bgUntAbusC 사업코드 (최대 3자)
+     */
+    public void fillBudgetUnitCodeIfAbsent(String bgUntAbusC) {
+        if (this.bgUntAbusC == null || this.bgUntAbusC.isBlank()) {
+            this.bgUntAbusC = bgUntAbusC;
+        }
+    }
+
+    /**
      * 작성자 기준 인사상위조직코드내용(PRLM_HRK_OGZ_C_CONE) 설정.
      *
      * <p>신규 생성 시 작성자(현재 로그인 사용자) 소속 조직의 상위조직코드로 채웁니다. 변경 로그 스냅샷이 값을 복사하도록 반드시 INSERT 이전(save 호출 전)에

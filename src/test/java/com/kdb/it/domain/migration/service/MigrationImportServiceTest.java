@@ -16,22 +16,27 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.service.PlanService;
-import com.kdb.it.domain.budget.project.entity.Bitemm;
-import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.service.BudgetRateApplicationService;
 import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.dto.RowDecision;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.adapter.AdapterOutput;
 import com.kdb.it.domain.migration.service.adapter.AllocationIntent;
+import com.kdb.it.domain.migration.service.adapter.CapitalProjectSheetAdapter;
+import com.kdb.it.domain.migration.service.adapter.CostSheetAdapter;
+import com.kdb.it.domain.migration.service.adapter.PlanAdjustmentSheetAdapter;
 import com.kdb.it.domain.migration.service.adapter.PlanIntent;
 import com.kdb.it.domain.migration.service.adapter.SheetAdapter;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Disabled;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,7 +48,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-/** 반영 순서·전량 롤백·applyItemRates 단일 호출을 고정합니다 (§7). */
+/**
+ * 매칭 → 배분 → 편성 흐름을 고정합니다 (§6.2·§7).
+ *
+ * <p>매처({@link MigrationLedgerMatcher})·배분기({@link MigrationAllocationPlanner})·매칭 진단({@link
+ * MigrationMatchDiagnostics})은 목이 아니라 실제 인스턴스를 씁니다 — 이 테스트가 증명하려는 것이 "종합본 금액이 실효 편성률로 환산돼 편성된다"는 계산
+ * 자체라 목으로 대체하면 검증이 비어 버립니다. 원장 쓰기(서비스·리포지토리)와 규칙 검증기만 목입니다.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class MigrationImportServiceTest {
@@ -58,7 +69,6 @@ class MigrationImportServiceTest {
     @Mock private MigrationYearSnapshot yearSnapshot;
     @Mock private OrgIdentityResolver orgIdentityResolver;
     @Mock private MigrationIoeCatalogReader catalogReader;
-    @Mock private ProjectItemRepository projectItemRepository;
     @Mock private PlanService planService;
 
     /** BLOCKER가 하나라도 있으면 아무 서비스도 호출되지 않는다. */
@@ -87,6 +97,25 @@ class MigrationImportServiceTest {
         verify(budgetRateApplicationService, never()).applyItemRates(any());
         verify(approvalStamper, never())
                 .stamp(anyString(), anyString(), any(), anyString(), anyString(), anyString());
+    }
+
+    /**
+     * 매칭에 실패한 행은 결정을 요구하는 BLOCKER가 되어 반영이 막힌다.
+     *
+     * <p>결정 보정값이 없고 스냅샷에 대응 원장도 없는 상태다. 이 화면은 원장을 새로 만들지 않는 것이 기본이므로(설계 §2.1) 조용히 만들지 않고 관리자에게
+     * 되돌린다.
+     */
+    @Test
+    @DisplayName("결정하지 않은 미매칭 행은 BLOCKER가 되어 반영을 막는다")
+    void 미매칭_미결정행은_반영을_막는다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.commit(commitRequestWithoutDecision(), "999999"))
+                .isInstanceOf(com.kdb.it.exception.CustomGeneralException.class)
+                .hasMessageContaining("반영할 수 없습니다");
+
+        verify(costService, never()).createCost(any(), anyBoolean());
     }
 
     /** WARNING만 있으면 반영이 진행된다. */
@@ -142,64 +171,56 @@ class MigrationImportServiceTest {
     }
 
     /**
-     * items에는 이관분과 기존 연도 데이터가 모두 담겨야 한다.
+     * items에는 이관분과 기존 연도 데이터가 모두 담겨야 한다 (Task 7이 {@code @Disabled}로 남긴 검증의 복구).
      *
-     * <p>Task 7 시점의 최소 보정 메모: 이 단정 중 "이관분(COST-2026-0001)도 items에 포함된다"는 부분은 어댑터가 낸 편성 의도로 원장에 편성행을
-     * 얹던 5단계 루프가 지고 있던 책임이다. {@code AllocationIntent}는 비율이 아니라 목표 금액을 담아 그 루프를 그대로 옮길 수 없어 제거했고, 그
-     * 결과 5단계가 만들던 편성행이 전부 사라졌다 — 2단계("기존 편성률 유지")는 대상이 다르다.
-     *
-     * <p><b>회귀 범위는 신규 생성 원장에 그치지 않는다.</b> 2단계가 채우는 {@code rateItems}는 {@code
-     * snapshot.itemsOfProject}/{@code existingItemRateByItemNo} 등 스냅샷에서 역산한 "이번 이관 전부터 있던 편성률"만
-     * 담으므로, 하반기 조정({@code PlanAdjustmentSheetAdapter})처럼 **기존** 사업의 편성률을 새 확정금액으로 갱신해야 하는 {@code
-     * AllocationIntent}에 대해서는 아무 보호도 없다. 실제로 {@code PlanAdjustmentSheetAdapter}는 사업을 새로 만들지
-     * 않으므로({@code PlanAdjustmentSheetAdapterTest.원장_생성요청은_만들지_않는다}) 그 어댑터가 내는 {@code
-     * AllocationIntent}는 언제나 기존 사업만 가리킨다. 그런데 그 목표액을 {@code rateItems}에 반영하던 유일한 소비자가 5단계였으므로, 지금은
-     * <b>하반기 조정이 기존 사업 편성률에 대해 완전히 무동작이다</b> — "새 원장만 편성행을 못 받는다"가 아니라, 애초에 {@code
-     * AllocationIntent} 재설계를 촉발한 그 시나리오(하반기 조정) 자체가 통째로 반영되지 않는다. Task 9가 {@code
-     * MigrationLedgerMatcher}·{@code MigrationAllocationPlanner}로 {@code allocations}를 실효 편성률로 환산해
-     * 신규·기존 원장 모두의 편성행을 채우면서 이 검증을 복구해야 한다.
+     * <p>편성률 단일 적용은 연도 전체를 재작성하므로 목록에서 빠진 원장은 편성행을 잃는다. 그래서 이번 반영이 건드리지 않은 기존 사업·전산업무비도 스냅샷에서 역산한
+     * 기존 편성률을 실어 그대로 담아야 하고, 새로 만든 원장도 같은 목록에 들어와야 한다.
      */
-    @Disabled(
-            "Task 9에서 AllocationIntent 기반 실효 편성률 적용과 함께 복구 — 5단계 제거로 신규·기존 원장 모두 편성행을 받지"
-                    + " 못하고, 특히 하반기 조정(기존 사업 대상)은 완전히 무동작이다")
     @Test
     @DisplayName("applyItemRates items에 이관분과 기존 연도 데이터를 함께 담는다")
     void 편성률items에_연도전체를_담는다() {
         MigrationImportService service = service();
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
-        when(yearSnapshot.load("2026"))
-                .thenReturn(
-                        new MigrationYearSnapshot.Data(
-                                "2026",
-                                Map.of(),
-                                Map.of(),
-                                Map.of(),
-                                Map.of(
-                                        "PRJ-2026-0099",
-                                        List.of(
-                                                new MigrationYearSnapshot.RequestItem(
-                                                        "GCL-2026-0001",
-                                                        1,
-                                                        "011",
-                                                        new BigDecimal("1000")))),
-                                Map.of(
-                                        "COST-2026-0099",
-                                        new MigrationYearSnapshot.CostRef(
-                                                "COST-2026-0099",
+        MigrationYearSnapshot.Data before =
+                snapshot(
+                        Map.of(
+                                "PRJ-2026-0099",
+                                List.of(
+                                        new MigrationYearSnapshot.RequestItem(
+                                                "GCL-2026-0001",
                                                 1,
                                                 "011",
-                                                new BigDecimal("2000"),
-                                                "계약명",
-                                                "라벨")),
-                                Map.of(),
-                                Map.of(),
-                                Map.of(),
-                                java.util.Set.of(),
-                                Map.of("COST-2026-0099", new BigDecimal("90")),
-                                Map.of("GCL-2026-0001", new BigDecimal("80")),
-                                List.of("PRJ-2026-0099"),
-                                List.of("COST-2026-0099")));
+                                                new BigDecimal("1000")))),
+                        Map.of(
+                                "COST-2026-0099",
+                                new MigrationYearSnapshot.CostRef(
+                                        "COST-2026-0099",
+                                        1,
+                                        "011",
+                                        new BigDecimal("2000"),
+                                        "계약명",
+                                        "라벨")),
+                        Map.of("COST-2026-0099", new BigDecimal("90")),
+                        Map.of("GCL-2026-0001", new BigDecimal("80")));
+        // 원장 생성 뒤 다시 읽는 스냅샷에는 방금 만든 전산업무비가 들어온다.
+        MigrationYearSnapshot.Data after =
+                snapshot(
+                        before.itemsByProjectNo(),
+                        Map.of(
+                                "COST-2026-0099",
+                                before.costOf("COST-2026-0099"),
+                                "COST-2026-0001",
+                                new MigrationYearSnapshot.CostRef(
+                                        "COST-2026-0001",
+                                        1,
+                                        "011",
+                                        new BigDecimal("15401000"),
+                                        "올인원워크스페이스",
+                                        "라벨")),
+                        before.existingCostRateByCostNo(),
+                        before.existingItemRateByItemNo());
+        when(yearSnapshot.load("2026")).thenReturn(before, after);
 
         service.commit(commitRequest(), "999999");
 
@@ -227,6 +248,12 @@ class MigrationImportServiceTest {
                 .filteredOn(i -> "COST-2026-0099".equals(i.orcPkVl()))
                 .singleElement()
                 .satisfies(i -> assertThat(i.ioeRates().get("011")).isEqualByComparingTo("90"));
+        // 새로 만든 전산업무비는 생성 후 다시 읽은 스냅샷의 요청금액을 분모로 실효 편성률을 받는다
+        // (일반관리비 조정률 100% → 100.00000).
+        assertThat(captor.getValue().items())
+                .filteredOn(i -> "COST-2026-0001".equals(i.orcPkVl()))
+                .singleElement()
+                .satisfies(i -> assertThat(i.ioeRates().get("011")).isEqualByComparingTo("100"));
     }
 
     /**
@@ -307,11 +334,44 @@ class MigrationImportServiceTest {
                                         List.of())));
 
         MigrationDto.DryRunResponse response =
-                service.dryRun(new MigrationDto.DryRunRequest(commitRequest().sheets(), List.of()));
+                service.dryRun(
+                        new MigrationDto.DryRunRequest(
+                                commitRequest().sheets(), commitRequest().overrides()));
 
         assertThat(response.summary().blockerCount()).isEqualTo(1);
         assertThat(response.summary().totalRows()).isEqualTo(1);
         verify(costService, never()).createCost(any(), anyBoolean());
+    }
+
+    /**
+     * dry-run이 매칭 단계까지 돌아 결정 요구 BLOCKER를 낸다.
+     *
+     * <p>Task 7까지의 dry-run은 규칙 검증기만 돌려 미매칭 행을 알리지 못했다. 미리보기에서 결정하지 못한 행이 commit에서야 막히면 사용자는 이유를 알 수
+     * 없다.
+     */
+    @Test
+    @DisplayName("dry-run이 미매칭 행에 결정 요구 BLOCKER를 낸다")
+    void dryRun은_결정요구_블로커를_낸다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        MigrationDto.DryRunResponse response =
+                service.dryRun(
+                        new MigrationDto.DryRunRequest(
+                                commitRequestWithoutDecision().sheets(), List.of()));
+
+        assertThat(response.summary().blockerCount()).isEqualTo(1);
+        assertThat(response.diagnostics())
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("LEDGER_NOT_MATCHED");
+                            assertThat(d.column()).isEqualTo(RowDecision.COLUMN);
+                            // 후보가 비면 화면에 드롭다운이 그려지지 않아 손댈 방법이 없다
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .contains("CREATE_NEW", "SKIP");
+                        });
     }
 
     /**
@@ -335,30 +395,33 @@ class MigrationImportServiceTest {
                         MigrationDto.Severity.BLOCKER,
                         "해석 실패",
                         List.of());
-        when(validator.validate(any(), any(), any(), eq(Map.of()), any()))
+        Map<String, String> onlyDecision = Map.of("COST|2|" + RowDecision.COLUMN, "SKIP");
+        Map<String, String> withDept = new LinkedHashMap<>(onlyDecision);
+        withDept.put("COST|2|deptName", "0210");
+        when(validator.validate(any(), any(), any(), eq(onlyDecision), any()))
                 .thenReturn(List.of(blocker));
-        when(validator.validate(any(), any(), any(), eq(Map.of("COST|2|deptName", "0210")), any()))
-                .thenReturn(List.of());
+        when(validator.validate(any(), any(), any(), eq(withDept), any())).thenReturn(List.of());
 
         MigrationDto.DryRunResponse withoutOverride =
-                service.dryRun(new MigrationDto.DryRunRequest(commitRequest().sheets(), List.of()));
-        MigrationDto.DryRunResponse withOverride =
                 service.dryRun(
                         new MigrationDto.DryRunRequest(
-                                commitRequest().sheets(),
-                                List.of(
-                                        new MigrationDto.CellOverride(
-                                                SheetKind.COST, 2, "deptName", "0210"))));
+                                skipDecisionRequest().sheets(), skipDecisionRequest().overrides()));
+        List<MigrationDto.CellOverride> both = new ArrayList<>(skipDecisionRequest().overrides());
+        both.add(new MigrationDto.CellOverride(SheetKind.COST, 2, "deptName", "0210"));
+        MigrationDto.DryRunResponse withOverride =
+                service.dryRun(
+                        new MigrationDto.DryRunRequest(skipDecisionRequest().sheets(), both));
 
         assertThat(withoutOverride.summary().blockerCount()).isEqualTo(1);
         assertThat(withOverride.summary().blockerCount()).isEqualTo(0);
     }
 
     /**
-     * §7의 5단계 원장 반영 순서(일반관리비 → 자본예산 → 위임예산 → 부문계획)를 어댑터 호출 순서로 고정한다.
+     * §7의 원장 반영 순서(일반관리비 → 자본예산 → 위임예산 → 부문계획)를 어댑터 호출 순서로 고정한다.
      *
-     * <p>이 테스트만 4개 시트 종류 전부를 목 어댑터로 등록한다 — 다른 테스트는 전산업무비 경로만 검증하므로 {@link
-     * com.kdb.it.domain.migration.service.adapter.CostSheetAdapter} 하나만 쓴다.
+     * <p>이 순서는 한 사업이 자본예산 시트와 부문계획 시트 양쪽에 나올 때 **하반기 조정이 종합본 편성률을 덮게** 하는 근거이기도 하다.
+     *
+     * <p>이 테스트만 4개 시트 종류 전부를 목 어댑터로 등록한다 — 다른 테스트는 전산업무비 경로만 검증하므로 {@link CostSheetAdapter} 하나만 쓴다.
      */
     @Test
     @DisplayName("어댑터를 일반관리비→자본예산→위임예산→부문계획 순서로 호출한다")
@@ -377,31 +440,15 @@ class MigrationImportServiceTest {
         when(planAdapter.adapt(any(), any())).thenReturn(AdapterOutput.empty());
 
         when(yearSnapshot.load(anyString())).thenReturn(TestSnapshots.empty("2026"));
-        when(orgIdentityResolver.snapshot())
-                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
-        when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
-        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        stubLookupIndex();
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
 
         MigrationImportService service =
-                new MigrationImportService(
-                        // 등록 순서를 실제 반영 순서와 일부러 뒤섞어, 서비스가 등록 순서가 아니라 §7 순서로
-                        // 어댑터를 호출한다는 것을 검증한다.
-                        List.of(planAdapter, delegatedAdapter, capitalAdapter, costAdapter),
-                        validator,
-                        yearSnapshot,
-                        orgIdentityResolver,
-                        catalogReader,
-                        approvalStamper,
-                        costService,
-                        costRepository,
-                        projectService,
-                        projectRepository,
-                        budgetRateApplicationService,
-                        projectItemRepository,
-                        planService);
+                // 등록 순서를 실제 반영 순서와 일부러 뒤섞어, 서비스가 등록 순서가 아니라 §7 순서로
+                // 어댑터를 호출한다는 것을 검증한다.
+                serviceWith(List.of(planAdapter, delegatedAdapter, capitalAdapter, costAdapter));
 
         Map<String, String> emptyCells = Map.of();
         MigrationDto.CommitRequest request =
@@ -470,15 +517,17 @@ class MigrationImportServiceTest {
     }
 
     /**
-     * Task 7 시점의 최소 보정 메모: {@code output.rates()}가 {@code output.allocations()}로 바뀌면서, 어댑터가 낸 편성
-     * 의도로 기존 편성률을 덮어쓰던 5단계 루프를 통째로 제거했다({@code AllocationIntent}는 비율이 아니라 비목그룹별 목표 "금액"을 담아 종전
-     * {@code RateIntent} 루프로는 옮길 수 없다). 그 결과 이 테스트가 고정하던 "PK 미매칭 시 건너뛰기" 동작 자체가 지금은 존재하지 않는다. Task
-     * 9가 {@code MigrationLedgerMatcher}·{@code MigrationAllocationPlanner}로 5단계를 다시 채우면서 이 검증을 복구해야
-     * 한다.
+     * 결정이 가리키는 PK가 그 연도에 없으면 그 행만 배분에서 빠지고 나머지는 그대로 적용한다 (Task 7이 {@code @Disabled}로 남긴 검증의 복구).
+     *
+     * <p>편성률 적용 목록은 스냅샷의 원장만 담으므로, 존재하지 않는 PK는 목록에 실릴 자리 자체가 없다. 이 보호가 없으면 오타가 섞인 결정 하나가 편성률 적용 전체를
+     * 예외로 끝내거나 없는 원장에 편성행을 만들려 시도한다.
+     *
+     * <p>목표 편성액을 0으로 둔 이유가 있다 — 배분할 금액이 남아 있는데 대상 원장의 요청 품목이 없으면 조용히 건너뛰지 않고 {@code ITEM_BASE_ZERO}
+     * BLOCKER가 난다({@code MigrationMatchDiagnosticsTest}가 고정). 이 테스트가 다루는 것은 배분할 것이 없는 행이 편성 목록에서
+     * 빠지는가이다.
      */
-    @Disabled("Task 9에서 AllocationIntent 기반 실효 편성률 적용과 함께 복구 — 5단계 PK 매칭 루프를 제거해 지금은 성립하지 않는다")
     @Test
-    @DisplayName("편성률 의도의 PK를 찾지 못하면 건너뛰고 나머지는 그대로 적용한다")
+    @DisplayName("결정 PK를 그 연도에서 찾지 못하면 건너뛰고 나머지는 그대로 적용한다")
     void 편성률_PK_미매칭은_건너뛴다() {
         SheetAdapter costAdapter = Mockito.mock(SheetAdapter.class);
         when(costAdapter.supports()).thenReturn(SheetKind.COST);
@@ -494,33 +543,18 @@ class MigrationImportServiceTest {
                                                 2,
                                                 "BPROJM",
                                                 AllocationIntent.MatchKey.ofProjectName("존재하지않는사업"),
-                                                Map.of("costAmount", new BigDecimal("90")),
+                                                Map.of("costAmount", BigDecimal.ZERO),
                                                 null))));
 
-        when(yearSnapshot.load(anyString())).thenReturn(TestSnapshots.empty("2026"));
-        when(orgIdentityResolver.snapshot())
-                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
-        when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
-        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        when(yearSnapshot.load(anyString()))
+                .thenReturn(
+                        TestSnapshots.snapshotWithProjectName("2026", "실재하는사업", "PRJ-2026-0007"));
+        stubLookupIndex();
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
 
-        MigrationImportService service =
-                new MigrationImportService(
-                        List.of(costAdapter),
-                        validator,
-                        yearSnapshot,
-                        orgIdentityResolver,
-                        catalogReader,
-                        approvalStamper,
-                        costService,
-                        costRepository,
-                        projectService,
-                        projectRepository,
-                        budgetRateApplicationService,
-                        projectItemRepository,
-                        planService);
+        MigrationImportService service = serviceWith(List.of(costAdapter));
 
         MigrationDto.CommitRequest request =
                 new MigrationDto.CommitRequest(
@@ -529,7 +563,13 @@ class MigrationImportServiceTest {
                                         SheetKind.COST,
                                         "2026",
                                         List.of(new MigrationDto.NormalizedRow(2, Map.of())))),
-                        List.of());
+                        // 관리자가 없는 PK를 가리키는 결정을 보냈다
+                        List.of(
+                                new MigrationDto.CellOverride(
+                                        SheetKind.COST,
+                                        2,
+                                        RowDecision.COLUMN,
+                                        RowDecision.matchValue("존재하지않는사업"))));
 
         MigrationDto.CommitResponse response = service.commit(request, "999999");
 
@@ -539,7 +579,8 @@ class MigrationImportServiceTest {
         verify(budgetRateApplicationService).applyItemRates(captor.capture());
         assertThat(captor.getValue().items())
                 .extracting(BudgetWorkDto.ItemRate::orcPkVl)
-                .doesNotContain("존재하지않는사업");
+                .doesNotContain("존재하지않는사업")
+                .contains("PRJ-2026-0007");
     }
 
     /** 부문계획 시트를 올리지 않으면 planReqDocNo는 null이다. */
@@ -557,15 +598,10 @@ class MigrationImportServiceTest {
                 .createPlanForMigration(anyString(), anyString(), any(), any(), any(), any());
     }
 
-    /**
-     * 부문계획 조정 대상 사업이 이미 있으면(연도 스냅샷에 존재) 기존 활성 품목을 버전 교체하고 조정 계획을 만든다.
-     *
-     * <p>devAmount만 채우고 hw·swAmount는 null로 두어 {@code addAdjustedItem}의 null-스킵 분기와 실제-추가 분기를 함께
-     * 지나가게 한다.
-     */
+    /** 부문계획 대상 사업이 스냅샷에 있으면 조정 계획을 만든다. 품목은 건드리지 않는다. */
     @Test
-    @DisplayName("부문계획 대상 사업이 있으면 품목을 버전 교체하고 조정 계획을 만든다")
-    void 부문계획_대상사업이_있으면_품목을_교체하고_계획을_만든다() {
+    @DisplayName("부문계획 대상 사업이 있으면 품목을 건드리지 않고 조정 계획을 만든다")
+    void 부문계획_대상사업이_있으면_계획만_만든다() {
         SheetAdapter planAdapter = Mockito.mock(SheetAdapter.class);
         when(planAdapter.supports()).thenReturn(SheetKind.PLAN_ADJUSTMENT);
         PlanIntent intent =
@@ -584,33 +620,14 @@ class MigrationImportServiceTest {
                 .thenReturn(
                         TestSnapshots.snapshotWithProjectName(
                                 "2026", "문자메시지안심마크도입", "PRJ-2026-0005"));
-        when(orgIdentityResolver.snapshot())
-                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
-        when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
-        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        stubLookupIndex();
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
-        when(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0005", "N", "Y"))
-                .thenReturn(List.of(Bitemm.builder().gclMngNo("GCL-2025-0001").sno(1).build()));
         when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any(), any()))
                 .thenReturn("PLN-2026-0009");
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
 
-        MigrationImportService service =
-                new MigrationImportService(
-                        List.of(planAdapter),
-                        validator,
-                        yearSnapshot,
-                        orgIdentityResolver,
-                        catalogReader,
-                        approvalStamper,
-                        costService,
-                        costRepository,
-                        projectService,
-                        projectRepository,
-                        budgetRateApplicationService,
-                        projectItemRepository,
-                        planService);
+        MigrationImportService service = serviceWith(List.of(planAdapter));
 
         MigrationDto.CommitRequest request =
                 new MigrationDto.CommitRequest(
@@ -624,14 +641,15 @@ class MigrationImportServiceTest {
         MigrationDto.CommitResponse response = service.commit(request, "999999");
 
         assertThat(response.planReqDocNo()).isEqualTo("PLN-2026-0009");
-        assertThat(response.itemCount()).isEqualTo(1);
-        verify(projectService).replaceItemsForMigration(eq("PRJ-2026-0005"), any());
+        // 하반기 조정은 요청 품목을 만들지도 지우지도 않는다 (설계 §5.4)
+        assertThat(response.itemCount()).isZero();
+        verify(projectService, never()).replaceItemsForMigration(anyString(), any());
         verify(planService)
                 .createPlanForMigration(
                         eq("2026"), eq("조정"), eq(List.of("PRJ-2026-0005")), any(), any(), any());
     }
 
-    /** 부문계획 대상 사업을 찾지 못하면 품목 교체도 계획 생성도 건너뛰고 예외를 던지지 않는다. */
+    /** 부문계획 대상 사업을 찾지 못하면 계획 생성을 건너뛰고 예외를 던지지 않는다. */
     @Test
     @DisplayName("부문계획 대상 사업을 찾지 못하면 건너뛰고 planReqDocNo는 null이다")
     void 부문계획_대상사업_미매칭은_건너뛴다() {
@@ -644,29 +662,12 @@ class MigrationImportServiceTest {
                 .thenReturn(new AdapterOutput(List.of(), List.of(), List.of(intent), List.of()));
 
         when(yearSnapshot.load(anyString())).thenReturn(TestSnapshots.empty("2026"));
-        when(orgIdentityResolver.snapshot())
-                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
-        when(catalogReader.ioeCodeByName()).thenReturn(Map.of());
-        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        stubLookupIndex();
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
 
-        MigrationImportService service =
-                new MigrationImportService(
-                        List.of(planAdapter),
-                        validator,
-                        yearSnapshot,
-                        orgIdentityResolver,
-                        catalogReader,
-                        approvalStamper,
-                        costService,
-                        costRepository,
-                        projectService,
-                        projectRepository,
-                        budgetRateApplicationService,
-                        projectItemRepository,
-                        planService);
+        MigrationImportService service = serviceWith(List.of(planAdapter));
 
         MigrationDto.CommitRequest request =
                 new MigrationDto.CommitRequest(
@@ -686,13 +687,247 @@ class MigrationImportServiceTest {
                 .createPlanForMigration(anyString(), anyString(), any(), any(), any(), any());
     }
 
+    // ------------------------------------------------------------------
+    // 매칭 → 배분 → 편성 (Task 9의 핵심 흐름)
+    // ------------------------------------------------------------------
+
+    /**
+     * 종합본의 자본예산 행이 기존 사업에 매칭되면 원장을 만들지 않고 편성률만 갱신한다.
+     *
+     * <p>요청 품목 1,406백만원 × 조정비율 0.7 = 984.2백만원이 목표 편성액이고, 요청 합계로 나눈 실효 편성률 70.00000이 그 비목(106)에 실린다.
+     */
+    @Test
+    @DisplayName("매칭된 사업은 원장을 만들지 않고 편성만 한다")
+    void 매칭된_사업은_원장을_만들지_않고_편성만_한다() {
+        MigrationImportService service = capitalService();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        MigrationDto.CommitResponse response = service.commit(capitalRequest(List.of()), "12345");
+
+        verify(projectService, never()).createProject(any(), anyBoolean());
+        assertThat(response.projectCount()).isZero();
+        assertThat(response.itemCount()).isZero();
+
+        assertThat(appliedRateOf("PRJ-2026-0001").ioeRates())
+                .hasEntrySatisfying(
+                        "106", rate -> assertThat(rate).isEqualByComparingTo("70.00000"));
+    }
+
+    /** CREATE_NEW로 결정한 행만 원장을 만든다. */
+    @Test
+    @DisplayName("CREATE_NEW로 결정한 행만 원장을 만든다")
+    void CREATE_NEW로_결정한_행만_원장을_만든다() {
+        MigrationImportService service = capitalService();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0100");
+        when(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0100", "N"))
+                .thenReturn(
+                        java.util.Optional.of(
+                                Bprojm.builder().abusMngNo("PRJ-2026-0100").sno(1).build()));
+
+        MigrationDto.CommitResponse response =
+                service.commit(
+                        capitalRequest(
+                                List.of(
+                                        new MigrationDto.CellOverride(
+                                                SheetKind.CAPITAL_PROJECT,
+                                                2,
+                                                RowDecision.COLUMN,
+                                                "CREATE_NEW"))),
+                        "12345");
+
+        verify(projectService).createProject(any(), eq(true));
+        assertThat(response.projectCount()).isEqualTo(1);
+        // 자본예산 시트는 금액이 있는 열마다 품목을 만든다 — 여기서는 기타무형자산 한 건
+        assertThat(response.itemCount()).isEqualTo(1);
+        assertThat(response.createdIds()).containsExactly("PRJ-2026-0100");
+    }
+
+    /** SKIP으로 결정한 행은 편성 대상에서 빠지고 기존 편성률만 남는다. */
+    @Test
+    @DisplayName("SKIP으로 결정한 행은 편성 대상에서 빠진다")
+    void SKIP으로_결정한_행은_편성_대상에서_빠진다() {
+        MigrationImportService service = capitalService();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        service.commit(
+                capitalRequest(
+                        List.of(
+                                new MigrationDto.CellOverride(
+                                        SheetKind.CAPITAL_PROJECT, 2, RowDecision.COLUMN, "SKIP"))),
+                "12345");
+
+        verify(projectService, never()).createProject(any(), anyBoolean());
+        // 기존 편성행이 없는 품목이라 유지할 편성률도 없다 — 종합본의 조정비율이 반영되지 않았다는 뜻이다
+        assertThat(appliedRateOf("PRJ-2026-0001").ioeRates()).isEmpty();
+    }
+
+    /** 종합본에 없는 기존 사업의 편성률은 그대로 유지된다. */
+    @Test
+    @DisplayName("종합본에 없는 기존 사업의 편성률이 유지된다")
+    void 종합본에_없는_기존_사업의_편성률이_유지된다() {
+        MigrationImportService service = capitalService();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        service.commit(capitalRequest(List.of()), "12345");
+
+        assertThat(appliedRateOf("PRJ-2026-0009").ioeRates())
+                .hasEntrySatisfying("103", rate -> assertThat(rate).isEqualByComparingTo("55"));
+    }
+
+    /**
+     * 하반기 조정의 확정금액이 실효 편성률로 환산돼 기존 사업에 실린다.
+     *
+     * <p>Task 7이 5단계를 제거하면서 하반기 조정이 완전히 무동작이 됐던 시나리오다. 요청 품목 1,406백만원에 확정금액 703백만원을 편성하면 실효 편성률은
+     * 50.00000이다.
+     */
+    @Test
+    @DisplayName("하반기 조정의 확정금액이 실효 편성률로 실린다")
+    void 하반기_조정의_확정금액이_편성률로_실린다() {
+        when(yearSnapshot.load(anyString())).thenReturn(capitalSnapshot());
+        stubLookupIndex();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+        when(planService.createPlanForMigration(
+                        anyString(), anyString(), any(), any(), any(), any()))
+                .thenReturn("PLN-2026-0001");
+        MigrationImportService service = serviceWith(List.of(new PlanAdjustmentSheetAdapter()));
+
+        Map<String, String> cells = new LinkedHashMap<>();
+        cells.put("projectName", "웹한글기안기도입");
+        cells.put("swAmount", "703");
+
+        service.commit(
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, cells)))),
+                        List.of()),
+                "12345");
+
+        assertThat(appliedRateOf("PRJ-2026-0001").ioeRates())
+                .hasEntrySatisfying(
+                        "106", rate -> assertThat(rate).isEqualByComparingTo("50.00000"));
+    }
+
+    /**
+     * 같은 사업이 자본예산 시트와 부문계획 시트 양쪽에 나오면 하반기 조정이 이긴다.
+     *
+     * <p>어댑터 순서(§7)가 부문계획을 마지막에 두는 이유가 여기 있다 — 6월 조정이 더 최신 판단이다.
+     */
+    @Test
+    @DisplayName("같은 사업이 두 시트에 나오면 하반기 조정이 종합본을 덮는다")
+    void 두_시트에_나온_사업은_하반기_조정이_이긴다() {
+        when(yearSnapshot.load(anyString())).thenReturn(capitalSnapshot());
+        stubLookupIndex();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+        when(planService.createPlanForMigration(
+                        anyString(), anyString(), any(), any(), any(), any()))
+                .thenReturn("PLN-2026-0001");
+        MigrationImportService service =
+                serviceWith(
+                        List.of(
+                                new CapitalProjectSheetAdapter(),
+                                new PlanAdjustmentSheetAdapter()));
+
+        Map<String, String> planCells = new LinkedHashMap<>();
+        planCells.put("projectName", "웹한글기안기도입");
+        planCells.put("swAmount", "703");
+
+        service.commit(
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                capitalSheet(),
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, planCells)))),
+                        List.of()),
+                "12345");
+
+        // 종합본은 70%, 하반기 조정은 50%를 낸다. 마지막에 처리한 부문계획이 이긴다.
+        assertThat(appliedRateOf("PRJ-2026-0001").ioeRates())
+                .hasEntrySatisfying(
+                        "106", rate -> assertThat(rate).isEqualByComparingTo("50.00000"));
+    }
+
+    /**
+     * 매칭된 전산업무비 원장의 빈 사업코드를 종합본 값으로 채운다 (설계 §4.1).
+     *
+     * <p>편성요청서 양식에 사업코드 열이 없어 1단계가 만든 행은 대부분 비어 있는데, 예산 집계가 사업코드로 묶이므로 비워 두면 집계에서 빠진다.
+     */
+    @Test
+    @DisplayName("매칭된 전산업무비의 빈 사업코드를 종합본 값으로 채운다")
+    void 매칭된_전산업무비의_빈_사업코드를_채운다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatching());
+        Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
+        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+                .thenReturn(List.of(matched));
+
+        service.commit(commitRequestWithoutDecision(), "999999");
+
+        verify(costService, never()).createCost(any(), anyBoolean());
+        assertThat(matched.getBgUntAbusC()).isEqualTo("571");
+    }
+
+    /** 원장에 이미 사업코드가 있으면 종합본이 덮지 않는다. */
+    @Test
+    @DisplayName("전산업무비에 사업코드가 이미 있으면 덮지 않는다")
+    void 사업코드가_이미_있으면_덮지_않는다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        MigrationYearSnapshot.Data base = costSnapshotMatching();
+        Map<String, String> withCode = new LinkedHashMap<>();
+        withCode.put("COST-2026-0055", "999");
+        when(yearSnapshot.load(anyString()))
+                .thenReturn(
+                        new MigrationYearSnapshot.Data(
+                                base.bseYy(),
+                                base.projectNoByNormalizedName(),
+                                base.projectNameByNo(),
+                                base.ordinaryProjectNosByDept(),
+                                base.itemsByProjectNo(),
+                                base.costByNo(),
+                                base.costNoByDeptKey(),
+                                base.costNosByDeptIoe(),
+                                withCode,
+                                base.existingPlanTypes(),
+                                base.existingCostRateByCostNo(),
+                                base.existingItemRateByItemNo(),
+                                base.allProjectNos(),
+                                base.allCostNos()));
+
+        service.commit(commitRequestWithoutDecision(), "999999");
+
+        verify(costRepository, never()).findByCostBgNoAndDelYn("COST-2026-0055", "N");
+    }
+
+    // ------------------------------------------------------------------
+    // 픽스처
+    // ------------------------------------------------------------------
+
+    /** 마지막 {@code applyItemRates} 호출에서 그 원장의 편성 항목을 꺼냅니다. */
+    private BudgetWorkDto.ItemRate appliedRateOf(String orcPkVl) {
+        ArgumentCaptor<BudgetWorkDto.ItemApplyRequest> captor =
+                ArgumentCaptor.forClass(BudgetWorkDto.ItemApplyRequest.class);
+        verify(budgetRateApplicationService).applyItemRates(captor.capture());
+        return captor.getValue().items().stream()
+                .filter(item -> orcPkVl.equals(item.orcPkVl()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("편성 목록에 " + orcPkVl + "이 없습니다"));
+    }
+
+    /** 전산일반관리비 어댑터만 등록한 서비스. */
     private MigrationImportService service() {
         when(yearSnapshot.load(anyString())).thenReturn(TestSnapshots.empty("2026"));
-        when(orgIdentityResolver.snapshot())
-                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
-        when(catalogReader.ioeCodeByName()).thenReturn(Map.of("유지보수료", "011"));
-        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
-        when(catalogReader.generalExpenseRate()).thenReturn(BigDecimal.valueOf(100));
+        stubLookupIndex();
         // 전산업무비 채번 결과의 실제 BG_SNO 조회 — 값 자체를 검증하는 테스트는 별도로 이 스텁을 덮어쓴다.
         when(costRepository.findByCostBgNoAndDelYn(anyString(), eq("N")))
                 .thenReturn(
@@ -704,9 +939,24 @@ class MigrationImportServiceTest {
                                         .build()));
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+        return serviceWith(List.of(new CostSheetAdapter()));
+    }
+
+    /** 자본예산 어댑터만 등록하고 기존 사업 2건이 있는 연도 스냅샷을 쓰는 서비스. */
+    private MigrationImportService capitalService() {
+        when(yearSnapshot.load(anyString())).thenReturn(capitalSnapshot());
+        stubLookupIndex();
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+        return serviceWith(List.of(new CapitalProjectSheetAdapter()));
+    }
+
+    private MigrationImportService serviceWith(List<SheetAdapter> adapters) {
         return new MigrationImportService(
-                List.of(new com.kdb.it.domain.migration.service.adapter.CostSheetAdapter()),
+                adapters,
                 validator,
+                new MigrationMatchDiagnostics(new MigrationLedgerMatcher()),
+                new MigrationAllocationPlanner(),
                 yearSnapshot,
                 orgIdentityResolver,
                 catalogReader,
@@ -716,13 +966,138 @@ class MigrationImportServiceTest {
                 projectService,
                 projectRepository,
                 budgetRateApplicationService,
-                projectItemRepository,
                 planService);
     }
 
-    private static MigrationDto.CommitRequest commitRequest() {
+    private void stubLookupIndex() {
+        when(orgIdentityResolver.snapshot())
+                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
+        when(catalogReader.ioeCodeByName()).thenReturn(Map.of("유지보수료", "011"));
+        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        when(catalogReader.generalExpenseRate()).thenReturn(BigDecimal.valueOf(100));
+    }
+
+    /**
+     * 사업 2건이 있는 연도 스냅샷.
+     *
+     * <ul>
+     *   <li>PRJ-2026-0001 `웹한글기안기도입` — 품목 GCL-1(비목 106, 1,406백만원), 기존 편성행 없음
+     *   <li>PRJ-2026-0009 — 품목 GCL-9(비목 103), 기존 편성률 55. 종합본에 없는 사업이다
+     * </ul>
+     */
+    private MigrationYearSnapshot.Data capitalSnapshot() {
+        Map<String, String> byName = new LinkedHashMap<>();
+        byName.put("웹한글기안기도입", "PRJ-2026-0001");
+        Map<String, List<MigrationYearSnapshot.RequestItem>> items = new LinkedHashMap<>();
+        items.put(
+                "PRJ-2026-0001",
+                List.of(
+                        new MigrationYearSnapshot.RequestItem(
+                                "GCL-1", 1, "106", new BigDecimal("1406000000"))));
+        items.put(
+                "PRJ-2026-0009",
+                List.of(
+                        new MigrationYearSnapshot.RequestItem(
+                                "GCL-9", 1, "103", new BigDecimal("500000000"))));
+        return new MigrationYearSnapshot.Data(
+                "2026",
+                byName,
+                Map.of("PRJ-2026-0001", "웹한글기안기도입"),
+                Map.of(),
+                items,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Set.of(),
+                Map.of(),
+                Map.of("GCL-9", new BigDecimal("55")),
+                List.of("PRJ-2026-0001", "PRJ-2026-0009"),
+                List.of());
+    }
+
+    /** {@link #commitRequestWithoutDecision}의 행이 정확히 매칭되는 전산업무비 스냅샷. */
+    private MigrationYearSnapshot.Data costSnapshotMatching() {
+        String key = MigrationYearSnapshot.costDeptKey("2026", null, "011", "커브", "올인원워크스페이스");
+        Map<String, MigrationYearSnapshot.CostRef> costByNo = new LinkedHashMap<>();
+        costByNo.put(
+                "COST-2026-0055",
+                new MigrationYearSnapshot.CostRef(
+                        "COST-2026-0055",
+                        1,
+                        "011",
+                        new BigDecimal("15401000"),
+                        "올인원워크스페이스",
+                        "올인원워크스페이스 / 커브"));
+        Map<String, String> byKey = new LinkedHashMap<>();
+        byKey.put(key, "COST-2026-0055");
+        Map<String, String> bgUntAbusC = new LinkedHashMap<>();
+        bgUntAbusC.put("COST-2026-0055", null);
+        return new MigrationYearSnapshot.Data(
+                "2026",
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                costByNo,
+                byKey,
+                Map.of(),
+                bgUntAbusC,
+                Set.of(),
+                Map.of(),
+                Map.of(),
+                List.of(),
+                List.of("COST-2026-0055"));
+    }
+
+    /** 사업·전산업무비 목록만 갈아 끼운 연도 스냅샷. */
+    private MigrationYearSnapshot.Data snapshot(
+            Map<String, List<MigrationYearSnapshot.RequestItem>> itemsByProject,
+            Map<String, MigrationYearSnapshot.CostRef> costByNo,
+            Map<String, BigDecimal> costRates,
+            Map<String, BigDecimal> itemRates) {
+        return new MigrationYearSnapshot.Data(
+                "2026",
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                itemsByProject,
+                costByNo,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Set.of(),
+                costRates,
+                itemRates,
+                List.copyOf(itemsByProject.keySet()),
+                List.copyOf(costByNo.keySet()));
+    }
+
+    /** 자본예산 시트 한 행 — 사업명 `웹한글기안기도입`, 기타무형 1,406백만원, 조정비율 0.7. */
+    private static MigrationDto.SheetPayload capitalSheet() {
+        Map<String, String> cells = new LinkedHashMap<>();
+        cells.put("projectName", "웹한글기안기도입");
+        cells.put("swAmount", "1406");
+        cells.put("adjustRate", "0.7");
+        return new MigrationDto.SheetPayload(
+                SheetKind.CAPITAL_PROJECT,
+                "2026",
+                List.of(new MigrationDto.NormalizedRow(2, cells)));
+    }
+
+    private static MigrationDto.CommitRequest capitalRequest(
+            List<MigrationDto.CellOverride> overrides) {
+        return new MigrationDto.CommitRequest(List.of(capitalSheet()), overrides);
+    }
+
+    /**
+     * 전산일반관리비 시트 한 행.
+     *
+     * @param decision 행 결정 보정값. null이면 결정을 보내지 않습니다
+     */
+    private static MigrationDto.CommitRequest costRequest(String decision) {
         Map<String, String> cells =
-                new java.util.LinkedHashMap<>(
+                new LinkedHashMap<>(
                         Map.of(
                                 "abusCode", "571",
                                 "ioeName", "유지보수료",
@@ -733,12 +1108,32 @@ class MigrationImportServiceTest {
                                 "teamName", "IT기획팀",
                                 "currency", "KRW",
                                 "krwAmount", "15401"));
+        List<MigrationDto.CellOverride> overrides = new ArrayList<>();
+        if (decision != null) {
+            overrides.add(
+                    new MigrationDto.CellOverride(SheetKind.COST, 2, RowDecision.COLUMN, decision));
+        }
         return new MigrationDto.CommitRequest(
                 List.of(
                         new MigrationDto.SheetPayload(
                                 SheetKind.COST,
                                 "2026",
                                 List.of(new MigrationDto.NormalizedRow(2, cells)))),
-                List.of());
+                overrides);
+    }
+
+    /** 원장을 새로 만들기로 결정한 전산일반관리비 요청. */
+    private static MigrationDto.CommitRequest commitRequest() {
+        return costRequest("CREATE_NEW");
+    }
+
+    /** 결정을 보내지 않은 전산일반관리비 요청. 매칭 결과에 따라 진단이 갈립니다. */
+    private static MigrationDto.CommitRequest commitRequestWithoutDecision() {
+        return costRequest(null);
+    }
+
+    /** 이 행을 편성하지 않기로 결정한 전산일반관리비 요청. */
+    private static MigrationDto.CommitRequest skipDecisionRequest() {
+        return costRequest("SKIP");
     }
 }

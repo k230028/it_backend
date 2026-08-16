@@ -7,14 +7,13 @@ import com.kdb.it.domain.budget.cost.service.CostRepresentativeSelector;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.service.PlanService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
-import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
-import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.service.BudgetRateApplicationService;
 import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.dto.RowDecision;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.adapter.AdapterContext;
 import com.kdb.it.domain.migration.service.adapter.AdapterOutput;
@@ -26,30 +25,54 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 수기 엑셀 이관의 사전검증과 확정 반영을 조율합니다.
+ * 편성요구서 종합·하반기 조정을 기존 원장에 편성하는 흐름을 조율합니다 (설계 §6.2).
  *
- * <p>dry-run 결과를 서버에 보관하지 않으므로 확정 반영은 클라이언트가 보낸 값을 신뢰하지 않고 같은 검증을 다시 돌립니다. BLOCKER가 하나라도 있으면 아무 원장도
- * 쓰지 않고 실패합니다 — {@link #commit}은 재검증 결과에 BLOCKER가 남으면 어댑터 맵({@link #adapters})에 손을 대기 전에 예외를 던지고
- * 반환하므로, 이 클래스에는 검증을 거치지 않고 어댑터에 도달하는 경로가 없습니다. {@link SheetAdapter}는 이름 해석에 실패한 값을 "이미 코드값"으로 가정하고
- * 넘어가는데, 이는 검증이 먼저 걸러냈다는 전제 위에서만 안전합니다.
+ * <p><b>이 화면은 원장을 만드는 화면이 아닙니다.</b> 부점이 제출한 편성요청서가 이미 {@code BPROJM}·{@code BITEMM}·{@code BCOSTM}을
+ * 만들어 두었고, 여기서는 종합본의 금액을 그 원장에 <b>편성금액</b>으로 반영합니다. 흐름은 세 단계입니다 — 행을 원장에 붙이고(매칭), 종합본 금액을 요청 품목에
+ * 나누고(배분), 그 결과를 실효 편성률로 환산해 한 번에 적용(편성)합니다. 원장을 새로 만드는 것은 관리자가 그 행에 {@code CREATE_NEW}를 명시한
+ * 경우뿐입니다.
  *
- * <p>반영 순서가 중요합니다(§7: 일반관리비 → 자본예산 → 위임예산 → 부문계획 → 편성률 단일 적용). 부문계획 조정은 자본예산이 만든 품목을 버전 교체하므로 원장
- * 단계의 마지막이며, 편성행은 {@code applyItemRates} 단일 호출이 전담합니다 — 이 메서드는 연도 전체를 재작성하고 삭제 이력을 남기지 않으므로 두 번
- * 호출하면 첫 결과가 흔적 없이 사라집니다.
+ * <p>dry-run 결과를 서버에 보관하지 않으므로 확정 반영은 클라이언트가 보낸 값을 신뢰하지 않고 같은 계산({@link #buildPlan})을 다시 돌립니다.
+ * BLOCKER가 하나라도 있으면 아무 원장도 쓰지 않고 실패합니다 — {@link #commit}은 재계산 결과에 BLOCKER가 남으면 원장을 쓰는 코드에 닿기 전에 예외를
+ * 던집니다. {@link SheetAdapter}는 이름 해석에 실패한 값을 "이미 코드값"으로 가정하고 넘어가는데, 이는 검증이 먼저 걸러냈다는 전제 위에서만 안전합니다.
+ *
+ * <p>반영 순서가 중요합니다({@link #ADAPTER_ORDER}). 부문계획(하반기 조정)이 마지막이라 같은 사업이 자본예산 시트와 부문계획 시트 양쪽에 나오면 더 최신
+ * 판단인 하반기 조정이 이깁니다. 편성행은 {@code applyItemRates} 단일 호출이 전담합니다 — 이 메서드는 연도 전체를 재작성하고 삭제 이력을 남기지 않으므로
+ * 두 번 호출하면 첫 결과가 흔적 없이 사라집니다.
  */
 @Service
 @Slf4j
 public class MigrationImportService {
 
+    /** 어댑터 처리 순서 (§7). 부문계획이 마지막이라 하반기 조정이 종합본 편성률을 덮습니다. */
+    private static final List<SheetKind> ADAPTER_ORDER =
+            List.of(
+                    SheetKind.COST,
+                    SheetKind.CAPITAL_PROJECT,
+                    SheetKind.DELEGATED_BUDGET,
+                    SheetKind.PLAN_ADJUSTMENT);
+
+    /**
+     * 계획 계산에서 어댑터에 넘기는 작성자 사번입니다.
+     *
+     * <p>{@link #buildPlan}은 원장을 쓰지 않고 배분 의도와 진단만 읽으므로 작성자 값이 결과에 관여하지 않습니다. 실제 원장을 만드는 단계는 업로드 사용자
+     * 사번으로 어댑터를 다시 돌립니다.
+     */
+    private static final String PLANNING_ACTOR = "PREVIEW";
+
     private final Map<SheetKind, SheetAdapter> adapters = new EnumMap<>(SheetKind.class);
     private final MigrationValidator validator;
+    private final MigrationMatchDiagnostics matchDiagnostics;
+    private final MigrationAllocationPlanner allocationPlanner;
     private final MigrationYearSnapshot yearSnapshot;
     private final OrgIdentityResolver orgIdentityResolver;
     private final MigrationIoeCatalogReader catalogReader;
@@ -59,7 +82,6 @@ public class MigrationImportService {
     private final ProjectService projectService;
     private final ProjectRepository projectRepository;
     private final BudgetRateApplicationService budgetRateApplicationService;
-    private final ProjectItemRepository projectItemRepository;
     private final PlanService planService;
 
     /**
@@ -70,6 +92,8 @@ public class MigrationImportService {
     public MigrationImportService(
             List<SheetAdapter> sheetAdapters,
             MigrationValidator validator,
+            MigrationMatchDiagnostics matchDiagnostics,
+            MigrationAllocationPlanner allocationPlanner,
             MigrationYearSnapshot yearSnapshot,
             OrgIdentityResolver orgIdentityResolver,
             MigrationIoeCatalogReader catalogReader,
@@ -79,12 +103,13 @@ public class MigrationImportService {
             ProjectService projectService,
             ProjectRepository projectRepository,
             BudgetRateApplicationService budgetRateApplicationService,
-            ProjectItemRepository projectItemRepository,
             PlanService planService) {
         for (SheetAdapter adapter : sheetAdapters) {
             adapters.put(adapter.supports(), adapter);
         }
         this.validator = validator;
+        this.matchDiagnostics = matchDiagnostics;
+        this.allocationPlanner = allocationPlanner;
         this.yearSnapshot = yearSnapshot;
         this.orgIdentityResolver = orgIdentityResolver;
         this.catalogReader = catalogReader;
@@ -94,51 +119,43 @@ public class MigrationImportService {
         this.projectService = projectService;
         this.projectRepository = projectRepository;
         this.budgetRateApplicationService = budgetRateApplicationService;
-        this.projectItemRepository = projectItemRepository;
         this.planService = planService;
     }
 
     /**
-     * 올린 시트를 검증해 행별 진단을 돌려줍니다. 아무것도 저장하지 않습니다.
+     * 올린 시트를 매칭·배분까지 계산해 행별 진단을 돌려줍니다. 아무것도 저장하지 않습니다.
      *
-     * @param request 시트 목록과 보정값
+     * @param request 시트 목록과 보정값(행 결정 포함)
      * @return 진단 목록과 요약
-     * @throws IllegalArgumentException 시트 목록이 비었거나 지원하지 않는 시트 종류가 온 경우
+     * @throws IllegalArgumentException 시트 목록이 비었거나, 지원하지 않는 시트 종류이거나, 예산연도가 섞인 경우
      */
     @Transactional(readOnly = true)
     public MigrationDto.DryRunResponse dryRun(MigrationDto.DryRunRequest request) {
         requireSupported(request.sheets());
         String bseYy = request.sheets().get(0).bseYy();
         Map<String, String> overrides = foldOverrides(request.overrides());
-        // TODO(Task 9): 실제 CREATE_NEW 결정 행 집합을 넘긴다 — 지금은 빈 맵이라 원장 검증이 어느 행에도 걸리지 않는다.
-        List<MigrationDto.CellDiagnostic> diagnostics =
-                validator.validate(
-                        request.sheets(),
-                        lookupIndex(),
-                        yearSnapshot.load(bseYy),
-                        overrides,
-                        Map.of());
+        MigrationYearSnapshot.Data snapshot = yearSnapshot.load(bseYy);
+
+        Plan plan = buildPlan(request.sheets(), lookupIndex(), snapshot, overrides, Map.of());
 
         int totalRows = request.sheets().stream().mapToInt(s -> s.rows().size()).sum();
-        int blockers =
-                (int)
-                        diagnostics.stream()
-                                .filter(d -> d.severity() == MigrationDto.Severity.BLOCKER)
-                                .count();
+        int blockers = (int) blockerCount(plan.diagnostics());
         return new MigrationDto.DryRunResponse(
-                diagnostics,
-                new MigrationDto.Summary(totalRows, blockers, diagnostics.size() - blockers));
+                plan.diagnostics(),
+                new MigrationDto.Summary(
+                        totalRows, blockers, plan.diagnostics().size() - blockers));
     }
 
     /**
-     * 보정값을 반영해 원장과 결재 받이를 만들고 편성률을 적용합니다.
+     * 보정값과 행 결정을 반영해 편성금액을 계산하고 원장에 적용합니다.
      *
      * <p>전 과정이 하나의 트랜잭션입니다. 검증에서 BLOCKER가 남거나 어느 단계에서든 예외가 나면 전부 롤백됩니다.
      *
-     * @param request 시트 목록과 보정값
+     * @param request 시트 목록과 보정값(행 결정 포함)
      * @param actorEno 업로드 사용자 사번
-     * @return 반영 건수와 생성한 관리번호
-     * @throws CustomGeneralException 검증에 BLOCKER가 남은 경우
+     * @return 반영 건수와 새로 만든 관리번호
+     * @throws CustomGeneralException 검증에 BLOCKER가 남은 경우, 또는 이관 직후 생성한 사업을 다시 찾지 못한 경우
+     * @throws IllegalArgumentException 시트 목록이 비었거나, 지원하지 않는 시트 종류이거나, 예산연도가 섞인 경우
      */
     @Transactional
     public MigrationDto.CommitResponse commit(MigrationDto.CommitRequest request, String actorEno) {
@@ -148,15 +165,10 @@ public class MigrationImportService {
         MigrationYearSnapshot.Data snapshot = yearSnapshot.load(bseYy);
         MigrationLookupIndex index = lookupIndex();
 
-        // 1단계: 재검증 — BLOCKER가 남으면 아무것도 쓰지 않는다. 이 메서드에서 어댑터 맵(adapters)에
-        // 처음 접근하는 지점은 이 return문 다음이므로, BLOCKER가 있는 한 어댑터에 도달할 방법이 없다.
-        // TODO(Task 9): 실제 CREATE_NEW 결정 행 집합을 넘긴다 — 지금은 빈 맵이라 원장 검증이 어느 행에도 걸리지 않는다.
-        List<MigrationDto.CellDiagnostic> diagnostics =
-                validator.validate(request.sheets(), index, snapshot, overrides, Map.of());
-        long blockers =
-                diagnostics.stream()
-                        .filter(d -> d.severity() == MigrationDto.Severity.BLOCKER)
-                        .count();
+        // 1단계: 매칭·배분·검증을 dry-run과 같은 계산으로 다시 돌린다.
+        // BLOCKER가 남으면 원장에 손대기 전에 예외를 던진다.
+        Plan plan = buildPlan(request.sheets(), index, snapshot, overrides, Map.of());
+        long blockers = blockerCount(plan.diagnostics());
         if (blockers > 0) {
             throw new CustomGeneralException(
                     "해결되지 않은 오류가 " + blockers + "건 있어 반영할 수 없습니다. 미리보기에서 보정해 주세요.");
@@ -164,137 +176,91 @@ public class MigrationImportService {
 
         AdapterContext ctx = new AdapterContext(bseYy, index, snapshot, overrides, actorEno);
 
-        // 2단계: 이관 대상이 아닌 기존 편성행의 편성률을 유지하도록 미리 모아 둔다 (§7 5단계 준비).
-        // 사업의 편성률은 BBUGTM에 사업관리번호로 걸린 행이 없어(키가 품목관리번호다, §3.5) 스냅샷이
-        // 품목 편성행에서 역산해 준다. 이 값을 잘못 읽으면 applyItemRates가 연도 전체를 재작성하면서
-        // 기존 사업 전부를 기본값 100%로 올려 버리고, 벌크 논리삭제라 BBUGT_L에도 흔적이 남지 않는다.
-        List<BudgetWorkDto.ItemRate> rateItems = new ArrayList<>();
-        for (String projectNo : snapshot.allProjectNos()) {
-            Map<String, BigDecimal> rates = new LinkedHashMap<>();
-            for (MigrationYearSnapshot.RequestItem item : snapshot.itemsOfProject(projectNo)) {
-                BigDecimal existing = snapshot.existingItemRateByItemNo().get(item.gclMngNo());
-                if (existing != null && item.ioeC() != null) {
-                    rates.put(item.ioeC(), existing);
-                }
-            }
-            rateItems.add(new BudgetWorkDto.ItemRate("BPROJM", projectNo, null, null, rates));
-        }
-        for (String costNo : snapshot.allCostNos()) {
-            Map<String, BigDecimal> rates = new LinkedHashMap<>();
-            MigrationYearSnapshot.CostRef ref = snapshot.costOf(costNo);
-            BigDecimal existing = snapshot.existingCostRateOf(costNo);
-            if (existing != null && ref != null && ref.ioeC() != null) {
-                rates.put(ref.ioeC(), existing);
-            }
-            rateItems.add(new BudgetWorkDto.ItemRate("BCOSTM", costNo, null, null, rates));
-        }
-
-        // 3단계: 어댑터 순서대로 원장 생성. 부문계획은 자본예산이 만든 품목을 교체하므로 마지막에 처리한다
+        // 2단계: CREATE_NEW로 결정한 행만 원장을 만든다.
+        // 생성 결과 PK를 (시트, 행)에 기록해 두고 3단계의 배분 재계산에서 그 행의 편성 대상으로 쓴다.
         List<String> createdIds = new ArrayList<>();
-        Map<String, String> projectNoByName =
-                new LinkedHashMap<>(snapshot.projectNoByNormalizedName());
-        Map<String, String> costNoByNaturalKey = new LinkedHashMap<>();
-        // TODO(Task 9): AllocationIntent를 실효 편성률로 환산해 적용한다 — 지금은 수집만 하고 쓰지 않는다.
-        // 소비자가 없어 하반기 조정(PlanAdjustmentSheetAdapter, 기존 사업만 대상)이 완전히 무동작이 된다.
-        // 상세는 MigrationImportServiceTest.편성률items에_연도전체를_담는다의 Javadoc 참조.
-        List<AllocationIntent> allocations = new ArrayList<>();
         List<PlanIntent> planIntents = new ArrayList<>();
+        Map<SheetKind, Map<Integer, String>> createdPkByRow = new EnumMap<>(SheetKind.class);
         int costCount = 0;
         int projectCount = 0;
         int itemCount = 0;
 
-        for (SheetKind kind :
-                List.of(
-                        SheetKind.COST,
-                        SheetKind.CAPITAL_PROJECT,
-                        SheetKind.DELEGATED_BUDGET,
-                        SheetKind.PLAN_ADJUSTMENT)) {
+        for (SheetKind kind : ADAPTER_ORDER) {
             for (MigrationDto.SheetPayload sheet : request.sheets()) {
                 if (sheet.kind() != kind) {
                     continue;
                 }
                 AdapterOutput output = adapters.get(kind).adapt(sheet, ctx);
-                allocations.addAll(output.allocations());
                 planIntents.addAll(output.plans());
+                Set<Integer> createRows = plan.createNewRows().getOrDefault(kind, Set.of());
+                List<AllocationIntent> intents = output.allocations();
 
-                for (CostDto.CreateRequest cost : output.costs()) {
-                    String costNo = costService.createCost(cost, true);
-                    // 결재 받이의 원천 일련번호(fntTbCrySno)는 BbugtmRepositoryImpl의 집계 조인이
-                    // Cappla.fntTbCrySno = Bcostm.bgSno로 맞춰 보므로, 하드코딩한 1이 아니라 방금 저장된
-                    // 행의 실제 bgSno를 다시 읽어 넘긴다.
-                    Bcostm createdCost =
-                            CostRepresentativeSelector.pick(
-                                    costRepository.findByCostBgNoAndDelYn(costNo, "N"));
-                    costNoByNaturalKey.put(
-                            MigrationYearSnapshot.costDeptKey(
-                                    bseYy,
-                                    cost.getCostSvnDpmC(),
-                                    cost.getIoeC(),
-                                    cost.getCttOppNm(),
-                                    cost.getCttNm()),
-                            costNo);
-                    approvalStamper.stamp(
-                            "BCOSTM",
-                            costNo,
-                            createdCost.getBgSno(),
-                            bseYy + "년 전산일반관리비 이관",
-                            actorEno,
-                            bseYy);
-                    createdIds.add(costNo);
-                    costCount++;
-                }
-                for (ProjectDto.CreateRequest project : output.projects()) {
-                    String projectNo = projectService.createProject(project, true);
-                    // 결재 받이의 원천 일련번호는 Cappla.fntTbCrySno = Bprojm.sno로 맞춰 보므로, 방금
-                    // 저장된 행의 실제 sno를 다시 읽어 넘긴다 (전산업무비와 같은 이유).
-                    Bprojm createdProject =
-                            projectRepository
-                                    .findByAbusMngNoAndDelYn(projectNo, "N")
-                                    .orElseThrow(
-                                            () ->
-                                                    new CustomGeneralException(
-                                                            "이관 직후 생성된 사업을 다시 찾지 못했습니다: "
-                                                                    + projectNo));
-                    projectNoByName.put(
-                            MigrationYearSnapshot.normalizeName(project.getAbusNm()), projectNo);
-                    approvalStamper.stamp(
-                            "BPROJM",
-                            projectNo,
-                            createdProject.getSno(),
-                            bseYy + "년 정보화사업 이관",
-                            actorEno,
-                            bseYy);
-                    createdIds.add(projectNo);
-                    projectCount++;
-                    itemCount += project.getItems() == null ? 0 : project.getItems().size();
+                for (int i = 0; i < intents.size(); i++) {
+                    AllocationIntent intent = intents.get(i);
+                    if (!createRows.contains(intent.excelRow())) {
+                        continue;
+                    }
+                    // buildPlan이 생성요청이 실제로 있는 행만 createNewRows에 넣으므로 인덱스가 안전하다
+                    String createdPk;
+                    if ("BCOSTM".equals(intent.orcTb())) {
+                        createdPk = createCost(output.costs().get(i), bseYy, actorEno);
+                        costCount++;
+                    } else {
+                        ProjectDto.CreateRequest projectRequest = output.projects().get(i);
+                        createdPk = createProject(projectRequest, bseYy, actorEno);
+                        projectCount++;
+                        itemCount +=
+                                projectRequest.getItems() == null
+                                        ? 0
+                                        : projectRequest.getItems().size();
+                    }
+                    createdIds.add(createdPk);
+                    createdPkByRow
+                            .computeIfAbsent(kind, ignored -> new LinkedHashMap<>())
+                            .put(intent.excelRow(), createdPk);
                 }
             }
         }
 
-        // 4단계: 부문계획 — 대상 사업의 품목을 조정 금액으로 버전 교체 (원장 단계의 마지막)
-        for (PlanIntent intent : planIntents) {
-            itemCount += replaceItems(intent, projectNoByName, bseYy);
+        // 3단계: 새로 만든 원장까지 포함해 스냅샷을 다시 읽고 배분을 완성한다.
+        // 방금 만든 품목은 1단계 시점의 스냅샷에 없어 실효 편성률을 계산할 수 없었다.
+        Map<String, Map<String, BigDecimal>> allocationsByPk = copyAllocations(plan);
+        if (!createdIds.isEmpty()) {
+            MigrationYearSnapshot.Data refreshed = yearSnapshot.load(bseYy);
+            Plan replanned =
+                    buildPlan(request.sheets(), index, refreshed, overrides, createdPkByRow);
+            // 재계산 결과를 통째로 갈아 끼우지 않고 덮어쓰기로 합친다. 새 원장이 늘어난 만큼 완화 매칭의
+            // 후보가 늘 수 있어 1단계에서 매칭됐던 행이 재계산에서 AMBIGUOUS로 흔들릴 수 있는데,
+            // 그때 1단계의 배분까지 함께 사라지면 그 원장이 조용히 기본 편성률로 떨어진다.
+            replanned
+                    .allocationsByPk()
+                    .forEach(
+                            (pk, rates) ->
+                                    allocationsByPk
+                                            .computeIfAbsent(pk, ignored -> new LinkedHashMap<>())
+                                            .putAll(rates));
+            long replanBlockers = blockerCount(replanned.diagnostics());
+            if (replanBlockers > 0) {
+                // 1단계에서 BLOCKER가 없었는데 원장을 만든 뒤 생겼다는 뜻이라 반영을 되돌리지는 않되
+                // (이미 만든 원장은 요청대로 만든 것이다) 매칭이 흔들린 흔적을 남긴다.
+                log.warn("원장 생성 후 배분 재계산에서 BLOCKER가 {}건 발생했습니다 (예산연도={})", replanBlockers, bseYy);
+            }
+            snapshot = refreshed;
         }
-        String planReqDocNo =
-                planIntents.isEmpty()
-                        ? null
-                        : createAdjustmentPlan(planIntents, projectNoByName, bseYy);
 
-        // 5단계: 편성률 단일 적용.
-        // TODO(Task 9): AllocationIntent를 실효 편성률로 환산해 적용한다 — 지금은 기존 편성률 유지만 한다.
-        // 종전 RateIntent 루프(편성률을 직접 덮어씀)는 AllocationIntent가 비율이 아니라 목표 "금액"을
-        // 담고 있어 그대로 옮길 수 없어 제거했다. 그 결과 이번 반영은 종합본의 조정비율을 편성률에
-        // 전혀 반영하지 않고 2단계가 모은 rateItems(스냅샷에서 역산한, 이관 이전부터 있던 기존 편성률)를
-        // 그대로 적용한다. 2단계는 "신규 생성분"을 모른다 — 신규 사업·전산업무비는 이번 반영에서 편성행을
-        // 아예 받지 못한다. 더 좁게 보면, PlanAdjustmentSheetAdapter(하반기 조정)는 사업을 새로 만들지
-        // 않고 언제나 기존 사업만 가리키는 AllocationIntent를 내는데, 그 목표액을 rateItems에 반영하던
-        // 유일한 소비자가 이 자리였다. 그래서 지금은 하반기 조정이 기존 사업 편성률에 대해 완전히
-        // 무동작이다 — AllocationIntent 재설계를 촉발한 바로 그 시나리오가 이번 패스에서 통째로 빠진다.
-        // Task 9가 MigrationLedgerMatcher·MigrationAllocationPlanner로 allocations를 실효 편성률로
-        // 환산해 신규·기존 원장 모두의 편성행을 채우면서 이 자리를 채운다.
+        // 3.5단계: 매칭된 전산업무비 원장의 사업코드가 비어 있으면 종합본 값으로 채운다 (§4.1).
+        fillCostBudgetUnitCodes(request.sheets(), plan, snapshot, overrides);
+
+        // 4단계: 하반기 조정 계획 문서. 요청 품목(BITEMM)은 건드리지 않는다.
+        String planReqDocNo =
+                planIntents.isEmpty() ? null : createAdjustmentPlan(planIntents, snapshot, bseYy);
+
+        // 5단계: 편성률 단일 적용. items에는 그 연도의 모든 사업 + 모든 전산업무비를 담는다.
+        // applyItemRates가 연도 전체를 재작성하므로 빠진 것은 되살아나지 않는다(§5.3).
         BudgetWorkDto.ApplyResponse applied =
                 budgetRateApplicationService.applyItemRates(
-                        new BudgetWorkDto.ItemApplyRequest(bseYy, rateItems));
+                        new BudgetWorkDto.ItemApplyRequest(
+                                bseYy, itemRates(snapshot, allocationsByPk)));
 
         return new MigrationDto.CommitResponse(
                 costCount,
@@ -306,95 +272,337 @@ public class MigrationImportService {
     }
 
     /**
-     * 부문계획 조정 금액으로 대상 사업의 품목을 버전 교체합니다.
+     * 반영 계획입니다. dry-run과 commit이 같은 계산을 공유합니다.
      *
-     * <p>기존 활성 품목을 {@code DEL_YN='Y'}로 닫고(요청 금액은 이력으로 남습니다) 조정 금액으로 새 품목을 만듭니다. 조정액은 비율 곱이 아니라 확정
-     * 금액이라 편성률로는 재현되지 않기 때문입니다(§5.4).
-     *
-     * @return 새로 만든 품목 수
+     * @param diagnostics 진단 전체
+     * @param createNewRows 시트별 {@code CREATE_NEW} 결정 행 번호. 원장 생성 대상이자 {@link
+     *     MigrationValidator#validate} 의 생성 전용 검증 범위입니다
+     * @param allocationsByPk 원장 PK → 비목코드별 실효 편성률
+     * @param matchedPkByRow 시트별 (행 번호 → 매칭된 기존 원장 PK). 새로 만든 원장은 담지 않습니다
      */
-    private int replaceItems(PlanIntent intent, Map<String, String> projectNoByName, String bseYy) {
-        String projectNo = projectNoByName.get(intent.normalizedProjectName());
-        if (projectNo == null) {
-            log.warn("부문계획 조정 대상 사업을 찾지 못해 건너뜁니다: {}", intent.normalizedProjectName());
-            return 0;
+    private record Plan(
+            List<MigrationDto.CellDiagnostic> diagnostics,
+            Map<SheetKind, Set<Integer>> createNewRows,
+            Map<String, Map<String, BigDecimal>> allocationsByPk,
+            Map<SheetKind, Map<Integer, String>> matchedPkByRow) {}
+
+    /**
+     * 시트를 어댑터에 태워 매칭·배분·검증을 계산합니다. 원장을 쓰지 않으므로 dry-run과 commit이 그대로 공유합니다.
+     *
+     * <p>배분 결과는 원장 PK 단위로 합칩니다 — 한 사업이 자본예산 시트와 부문계획 시트 양쪽에 나오면 <b>나중에 처리한 시트가 이깁니다</b>. {@link
+     * #ADAPTER_ORDER}가 부문계획을 마지막에 두므로 하반기 조정의 확정금액이 종합본의 조정비율 결과를 덮습니다. 6월 조정이 더 최신 판단이라 이 방향이
+     * 맞습니다.
+     *
+     * @param sheets 올린 시트 목록
+     * @param index 조직·비목·환율 조회 인덱스
+     * @param snapshot 예산연도 기존 상태
+     * @param overrides 보정값 맵(행 결정 포함)
+     * @param createdPkByRow 이미 만든 원장의 (시트, 행) → PK. 원장 생성 전에는 빈 맵이며, 이 맵에 담긴 행은 {@code CREATE_NEW}
+     *     결정이어도 그 PK에 배분합니다
+     * @return 진단·생성 대상·배분 결과
+     */
+    private Plan buildPlan(
+            List<MigrationDto.SheetPayload> sheets,
+            MigrationLookupIndex index,
+            MigrationYearSnapshot.Data snapshot,
+            Map<String, String> overrides,
+            Map<SheetKind, Map<Integer, String>> createdPkByRow) {
+        List<MigrationDto.CellDiagnostic> diagnostics = new ArrayList<>();
+        Map<SheetKind, Set<Integer>> createNewRows = new EnumMap<>(SheetKind.class);
+        Map<SheetKind, Map<Integer, String>> matchedPkByRow = new EnumMap<>(SheetKind.class);
+        Map<String, Map<String, BigDecimal>> allocationsByPk = new LinkedHashMap<>();
+        AdapterContext ctx =
+                new AdapterContext(snapshot.bseYy(), index, snapshot, overrides, PLANNING_ACTOR);
+
+        for (SheetKind kind : ADAPTER_ORDER) {
+            for (MigrationDto.SheetPayload sheet : sheets) {
+                if (sheet.kind() != kind) {
+                    continue;
+                }
+                AdapterOutput output = adapters.get(kind).adapt(sheet, ctx);
+                List<AllocationIntent> intents = output.allocations();
+                for (int i = 0; i < intents.size(); i++) {
+                    AllocationIntent intent = intents.get(i);
+                    MigrationMatchDiagnostics.Resolved resolved =
+                            matchDiagnostics.resolve(sheet, intent, snapshot, overrides);
+                    diagnostics.addAll(resolved.diagnostics());
+
+                    String pk;
+                    if (resolved.action() == RowDecision.Kind.CREATE_NEW) {
+                        if (!hasCreateRequest(output, intent, i)) {
+                            // 부문계획 시트처럼 원장 생성요청을 내지 않는 어댑터의 행이다.
+                            // 만들 것이 없으므로 편성 대상에서도 뺀다 (SKIP과 같은 결과).
+                            log.warn(
+                                    "원장을 만들 수 없는 시트에 CREATE_NEW 결정이 왔습니다 — 편성 대상에서 제외합니다"
+                                            + " (시트={}, 행={})",
+                                    kind,
+                                    intent.excelRow());
+                            continue;
+                        }
+                        createNewRows
+                                .computeIfAbsent(kind, ignored -> new LinkedHashSet<>())
+                                .add(intent.excelRow());
+                        pk = createdPkByRow.getOrDefault(kind, Map.of()).get(intent.excelRow());
+                        if (pk == null) {
+                            // 아직 만들기 전이라 배분할 품목이 스냅샷에 없다. 생성 후 재계산이 채운다.
+                            continue;
+                        }
+                    } else if (resolved.action() == RowDecision.Kind.MATCH) {
+                        pk = resolved.pk();
+                        matchedPkByRow
+                                .computeIfAbsent(kind, ignored -> new LinkedHashMap<>())
+                                .put(intent.excelRow(), pk);
+                    } else {
+                        continue; // SKIP 또는 미결정
+                    }
+
+                    diagnostics.addAll(
+                            matchDiagnostics.checkAllocation(
+                                    sheet, intent, pk, snapshot, allocationPlanner));
+                    allocationsByPk
+                            .computeIfAbsent(pk, ignored -> new LinkedHashMap<>())
+                            .putAll(ratesOf(intent, pk, snapshot));
+                }
+                for (MigrationDto.NormalizedRow row : sheet.rows()) {
+                    diagnostics.addAll(matchDiagnostics.checkRateReconcile(sheet, row, overrides));
+                }
+            }
         }
-        for (Bitemm existing :
-                projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(projectNo, "N", "Y")) {
-            existing.delete();
-        }
-        List<ProjectDto.BitemmDto> items = buildAdjustedItems(intent, bseYy);
-        projectService.replaceItemsForMigration(projectNo, items);
-        return items.size();
+
+        diagnostics.addAll(validator.validate(sheets, index, snapshot, overrides, createNewRows));
+        return new Plan(diagnostics, createNewRows, allocationsByPk, matchedPkByRow);
     }
 
     /**
-     * 조정 금액이 있는 항목만 품목으로 만듭니다.
+     * 그 행에 대응하는 원장 생성요청이 있는지 확인합니다.
      *
-     * <p>비목 기본값은 {@link MigrationIoeCodes} 상수를 그대로 참조합니다 — 자본예산 어댑터가 만든 품목과 같은 비목이어야 조정이 같은 비목의 품목을
-     * 교체합니다. 리터럴을 여기 다시 적으면 한쪽만 바뀌었을 때 조용히 어긋납니다.
+     * <p>{@code AdapterOutput}은 배분 의도와 생성요청을 인덱스 평행으로 냅니다. 부문계획 어댑터처럼 생성요청을 아예 만들지 않는 시트도 있으므로,
+     * {@code CREATE_NEW} 결정을 그대로 믿고 인덱스로 꺼내면 범위를 벗어납니다.
      */
-    private List<ProjectDto.BitemmDto> buildAdjustedItems(PlanIntent intent, String bseYy) {
-        List<ProjectDto.BitemmDto> items = new ArrayList<>();
-        addAdjustedItem(
-                items,
-                intent.devAmount(),
-                MigrationIoeCodes.IOE_DEV,
-                "개발비",
-                intent.paymentYm(),
-                bseYy);
-        addAdjustedItem(
-                items,
-                intent.hwAmount(),
-                MigrationIoeCodes.IOE_HW,
-                "기계장치",
-                intent.paymentYm(),
-                bseYy);
-        addAdjustedItem(
-                items,
-                intent.swAmount(),
-                MigrationIoeCodes.IOE_SW,
-                "기타무형자산",
-                intent.paymentYm(),
-                bseYy);
-        return items;
+    private boolean hasCreateRequest(AdapterOutput output, AllocationIntent intent, int index) {
+        return "BCOSTM".equals(intent.orcTb())
+                ? output.costs().size() > index
+                : output.projects().size() > index;
     }
 
-    private void addAdjustedItem(
-            List<ProjectDto.BitemmDto> items,
-            BigDecimal amount,
-            String ioeC,
-            String label,
-            String paymentYm,
-            String bseYy) {
-        if (amount == null) {
+    /**
+     * 배분 의도를 비목코드별 실효 편성률로 환산합니다.
+     *
+     * <p>같은 비목코드가 두 번 담기지 않습니다 — 비목그룹({@code GROUP_DEV}·{@code GROUP_HW}·{@code GROUP_SW})은 서로소이고
+     * 나머지 한 그룹은 그 셋의 여집합이라, 한 의도 안에서 두 그룹이 같은 비목을 건드릴 수 없습니다. 한 그룹 안의 품목은 모두 그룹 공통 실효율을 받으므로 값도
+     * 같습니다.
+     *
+     * @param intent 배분 의도
+     * @param pk 편성 대상 원장 PK
+     * @param snapshot 연도 스냅샷
+     * @return 비목코드 → 실효 편성률. 배분할 품목이 없거나 배분에 실패한 그룹은 키가 없습니다(진단이 이미 막았습니다)
+     */
+    private Map<String, BigDecimal> ratesOf(
+            AllocationIntent intent, String pk, MigrationYearSnapshot.Data snapshot) {
+        Map<String, BigDecimal> out = new LinkedHashMap<>();
+        if ("BCOSTM".equals(intent.orcTb())) {
+            MigrationYearSnapshot.CostRef ref = snapshot.costOf(pk);
+            if (ref == null) {
+                return out;
+            }
+            MigrationAllocationPlanner.Allocation allocation =
+                    allocationPlanner.allocate(
+                            List.of(
+                                    new MigrationYearSnapshot.RequestItem(
+                                            ref.costBgNo(), ref.bgSno(), ref.ioeC(), ref.amount())),
+                            intent.targetByColumn().get("costAmount"));
+            if (allocation instanceof MigrationAllocationPlanner.Allocation.Allocated allocated
+                    && ref.ioeC() != null) {
+                out.put(ref.ioeC(), allocated.effectiveRate());
+            }
+            return out;
+        }
+
+        List<MigrationYearSnapshot.RequestItem> all = snapshot.itemsOfProject(pk);
+        for (Map.Entry<String, BigDecimal> entry : intent.targetByColumn().entrySet()) {
+            Set<String> group = MigrationAllocationPlanner.groupOf(entry.getKey());
+            List<MigrationYearSnapshot.RequestItem> items =
+                    group.isEmpty()
+                            ? MigrationAllocationPlanner.itemsOutsideCapitalGroups(all)
+                            : MigrationAllocationPlanner.itemsInGroup(all, group);
+            if (items.isEmpty()) {
+                continue;
+            }
+            if (allocationPlanner.allocate(items, entry.getValue())
+                    instanceof MigrationAllocationPlanner.Allocation.Allocated allocated) {
+                for (MigrationAllocationPlanner.ItemAllocation item : allocated.items()) {
+                    if (item.ioeC() != null) {
+                        out.put(item.ioeC(), item.rate());
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 편성률 적용 목록을 만듭니다.
+     *
+     * <p>그 연도의 <b>모든</b> 사업·전산업무비를 담습니다. 이번 반영이 건드리지 않은 항목은 기존 편성률을 그대로 실어 유지하고, 건드린 항목만 새 비목별 편성률로
+     * 덮습니다. 빠진 항목은 {@code applyItemRates}의 연도 전량 재작성에서 되살아나지 않고, 벌크 논리삭제라 {@code BBUGT_L}에도 흔적이 남지
+     * 않습니다.
+     *
+     * <p>{@code assetDupRt}·{@code costDupRt}에 null을 넣으면 {@code applyItemRates}가 기본값 100으로 떨어지지만,
+     * {@code ioeRates}가 그 원장에서 편성률을 아는 모든 비목을 덮으므로 실제로 100이 쓰이는 경우는 기존 편성행도 없고 이번 배분도 없는 비목뿐입니다.
+     *
+     * @param snapshot 편성 대상 연도 스냅샷 (원장을 새로 만들었다면 다시 읽은 것)
+     * @param allocationsByPk 이번 반영이 계산한 원장 PK → 비목코드별 편성률
+     * @return 편성률 적용 항목. 스냅샷에 없는 PK는 담기지 않습니다
+     */
+    private List<BudgetWorkDto.ItemRate> itemRates(
+            MigrationYearSnapshot.Data snapshot,
+            Map<String, Map<String, BigDecimal>> allocationsByPk) {
+        List<BudgetWorkDto.ItemRate> out = new ArrayList<>();
+        for (String projectNo : snapshot.allProjectNos()) {
+            Map<String, BigDecimal> rates = new LinkedHashMap<>();
+            for (MigrationYearSnapshot.RequestItem item : snapshot.itemsOfProject(projectNo)) {
+                BigDecimal existing = snapshot.existingItemRateByItemNo().get(item.gclMngNo());
+                if (existing != null && item.ioeC() != null) {
+                    putPreservedRate(rates, item.ioeC(), existing, projectNo);
+                }
+            }
+            rates.putAll(allocationsByPk.getOrDefault(projectNo, Map.of()));
+            out.add(new BudgetWorkDto.ItemRate("BPROJM", projectNo, null, null, rates));
+        }
+        for (String costNo : snapshot.allCostNos()) {
+            Map<String, BigDecimal> rates = new LinkedHashMap<>();
+            MigrationYearSnapshot.CostRef ref = snapshot.costOf(costNo);
+            BigDecimal existing = snapshot.existingCostRateOf(costNo);
+            if (existing != null && ref != null && ref.ioeC() != null) {
+                rates.put(ref.ioeC(), existing);
+            }
+            rates.putAll(allocationsByPk.getOrDefault(costNo, Map.of()));
+            out.add(new BudgetWorkDto.ItemRate("BCOSTM", costNo, null, null, rates));
+        }
+        return out;
+    }
+
+    /**
+     * 기존 편성률을 비목코드 칸에 보존합니다.
+     *
+     * <p>{@code ioeRates}는 비목코드 단위라 한 사업에 같은 비목의 품목이 둘 있고 편성률이 서로 다르면 한 값만 남습니다. 이번 반영이 계산한 값은 그룹
+     * 공통 실효율이라 언제나 같지만, 이관 이전부터 있던 편성률은 품목마다 다를 수 있습니다(예산작업 화면이 품목 단위로 저장합니다).
+     *
+     * <p>그럴 때 <b>작은 쪽</b>을 남깁니다. 나중 값이 조용히 이기게 두면 편성률이 올라갈 수도 내려갈 수도 있는데, 이관은 편성금액을 조용히 <b>늘리지
+     * 않는</b> 쪽이 안전합니다. 어긋난 사실 자체는 로그로 남겨 예산담당자가 품목별로 다시 지정할 수 있게 합니다.
+     */
+    private void putPreservedRate(
+            Map<String, BigDecimal> rates, String ioeC, BigDecimal existing, String orcPkVl) {
+        BigDecimal previous = rates.putIfAbsent(ioeC, existing);
+        if (previous == null || previous.compareTo(existing) == 0) {
             return;
         }
-        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
-        item.setIoeC(ioeC);
-        item.setGclNm(label);
-        item.setCurC("KRW");
-        item.setAmt(amount);
-        item.setBseYm(paymentYm);
-        item.setXcrBseDt(bseYy + "0101");
-        items.add(item);
+        BigDecimal kept = previous.min(existing);
+        rates.put(ioeC, kept);
+        log.warn(
+                "같은 비목의 기존 편성률이 품목마다 달라 낮은 쪽을 유지합니다 (원장={}, 비목={}, {}/{} → {})",
+                orcPkVl,
+                ioeC,
+                previous,
+                existing,
+                kept);
+    }
+
+    /**
+     * 매칭된 전산업무비 원장의 빈 사업코드를 종합본 값으로 채웁니다 (§4.1).
+     *
+     * <p>편성요청서 양식에 사업코드 열이 없어 1단계가 만든 {@code BCOSTM}은 대부분 이 값이 비어 있는데, 예산 집계가 사업코드로 묶이므로 비워 두면 집계에서
+     * 빠집니다. 이미 값이 있으면 건드리지 않습니다 — 부서가 적어 낸 값을 종합본이 조용히 바꾸지 않게 합니다.
+     *
+     * <p>여러 버전 중 대표 행({@code LST_YN='Y'} 우선)만 채웁니다. 과거 버전은 그 시점의 기록이라 소급해 바꾸지 않습니다.
+     */
+    private void fillCostBudgetUnitCodes(
+            List<MigrationDto.SheetPayload> sheets,
+            Plan plan,
+            MigrationYearSnapshot.Data snapshot,
+            Map<String, String> overrides) {
+        Map<Integer, String> matched = plan.matchedPkByRow().getOrDefault(SheetKind.COST, Map.of());
+        if (matched.isEmpty()) {
+            return;
+        }
+        for (MigrationDto.SheetPayload sheet : sheets) {
+            if (sheet.kind() != SheetKind.COST) {
+                continue;
+            }
+            for (MigrationDto.NormalizedRow row : sheet.rows()) {
+                String costNo = matched.get(row.excelRow());
+                if (costNo == null || snapshot.bgUntAbusCOf(costNo) != null) {
+                    continue;
+                }
+                String abusCode = MigrationDiagnostics.cell(row, "abusCode", overrides, sheet);
+                if (abusCode.isBlank()) {
+                    continue;
+                }
+                CostRepresentativeSelector.pick(costRepository.findByCostBgNoAndDelYn(costNo, "N"))
+                        .fillBudgetUnitCodeIfAbsent(abusCode);
+            }
+        }
+    }
+
+    /**
+     * 전산업무비 원장을 만들고 결재 받이를 찍습니다.
+     *
+     * <p>결재 받이의 원천 일련번호({@code fntTbCrySno})는 {@code BbugtmRepositoryImpl}의 집계 조인이 {@code
+     * Cappla.fntTbCrySno = Bcostm.bgSno}로 맞춰 보므로, 하드코딩한 1이 아니라 방금 저장된 행의 실제 {@code bgSno}를 다시 읽어
+     * 넘깁니다.
+     *
+     * @return 새로 만든 전산업무비관리번호
+     */
+    private String createCost(CostDto.CreateRequest request, String bseYy, String actorEno) {
+        String costNo = costService.createCost(request, true);
+        Bcostm created =
+                CostRepresentativeSelector.pick(costRepository.findByCostBgNoAndDelYn(costNo, "N"));
+        approvalStamper.stamp(
+                "BCOSTM", costNo, created.getBgSno(), bseYy + "년 전산일반관리비 이관", actorEno, bseYy);
+        return costNo;
+    }
+
+    /**
+     * 정보화사업 원장을 만들고 결재 받이를 찍습니다.
+     *
+     * <p>원천 일련번호를 다시 읽는 이유는 {@link #createCost}와 같습니다({@code Cappla.fntTbCrySno = Bprojm.sno}).
+     *
+     * @return 새로 만든 사업관리번호
+     * @throws CustomGeneralException 생성 직후 그 사업을 다시 찾지 못한 경우
+     */
+    private String createProject(ProjectDto.CreateRequest request, String bseYy, String actorEno) {
+        String projectNo = projectService.createProject(request, true);
+        Bprojm created =
+                projectRepository
+                        .findByAbusMngNoAndDelYn(projectNo, "N")
+                        .orElseThrow(
+                                () ->
+                                        new CustomGeneralException(
+                                                "이관 직후 생성된 사업을 다시 찾지 못했습니다: " + projectNo));
+        approvalStamper.stamp(
+                "BPROJM", projectNo, created.getSno(), bseYy + "년 정보화사업 이관", actorEno, bseYy);
+        return projectNo;
     }
 
     /**
      * 조정 계획({@code BPLANM} + {@code BPLANA})을 만듭니다.
      *
      * <p>{@code PlanIntent}는 이 오케스트레이션 서비스만 아는 타입이므로, {@code PlanService}가 이 도메인을 역참조하지 않도록 여기서 원시
-     * 타입(사업관리번호·자본예산 합계·스냅샷 필드 맵)으로 분해해 넘긴다.
+     * 타입(사업관리번호·자본예산 합계·스냅샷 필드 맵)으로 분해해 넘깁니다.
+     *
+     * @param snapshot 연도 스냅샷. 원장을 새로 만들었다면 그 사업까지 담고 있는 최신 스냅샷이어야 합니다
+     * @return 계획요청문서번호. 대상 사업을 하나도 찾지 못하면 null
      */
     private String createAdjustmentPlan(
-            List<PlanIntent> intents, Map<String, String> projectNoByName, String bseYy) {
+            List<PlanIntent> intents, MigrationYearSnapshot.Data snapshot, String bseYy) {
         List<String> projectNos = new ArrayList<>();
         List<BigDecimal> capitalAmounts = new ArrayList<>();
         List<BigDecimal> generalAmounts = new ArrayList<>();
         Map<String, Map<String, String>> snapshotFieldsByProject = new LinkedHashMap<>();
         for (PlanIntent intent : intents) {
-            String projectNo = projectNoByName.get(intent.normalizedProjectName());
+            String projectNo = snapshot.projectNoByName(intent.normalizedProjectName());
             if (projectNo == null) {
+                log.warn("부문계획 조정 대상 사업을 찾지 못해 건너뜁니다: {}", intent.normalizedProjectName());
                 continue;
             }
             projectNos.add(projectNo);
@@ -408,6 +616,20 @@ public class MigrationImportService {
         }
         return planService.createPlanForMigration(
                 bseYy, "조정", projectNos, capitalAmounts, generalAmounts, snapshotFieldsByProject);
+    }
+
+    /** 배분 결과를 이후 단계에서 합칠 수 있게 깊은 복사합니다. */
+    private Map<String, Map<String, BigDecimal>> copyAllocations(Plan plan) {
+        Map<String, Map<String, BigDecimal>> out = new LinkedHashMap<>();
+        plan.allocationsByPk().forEach((pk, rates) -> out.put(pk, new LinkedHashMap<>(rates)));
+        return out;
+    }
+
+    /** BLOCKER 진단 수입니다. */
+    private static long blockerCount(List<MigrationDto.CellDiagnostic> diagnostics) {
+        return diagnostics.stream()
+                .filter(d -> d.severity() == MigrationDto.Severity.BLOCKER)
+                .count();
     }
 
     /** null-safe 금액 합산. */
@@ -447,8 +669,8 @@ public class MigrationImportService {
     /**
      * 시트 목록이 반영 가능한 형태인지 확인합니다.
      *
-     * <p>예산연도는 반드시 전 시트가 같아야 합니다. 이 서비스는 {@code sheets.get(0).bseYy()} 하나를 연도 스냅샷·중복 판정·편성률 적용의
-     * 기준으로 쓰므로, 시트마다 연도가 다르면 두 번째 시트 이후는 **다른 연도의 스냅샷으로 검증되고 첫 시트의 연도로 저장**됩니다.
+     * <p>예산연도는 반드시 전 시트가 같아야 합니다. 이 서비스는 {@code sheets.get(0).bseYy()} 하나를 연도 스냅샷·매칭·편성률 적용의 기준으로
+     * 쓰므로, 시트마다 연도가 다르면 두 번째 시트 이후는 <b>다른 연도의 스냅샷으로 검증되고 첫 시트의 연도로 저장</b>됩니다.
      *
      * @throws IllegalArgumentException 시트가 없거나, 지원하지 않는 종류이거나, 예산연도가 섞인 경우
      */
