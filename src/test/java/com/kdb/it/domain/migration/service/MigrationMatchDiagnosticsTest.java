@@ -8,6 +8,7 @@ import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.MigrationYearSnapshot.RequestItem;
 import com.kdb.it.domain.migration.service.adapter.AllocationIntent;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +73,28 @@ class MigrationMatchDiagnosticsTest {
         assertThat(resolved.action()).isEqualTo(RowDecision.Kind.CREATE_NEW);
         assertThat(resolved.pk()).isNull();
         assertThat(resolved.diagnostics()).isEmpty();
+    }
+
+    /** 경상사업처럼 후보가 둘 이상이면 대상을 하나로 특정하지 못해 LEDGER_AMBIGUOUS를 낸다. */
+    @Test
+    @DisplayName("resolve_후보가_둘이면_LEDGER_AMBIGUOUS를_낸다")
+    void resolve_후보가_둘이면_LEDGER_AMBIGUOUS를_낸다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshotWithOrdinaryProjects(
+                        "920",
+                        Map.of("PRJ-2026-0002", "런던 위임예산", "PRJ-2026-0003", "런던 PF 위임예산"));
+
+        MigrationMatchDiagnostics.Resolved resolved =
+                diagnostics.resolve(delegatedSheet(), intentOfOrdinaryDept("920"), snapshot, Map.of());
+
+        assertThat(resolved.action()).isNull();
+        assertThat(resolved.pk()).isNull();
+        MigrationDto.CellDiagnostic diagnostic = resolved.diagnostics().get(0);
+        assertThat(diagnostic.code()).isEqualTo("LEDGER_AMBIGUOUS");
+        assertThat(diagnostic.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
+        assertThat(diagnostic.candidates())
+                .extracting(MigrationDto.Candidate::code)
+                .contains("MATCH:PRJ-2026-0002", "MATCH:PRJ-2026-0003", "CREATE_NEW", "SKIP");
     }
 
     @Test
@@ -153,6 +176,14 @@ class MigrationMatchDiagnosticsTest {
                 List.of(new MigrationDto.NormalizedRow(2, Map.of())));
     }
 
+    /** 위임예산 매칭(ORDINARY_DEPT) 테스트가 쓰는 시트. */
+    private static MigrationDto.SheetPayload delegatedSheet() {
+        return new MigrationDto.SheetPayload(
+                SheetKind.DELEGATED_BUDGET,
+                "2026",
+                List.of(new MigrationDto.NormalizedRow(2, Map.of())));
+    }
+
     private static MigrationDto.NormalizedRow rowOf(Map<String, String> cells) {
         return new MigrationDto.NormalizedRow(2, cells);
     }
@@ -165,6 +196,17 @@ class MigrationMatchDiagnosticsTest {
                 "BPROJM",
                 AllocationIntent.MatchKey.ofProjectName(
                         MigrationYearSnapshot.normalizeName(projectName)),
+                Map.of(),
+                null);
+    }
+
+    /** 부서코드 매칭 키를 가진 배분 의도(경상사업). resolve의 AMBIGUOUS 판정 테스트 전용이다. */
+    private static AllocationIntent intentOfOrdinaryDept(String deptCode) {
+        return new AllocationIntent(
+                SheetKind.DELEGATED_BUDGET,
+                2,
+                "BPROJM",
+                AllocationIntent.MatchKey.ofOrdinaryDept(deptCode),
                 Map.of(),
                 null);
     }
@@ -214,6 +256,28 @@ class MigrationMatchDiagnosticsTest {
                 Map.of(),
                 Map.of(),
                 List.of(projectNo),
+                List.of());
+    }
+
+    /** 한 부서에 경상사업이 둘 이상 있는 연도 스냅샷. resolve의 AMBIGUOUS 판정 전용이다. */
+    private static MigrationYearSnapshot.Data snapshotWithOrdinaryProjects(
+            String deptCode, Map<String, String> projectNameByNo) {
+        Map<String, List<String>> ordinaryByDept = new LinkedHashMap<>();
+        ordinaryByDept.put(deptCode, new ArrayList<>(projectNameByNo.keySet()));
+        return new MigrationYearSnapshot.Data(
+                "2026",
+                Map.of(),
+                new LinkedHashMap<>(projectNameByNo),
+                ordinaryByDept,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Set.of(),
+                Map.of(),
+                Map.of(),
+                List.copyOf(projectNameByNo.keySet()),
                 List.of());
     }
 }
