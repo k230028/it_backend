@@ -18,6 +18,7 @@ import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
+import com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts;
 import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import java.math.BigDecimal;
 import java.util.List;
@@ -187,5 +188,57 @@ class RequestFormFileImporterTest {
 
         assertThat(output.projects().get(0).getBseYy()).isEqualTo("2099");
         assertThat(output.costs().get(0).getBseYy()).isEqualTo("2099");
+    }
+
+    @Test
+    @DisplayName("선언 금액이 있으면 원장 생성 직후 그 값으로 덮어쓴다")
+    void assignsDeclaredAmountsAfterCreate() {
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
+        ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
+        project.setAbusNm("국채전문유통시장 접속인프라 도입");
+        project.setItems(List.of());
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(project),
+                        List.of(),
+                        List.of(),
+                        null,
+                        List.of(
+                                new ProjectAmounts(
+                                        new BigDecimal("2000000000"),
+                                        BigDecimal.ZERO,
+                                        new BigDecimal("734375300"))));
+
+        importer().apply(output, ENTRY, "2026", "12345678");
+
+        verify(projectService)
+                .assignDeclaredAmounts(
+                        eq("PRJ-2026-0001"),
+                        eq(new BigDecimal("2000000000")),
+                        eq(BigDecimal.ZERO),
+                        eq(new BigDecimal("734375300")));
+    }
+
+    @Test
+    @DisplayName("선언 금액이 없으면 덮어쓰지 않고 품목 합계 스냅샷을 남긴다")
+    void keepsItemSnapshotWhenNoDeclaredAmounts() {
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
+        when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
+
+        importer().apply(outputWithOneOfEach(), ENTRY, "2026", "12345678");
+
+        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("사전검증은 선언 금액을 기록하지 않는다")
+    void previewNeverAssignsDeclaredAmounts() {
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+
+        importer().preview(outputWithOneOfEach(), ENTRY, "2026");
+
+        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
     }
 }
