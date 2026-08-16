@@ -13,6 +13,7 @@ import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.dto.ProjectResponseMapper;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bproja;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -99,7 +100,7 @@ public class ProjectQueryAssembler {
      * @return 상세 응답
      */
     public ProjectDto.Response assembleDetail(Bprojm project) {
-        ProjectDto.Response response = ProjectDto.Response.fromEntity(project);
+        ProjectDto.Response response = ProjectResponseMapper.fromEntity(project);
         applyApplication(response, project.getAbusMngNo(), project.getSno());
         if (project.getSvnDpmNm() != null) {
             response.setSvnDpmCNm(project.getSvnDpmNm());

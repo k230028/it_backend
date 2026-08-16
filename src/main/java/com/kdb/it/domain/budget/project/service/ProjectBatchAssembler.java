@@ -12,6 +12,7 @@ import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.dto.ProjectResponseMapper;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bproja;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -77,7 +78,7 @@ final class ProjectBatchAssembler {
     List<ProjectDto.Response> assembleList(
             List<Bprojm> projects, Consumer<List<ProjectDto.BitemmDto>> itemNameEnricher) {
         List<ProjectDto.Response> responses =
-                projects.stream().map(ProjectDto.Response::fromEntity).toList();
+                projects.stream().map(ProjectResponseMapper::fromEntity).toList();
         if (projects.isEmpty()) {
             return responses;
         }
@@ -126,7 +127,7 @@ final class ProjectBatchAssembler {
             String budgetYear,
             Consumer<List<ProjectDto.BitemmDto>> itemNameEnricher) {
         List<ProjectDto.Response> responses =
-                projects.stream().map(ProjectDto.Response::fromEntity).toList();
+                projects.stream().map(ProjectResponseMapper::fromEntity).toList();
         if (projects.isEmpty()) {
             return responses;
         }

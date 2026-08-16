@@ -419,8 +419,8 @@ public class ProjectDto {
      *
      * <p>품목 정보({@code items})는 배열 형태로 포함됩니다.
      *
-     * <p>{@link #fromEntity(Bprojm)} 정적 팩토리 메서드로 엔티티에서 변환합니다. 신청서 정보와 품목 목록은 서비스에서 별도로 {@code
-     * setApfMngNo()}, {@code setItems()}로 설정합니다.
+     * <p>{@link ProjectResponseMapper#fromEntity(Bprojm)}로 엔티티에서 변환합니다. 신청서 정보와 품목 목록은 서비스에서 별도로
+     * {@code setApfMngNo()}, {@code setItems()}로 설정합니다.
      */
     @Getter
     @Setter
@@ -773,58 +773,6 @@ public class ProjectDto {
         /** 신청서 상세 정보 (신청서명, 신청자, 결재자 목록 등) */
         @Schema(description = "신청서 상세 정보")
         private ApplicationInfoDto applicationInfo;
-
-        /**
-         * {@link Bprojm} 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드
-         *
-         * <p>엔티티의 모든 필드를 DTO로 복사합니다. 연결된 품목 리스트 및 조직, 예산 요약 정보 등은 서비스 계층에서 추가로 세팅해야 합니다.
-         *
-         * @param project 변환할 Bprojm 엔티티
-         * @return 변환된 ProjectDto.Response DTO
-         */
-        public static Response fromEntity(Bprojm project) {
-            return Response.builder()
-                    .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
-                    .sno(project.getSno()) // 프로젝트순번
-                    .abusNm(project.getAbusNm()) // 프로젝트명
-                    .bzTpC(project.getBzTpC()) // 프로젝트유형
-                    .svnDpmC(project.getSvnDpmC()) // 주관부서
-                    .dvmDpmC(project.getDvmDpmC()) // IT부서
-                    .sttDtm(project.getSttDtm()) // 시작일자
-                    .endDtm(project.getEndDtm()) // 종료일자
-                    .prlmHrkOgzCCone(project.getPrlmHrkOgzCCone()) // 주관본부/부문
-                    .usid(project.getUsid()) // 주관부서담당자
-                    .dvmUsid(project.getDvmUsid()) // IT부서담당자
-                    .tlrUsid(project.getTlrUsid()) // 주관부서담당팀장
-                    .dvmTlrUsid(project.getDvmTlrUsid()) // IT부서담당팀장
-                    .edrtTc(project.getEdrtTc()) // 전결권
-                    .abusCone(project.getAbusCone()) // 사업설명
-                    .cpnSafCone(project.getCpnSafCone()) // 현황
-                    .abusNcsCone(project.getAbusNcsCone()) // 필요성
-                    .dgogPpoCone(project.getDgogPpoCone()) // 기대효과
-                    .plmDes(project.getPlmDes()) // 문제
-                    .abusRngCone(project.getAbusRngCone()) // 사업범위
-                    .mnPrgCone(project.getMnPrgCone()) // 추진경과
-                    .hrfPlnCone(project.getHrfPlnCone()) // 향후계획
-                    .bzDttNm(project.getBzDttNm()) // 업무구분
-                    .sklTpTc(project.getSklTpTc()) // 기술유형
-                    .cstTpTc(project.getCstTpTc()) // 주요사용자
-                    .dplYn(project.getDplYn()) // 중복여부
-                    .flfFsgDt(project.getFlfFsgDt()) // 의무완료기한
-                    .rprStsTc(project.getRprStsTc()) // 보고상태
-                    .exePttYn(project.getExePttYn()) // 프로젝트추진가능성
-                    .delYn(project.getDelYn()) // 삭제여부
-                    .bseYy(project.getBseYy()) // 사업연도
-                    .odnYn(project.getOdnYn()) // 경상여부
-                    .abusTc(project.getAbusTc()) // 사업구분
-                    .cncdRfrNo(project.getCncdRfrNo()) // 관련프로젝트관리번호
-                    .dfrAmt(project.getDfrAmt()) // 기 지급예산
-                    .fstEnrDtm(project.getFstEnrDtm()) // 최초 등록 일시
-                    .fstEnrUsid(project.getFstEnrUsid()) // 최초 등록자
-                    .lstChgDtm(project.getLstChgDtm()) // 마지막 수정 일시
-                    .lstChgUsid(project.getLstChgUsid()) // 마지막 수정자
-                    .build();
-        }
     }
 
     /**

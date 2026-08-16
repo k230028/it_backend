@@ -320,9 +320,9 @@ public class ProjectService {
     /**
      * 품목 엔티티를 조립합니다.
      *
-     * <p>채번(gclMngNo)·순번(gclSno)·환율 표준 조회·외화 재계산은 호출자({@link #createProject}·{@link
-     * #replaceItemsForMigration})가 먼저 수행하고, 그 결과만 이 메서드가 엔티티 필드로 옮겨 담습니다. 두 경로가 별도로 필드를 나열하면 한쪽에서만
-     * 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로 강제합니다.
+     * <p>채번(gclMngNo)·순번(gclSno)·환율 표준 조회·외화 재계산은 호출자({@link #createProject}·{@link #updateProject}의 신규 품목
+     * 추가 분기·{@link #replaceItemsForMigration})가 먼저 수행하고, 그 결과만 이 메서드가 엔티티 필드로 옮겨 담습니다. 세 경로가 별도로 필드를
+     * 나열하면 한쪽에서만 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로 강제합니다.
      *
      * @param itemDto 품목 요청 DTO (xcr은 호출자가 이미 표준 조회로 덮어쓴 상태)
      * @param gclMngNo 채번된 품목관리번호
@@ -554,42 +554,10 @@ public class ProjectService {
                                     itemDto.getCurC(),
                                     itemDto.getXcr());
 
-                    com.kdb.it.domain.budget.project.entity.Bitemm newItem =
-                            com.kdb.it.domain.budget.project.entity.Bitemm.builder()
-                                    .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
-                                    .sno(++maxGclSno) // 품목일련번호 (MAX+1)
-                                    .abusMngNo(prjMngNo) // 프로젝트관리번호
-                                    .fntTbCrySno(project.getSno()) // 프로젝트순번
-                                    .ioeC(itemDto.getIoeC()) // 품목구분
-                                    .gclNm(itemDto.getGclNm()) // 품목명
-                                    .qty(itemDto.getQty()) // 품목수량
-                                    .curC(itemDto.getCurC()) // 통화
-                                    .xcr(itemDto.getXcr()) // 환율
-                                    .xcrBseDt(
-                                            DateFormatUtil.toYmd8(
-                                                    itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
-                                    .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
-                                    .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                                    .dfrCleC(
-                                            CodeDefaults.orNotApplicable(
-                                                    itemDto.getDfrCleC())) // 지급주기
-                                    .sectSysUtzYn(
-                                            itemDto.getSectSysUtzYn() == null
-                                                    ? "N"
-                                                    : itemDto.getSectSysUtzYn()) // 정보보호여부
-                                    .itrInfrYn(
-                                            itemDto.getItrInfrYn() == null
-                                                    ? "N"
-                                                    : itemDto.getItrInfrYn()) // 통합인프라여부
-                                    .lstYn("Y") // 최종여부
-                                    .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                                    .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                                    .mplAmt(
-                                            clampMpl(
-                                                    itemDto.getMplAmt(),
-                                                    reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
-                                    .build();
-                    bitemmRepository.save(newItem);
+                    // 조립은 buildBitemm 한 곳으로 모은다 — 생성 경로와 필드가 조용히 갈라지지 않도록.
+                    // project는 prjMngNo로 조회한 엔티티이므로 abusMngNo 스냅샷도 동일하다.
+                    bitemmRepository.save(
+                            buildBitemm(itemDto, gclMngNo, ++maxGclSno, project, reconciled));
                 }
             }
 
