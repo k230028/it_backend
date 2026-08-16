@@ -40,7 +40,12 @@ class MigrationOpenApiContractTest {
                 "PROJECT_NOT_FOUND",
                 "AMOUNT_MISMATCH",
                 "RATE_OUT_OF_RANGE",
-                "DATE_UNPARSEABLE");
+                "DATE_UNPARSEABLE",
+                "LEDGER_NOT_MATCHED",
+                "LEDGER_AMBIGUOUS",
+                "ITEM_BASE_ZERO",
+                "AMOUNT_ADJUSTED",
+                "RATE_RECONCILE_MISMATCH");
     }
 
     @Test

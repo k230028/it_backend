@@ -131,7 +131,9 @@ public final class MigrationDto {
                                 "ORG_UNRESOLVED", "ORG_AMBIGUOUS", "USER_UNRESOLVED",
                                 "USER_AMBIGUOUS", "CODE_UNRESOLVED", "REQUIRED_MISSING",
                                 "DUPLICATE_EXISTS", "LENGTH_EXCEEDED", "PROJECT_NOT_FOUND",
-                                "AMOUNT_MISMATCH", "RATE_OUT_OF_RANGE", "DATE_UNPARSEABLE"
+                                "AMOUNT_MISMATCH", "RATE_OUT_OF_RANGE", "DATE_UNPARSEABLE",
+                                "LEDGER_NOT_MATCHED", "LEDGER_AMBIGUOUS", "ITEM_BASE_ZERO",
+                                "AMOUNT_ADJUSTED", "RATE_RECONCILE_MISMATCH"
                             })
                     String code,
             @Schema(description = "심각도", requiredMode = Schema.RequiredMode.REQUIRED)
