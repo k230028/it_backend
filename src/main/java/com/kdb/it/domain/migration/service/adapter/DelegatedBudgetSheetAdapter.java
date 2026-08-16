@@ -5,7 +5,6 @@ import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.MigrationAmounts;
 import com.kdb.it.domain.migration.service.MigrationIoeCodes;
-import com.kdb.it.domain.migration.service.MigrationYearSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -34,6 +33,8 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
     public AdapterOutput adapt(MigrationDto.SheetPayload sheet, AdapterContext ctx) {
         // 부점명 등장 순서를 유지해야 사업 생성 순서가 엑셀과 같아진다
         Map<String, List<ProjectDto.BitemmDto>> itemsByBranch = new LinkedHashMap<>();
+        Map<String, Integer> firstExcelRowByBranch = new LinkedHashMap<>();
+        Map<String, BigDecimal> krwTotalByBranch = new LinkedHashMap<>();
         String currentBranch = null;
 
         for (MigrationDto.NormalizedRow row : sheet.rows()) {
@@ -47,14 +48,16 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
             }
             List<ProjectDto.BitemmDto> items =
                     itemsByBranch.computeIfAbsent(currentBranch, key -> new ArrayList<>());
+            firstExcelRowByBranch.putIfAbsent(currentBranch, row.excelRow());
             String currency = AdapterSupport.cellOf(sheet, row, "currency", ctx);
             String itemName = AdapterSupport.cellOf(sheet, row, "itemName", ctx);
             addItem(items, sheet, row, ctx, currency, itemName, "hw");
             addItem(items, sheet, row, ctx, currency, itemName, "sw");
+            krwTotalByBranch.merge(currentBranch, rowKrwTotal(sheet, row, ctx), BigDecimal::add);
         }
 
         List<ProjectDto.CreateRequest> projects = new ArrayList<>();
-        List<RateIntent> rates = new ArrayList<>();
+        List<AllocationIntent> allocations = new ArrayList<>();
         itemsByBranch.forEach(
                 (branch, items) -> {
                     String projectName = ctx.bseYy() + "년 " + branch + " 위임예산(경상)";
@@ -63,7 +66,8 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
                     request.setAbusNm(projectName);
                     request.setOdnYn("Y");
                     request.setAbusTc("20");
-                    request.setSvnDpmC(resolveOrg(branch, ctx));
+                    String branchDeptCode = resolveOrg(branch, ctx);
+                    request.setSvnDpmC(branchDeptCode);
                     request.setUsid(ctx.actorEno());
                     request.setDvmUsid(ctx.actorEno());
                     int year = Integer.parseInt(ctx.bseYy());
@@ -71,13 +75,38 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
                     request.setEndDtm(LocalDate.of(year, 12, 31));
                     request.setItems(items);
                     projects.add(request);
-                    rates.add(
-                            new RateIntent(
+
+                    // 위임예산 시트에는 조정비율 열이 없고 금액이 이미 원 단위 확정값이다. 편성률 100%가
+                    // 곧 "적어 낸 금액 그대로"이므로 목표액을 금액 합계로 둔다(종전 RateIntent(…, 100)과 같다).
+                    BigDecimal groupTotalKrw =
+                            krwTotalByBranch.getOrDefault(branch, BigDecimal.ZERO);
+                    allocations.add(
+                            new AllocationIntent(
+                                    sheet.kind(),
+                                    firstExcelRowByBranch.get(branch),
                                     "BPROJM",
-                                    MigrationYearSnapshot.normalizeName(projectName),
-                                    100));
+                                    AllocationIntent.MatchKey.ofOrdinaryDept(branchDeptCode),
+                                    Map.of("costAmount", groupTotalKrw),
+                                    groupTotalKrw));
                 });
-        return new AdapterOutput(List.of(), projects, List.of(), rates);
+        return new AdapterOutput(List.of(), projects, List.of(), allocations);
+    }
+
+    /** 한 행의 HW·SW 원화환산액 합계입니다. 비었거나 음수인 항목은 0으로 접습니다. */
+    private BigDecimal rowKrwTotal(
+            MigrationDto.SheetPayload sheet, MigrationDto.NormalizedRow row, AdapterContext ctx) {
+        return positiveKrw(sheet, row, ctx, "hwKrwAmount")
+                .add(positiveKrw(sheet, row, ctx, "swKrwAmount"));
+    }
+
+    private BigDecimal positiveKrw(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            AdapterContext ctx,
+            String column) {
+        BigDecimal amount =
+                AdapterSupport.amount(AdapterSupport.cellOf(sheet, row, column, ctx), sheet.kind());
+        return (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) ? BigDecimal.ZERO : amount;
     }
 
     /**

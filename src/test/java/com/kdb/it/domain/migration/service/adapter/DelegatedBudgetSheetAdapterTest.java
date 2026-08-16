@@ -96,17 +96,23 @@ class DelegatedBudgetSheetAdapterTest {
     }
 
     @Test
-    @DisplayName("부점별로 편성률 100의 RateIntent를 남긴다")
-    void 부점별_편성률의도를_남긴다() {
+    @DisplayName("부점별로 HW·SW 원화합계를 목표액으로 하는 AllocationIntent를 남긴다")
+    void 부점별_편성배분의도를_남긴다() {
         AdapterOutput out = adapter.adapt(sheet(londonRows()), context());
 
-        assertThat(out.rates())
-                .hasSize(2)
-                .allSatisfy(
-                        r -> {
-                            assertThat(r.orcTb()).isEqualTo("BPROJM");
-                            assertThat(r.percent()).isEqualTo(100);
-                        });
+        assertThat(out.allocations()).hasSize(2);
+        AllocationIntent london = out.allocations().get(0);
+        assertThat(london.orcTb()).isEqualTo("BPROJM");
+        assertThat(london.matchKey().type())
+                .isEqualTo(AllocationIntent.MatchKey.Type.ORDINARY_DEPT);
+        assertThat(london.matchKey().deptCode()).isEqualTo("0910");
+        // 런던 그룹: hw(row2) 44919320.16 + sw(row3) 102308469.12
+        assertThat(london.targetByColumn().get("costAmount")).isEqualByComparingTo("147227789.28");
+        assertThat(london.declaredBase()).isEqualByComparingTo("147227789.28");
+
+        AllocationIntent londonPf = out.allocations().get(1);
+        assertThat(londonPf.matchKey().deptCode()).isEqualTo("0911");
+        assertThat(londonPf.targetByColumn().get("costAmount")).isEqualByComparingTo("3098409.6");
     }
 
     @Test

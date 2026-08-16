@@ -3,10 +3,13 @@ package com.kdb.it.domain.migration.service.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.migration.dto.MigrationColumns;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -121,18 +124,43 @@ class CostSheetAdapterTest {
     }
 
     @Test
-    @DisplayName("전산업무비는 편성률 100의 RateIntent를 자연키로 남긴다")
-    void 편성률의도를_자연키로_남긴다() {
-        AdapterOutput out = adapter.adapt(sheet(cells()), context(Map.of()));
+    @DisplayName("adapt_전산업무비는_부서기준_매칭키와_DUP_IOE_MNGC_편성률을_쓴다")
+    void adapt_전산업무비는_부서기준_매칭키와_DUP_IOE_MNGC_편성률을_쓴다() {
+        MigrationDto.SheetPayload sheet =
+                sheetOf(
+                        Map.of(
+                                "abusCode", "571",
+                                "ioeName", "유지보수료",
+                                "deptName", "IT기획부",
+                                "vendorName", "커브",
+                                "requestDetail", "올인원워크스페이스",
+                                "currency", "KRW",
+                                "krwAmount", "15401"));
 
-        assertThat(out.rates())
-                .singleElement()
-                .satisfies(
-                        r -> {
-                            assertThat(r.orcTb()).isEqualTo("BCOSTM");
-                            assertThat(r.percent()).isEqualTo(100);
-                            assertThat(r.naturalKeyOrPk()).contains("커브");
-                        });
+        AdapterOutput output = adapter.adapt(sheet, context(Map.of()));
+
+        AllocationIntent intent = output.allocations().get(0);
+        assertThat(intent.orcTb()).isEqualTo("BCOSTM");
+        assertThat(intent.matchKey().type())
+                .isEqualTo(AllocationIntent.MatchKey.Type.COST_DEPT_KEY);
+        assertThat(intent.matchKey().deptCode()).isEqualTo("0210");
+        assertThat(intent.matchKey().ioeC()).isEqualTo("011");
+        assertThat(intent.matchKey().contractName()).isEqualTo("올인원워크스페이스");
+        // 천원 단위 × DUP_IOE_MNGC(100%)
+        assertThat(intent.targetByColumn().get("costAmount")).isEqualByComparingTo("15401000");
+    }
+
+    private MigrationDto.SheetPayload sheetOf(Map<String, String>... rows) {
+        List<MigrationDto.NormalizedRow> normalized = new ArrayList<>();
+        int excelRow = 2;
+        for (Map<String, String> row : rows) {
+            Map<String, String> cells = new LinkedHashMap<>();
+            for (String column : MigrationColumns.of(SheetKind.COST)) {
+                cells.put(column, row.getOrDefault(column, ""));
+            }
+            normalized.add(new MigrationDto.NormalizedRow(excelRow++, cells));
+        }
+        return new MigrationDto.SheetPayload(SheetKind.COST, "2026", normalized);
     }
 
     private CostDto.CreateRequest adaptSingle(Map<String, String> cells) {

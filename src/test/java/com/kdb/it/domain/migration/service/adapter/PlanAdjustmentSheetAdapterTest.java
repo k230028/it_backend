@@ -9,6 +9,7 @@ import com.kdb.it.domain.migration.service.MigrationLookupIndex;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import com.kdb.it.domain.migration.service.TestSnapshots;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,18 +65,38 @@ class PlanAdjustmentSheetAdapterTest {
     }
 
     @Test
-    @DisplayName("조정된 사업에는 편성률 100의 RateIntent를 남긴다")
-    void 편성률100을_남긴다() {
+    @DisplayName("조정된 사업에는 확정금액을 목표액으로 하는 AllocationIntent를 남긴다")
+    void 확정금액을_목표액으로_남긴다() {
         AdapterOutput out = adapter.adapt(sheet(cells()), context());
 
-        assertThat(out.rates())
-                .singleElement()
-                .satisfies(
-                        r -> {
-                            assertThat(r.orcTb()).isEqualTo("BPROJM");
-                            assertThat(r.percent()).isEqualTo(100);
-                            assertThat(r.naturalKeyOrPk()).isEqualTo("웹한글기안기도입을위한내규솔루션업그레이드");
-                        });
+        AllocationIntent intent = out.allocations().get(0);
+        assertThat(intent.orcTb()).isEqualTo("BPROJM");
+        assertThat(intent.matchKey().type()).isEqualTo(AllocationIntent.MatchKey.Type.PROJECT_NAME);
+        assertThat(intent.matchKey().normalizedName()).isEqualTo("웹한글기안기도입을위한내규솔루션업그레이드");
+        assertThat(intent.targetByColumn().get("swAmount")).isEqualByComparingTo("416000000");
+        assertThat(intent.targetByColumn().get("devAmount")).isEqualByComparingTo("0");
+        assertThat(intent.declaredBase()).isNull();
+    }
+
+    @Test
+    @DisplayName("adapt_하반기_조정은_확정금액을_그대로_목표액으로_낸다")
+    void adapt_하반기_조정은_확정금액을_그대로_목표액으로_낸다() {
+        MigrationDto.SheetPayload sheet =
+                sheetOf(
+                        Map.of(
+                                "projectName", "웹한글 기안기 도입",
+                                "devAmount", "0",
+                                "hwAmount", "0",
+                                "swAmount", "416"));
+
+        AdapterOutput output = adapter.adapt(sheet, context());
+
+        AllocationIntent intent = output.allocations().get(0);
+        assertThat(intent.targetByColumn().get("swAmount")).isEqualByComparingTo("416000000");
+        assertThat(intent.targetByColumn().get("devAmount")).isEqualByComparingTo("0");
+        assertThat(intent.declaredBase()).isNull();
+        // 품목을 만들지 않는다 — BITEMM 버전 교체를 폐지했다
+        assertThat(output.projects()).isEmpty();
     }
 
     @Test
@@ -128,6 +149,19 @@ class PlanAdjustmentSheetAdapterTest {
                 TestSnapshots.empty("2026"),
                 Map.of(),
                 "999999");
+    }
+
+    private MigrationDto.SheetPayload sheetOf(Map<String, String>... rows) {
+        List<MigrationDto.NormalizedRow> normalized = new ArrayList<>();
+        int excelRow = 2;
+        for (Map<String, String> row : rows) {
+            Map<String, String> cells = new LinkedHashMap<>();
+            for (String column : MigrationColumns.of(SheetKind.PLAN_ADJUSTMENT)) {
+                cells.put(column, row.getOrDefault(column, ""));
+            }
+            normalized.add(new MigrationDto.NormalizedRow(excelRow++, cells));
+        }
+        return new MigrationDto.SheetPayload(SheetKind.PLAN_ADJUSTMENT, "2026", normalized);
     }
 
     private static Map<String, String> cells() {

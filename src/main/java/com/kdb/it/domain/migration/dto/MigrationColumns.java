@@ -32,7 +32,7 @@ public final class MigrationColumns {
                     "krwAmount",
                     "remark");
 
-    /** 자본예산 '1-1. 26년정보화사업(전산예산반영)'. 편성요청 3열과 조정비율까지 받습니다. */
+    /** 자본예산 '1-1. 26년정보화사업(전산예산반영)'. 편성요청 3열과 조정비율·조정 3열까지 받습니다. */
     private static final List<String> CAPITAL_PROJECT =
             List.of(
                     "projectName",
@@ -52,6 +52,9 @@ public final class MigrationColumns {
                     "hwAmount",
                     "swAmount",
                     "adjustRate",
+                    "devAdjustAmount",
+                    "hwAdjustAmount",
+                    "swAdjustAmount",
                     "delegationLabel");
 
     /** 위임예산 '2. 위임예산(경상)'. HW·SW 수량·외화·원화를 각각 받습니다. */

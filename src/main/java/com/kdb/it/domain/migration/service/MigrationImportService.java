@@ -18,8 +18,8 @@ import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.adapter.AdapterContext;
 import com.kdb.it.domain.migration.service.adapter.AdapterOutput;
+import com.kdb.it.domain.migration.service.adapter.AllocationIntent;
 import com.kdb.it.domain.migration.service.adapter.PlanIntent;
-import com.kdb.it.domain.migration.service.adapter.RateIntent;
 import com.kdb.it.domain.migration.service.adapter.SheetAdapter;
 import com.kdb.it.exception.CustomGeneralException;
 import java.math.BigDecimal;
@@ -188,7 +188,8 @@ public class MigrationImportService {
         Map<String, String> projectNoByName =
                 new LinkedHashMap<>(snapshot.projectNoByNormalizedName());
         Map<String, String> costNoByNaturalKey = new LinkedHashMap<>();
-        List<RateIntent> rateIntents = new ArrayList<>();
+        // TODO(Task 9): AllocationIntent를 실효 편성률로 환산해 적용한다 — 지금은 수집만 하고 쓰지 않는다.
+        List<AllocationIntent> allocations = new ArrayList<>();
         List<PlanIntent> planIntents = new ArrayList<>();
         int costCount = 0;
         int projectCount = 0;
@@ -205,7 +206,7 @@ public class MigrationImportService {
                     continue;
                 }
                 AdapterOutput output = adapters.get(kind).adapt(sheet, ctx);
-                rateIntents.addAll(output.rates());
+                allocations.addAll(output.allocations());
                 planIntents.addAll(output.plans());
 
                 for (CostDto.CreateRequest cost : output.costs()) {
@@ -271,24 +272,13 @@ public class MigrationImportService {
                         ? null
                         : createAdjustmentPlan(planIntents, projectNoByName, bseYy);
 
-        // 5단계: 편성률 단일 적용 — 이관분 편성률로 기존 항목을 덮어쓴다 (같은 원천은 교체, 중복 추가 아님)
-        for (RateIntent intent : rateIntents) {
-            String pk =
-                    "BPROJM".equals(intent.orcTb())
-                            ? projectNoByName.get(intent.naturalKeyOrPk())
-                            : costNoByNaturalKey.get(intent.naturalKeyOrPk());
-            if (pk == null) {
-                log.warn("편성률 대상 PK를 찾지 못해 건너뜁니다: {} {}", intent.orcTb(), intent.naturalKeyOrPk());
-                continue;
-            }
-            rateItems.removeIf(
-                    existing ->
-                            existing.orcTb().equals(intent.orcTb())
-                                    && existing.orcPkVl().equals(pk));
-            rateItems.add(
-                    new BudgetWorkDto.ItemRate(
-                            intent.orcTb(), pk, intent.percent(), intent.percent(), null));
-        }
+        // 5단계: 편성률 단일 적용.
+        // TODO(Task 9): AllocationIntent를 실효 편성률로 환산해 적용한다 — 지금은 기존 편성률 유지만 한다.
+        // 종전 RateIntent 루프(편성률을 직접 덮어씀)는 AllocationIntent가 비율이 아니라 목표 "금액"을
+        // 담고 있어 그대로 옮길 수 없어 제거했다. 그 결과 이번 반영은 종합본의 조정비율을 편성률에
+        // 반영하지 않고 2단계가 모은 기존 편성률(rateItems)을 그대로 적용한다. Task 9가
+        // MigrationLedgerMatcher·MigrationAllocationPlanner로 allocations를 실효 편성률로 환산해 이
+        // 자리를 채운다.
         BudgetWorkDto.ApplyResponse applied =
                 budgetRateApplicationService.applyItemRates(
                         new BudgetWorkDto.ItemApplyRequest(bseYy, rateItems));
@@ -437,7 +427,8 @@ public class MigrationImportService {
                 catalogReader.xcrByCurrency(),
                 catalogReader.abusUnitNameByCode(),
                 catalogReader.exePttCodeByName(),
-                catalogReader.edrtCapitalCodeByName());
+                catalogReader.edrtCapitalCodeByName(),
+                catalogReader.generalExpenseRate());
     }
 
     /**

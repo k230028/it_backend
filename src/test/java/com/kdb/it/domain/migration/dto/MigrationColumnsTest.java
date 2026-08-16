@@ -57,6 +57,9 @@ class MigrationColumnsTest {
                         "hwAmount",
                         "swAmount",
                         "adjustRate",
+                        "devAdjustAmount",
+                        "hwAdjustAmount",
+                        "swAdjustAmount",
                         "delegationLabel");
     }
 

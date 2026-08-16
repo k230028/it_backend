@@ -9,7 +9,9 @@ import com.kdb.it.domain.migration.service.MigrationYearSnapshot;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
@@ -33,7 +35,7 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
     @Override
     public AdapterOutput adapt(MigrationDto.SheetPayload sheet, AdapterContext ctx) {
         List<ProjectDto.CreateRequest> projects = new ArrayList<>();
-        List<RateIntent> rates = new ArrayList<>();
+        List<AllocationIntent> allocations = new ArrayList<>();
 
         for (MigrationDto.NormalizedRow row : sheet.rows()) {
             String projectName = AdapterSupport.cellOf(sheet, row, "projectName", ctx);
@@ -71,14 +73,40 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
             request.setItems(items(sheet, row, ctx));
             projects.add(request);
 
-            rates.add(
-                    new RateIntent(
+            BigDecimal rate =
+                    AdapterSupport.rateFraction(
+                            AdapterSupport.cellOf(sheet, row, "adjustRate", ctx));
+            BigDecimal dev = amountOf(sheet, row, ctx, "devAmount");
+            BigDecimal hw = amountOf(sheet, row, ctx, "hwAmount");
+            BigDecimal sw = amountOf(sheet, row, ctx, "swAmount");
+
+            Map<String, BigDecimal> targets = new LinkedHashMap<>();
+            targets.put("devAmount", dev.multiply(rate));
+            targets.put("hwAmount", hw.multiply(rate));
+            targets.put("swAmount", sw.multiply(rate));
+
+            allocations.add(
+                    new AllocationIntent(
+                            sheet.kind(),
+                            row.excelRow(),
                             "BPROJM",
-                            MigrationYearSnapshot.normalizeName(projectName),
-                            AdapterSupport.ratePercent(
-                                    AdapterSupport.cellOf(sheet, row, "adjustRate", ctx))));
+                            AllocationIntent.MatchKey.ofProjectName(
+                                    MigrationYearSnapshot.normalizeName(projectName)),
+                            targets,
+                            dev.add(hw).add(sw)));
         }
-        return new AdapterOutput(List.of(), projects, List.of(), rates);
+        return new AdapterOutput(List.of(), projects, List.of(), allocations);
+    }
+
+    /** 금액 셀을 원 단위로 읽습니다. 비었거나 음수면 0원입니다. */
+    private BigDecimal amountOf(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            AdapterContext ctx,
+            String column) {
+        BigDecimal amount =
+                AdapterSupport.amount(AdapterSupport.cellOf(sheet, row, column, ctx), sheet.kind());
+        return (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) ? BigDecimal.ZERO : amount;
     }
 
     /** 개발비·기계장치·기타무형 세 열 중 금액이 0보다 큰 것만 품목으로 만듭니다. */

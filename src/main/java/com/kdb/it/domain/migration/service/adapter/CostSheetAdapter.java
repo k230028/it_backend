@@ -3,9 +3,11 @@ package com.kdb.it.domain.migration.service.adapter;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
-import com.kdb.it.domain.migration.service.MigrationYearSnapshot;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,7 +27,7 @@ public class CostSheetAdapter implements SheetAdapter {
     @Override
     public AdapterOutput adapt(MigrationDto.SheetPayload sheet, AdapterContext ctx) {
         List<CostDto.CreateRequest> costs = new ArrayList<>();
-        List<RateIntent> rates = new ArrayList<>();
+        List<AllocationIntent> allocations = new ArrayList<>();
 
         for (MigrationDto.NormalizedRow row : sheet.rows()) {
             String currency = AdapterSupport.cellOf(sheet, row, "currency", ctx);
@@ -66,14 +68,26 @@ public class CostSheetAdapter implements SheetAdapter {
             request.setCgprId(ctx.actorEno());
             costs.add(request);
 
-            rates.add(
-                    new RateIntent(
+            BigDecimal requestAmount = request.getCostTotXpAmt();
+            BigDecimal base = requestAmount == null ? BigDecimal.ZERO : requestAmount;
+            BigDecimal rate = ctx.index().generalExpenseRate();
+
+            allocations.add(
+                    new AllocationIntent(
+                            sheet.kind(),
+                            row.excelRow(),
                             "BCOSTM",
-                            MigrationYearSnapshot.costDeptKey(
-                                    ctx.bseYy(), deptCode, ioeC, vendor, contractName),
-                            100));
+                            AllocationIntent.MatchKey.ofCost(deptCode, ioeC, vendor, contractName),
+                            Map.of(
+                                    "costAmount",
+                                    base.multiply(rate)
+                                            .divide(
+                                                    BigDecimal.valueOf(100),
+                                                    3,
+                                                    RoundingMode.HALF_UP)),
+                            base));
         }
-        return new AdapterOutput(costs, List.of(), List.of(), rates);
+        return new AdapterOutput(costs, List.of(), List.of(), allocations);
     }
 
     /** 보정값이 있으면 그 코드값을, 없으면 비목명으로 코드를 찾습니다. 못 찾으면 null(검증이 이미 막았어야 합니다). */

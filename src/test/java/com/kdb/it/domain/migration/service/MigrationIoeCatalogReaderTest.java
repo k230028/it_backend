@@ -153,6 +153,47 @@ class MigrationIoeCatalogReaderTest {
         assertThat(reader.abusUnitNameByCode()).containsEntry("571", "운영시스템 유지보수");
     }
 
+    @Test
+    @DisplayName("일반관리비 기본 편성률을 DUP_IOE_MNGC 코드에서 읽는다")
+    void 일반관리비_편성률을_읽는다() {
+        when(codeRepository.findByCIdWithValidDate("DUP_IOE", null))
+                .thenReturn(
+                        List.of(
+                                named("DUP_IOE", "237", "자산비", "DUP_IOE_CPIT"),
+                                Ccodem.builder()
+                                        .cId("DUP_IOE")
+                                        .cdva("999")
+                                        .cTp("DUP_IOE_MNGC")
+                                        .cdvaDtlC("90")
+                                        .build()));
+
+        assertThat(readerWithRepo().generalExpenseRate()).isEqualByComparingTo("90");
+    }
+
+    @Test
+    @DisplayName("DUP_IOE_MNGC 코드가 없으면 100을 기본값으로 돌려준다")
+    void 일반관리비_편성률_코드가_없으면_100이다() {
+        when(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).thenReturn(List.of());
+
+        assertThat(readerWithRepo().generalExpenseRate()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    @DisplayName("DUP_IOE_MNGC 값이 숫자가 아니면 100을 기본값으로 돌려준다")
+    void 일반관리비_편성률이_숫자가_아니면_100이다() {
+        when(codeRepository.findByCIdWithValidDate("DUP_IOE", null))
+                .thenReturn(
+                        List.of(
+                                Ccodem.builder()
+                                        .cId("DUP_IOE")
+                                        .cdva("999")
+                                        .cTp("DUP_IOE_MNGC")
+                                        .cdvaDtlC("해당없음")
+                                        .build()));
+
+        assertThat(readerWithRepo().generalExpenseRate()).isEqualByComparingTo("100");
+    }
+
     private static Ccodem named(String cId, String cdva, String cdvaNm, String cTp) {
         return Ccodem.builder().cId(cId).cdva(cdva).cdvaNm(cdvaNm).cTp(cTp).build();
     }

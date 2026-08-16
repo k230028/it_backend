@@ -143,6 +143,29 @@ public class MigrationIoeCatalogReader {
     }
 
     /**
+     * 일반관리비 기본 편성률을 읽습니다.
+     *
+     * <p>{@code /budget/work} 화면이 쓰는 값과 같은 출처입니다(비목편성률 그룹 {@code DUP_IOE}의 코드인스턴스명({@code
+     * CO_C_INTN_NM})이 {@code DUP_IOE_MNGC}인 행, 값은 공통코드값명({@code CO_CDVA_NM})). 종합본 `전체취합(국내외)` 시트에는
+     * 조정률 열이 없으므로 이 값이 전산업무비 편성률이 됩니다. 리터럴 100을 박지 않는 이유는 이 기준이 해마다 바뀔 수 있기 때문입니다.
+     *
+     * @return 편성률(0~100). 코드가 없거나 숫자가 아니면 100
+     */
+    public BigDecimal generalExpenseRate() {
+        for (Ccodem code : codeRepository.findByCIdWithValidDate("DUP_IOE", null)) {
+            if (!"DUP_IOE_MNGC".equals(code.getCTp()) || code.getCdvaDtlC() == null) {
+                continue;
+            }
+            try {
+                return new BigDecimal(code.getCdvaDtlC().trim());
+            } catch (NumberFormatException ignored) {
+                break;
+            }
+        }
+        return BigDecimal.valueOf(100);
+    }
+
+    /**
      * 코드값명 → 코드값 역방향 맵을 만듭니다.
      *
      * <p>환율과 달리 유효일자를 필터하지 않습니다 — 이 코드들은 저장 경로가 유효일자로 재조회하지 않으므로 조회 기준을 맞출 상대가 없고, 여기서만 좁히면 원장에 이미

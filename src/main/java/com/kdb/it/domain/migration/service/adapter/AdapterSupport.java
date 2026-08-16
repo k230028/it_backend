@@ -161,6 +161,26 @@ public final class AdapterSupport {
     }
 
     /**
+     * 조정비율 셀을 소수 배수로 읽습니다.
+     *
+     * <p>엑셀 `조정구분` 시트가 `1`·`0.7`처럼 배수로 적기 때문에 값을 그대로 씁니다. 비었거나 숫자가 아니면 조정하지 않은 것으로 보고 1을 돌려줍니다 — 0을
+     * 돌려주면 조정비율 칸이 빈 사업의 편성액이 통째로 0이 됩니다.
+     *
+     * @param raw 조정비율 셀 원문
+     * @return 배수 (0.7·1 등). 파싱 실패는 1
+     */
+    public static BigDecimal rateFraction(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return BigDecimal.ONE;
+        }
+        try {
+            return new BigDecimal(raw.trim().replace(",", ""));
+        } catch (NumberFormatException ignored) {
+            return BigDecimal.ONE;
+        }
+    }
+
+    /**
      * 조직 이름 또는 코드값을 조직코드로 바꿉니다.
      *
      * <p>세 어댑터(전산일반관리비·자본예산·위임예산)가 같은 규칙을 씁니다 — 이름으로 해석되면 그 코드를, 해석되지 않았지만 값 자체가 등록된 조직코드면(미리보기

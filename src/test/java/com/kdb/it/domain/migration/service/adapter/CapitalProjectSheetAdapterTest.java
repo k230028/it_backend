@@ -13,6 +13,7 @@ import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import com.kdb.it.domain.migration.service.TestSnapshots;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,31 +115,75 @@ class CapitalProjectSheetAdapterTest {
     }
 
     @Test
-    @DisplayName("조정비율 0.7을 편성률 70의 RateIntent로 남긴다")
-    void 조정비율을_편성률로_바꾼다() {
+    @DisplayName("조정비율 0.7을 비목그룹별 목표액 배수로 반영한다")
+    void 조정비율을_목표액_배수로_반영한다() {
         Map<String, String> cells = cells();
         cells.put("adjustRate", "0.7");
 
         AdapterOutput out = adapter.adapt(sheet(cells), context(Map.of()));
 
-        assertThat(out.rates())
-                .singleElement()
-                .satisfies(
-                        r -> {
-                            assertThat(r.orcTb()).isEqualTo("BPROJM");
-                            assertThat(r.percent()).isEqualTo(70);
-                            assertThat(r.naturalKeyOrPk()).isEqualTo("글로벌표준뱅킹시스템재구축");
-                        });
+        AllocationIntent intent = out.allocations().get(0);
+        assertThat(intent.orcTb()).isEqualTo("BPROJM");
+        assertThat(intent.matchKey().type()).isEqualTo(AllocationIntent.MatchKey.Type.PROJECT_NAME);
+        assertThat(intent.matchKey().normalizedName()).isEqualTo("글로벌표준뱅킹시스템재구축");
+        assertThat(intent.targetByColumn().get("devAmount")).isEqualByComparingTo("11821600000");
+        assertThat(intent.targetByColumn().get("hwAmount")).isEqualByComparingTo("1974700000");
+        assertThat(intent.targetByColumn().get("swAmount")).isEqualByComparingTo("3203200000");
     }
 
     @Test
-    @DisplayName("조정비율이 비면 편성률 100으로 둔다")
-    void 조정비율이_없으면_100이다() {
+    @DisplayName("조정비율이 비면 배수 1로 두어 원본 금액을 그대로 목표액으로 낸다")
+    void 조정비율이_없으면_배수1이다() {
         Map<String, String> cells = cells();
         cells.put("adjustRate", "");
 
-        assertThat(adapter.adapt(sheet(cells), context(Map.of())).rates().get(0).percent())
-                .isEqualTo(100);
+        AllocationIntent intent =
+                adapter.adapt(sheet(cells), context(Map.of())).allocations().get(0);
+
+        assertThat(intent.targetByColumn().get("devAmount")).isEqualByComparingTo("16888000000");
+        assertThat(intent.targetByColumn().get("hwAmount")).isEqualByComparingTo("2821000000");
+        assertThat(intent.targetByColumn().get("swAmount")).isEqualByComparingTo("4576000000");
+    }
+
+    @Test
+    @DisplayName("adapt_조정비율을_곱한_비목그룹별_목표액을_낸다")
+    void adapt_조정비율을_곱한_비목그룹별_목표액을_낸다() {
+        MigrationDto.SheetPayload sheet =
+                sheetOf(
+                        Map.of(
+                                "projectName", "웹한글 기안기 도입",
+                                "devAmount", "",
+                                "hwAmount", "",
+                                "swAmount", "1406",
+                                "adjustRate", "0.7",
+                                "swAdjustAmount", "984"));
+
+        AdapterOutput output = adapter.adapt(sheet, context());
+
+        AllocationIntent intent = output.allocations().get(0);
+        assertThat(intent.orcTb()).isEqualTo("BPROJM");
+        assertThat(intent.matchKey().type()).isEqualTo(AllocationIntent.MatchKey.Type.PROJECT_NAME);
+        assertThat(intent.matchKey().normalizedName()).isEqualTo("웹한글기안기도입");
+        // 백만원 단위 × 조정비율 0.7
+        assertThat(intent.targetByColumn().get("swAmount")).isEqualByComparingTo("984200000");
+        assertThat(intent.targetByColumn().get("devAmount")).isEqualByComparingTo("0");
+        assertThat(intent.declaredBase()).isEqualByComparingTo("1406000000");
+    }
+
+    @Test
+    @DisplayName("adapt_원장_생성요청은_행_순서를_그대로_유지한다")
+    void adapt_원장_생성요청은_행_순서를_그대로_유지한다() {
+        MigrationDto.SheetPayload sheet =
+                sheetOf(
+                        Map.of("projectName", "사업 가", "swAmount", "100", "adjustRate", "1"),
+                        Map.of("projectName", "사업 나", "swAmount", "200", "adjustRate", "1"));
+
+        AdapterOutput output = adapter.adapt(sheet, context());
+
+        assertThat(output.projects()).hasSize(2);
+        assertThat(output.projects().get(0).getAbusNm()).isEqualTo("사업 가");
+        assertThat(output.allocations()).hasSize(2);
+        assertThat(output.allocations().get(1).matchKey().normalizedName()).isEqualTo("사업나");
     }
 
     /**
@@ -197,6 +242,10 @@ class CapitalProjectSheetAdapterTest {
                 List.of(new MigrationDto.NormalizedRow(2, cells)));
     }
 
+    private static AdapterContext context() {
+        return context(Map.of());
+    }
+
     private static AdapterContext context(Map<String, String> overrides) {
         return new AdapterContext(
                 "2026",
@@ -210,10 +259,24 @@ class CapitalProjectSheetAdapterTest {
                         Map.of(),
                         Map.of("571", "운영시스템 유지보수"),
                         Map.of("확정", "1", "미정(검토중)", "2"),
-                        Map.of("부문장", "22", "이사회", "25")),
+                        Map.of("부문장", "22", "이사회", "25"),
+                        BigDecimal.valueOf(100)),
                 TestSnapshots.empty("2026"),
                 overrides,
                 "999999");
+    }
+
+    private MigrationDto.SheetPayload sheetOf(Map<String, String>... rows) {
+        List<MigrationDto.NormalizedRow> normalized = new ArrayList<>();
+        int excelRow = 2;
+        for (Map<String, String> row : rows) {
+            Map<String, String> cells = new LinkedHashMap<>();
+            for (String column : MigrationColumns.of(SheetKind.CAPITAL_PROJECT)) {
+                cells.put(column, row.getOrDefault(column, ""));
+            }
+            normalized.add(new MigrationDto.NormalizedRow(excelRow++, cells));
+        }
+        return new MigrationDto.SheetPayload(SheetKind.CAPITAL_PROJECT, "2026", normalized);
     }
 
     private static CorgnI org(String code, String name) {
