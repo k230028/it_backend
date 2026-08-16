@@ -61,9 +61,62 @@ class MigrationAllocationPlannerTest {
                         .map(MigrationAllocationPlanner.ItemAllocation::amount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
         assertThat(sum).isEqualByComparingTo("777");
-        // 잔차는 요청금액이 가장 큰 품목이 흡수한다
+        // 이 입력은 나누어떨어져(25.9%) 잔차가 0이다 — 잔차 흡수 분기 자체는 검증하지 않는다
         assertThat(allocated.items().get(1).amount()).isEqualByComparingTo("518.000");
         assertThat(allocated.items().get(0).amount()).isEqualByComparingTo("259.000");
+    }
+
+    @Test
+    @DisplayName("allocate_양수_잔차는_요청금액이_가장_큰_품목이_흡수하고_공통_실효율은_유지된다")
+    void allocate_양수_잔차는_요청금액이_가장_큰_품목이_흡수하고_공통_실효율은_유지된다() {
+        List<RequestItem> items =
+                List.of(
+                        new RequestItem("GCL-1", 1, "103", new BigDecimal("1000000")),
+                        new RequestItem("GCL-2", 2, "104", new BigDecimal("2000000")));
+
+        MigrationAllocationPlanner.Allocation result =
+                planner.allocate(items, new BigDecimal("1000000"));
+
+        MigrationAllocationPlanner.Allocation.Allocated allocated =
+                (MigrationAllocationPlanner.Allocation.Allocated) result;
+        // rate = 100,000,000 / 3,000,000 = 33.33333... → HALF_UP 스케일5 = 33.33333
+        assertThat(allocated.effectiveRate()).isEqualByComparingTo("33.33333");
+        // 반올림 전 배분 합계는 999,999.900으로 목표액에 +0.100 모자란다
+        MigrationAllocationPlanner.ItemAllocation a = allocated.items().get(0);
+        MigrationAllocationPlanner.ItemAllocation b = allocated.items().get(1);
+        // 잔차는 요청금액이 더 큰 B(2,000,000)가 흡수한다
+        assertThat(a.amount()).isEqualByComparingTo("333333.300");
+        assertThat(b.amount()).isEqualByComparingTo("666666.700");
+        BigDecimal sum = a.amount().add(b.amount());
+        assertThat(sum).isEqualByComparingTo("1000000.000");
+        // 잔차를 흡수한 품목도 rate 필드는 그룹 공통 실효율 그대로다(금액만 조정됨)
+        assertThat(a.rate()).isEqualByComparingTo("33.33333");
+        assertThat(b.rate()).isEqualByComparingTo("33.33333");
+    }
+
+    @Test
+    @DisplayName("allocate_음수_잔차는_요청금액이_가장_큰_품목의_금액을_줄여_흡수한다")
+    void allocate_음수_잔차는_요청금액이_가장_큰_품목의_금액을_줄여_흡수한다() {
+        List<RequestItem> items =
+                List.of(
+                        new RequestItem("GCL-1", 1, "103", new BigDecimal("1000000")),
+                        new RequestItem("GCL-2", 2, "104", new BigDecimal("2000000")));
+
+        MigrationAllocationPlanner.Allocation result =
+                planner.allocate(items, new BigDecimal("2000000"));
+
+        MigrationAllocationPlanner.Allocation.Allocated allocated =
+                (MigrationAllocationPlanner.Allocation.Allocated) result;
+        // rate = 200,000,000 / 3,000,000 = 66.66666... → HALF_UP 스케일5 = 66.66667 (올림)
+        assertThat(allocated.effectiveRate()).isEqualByComparingTo("66.66667");
+        MigrationAllocationPlanner.ItemAllocation a = allocated.items().get(0);
+        MigrationAllocationPlanner.ItemAllocation b = allocated.items().get(1);
+        assertThat(a.amount()).isEqualByComparingTo("666666.700");
+        // 반올림 전 배분 합계는 2,000,000.100으로 목표액을 +0.100 초과한다.
+        // 잔차는 요청금액이 더 큰 B가 흡수하며, 이번엔 흡수된 금액이 줄어든다(1,333,333.400 → 1,333,333.300)
+        assertThat(b.amount()).isEqualByComparingTo("1333333.300");
+        BigDecimal sum = a.amount().add(b.amount());
+        assertThat(sum).isEqualByComparingTo("2000000.000");
     }
 
     @Test
