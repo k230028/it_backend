@@ -834,4 +834,64 @@ class BudgetRateApplicationServiceTest {
         assertThat(captor.getValue().getAsgRt()).isEqualByComparingTo("70");
         assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo("700.000");
     }
+
+    @Test
+    @DisplayName("applyItemRates_ioeRates가_일부_비목만_지정되면_나머지는_2버킷으로_떨어진다")
+    void applyItemRates_ioeRates가_일부_비목만_지정되면_나머지는_2버킷으로_떨어진다() {
+        Bitemm dev = itemOf("GCL-2026-0001", 1, "103", new BigDecimal("1000"));
+        Bitemm hw = itemOf("GCL-2026-0002", 1, "101", new BigDecimal("2000"));
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(dev, hw));
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
+        // "101"만 자본예산으로 분류해, 맵에 없는 비목의 2버킷 폴백이 assetDupRt를 고르는지 함께 확인한다.
+        given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null))
+                .willReturn(List.of(Ccodem.builder().cdva("101").build()));
+
+        BudgetWorkDto.ItemRate rate =
+                new BudgetWorkDto.ItemRate(
+                        "BPROJM",
+                        "PRJ-2026-0001",
+                        55,
+                        20,
+                        Map.of("103", new BigDecimal("45.50000")));
+
+        budgetWorkService.applyItemRates(
+                new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate)));
+
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository, Mockito.times(2)).save(captor.capture());
+        Map<String, Bbugtm> saved =
+                captor.getAllValues().stream()
+                        .collect(Collectors.toMap(Bbugtm::getIoeC, Function.identity()));
+
+        // "103"은 ioeRates에 명시돼 있으므로 자본/일반 분류와 무관하게 그 값을 그대로 쓴다.
+        assertThat(saved.get("103").getAsgRt()).isEqualByComparingTo("45.50000");
+        assertThat(saved.get("103").getBgDupAmt()).isEqualByComparingTo("455.000");
+        // "101"은 ioeRates에 없어 2버킷으로 떨어지고, 자본예산으로 분류돼 assetDupRt(55)를 받는다.
+        assertThat(saved.get("101").getAsgRt()).isEqualByComparingTo("55");
+        assertThat(saved.get("101").getBgDupAmt()).isEqualByComparingTo("1100.000");
+    }
+
+    @Test
+    @DisplayName("applyItemRates_ioeRates가_빈맵이면_종전_2버킷이_적용된다")
+    void applyItemRates_ioeRates가_빈맵이면_종전_2버킷이_적용된다() {
+        Bitemm dev = itemOf("GCL-2026-0001", 1, "103", new BigDecimal("1000"));
+        given(projectItemRepository.findByAbusMngNoAndDelYnAndLstYn("PRJ-2026-0001", "N", "Y"))
+                .willReturn(List.of(dev));
+        given(bbugtmRepository.nextBgMngNoSeq()).willReturn(1L);
+        given(codeRepository.findByCIdWithValidDate("IOE_CPIT", null))
+                .willReturn(List.of(Ccodem.builder().cdva("103").build()));
+
+        budgetWorkService.applyItemRates(
+                new BudgetWorkDto.ItemApplyRequest(
+                        "2026",
+                        List.of(
+                                new BudgetWorkDto.ItemRate(
+                                        "BPROJM", "PRJ-2026-0001", 70, 100, Map.of()))));
+
+        ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
+        verify(bbugtmRepository).save(captor.capture());
+        assertThat(captor.getValue().getAsgRt()).isEqualByComparingTo("70");
+        assertThat(captor.getValue().getBgDupAmt()).isEqualByComparingTo("700.000");
+    }
 }
