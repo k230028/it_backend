@@ -3,6 +3,7 @@ package com.kdb.it.domain.log.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -54,6 +55,15 @@ public class BprojmL extends BaseLogEntity {
 
     @Column(name = "END_DTM", comment = "종료일자")
     private LocalDate endDtm;
+
+    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "총소요금액")
+    private BigDecimal totRqmAmt;
+
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "예정금액")
+    private BigDecimal mplAmt;
+
+    @Column(name = "DFR_AMT", precision = 18, scale = 3, comment = "지급금액")
+    private BigDecimal dfrAmt;
 
     @Column(name = "USID", length = 32, comment = "주관부서담당자")
     private String usid;

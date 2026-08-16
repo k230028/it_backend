@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -97,6 +98,23 @@ public class Bprojm extends BaseEntity {
     /** 종료일자: 사업 완료 예정일 (DDL DATE 타입을 LocalDate로 매핑) */
     @Column(name = "END_DTM", comment = "종료일자 (물리컬럼 END_DTM=종료일시)")
     private LocalDate endDtm;
+
+    /**
+     * 총소요금액: 활성 품목 AMT 합계 스냅샷 (화면 [총 예산]).
+     *
+     * <p>조회는 품목 합산 파생값을 쓰므로 이 컬럼은 저장 시점 기록용이다. 드롭 전(V20260622_007) 같은 이름의 컬럼은 당해예산을 담았으나 지금은 총
+     * 예산이다.
+     */
+    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "총소요금액 (총 예산 스냅샷)")
+    private BigDecimal totRqmAmt;
+
+    /** 예정금액: 활성 품목 MPL_AMT 합계 스냅샷 (화면 [예산연도+1년 이후 예산]). */
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "예정금액 (익년 이후 예산 스냅샷)")
+    private BigDecimal mplAmt;
+
+    /** 지급금액: 사용자가 입력하는 기 지급예산. 이 컬럼이 유일한 출처다. */
+    @Column(name = "DFR_AMT", precision = 18, scale = 3, comment = "지급금액 (기 지급예산)")
+    private BigDecimal dfrAmt;
 
     /** 주관부서담당자: 주관부서 담당자 사번 또는 이름 (최대 14자) */
     @Column(name = "USID", length = 14, comment = "주관부서담당자 (물리컬럼 USID=사용자ID)")
@@ -566,6 +584,21 @@ public class Bprojm extends BaseEntity {
     public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;
+    }
+
+    /**
+     * 사업 단위 금액 스냅샷 설정.
+     *
+     * <p>총 예산·익년 이후 예산은 품목 저장이 끝난 뒤의 합계이고, 기 지급예산은 사용자 입력값이다. 세 값이 항상 같은 시점을 가리키도록 한 번에 설정한다.
+     *
+     * @param totRqmAmt 총 예산 (활성 품목 AMT 합계)
+     * @param mplAmt 예산연도+1 이후 예산 (활성 품목 MPL_AMT 합계)
+     * @param dfrAmt 기 지급예산 (검증을 통과한 값)
+     */
+    public void assignAmountSnapshot(BigDecimal totRqmAmt, BigDecimal mplAmt, BigDecimal dfrAmt) {
+        this.totRqmAmt = totRqmAmt;
+        this.mplAmt = mplAmt;
+        this.dfrAmt = dfrAmt;
     }
 
     /**

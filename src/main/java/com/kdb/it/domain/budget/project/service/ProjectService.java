@@ -1,5 +1,8 @@
 package com.kdb.it.domain.budget.project.service;
 
+import static com.kdb.it.domain.budget.project.service.ProjectItemChangeDetector.defaultYn;
+import static com.kdb.it.domain.budget.project.service.ProjectItemChangeDetector.isItemChanged;
+
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
@@ -13,7 +16,6 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
@@ -78,6 +80,9 @@ public class ProjectService {
 
     /** 정보화사업 조회 전용 서비스 */
     private final ProjectQueryService projectQueryService;
+
+    /** 정보화사업 품목 기준 예산 합계 계산 서비스: 저장 시점 금액 스냅샷 계산용 */
+    private final ProjectBudgetSummaryService budgetSummaryService;
 
     /**
      * 삭제되지 않은 모든 정보화사업을 조회합니다.
@@ -226,7 +231,12 @@ public class ProjectService {
                         ? svnTeam.temNm()
                         : firstNonBlank(orgNameResolver.resolveName(svnTemC), svnTeam.temNm());
         project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTemNm);
-        projectRepository.save(project);
+        // 반환값을 반드시 재대입한다: 요청이 관리번호를 이미 채워 보낸 경우(auto-채번 포함, 위에서
+        // request.setAbusMngNo로 채움) ID가 non-null이라 Spring Data의 isNew() 판정이 false가 되고
+        // SimpleJpaRepository.save가 entityManager.merge()를 타 별도의 영속 인스턴스를 반환한다.
+        // 로컬 project는 detached 상태로 남으므로, 이후 applyAmountSnapshot 등 저장 이후 변경은
+        // 반드시 이 반환값(managed 인스턴스)에 대해 이뤄져야 Dirty Checking으로 UPDATE가 발생한다.
+        project = projectRepository.save(project);
 
         // ===== 품목(Bitemm) 저장 =====
         // 신규 등록 시 요청에 포함된 모든 품목은 신규 추가 대상
@@ -253,6 +263,9 @@ public class ProjectService {
             }
         }
 
+        // 품목 저장이 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
+        applyAmountSnapshot(project, request.getDfrAmt());
+
         // 정보화사업관계(BPROJA) 적재: 예산편성 요청 작성중(IT_PTL_STS_TC='01').
         // 예산편성 단계는 별도 단계 문서가 없으므로 단계 key(CNCD_RFR_NO)는 프로젝트관리번호 자신으로 둔다.
         // 이후 결재 상신('02')/완료('09')가 동일 BPROJA 행을 멱등 upsert 하여 대표상태(MAX)에 반영된다.
@@ -268,6 +281,11 @@ public class ProjectService {
      * {@link Bitemm#delete()}를 미리 호출). 채번({@code GCL-{연도}-{4자리}})과 환율 표준 조회, 외화 금액 재계산, 정보보호·통합인프라
      * 여부 기본값("N"), 예정금액 클램프는 {@link #createProject(ProjectDto.CreateRequest, boolean)}와 같은 규칙을
      * 따릅니다.
+     *
+     * <p>금액 스냅샷은 규칙이 갈립니다. 교체 후 {@code TOT_RQM_AMT}·{@code MPL_AMT}는 {@link #sumActiveItems}로 다시
+     * 계산해 반영하지만, 사용자 입력인 {@code DFR_AMT}는 이 경로가 받지 않으므로 기존 값을 그대로 둡니다. {@code createProject}가 쓰는
+     * {@link #applyAmountSnapshot}을 재사용하지 않는 이유도 같습니다 — 그 메서드의 "기 지급예산 ≤ 총 예산" 검증은 조정으로 총액이 낮아진
+     * 사업에서 예외를 던져 이관 트랜잭션 전체를 롤백시킵니다.
      *
      * <p>{@link #updateProject}를 재사용하지 않는 이유: 수기 엑셀 이관은 사업 생성 직후 같은 트랜잭션 안에서 결재완료 받이({@code
      * MigrationApprovalStamper})를 그 사업에 이미 붙이므로, {@code updateProject}의 결재 상태 확인(결재중·결재완료 상태는 수정
@@ -304,14 +322,19 @@ public class ProjectService {
 
             bitemmRepository.save(buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
         }
+
+        // 교체된 활성 품목으로 합계만 갱신한다. 기 지급예산은 이 경로가 받지 않으므로 기존 값을 그대로 넘긴다.
+        ProjectBudgetSummaryService.AmountSnapshot snapshot = sumActiveItems(project);
+        project.assignAmountSnapshot(snapshot.totRqmAmt(), snapshot.mplAmt(), project.getDfrAmt());
     }
 
     /**
      * 품목 엔티티를 조립합니다.
      *
      * <p>채번(gclMngNo)·순번(gclSno)·환율 표준 조회·외화 재계산은 호출자({@link #createProject}·{@link
-     * #replaceItemsForMigration})가 먼저 수행하고, 그 결과만 이 메서드가 엔티티 필드로 옮겨 담습니다. 두 경로가 별도로 필드를 나열하면 한쪽에서만
-     * 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로 강제합니다.
+     * #updateProject}의 신규 품목 추가 분기·{@link #replaceItemsForMigration})가 먼저 수행하고, 그 결과만 이 메서드가 엔티티
+     * 필드로 옮겨 담습니다. 세 경로가 별도로 필드를 나열하면 한쪽에서만 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로
+     * 강제합니다.
      *
      * @param itemDto 품목 요청 DTO (xcr은 호출자가 이미 표준 조회로 덮어쓴 상태)
      * @param gclMngNo 채번된 품목관리번호
@@ -543,42 +566,10 @@ public class ProjectService {
                                     itemDto.getCurC(),
                                     itemDto.getXcr());
 
-                    com.kdb.it.domain.budget.project.entity.Bitemm newItem =
-                            com.kdb.it.domain.budget.project.entity.Bitemm.builder()
-                                    .gclMngNo(gclMngNo) // 품목관리번호 (신규 채번)
-                                    .sno(++maxGclSno) // 품목일련번호 (MAX+1)
-                                    .abusMngNo(prjMngNo) // 프로젝트관리번호
-                                    .fntTbCrySno(project.getSno()) // 프로젝트순번
-                                    .ioeC(itemDto.getIoeC()) // 품목구분
-                                    .gclNm(itemDto.getGclNm()) // 품목명
-                                    .qty(itemDto.getQty()) // 품목수량
-                                    .curC(itemDto.getCurC()) // 통화
-                                    .xcr(itemDto.getXcr()) // 환율
-                                    .xcrBseDt(
-                                            DateFormatUtil.toYmd8(
-                                                    itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
-                                    .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
-                                    .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                                    .dfrCleC(
-                                            CodeDefaults.orNotApplicable(
-                                                    itemDto.getDfrCleC())) // 지급주기
-                                    .sectSysUtzYn(
-                                            itemDto.getSectSysUtzYn() == null
-                                                    ? "N"
-                                                    : itemDto.getSectSysUtzYn()) // 정보보호여부
-                                    .itrInfrYn(
-                                            itemDto.getItrInfrYn() == null
-                                                    ? "N"
-                                                    : itemDto.getItrInfrYn()) // 통합인프라여부
-                                    .lstYn("Y") // 최종여부
-                                    .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                                    .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                                    .mplAmt(
-                                            clampMpl(
-                                                    itemDto.getMplAmt(),
-                                                    reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
-                                    .build();
-                    bitemmRepository.save(newItem);
+                    // 조립은 buildBitemm 한 곳으로 모은다 — 생성 경로와 필드가 조용히 갈라지지 않도록.
+                    // project는 prjMngNo로 조회한 엔티티이므로 abusMngNo 스냅샷도 동일하다.
+                    bitemmRepository.save(
+                            buildBitemm(itemDto, gclMngNo, ++maxGclSno, project, reconciled));
                 }
             }
 
@@ -591,43 +582,49 @@ public class ProjectService {
             }
         }
 
+        // 품목 동기화가 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
+        applyAmountSnapshot(project, request.getDfrAmt());
+
         return project.getAbusMngNo(); // 수정된 관리번호 반환
     }
 
     /**
-     * 품목 변경 여부 판단
+     * 품목 저장이 끝난 뒤 사업 단위 금액 스냅샷을 기록합니다.
      *
-     * <p>기존 엔티티와 요청 DTO의 업무 필드를 비교하여, 하나라도 다르면 {@code true}를 반환합니다.
+     * <p>활성 품목을 다시 조회해 합산합니다. 영속성 컨텍스트가 조회 전에 flush 되므로 방금 저장·수정·논리삭제한 품목이 모두 반영됩니다. 반환값을 쓰지 않고
+     * 엔티티에 바로 반영하며, Dirty Checking으로 UPDATE가 실행됩니다.
      *
-     * <p>변경이 없는 품목은 UPDATE와 감사 변경 로그 생성을 건너뜁니다.
-     *
-     * <p>BigDecimal 필드(xcr, gclQty, gclAmt)는 scale 무관한 수치 비교를 위해 compareTo를 사용합니다.
-     *
-     * @param existing 현재 활성 품목 엔티티 (DEL_YN='N')
-     * @param dto 클라이언트로부터 전달된 수정 요청 DTO
-     * @return 변경된 필드가 하나라도 있으면 {@code true}
+     * @param project 대상 사업 엔티티 (영속 상태)
+     * @param requestedDfrAmt 요청이 보낸 기 지급예산 (null이면 0)
+     * @throws IllegalArgumentException 기 지급예산이 음수이거나 총 예산을 초과하는 경우
      */
-    private boolean isItemChanged(Bitemm existing, ProjectDto.BitemmDto dto) {
-        return !Objects.equals(existing.getIoeC(), dto.getIoeC())
-                || !Objects.equals(existing.getGclNm(), dto.getGclNm())
-                || bigDecimalChanged(existing.getQty(), dto.getQty())
-                || !Objects.equals(existing.getCurC(), dto.getCurC())
-                || bigDecimalChanged(existing.getXcr(), dto.getXcr())
-                || !Objects.equals(existing.getXcrBseDt(), dto.getXcrBseDt())
-                || !Objects.equals(existing.getCncdFdtnCone(), dto.getCncdFdtnCone())
-                || !Objects.equals(existing.getBseYm(), dto.getBseYm())
-                || !Objects.equals(existing.getDfrCleC(), dto.getDfrCleC())
-                || !Objects.equals(existing.getSectSysUtzYn(), defaultYn(dto.getSectSysUtzYn()))
-                || !Objects.equals(existing.getItrInfrYn(), defaultYn(dto.getItrInfrYn()))
-                || bigDecimalChanged(existing.getAmt(), dto.getAmt())
-                || bigDecimalChanged(existing.getMplAmt(), dto.getMplAmt())
-                // fcAmt 변경 시 D/C 이력 생성 (null-safe 비교)
-                || bigDecimalChanged(existing.getFcAmt(), dto.getFcAmt());
+    private void applyAmountSnapshot(Bprojm project, BigDecimal requestedDfrAmt) {
+        ProjectBudgetSummaryService.AmountSnapshot snapshot = sumActiveItems(project);
+        BigDecimal dfrAmt = requestedDfrAmt == null ? BigDecimal.ZERO : requestedDfrAmt;
+        if (dfrAmt.signum() < 0) {
+            throw new IllegalArgumentException("기 지급예산은 0 이상이어야 합니다.");
+        }
+        if (dfrAmt.compareTo(snapshot.totRqmAmt()) > 0) {
+            throw new IllegalArgumentException("기 지급예산은 총 예산을 초과할 수 없습니다.");
+        }
+        project.assignAmountSnapshot(snapshot.totRqmAmt(), snapshot.mplAmt(), dfrAmt);
     }
 
-    /** null이면 "N"으로 정규화 (infPrtYn, itrInfrYn 공통 기본값 처리) */
-    private static String defaultYn(String value) {
-        return value == null ? "N" : value;
+    /**
+     * 활성 품목을 다시 조회해 사업 단위 금액 합계를 계산합니다.
+     *
+     * <p>{@link #applyAmountSnapshot}(사용자 입력 기 지급예산을 검증하는 저장 경로)과 {@link
+     * #replaceItemsForMigration}(검증 없이 합계만 갱신하는 이관 경로)이 공유하는 합산 단계입니다. 두 경로가 같은 활성 품목 집합을 보도록 조회
+     * 조건을 이 메서드 하나로 고정하고, 차이는 호출부의 검증 유무로만 둡니다.
+     *
+     * @param project 대상 사업 엔티티 (영속 상태)
+     * @return 활성 품목 기준 총 예산·익년 이후 예산 합계
+     */
+    private ProjectBudgetSummaryService.AmountSnapshot sumActiveItems(Bprojm project) {
+        List<Bitemm> activeItems =
+                bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                        project.getAbusMngNo(), project.getSno(), "N");
+        return budgetSummaryService.calculateAmountSnapshot(activeItems);
     }
 
     /** 공백·null이 아닌 첫 값을 반환합니다. 둘 다 비었으면 null. */
@@ -681,13 +678,6 @@ public class ProjectService {
         }
         String normalized = itdYm.replace("-", "");
         return normalized.length() > 6 ? normalized.substring(0, 6) : normalized;
-    }
-
-    /** BigDecimal 수치 비교 (scale 무시). 둘 다 null이면 동일, 한쪽만 null이면 변경으로 간주 */
-    private static boolean bigDecimalChanged(BigDecimal a, BigDecimal b) {
-        if (a == null && b == null) return false;
-        if (a == null || b == null) return true;
-        return a.compareTo(b) != 0;
     }
 
     /**

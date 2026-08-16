@@ -198,6 +198,29 @@ class ProjectBudgetSummaryServiceTest {
     }
 
     @Test
+    @DisplayName("응답에 총 예산(prjBgAmt)과 익년 이후 예산(mplAmt) 파생값을 설정한다")
+    void applyBudgetSummary_setsDerivedTotals() {
+        // A01을 자본예산 비목으로 분류해야 assetBg/costBg 합계(prjBgAmt)에 반영된다.
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("A01", "IOE_DVC")));
+        ProjectDto.Response response = new ProjectDto.Response();
+        List<Bitemm> items =
+                List.of(
+                        Bitemm.builder()
+                                .ioeC("A01")
+                                .amt(new BigDecimal("1000"))
+                                .mplAmt(new BigDecimal("300"))
+                                .build());
+
+        service.applyBudgetSummary(response, items);
+
+        assertThat(response.getPrjBgAmt()).isEqualByComparingTo("1000");
+        assertThat(response.getMplAmt()).isEqualByComparingTo("300");
+        // 기존 의미 유지: 당해예산 = 총 AMT − 총 MPL_AMT
+        assertThat(response.getTotRqmAmt()).isEqualByComparingTo("700");
+    }
+
+    @Test
     @DisplayName("당해예산이 음수면 0으로 보정한다")
     void clampsNegativeCurrentYearToZero() {
         // Arrange: C1=자본(IOE_DVC), amt=100이지만 mplAmt=250으로 초과
@@ -263,5 +286,42 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
         assertThat(res.getMplCpitAmt()).isEqualByComparingTo("52000");
         assertThat(res.getTotRqmAmt()).isEqualByComparingTo("78000");
+    }
+
+    @Test
+    @DisplayName("스냅샷 합계는 비목 분류와 무관하게 활성 품목 전체를 더한다")
+    void calculateAmountSnapshot_sumsAllItems() {
+        List<Bitemm> items =
+                List.of(
+                        Bitemm.builder()
+                                .ioeC("A01")
+                                .amt(new BigDecimal("1000"))
+                                .mplAmt(new BigDecimal("300"))
+                                .build(),
+                        Bitemm.builder()
+                                .ioeC("ZZ9") // 자본·관리비 어느 집합에도 없는 비목
+                                .amt(new BigDecimal("500"))
+                                .mplAmt(new BigDecimal("200"))
+                                .build());
+
+        ProjectBudgetSummaryService.AmountSnapshot snapshot =
+                service.calculateAmountSnapshot(items);
+
+        assertThat(snapshot.totRqmAmt()).isEqualByComparingTo("1500");
+        assertThat(snapshot.mplAmt()).isEqualByComparingTo("500");
+    }
+
+    @Test
+    @DisplayName("금액이 null이거나 품목이 없으면 0을 반환한다")
+    void calculateAmountSnapshot_nullSafe() {
+        ProjectBudgetSummaryService.AmountSnapshot empty =
+                service.calculateAmountSnapshot(List.of());
+        assertThat(empty.totRqmAmt()).isEqualByComparingTo("0");
+        assertThat(empty.mplAmt()).isEqualByComparingTo("0");
+
+        ProjectBudgetSummaryService.AmountSnapshot nulls =
+                service.calculateAmountSnapshot(List.of(Bitemm.builder().ioeC("A01").build()));
+        assertThat(nulls.totRqmAmt()).isEqualByComparingTo("0");
+        assertThat(nulls.mplAmt()).isEqualByComparingTo("0");
     }
 }
