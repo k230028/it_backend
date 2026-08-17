@@ -46,23 +46,6 @@ final class MigrationDiagnostics {
         return rawCell(row, column);
     }
 
-    /**
-     * 행 번호로 정규화 행을 찾습니다.
-     *
-     * <p>배분 의도는 항상 그 시트의 행에서 나오므로 없을 수 없습니다. 매칭 진단과 오케스트레이션이 같은 규칙으로 행을 찾아야 진단 좌표와 실제 반영 대상이 어긋나지
-     * 않으므로 여기 한 곳에 둡니다.
-     *
-     * @throws IllegalStateException 그 행 번호가 시트에 없는 경우
-     */
-    static MigrationDto.NormalizedRow rowAt(MigrationDto.SheetPayload sheet, int excelRow) {
-        for (MigrationDto.NormalizedRow row : sheet.rows()) {
-            if (row.excelRow() == excelRow) {
-                return row;
-            }
-        }
-        throw new IllegalStateException("배분 의도의 행을 시트에서 찾지 못했습니다: " + excelRow);
-    }
-
     /** 보정값을 보지 않는 원본 셀 값입니다. 후보 재산출처럼 "사용자가 고르기 전의 값"이 필요한 곳에서만 씁니다. */
     static String rawCell(MigrationDto.NormalizedRow row, String column) {
         String value = row.cells().get(column);

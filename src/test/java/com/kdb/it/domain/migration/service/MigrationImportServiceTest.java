@@ -877,6 +877,53 @@ class MigrationImportServiceTest {
         assertThat(matched.getBgUntAbusC()).isEqualTo("571");
     }
 
+    /**
+     * 코드표에 없는 사업코드는 원장에 채우지 않는다.
+     *
+     * <p>정상 경로에서는 {@code MigrationValidator}가 이 값을 모든 전산업무비 행에서 검사해 미리보기에서 막지만, 코드 카탈로그가 비면(코드그룹
+     * 미적재) 판정 근거가 없어 그대로 통과한다. 이 테스트는 검증기를 목으로 비워 그 구멍을 재현하고, 쓰기 직전 방어가 원장을 오염시키지 않는지 확인한다 — {@code
+     * BG_UNT_ABUS_C}는 3자라 원문이 그대로 흘러가면 flush에서 {@code ORA-12899}가 나거나 길이가 맞는 오타가 조용히 저장된다.
+     */
+    @Test
+    @DisplayName("코드표에 없는 사업코드는 전산업무비에 채우지 않는다")
+    void 미등록_사업코드는_채우지_않는다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatching());
+        Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
+        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+                .thenReturn(List.of(matched));
+
+        MigrationDto.CommitRequest request = commitRequestWithoutDecision();
+        // 3자를 넘고 코드표에도 없는 값 — 그대로 쓰면 ORA-12899다
+        List<MigrationDto.CellOverride> overrides =
+                List.of(new MigrationDto.CellOverride(SheetKind.COST, 2, "abusCode", "9999"));
+
+        service.commit(new MigrationDto.CommitRequest(request.sheets(), overrides), "999999");
+
+        assertThat(matched.getBgUntAbusC()).isNull();
+    }
+
+    /** 공백이 섞인 사업코드는 다듬어 코드표와 대조한 뒤 채운다. */
+    @Test
+    @DisplayName("사업코드의 앞뒤 공백을 다듬어 채운다")
+    void 사업코드의_공백을_다듬는다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatching());
+        Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
+        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+                .thenReturn(List.of(matched));
+
+        MigrationDto.CommitRequest request = commitRequestWithoutDecision();
+        List<MigrationDto.CellOverride> overrides =
+                List.of(new MigrationDto.CellOverride(SheetKind.COST, 2, "abusCode", " 571 "));
+
+        service.commit(new MigrationDto.CommitRequest(request.sheets(), overrides), "999999");
+
+        assertThat(matched.getBgUntAbusC()).isEqualTo("571");
+    }
+
     /** 원장에 이미 사업코드가 있으면 종합본이 덮지 않는다. */
     @Test
     @DisplayName("전산업무비에 사업코드가 이미 있으면 덮지 않는다")
@@ -974,6 +1021,8 @@ class MigrationImportServiceTest {
                 .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
         when(catalogReader.ioeCodeByName()).thenReturn(Map.of("유지보수료", "011"));
         when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        // 사업코드 카탈로그 — Step 5b가 쓰기 전에 이 코드표와 대조한다
+        when(catalogReader.abusUnitNameByCode()).thenReturn(Map.of("571", "정보화"));
         when(catalogReader.generalExpenseRate()).thenReturn(BigDecimal.valueOf(100));
     }
 

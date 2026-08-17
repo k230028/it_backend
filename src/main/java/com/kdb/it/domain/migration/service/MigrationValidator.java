@@ -29,9 +29,10 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>검증 범위는 행의 처리 방식에 따라 갈립니다.</b> 이 화면은 원장을 새로 만들지 않는 것이 기본이라(설계 §2.1), 기존 원장에 매칭되는 행은 물리
  * 길이·필수값·코드 해석처럼 "원장을 새로 만들 때만" 의미 있는 검사를 걸지 않습니다 — 종합본의 긴 사업개요 한 칸 때문에 편성 전체가 막히면 안 됩니다. {@code
- * createNewRows}에 속한 행에만 {@link #validateForCreate}를 걸고, 금액·통화·기간처럼 편성 계산에 항상 관여하는 검사와 매칭 키의
- * 재료(부서·비목·사업명 등)가 되는 값의 해석은 행의 처리 방식과 무관하게 {@link #validateAlways}로 늘 검사합니다. 매칭 자체(어느 원장을 가리키는지,
- * 원장 후보가 없는지)는 이 클래스가 아니라 {@link MigrationMatchDiagnostics}가 맡습니다.
+ * createNewRows}에 속한 행에만 {@link #validateForCreate}를 걸고, 금액·통화·기간처럼 편성 계산에 항상 관여하는 검사, 매칭 키의
+ * 재료(부서·비목·사업명 등)가 되는 값의 해석, 그리고 <b>매칭된 행에도 원장에 써 넣는 값</b>(전산업무비의 사업코드)의 해석은 행의 처리 방식과 무관하게 {@link
+ * #validateAlways}로 늘 검사합니다. 매칭 자체(어느 원장을 가리키는지, 원장 후보가 없는지)는 이 클래스가 아니라 {@link
+ * MigrationMatchDiagnostics}가 맡습니다.
  */
 @Component
 public class MigrationValidator {
@@ -213,13 +214,14 @@ public class MigrationValidator {
         limitBytes(sheet, row, "vendorName", 100, overrides, out); // CTT_OPP_NM VARCHAR2(100 BYTE)
         limitLength(sheet, row, "remark", 200, overrides, out); // IND_RSN VARCHAR2(200 CHAR)
         resolveOrgCell(sheet, row, "teamName", index, overrides, out, false);
-        resolveCodeCell(
-                sheet, row, "abusCode", index.abusUnitNameByCode(), overrides, out, "사업코드", false);
     }
 
     /**
      * 부서·비목은 전산업무비 매칭 키({@link
      * com.kdb.it.domain.migration.service.adapter.AllocationIntent.MatchKey#ofCost})의 재료라 항상 해석합니다.
+     *
+     * <p>사업코드도 항상 해석합니다 — <b>매칭된</b> 전산업무비의 빈 {@code BG_UNT_ABUS_C}를 채우는 값이라(§4.1), 생성 전용으로 두면 정작 그
+     * 값을 쓰는 행이 검증을 비켜 가 3자 초과 원문이 flush에서 {@code ORA-12899}로 터지거나 오타가 조용히 저장돼 엉뚱한 예산 집계 버킷에 들어갑니다.
      */
     private void validateCostRowAlways(
             MigrationDto.SheetPayload sheet,
@@ -228,6 +230,8 @@ public class MigrationValidator {
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
         resolveOrgCell(sheet, row, "deptName", index, overrides, out, true);
+        resolveCodeCell(
+                sheet, row, "abusCode", index.abusUnitNameByCode(), overrides, out, "사업코드", false);
 
         String ioeName = MigrationDiagnostics.cell(row, "ioeName", overrides, sheet);
         String ioeOverride = overrides.get(overrideKey(sheet.kind(), row.excelRow(), "ioeName"));
@@ -318,8 +322,8 @@ public class MigrationValidator {
     /**
      * 품목 비목 보정값(`devAmountIoeC`·`hwAmountIoeC`·`swAmountIoeC`)이 자본예산 계열 비목코드인지 확인합니다.
      *
-     * <p>보정값이 없는 컬럼은 기본 비목({@link MigrationIoeCodes})을 그대로 쓰므로 검사하지 않습니다. 이 보정값은 품목을 새로 만들 때만
-     * 의미가 있어(매칭된 행은 품목을 만들지 않습니다) {@link #validateProjectRowForCreate}에서만 검사합니다 — {@code
+     * <p>보정값이 없는 컬럼은 기본 비목({@link MigrationIoeCodes})을 그대로 쓰므로 검사하지 않습니다. 이 보정값은 품목을 새로 만들 때만 의미가
+     * 있어(매칭된 행은 품목을 만들지 않습니다) {@link #validateProjectRowForCreate}에서만 검사합니다 — {@code
      * validateAlways}에 두면 관리자가 CREATE_NEW로 비목을 보정했다가 나중에 MATCH로 바꿔도 이미 무의미해진 값 때문에 풀 수 없는 BLOCKER가
      * 남습니다.
      */

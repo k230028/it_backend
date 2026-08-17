@@ -92,7 +92,7 @@ public class MigrationMatchDiagnostics {
                 List.of(
                         MigrationDiagnostics.blocker(
                                 sheet,
-                                MigrationDiagnostics.rowAt(sheet, intent.excelRow()),
+                                rowAt(sheet, intent.excelRow()),
                                 RowDecision.COLUMN,
                                 code,
                                 message,
@@ -116,7 +116,7 @@ public class MigrationMatchDiagnostics {
             MigrationYearSnapshot.Data snapshot,
             MigrationAllocationPlanner planner) {
         List<MigrationDto.CellDiagnostic> out = new ArrayList<>();
-        MigrationDto.NormalizedRow row = MigrationDiagnostics.rowAt(sheet, intent.excelRow());
+        MigrationDto.NormalizedRow row = rowAt(sheet, intent.excelRow());
 
         if ("BCOSTM".equals(intent.orcTb())) {
             MigrationYearSnapshot.CostRef ref = snapshot.costOf(pk);
@@ -257,5 +257,15 @@ public class MigrationMatchDiagnostics {
                             "AMOUNT_ADJUSTED",
                             "종합본 금액이 부서가 제출한 요청 금액과 다릅니다. 편성은 종합본 금액을 기준으로 계산합니다."));
         }
+    }
+
+    /** 행 번호로 정규화 행을 찾습니다. 배분 의도는 항상 이 시트의 행에서 나오므로 없을 수 없습니다. */
+    private MigrationDto.NormalizedRow rowAt(MigrationDto.SheetPayload sheet, int excelRow) {
+        for (MigrationDto.NormalizedRow row : sheet.rows()) {
+            if (row.excelRow() == excelRow) {
+                return row;
+            }
+        }
+        throw new IllegalStateException("배분 의도의 행을 시트에서 찾지 못했습니다: " + excelRow);
     }
 }

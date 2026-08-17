@@ -603,8 +603,8 @@ class MigrationValidatorTest {
     }
 
     /**
-     * 자본예산 계열이 아닌 비목코드(999)로 개발비 비목을 보정하면 CODE_UNRESOLVED. 이 보정값은 품목을 새로 만들 때만 의미가 있어 원장을 새로
-     * 만드는 행에만 검사를 건다.
+     * 자본예산 계열이 아닌 비목코드(999)로 개발비 비목을 보정하면 CODE_UNRESOLVED. 이 보정값은 품목을 새로 만들 때만 의미가 있어 원장을 새로 만드는
+     * 행에만 검사를 건다.
      */
     @Test
     @DisplayName("존재하지 않는 비목코드로 보정하면 devAmountIoeC에 CODE_UNRESOLVED를 낸다")
@@ -810,6 +810,38 @@ class MigrationValidatorTest {
                 .satisfies(
                         d -> {
                             assertThat(d.code()).isEqualTo("CODE_UNRESOLVED");
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .contains("571");
+                        });
+    }
+
+    /**
+     * 사업코드는 **매칭된 행**(원장을 새로 만들지 않는 행)에서도 검사한다.
+     *
+     * <p>이 값은 생성 전용이 아니다 — `MigrationImportService`가 매칭된 전산업무비의 빈 `BG_UNT_ABUS_C`를 이 값으로 채운다(설계
+     * §4.1). 생성 전용으로 두면 정작 그 값을 쓰는 행이 검증을 통째로 비켜 가, 3자를 넘는 원문이 commit의 flush에서 `ORA-12899`로 터지거나
+     * 코드표에 없는 값이 조용히 저장돼 그 전산업무비가 엉뚱한 예산 집계 버킷에 들어간다.
+     */
+    @Test
+    @DisplayName("매칭된 행의 미등록 사업코드도 CODE_UNRESOLVED를 낸다 (매칭 행에도 써 넣는 값이다)")
+    void 매칭행의_미등록_사업코드도_블로커다() {
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("abusCode", "9999"))))),
+                        catalogIndexWith(TestSnapshots.indexWithIoe("001", "국내전산임차료")),
+                        TestSnapshots.empty("2026"),
+                        Map.of(),
+                        // 생성 대상이 아닌 행 — validateForCreate가 걸리지 않는다
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "abusCode".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("CODE_UNRESOLVED");
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
                             assertThat(d.candidates())
                                     .extracting(MigrationDto.Candidate::code)
                                     .contains("571");

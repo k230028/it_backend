@@ -200,7 +200,11 @@ public class MigrationImportService {
                     if (!createRows.contains(intent.excelRow())) {
                         continue;
                     }
-                    // buildPlan이 생성요청이 실제로 있는 행만 createNewRows에 넣으므로 인덱스가 안전하다
+                    // 인덱스 접근이 안전한 근거: buildPlan이 생성요청이 실제로 있는 행만 createNewRows에
+                    // 넣는다. 그 판정은 PLANNING_ACTOR로 만든 AdapterOutput에 대해 돌았고 여기서 꺼내는
+                    // 것은 actorEno로 만든 다른 AdapterOutput이지만, 어댑터는 작성자 사번을 생성요청의
+                    // 담당자 필드에만 쓰고 목록 길이는 시트 행(위임예산은 부점 그룹)만으로 정하므로 두
+                    // 컨텍스트에서 costs/projects/allocations의 길이와 순서가 같다.
                     String createdPk;
                     if ("BCOSTM".equals(intent.orcTb())) {
                         createdPk = createCost(output.costs().get(i), bseYy, actorEno);
@@ -249,7 +253,7 @@ public class MigrationImportService {
         }
 
         // 3.5단계: 매칭된 전산업무비 원장의 사업코드가 비어 있으면 종합본 값으로 채운다 (§4.1).
-        fillCostBudgetUnitCodes(request.sheets(), plan, snapshot, overrides);
+        fillCostBudgetUnitCodes(request.sheets(), plan, snapshot, index, overrides);
 
         // 4단계: 하반기 조정 계획 문서. 요청 품목(BITEMM)은 건드리지 않는다.
         String planReqDocNo =
@@ -515,11 +519,17 @@ public class MigrationImportService {
      * 빠집니다. 이미 값이 있으면 건드리지 않습니다 — 부서가 적어 낸 값을 종합본이 조용히 바꾸지 않게 합니다.
      *
      * <p>여러 버전 중 대표 행({@code LST_YN='Y'} 우선)만 채웁니다. 과거 버전은 그 시점의 기록이라 소급해 바꾸지 않습니다.
+     *
+     * <p><b>코드표에 있는 값만 씁니다.</b> {@code MigrationValidator}가 이 값을 {@code validateAlways}에서 검사하므로 여기
+     * 닿는 값은 이미 해석된 값이지만, 그 검사는 코드 카탈로그가 비면(코드그룹 미적재 등) 판정 근거가 없어 그대로 통과시킵니다. 그 구멍으로 엑셀 원문이 흘러들면
+     * {@code BG_UNT_ABUS_C}가 3자라 flush에서 {@code ORA-12899}가 나거나, 길이가 맞는 오타가 조용히 저장돼 그 전산업무비가 엉뚱한 예산
+     * 집계 버킷에 들어갑니다. 쓰기 직전에 한 번 더 막고, 막힌 값은 로그로 남깁니다 — 채우지 않으면 집계에서 빠질 뿐 오염되지는 않습니다.
      */
     private void fillCostBudgetUnitCodes(
             List<MigrationDto.SheetPayload> sheets,
             Plan plan,
             MigrationYearSnapshot.Data snapshot,
+            MigrationLookupIndex index,
             Map<String, String> overrides) {
         Map<Integer, String> matched = plan.matchedPkByRow().getOrDefault(SheetKind.COST, Map.of());
         if (matched.isEmpty()) {
@@ -534,8 +544,17 @@ public class MigrationImportService {
                 if (costNo == null || snapshot.bgUntAbusCOf(costNo) != null) {
                     continue;
                 }
-                String abusCode = MigrationDiagnostics.cell(row, "abusCode", overrides, sheet);
+                String abusCode =
+                        MigrationDiagnostics.cell(row, "abusCode", overrides, sheet).trim();
                 if (abusCode.isBlank()) {
+                    continue;
+                }
+                if (!index.abusUnitNameByCode().containsKey(abusCode)) {
+                    log.warn(
+                            "코드표에 없는 사업코드라 전산업무비에 채우지 않습니다 (전산업무비={}, 행={}, 값='{}')",
+                            costNo,
+                            row.excelRow(),
+                            abusCode);
                     continue;
                 }
                 CostRepresentativeSelector.pick(costRepository.findByCostBgNoAndDelYn(costNo, "N"))
