@@ -7,9 +7,9 @@ import java.util.Objects;
  * 시트별 정규 컬럼 id 목록입니다.
  *
  * <p>프론트 파서가 엑셀 헤더를 이 id로 정규화해 보내고 어댑터가 같은 id로 읽습니다. 엑셀 헤더 문자열은 파일마다 미묘하게 다르므로(병합 헤더, 공백, 줄바꿈) 전송
- * 계약에는 헤더 원문을 쓰지 않습니다. {@code app/composables/migration/columns.ts}가 같은 리터럴을 갖고 있으며 두 곳을 함께 바꿉니다 — 한쪽만
- * 바꾸면 dry-run이 조용히 빈 셀을 읽습니다. 두 목록의 일치는 {@code MigrationColumnsCrossRepoContractTest}(이 저장소)와 프론트의 {@code
- * tests/unit/architecture/migration-columns-cross-repo.test.ts}가 양방향으로 대조합니다.
+ * 계약에는 헤더 원문을 쓰지 않습니다. {@code app/composables/migration/columns.ts}가 같은 리터럴을 갖고 있으며 두 곳을 함께 바꿉니다 —
+ * 한쪽만 바꾸면 dry-run이 조용히 빈 셀을 읽습니다. 두 목록의 일치는 {@code MigrationColumnsCrossRepoContractTest}(이 저장소)와
+ * 프론트의 {@code tests/unit/architecture/migration-columns-cross-repo.test.ts}가 양방향으로 대조합니다.
  */
 public final class MigrationColumns {
 
