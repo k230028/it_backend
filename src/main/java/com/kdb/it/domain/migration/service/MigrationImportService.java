@@ -257,8 +257,10 @@ public class MigrationImportService {
         fillCostBudgetUnitCodes(request.sheets(), plan, snapshot, index, overrides);
 
         // 4단계: 하반기 조정 계획 문서. 요청 품목(BITEMM)은 건드리지 않는다.
-        String planReqDocNo =
-                planIntents.isEmpty() ? null : createAdjustmentPlan(planIntents, snapshot, bseYy);
+        AdjustmentPlan adjustmentPlan =
+                planIntents.isEmpty()
+                        ? AdjustmentPlan.none()
+                        : createAdjustmentPlan(planIntents, snapshot, bseYy);
 
         // 5단계: 편성률 단일 적용. items에는 그 연도의 모든 사업 + 모든 전산업무비를 담는다.
         // applyItemRates가 연도 전체를 재작성하므로 빠진 것은 되살아나지 않는다(§5.3).
@@ -272,8 +274,48 @@ public class MigrationImportService {
                 projectCount,
                 itemCount,
                 applied.totalRecords(),
-                planReqDocNo,
+                skippedRateCount(snapshot, allocationsByPk),
+                adjustmentPlan.skippedCount(),
+                adjustmentPlan.planReqDocNo(),
                 createdIds);
+    }
+
+    /**
+     * 배분은 됐지만 편성률 적용 목록에 실리지 못한 원장 수를 셉니다 (MIG-06).
+     *
+     * <p>{@link #itemRates}는 스냅샷에 있는 원장만 담습니다. 관리자가 보낸 결정이 그 연도에 없는 PK를 가리키면(오타·다른 연도 원장) 그 행의 배분은 조용히
+     * 사라졌고, 사용자는 로그를 봐야 알 수 있었습니다.
+     *
+     * @param snapshot 편성 대상 연도 스냅샷
+     * @param allocationsByPk 이번 반영이 계산한 원장 PK → 비목코드별 편성률
+     * @return 스냅샷에 없는 PK 수
+     */
+    private static int skippedRateCount(
+            MigrationYearSnapshot.Data snapshot,
+            Map<String, Map<String, BigDecimal>> allocationsByPk) {
+        Set<String> known = new LinkedHashSet<>(snapshot.allProjectNos());
+        known.addAll(snapshot.allCostNos());
+        int skipped = 0;
+        for (String pk : allocationsByPk.keySet()) {
+            if (!known.contains(pk)) {
+                skipped++;
+            }
+        }
+        return skipped;
+    }
+
+    /**
+     * 조정 계획 생성 결과입니다.
+     *
+     * @param planReqDocNo 계획요청문서번호. 대상 사업을 하나도 찾지 못했거나 부문계획 시트가 없으면 null
+     * @param skippedCount 대상 사업을 찾지 못해 계획에서 빠진 조정 의도 수 (MIG-06)
+     */
+    private record AdjustmentPlan(String planReqDocNo, int skippedCount) {
+
+        /** 부문계획 시트를 올리지 않은 경우. 건너뛴 것도 없습니다. */
+        static AdjustmentPlan none() {
+            return new AdjustmentPlan(null, 0);
+        }
     }
 
     /**
@@ -620,18 +662,20 @@ public class MigrationImportService {
      * 타입(사업관리번호·자본예산 합계·스냅샷 필드 맵)으로 분해해 넘깁니다.
      *
      * @param snapshot 연도 스냅샷. 원장을 새로 만들었다면 그 사업까지 담고 있는 최신 스냅샷이어야 합니다
-     * @return 계획요청문서번호. 대상 사업을 하나도 찾지 못하면 null
+     * @return 계획요청문서번호와 건너뛴 건수. 대상 사업을 하나도 찾지 못하면 문서번호는 null
      */
-    private String createAdjustmentPlan(
+    private AdjustmentPlan createAdjustmentPlan(
             List<PlanIntent> intents, MigrationYearSnapshot.Data snapshot, String bseYy) {
         List<String> projectNos = new ArrayList<>();
         List<BigDecimal> capitalAmounts = new ArrayList<>();
         List<BigDecimal> generalAmounts = new ArrayList<>();
         Map<String, Map<String, String>> snapshotFieldsByProject = new LinkedHashMap<>();
+        int skipped = 0;
         for (PlanIntent intent : intents) {
             String projectNo = snapshot.projectNoByName(intent.normalizedProjectName());
             if (projectNo == null) {
                 log.warn("부문계획 조정 대상 사업을 찾지 못해 건너뜁니다: {}", intent.normalizedProjectName());
+                skipped++;
                 continue;
             }
             projectNos.add(projectNo);
@@ -641,10 +685,17 @@ public class MigrationImportService {
             snapshotFieldsByProject.put(projectNo, intent.snapshotFields());
         }
         if (projectNos.isEmpty()) {
-            return null;
+            return new AdjustmentPlan(null, skipped);
         }
-        return planService.createPlanForMigration(
-                bseYy, "조정", projectNos, capitalAmounts, generalAmounts, snapshotFieldsByProject);
+        return new AdjustmentPlan(
+                planService.createPlanForMigration(
+                        bseYy,
+                        "조정",
+                        projectNos,
+                        capitalAmounts,
+                        generalAmounts,
+                        snapshotFieldsByProject),
+                skipped);
     }
 
     /** 배분 결과를 이후 단계에서 합칠 수 있게 깊은 복사합니다. */

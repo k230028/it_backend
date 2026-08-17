@@ -107,7 +107,7 @@ class MigrationControllerTest {
         given(migrationImportService.commit(any(), eq("999999")))
                 .willReturn(
                         new MigrationDto.CommitResponse(
-                                14, 4, 9, 23, "PLN-2026-0001", List.of("COST-2026-0001")));
+                                14, 4, 9, 23, 2, 1, "PLN-2026-0001", List.of("COST-2026-0001")));
 
         mockMvc.perform(
                         post("/api/admin/migration/imports")
@@ -116,6 +116,8 @@ class MigrationControllerTest {
                                 .content(objectMapper.writeValueAsString(commitRequest())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.costCount").value(14))
+                .andExpect(jsonPath("$.skippedRateCount").value(2))
+                .andExpect(jsonPath("$.skippedPlanCount").value(1))
                 .andExpect(jsonPath("$.planReqDocNo").value("PLN-2026-0001"));
     }
 

@@ -240,6 +240,8 @@ public final class MigrationDto {
      * @param projectCount 생성한 사업 수
      * @param itemCount 생성한 품목 수
      * @param budgetRowCount applyItemRates가 만든 편성행 수
+     * @param skippedRateCount 편성 대상 원장을 그 연도에서 찾지 못해 편성률 적용에서 빠진 건수 (MIG-06)
+     * @param skippedPlanCount 부문계획 조정 대상 사업을 찾지 못해 조정 계획에서 빠진 건수 (MIG-06)
      * @param planReqDocNo 생성한 계획관리번호. 부문계획 시트를 올리지 않았으면 null
      * @param createdIds 생성한 관리번호 목록 (화면 표시용)
      */
@@ -253,6 +255,14 @@ public final class MigrationDto {
                     int itemCount,
             @Schema(description = "생성 편성행 수", requiredMode = Schema.RequiredMode.REQUIRED)
                     int budgetRowCount,
+            @Schema(
+                            description = "편성 대상 원장을 찾지 못해 편성률 적용에서 빠진 건수",
+                            requiredMode = Schema.RequiredMode.REQUIRED)
+                    int skippedRateCount,
+            @Schema(
+                            description = "부문계획 조정 대상 사업을 찾지 못해 조정 계획에서 빠진 건수",
+                            requiredMode = Schema.RequiredMode.REQUIRED)
+                    int skippedPlanCount,
             @Schema(
                             description = "생성 계획관리번호",
                             example = "PLN-2026-0001",

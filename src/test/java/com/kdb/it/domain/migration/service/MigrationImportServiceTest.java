@@ -633,6 +633,21 @@ class MigrationImportServiceTest {
                 .extracting(BudgetWorkDto.ItemRate::orcPkVl)
                 .doesNotContain("존재하지않는사업")
                 .contains("PRJ-2026-0007");
+        // MIG-06 건너뛴 사실을 로그가 아니라 응답으로 알린다
+        assertThat(response.skippedRateCount()).isEqualTo(1);
+    }
+
+    /** 건너뛴 것이 없으면 두 건수는 0이다 — 항상 0이 아닌 값을 내는 오검출을 막는다. */
+    @Test
+    @DisplayName("건너뛴 대상이 없으면 skipped 건수는 0이다")
+    void 건너뛴_대상이_없으면_건수는_0이다() {
+        MigrationImportService service = capitalService();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        MigrationDto.CommitResponse response = service.commit(capitalRequest(List.of()), "12345");
+
+        assertThat(response.skippedRateCount()).isZero();
+        assertThat(response.skippedPlanCount()).isZero();
     }
 
     /** 부문계획 시트를 올리지 않으면 planReqDocNo는 null이다. */
@@ -735,6 +750,8 @@ class MigrationImportServiceTest {
 
         assertThat(response.planReqDocNo()).isNull();
         assertThat(response.itemCount()).isZero();
+        // MIG-06 건너뛴 사실을 로그가 아니라 응답으로 알린다
+        assertThat(response.skippedPlanCount()).isEqualTo(1);
         // 품목 교체 경로(구 ProjectService.replaceItemsForMigration)는 재설계로 삭제했으므로,
         // 이제 "조정이 품목을 건드리지 않는다"는 호출 검증이 아니라 구조로 보장된다.
         verify(planService, never())
