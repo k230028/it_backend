@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -313,59 +312,6 @@ class MigrationImportIt {
 
         assertThat(costRepository.findByBseYyAndLstYnAndDelYn(BSE_YY, "Y", "N")).isEmpty();
         assertThat(bbugtmRepository.findByBseYyAndDelYn(BSE_YY, "N")).isEmpty();
-    }
-
-    /**
-     * Task 10에서 실 Oracle로 확인한 회귀: 이 테스트의 전제("부문계획 조정이 품목을 버전 교체한다")는 Task 9 재설계 이전 동작입니다. 재설계된
-     * {@code MigrationImportService.commit}은 4단계 주석에 명시된 대로 "하반기 조정 계획 문서만 만들고 {@code BITEMM}은 건드리지
-     * 않습니다" — 그 경로였던 {@code ProjectService.replaceItemsForMigration}는 호출자가 없어 삭제했습니다. 그 결과 활성 품목은
-     * 조정 금액(8,000,000)이 아니라 자본예산 원값 (5,000,000)에 그대로 남아 이 테스트의 {@code active} 단정이 깨집니다. 새 동작("요청
-     * 품목이 활성으로 남는다")은 {@link #하반기_조정_후에도_요청_품목이_활성으로_남는다}가 이미 고정하므로, 이 테스트는 중복이자 오래된 전제라 비활성화합니다.
-     */
-    @Disabled("Task 9 재설계로 품목 버전 교체가 폐지됨 — 새 동작은 하반기_조정_후에도_요청_품목이_활성으로_남는다가 고정")
-    @Test
-    @DisplayName("자본예산과 부문계획을 함께 반영하면 품목이 조정 금액으로 교체되고 편성요청 원값은 이력으로 남는다")
-    void 부문계획_조정이_품목을_교체한다() {
-        // 두 시트를 한 commit()에 함께 올리지 않는다 — PLAN_ADJUSTMENT 어댑터는 원장 생성요청을 내지 않아
-        // (PlanAdjustmentSheetAdapter의 projects는 항상 빈 목록) CREATE_NEW 결정을 줘도 매칭 대상에서
-        // 제외될 뿐이다(hasCreateRequest=false). 부문계획 행이 성립하려면 대상 사업이 그 commit()의
-        // "시작 시점" 스냅샷에 이미 있어야 하므로, 자본예산으로 먼저 사업을 만든 뒤 별도 commit()으로
-        // 부문계획을 반영한다 — 이 태스크가 고정하는 실제 업무 순서(1단계 반입 → 2단계 종합 → 3단계
-        // 하반기 조정)와도 일치한다.
-        service.commit(
-                new MigrationDto.CommitRequest(
-                        List.of(sheet(SheetKind.CAPITAL_PROJECT, "capital.json")),
-                        신규_결정(SheetKind.CAPITAL_PROJECT, 2)),
-                ACTOR_ENO);
-        service.commit(
-                new MigrationDto.CommitRequest(
-                        List.of(sheet(SheetKind.PLAN_ADJUSTMENT, "plan.json")), List.of()),
-                ACTOR_ENO);
-
-        String projectNo =
-                projectRepository
-                        .findByBseYyAndLstYnAndDelYn(BSE_YY, "Y", "N")
-                        .get(0)
-                        .getAbusMngNo();
-
-        // 활성 품목은 조정 금액(부문계획 devAmount=8 → 8,000,000)만 남는다 (§5.4)
-        List<Bitemm> active =
-                projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(projectNo, "N", "Y");
-        assertThat(active).isNotEmpty();
-        assertThat(active)
-                .allSatisfy(
-                        item ->
-                                assertThat(item.getAmt())
-                                        .isEqualByComparingTo(new BigDecimal("8000000")));
-
-        // 편성요청 시점 품목(자본예산 devAmount=5 → 5,000,000)은 논리삭제로 보존된다
-        List<Bitemm> history = projectItemRepository.findByAbusMngNoAndDelYn(projectNo, "Y");
-        assertThat(history).as("편성요청 시점 품목이 논리삭제로 보존된다").isNotEmpty();
-        assertThat(history)
-                .anySatisfy(
-                        item ->
-                                assertThat(item.getAmt())
-                                        .isEqualByComparingTo(new BigDecimal("5000000")));
     }
 
     /**
