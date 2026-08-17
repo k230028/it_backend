@@ -64,8 +64,8 @@ public class BudgetWorkDto {
      *
      * @param orcTb 원본 테이블 — 접두어 없는 {@code BPROJM} 또는 {@code BCOSTM}
      * @param orcPkVl 원본 PK (prjMngNo / itMngcNo)
-     * @param assetDupRt 자본예산 편성률 (0~100, null=해당없음)
-     * @param costDupRt 일반관리비 편성률 (0~100)
+     * @param assetDupRt 자본예산 편성률 (0~100, 소수 허용, null=해당없음)
+     * @param costDupRt 일반관리비 편성률 (0~100, 소수 허용)
      * @param ioeRates 비목코드별 편성률 (0~100, 소수 허용). null·빈 맵이면 위 2버킷을 쓰고, 값이 있는 비목만 그 편성률로 덮습니다. 종합본
      *     반입처럼 한 사업 안에서 비목그룹마다 편성률이 다른 경우에만 채웁니다
      */
@@ -73,9 +73,11 @@ public class BudgetWorkDto {
     public record ItemRate(
             @Schema(description = "원본 테이블", example = "BPROJM") String orcTb,
             @Schema(description = "원본 PK", example = "PRJ-2026-0001") String orcPkVl,
-            @Schema(description = "자본예산 편성률 (0~100, null=해당없음)", nullable = true)
-                    Integer assetDupRt,
-            @Schema(description = "일반관리비 편성률 (0~100)", nullable = true) Integer costDupRt,
+            // ASG_RT는 소수 5자리를 담는다. Integer로 두면 Jackson이 70.5를 조용히 70으로 잘라
+            // /budget/work 화면에서 소수 편성률을 넣을 수 없었다 (MIG-15).
+            @Schema(description = "자본예산 편성률 (0~100, 소수 허용, null=해당없음)", nullable = true)
+                    BigDecimal assetDupRt,
+            @Schema(description = "일반관리비 편성률 (0~100, 소수 허용)", nullable = true) BigDecimal costDupRt,
             @Schema(description = "비목코드별 편성률 (0~100, 소수 허용). 비면 2버킷을 사용", nullable = true)
                     Map<String, BigDecimal> ioeRates) {}
 

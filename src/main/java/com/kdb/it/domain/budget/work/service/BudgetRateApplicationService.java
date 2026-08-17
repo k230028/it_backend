@@ -157,14 +157,8 @@ public class BudgetRateApplicationService {
         int nextSno = 0;
         int totalRecords = 0;
         for (BudgetWorkDto.ItemRate item : request.items()) {
-            BigDecimal assetRate =
-                    item.assetDupRt() != null
-                            ? BigDecimal.valueOf(item.assetDupRt())
-                            : DEFAULT_DUP_RT;
-            BigDecimal costRate =
-                    item.costDupRt() != null
-                            ? BigDecimal.valueOf(item.costDupRt())
-                            : DEFAULT_DUP_RT;
+            BigDecimal assetRate = item.assetDupRt() != null ? item.assetDupRt() : DEFAULT_DUP_RT;
+            BigDecimal costRate = item.costDupRt() != null ? item.costDupRt() : DEFAULT_DUP_RT;
             Map<String, BigDecimal> ioeRates = item.ioeRates() == null ? Map.of() : item.ioeRates();
             if ("BPROJM".equals(item.orcTb())) {
                 for (Bitemm source :
