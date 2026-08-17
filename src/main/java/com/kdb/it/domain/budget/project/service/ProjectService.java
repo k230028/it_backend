@@ -1,20 +1,14 @@
 package com.kdb.it.domain.budget.project.service;
 
-import static com.kdb.it.domain.budget.project.service.ProjectItemChangeDetector.defaultYn;
-import static com.kdb.it.domain.budget.project.service.ProjectItemChangeDetector.isItemChanged;
-
-import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
-import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -35,13 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>원본 테이블 코드: {@code "BPROJM"}
  * </ul>
  *
- * <p>품목(Bitemm) 동기화 로직 (수정 시):
- *
- * <ol>
- *   <li>요청의 {@code gclMngNo}가 있으면 기존 활성 레코드를 제자리 수정(Dirty Checking) — 새 레코드를 추가하지 않는다
- *   <li>요청의 {@code gclMngNo}가 없으면 신규 항목 추가
- *   <li>요청에 없는 기존 항목은 Soft Delete
- * </ol>
+ * <p>품목(Bitemm) 동기화의 규칙과 구현은 {@link ProjectItemSynchronizer}에 있습니다. 이 서비스는 사업 본문 저장·권한·결재 상태 검증과 금액
+ * 스냅샷 기록을 맡고, 품목 채번·환율 정규화·CUD 병합은 그 협력자에 위임합니다.
  *
  * <p>Soft Delete 패턴: {@code DEL_YN='Y'}로 논리 삭제합니다.
  *
@@ -244,28 +233,7 @@ public class ProjectService {
 
         // ===== 품목(Bitemm) 저장 =====
         // 신규 등록 시 요청에 포함된 모든 품목은 신규 추가 대상
-        if (request.getItems() != null && !request.getItems().isEmpty()) {
-            int gclSno = 0; // 품목일련번호 (1부터 시작)
-            for (ProjectDto.BitemmDto itemDto : request.getItems()) {
-                Long gclSeq = bitemmRepository.getNextSequenceValue(); // Oracle 시퀀스 채번
-                String gclMngNo =
-                        String.format("GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
-
-                // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
-                itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
-
-                // 외화 재계산: gclAmt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
-                BigDecimal[] reconciled =
-                        BudgetAmountCalculator.reconcileAmount(
-                                itemDto.getFcAmt(),
-                                itemDto.getAmt(),
-                                itemDto.getCurC(),
-                                itemDto.getXcr());
-
-                bitemmRepository.save(
-                        buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
-            }
-        }
+        itemSynchronizer().createAll(project, request.getItems());
 
         // 품목 저장이 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
         applyAmountSnapshot(project, request.getDfrAmt());
@@ -279,48 +247,13 @@ public class ProjectService {
     }
 
     /**
-     * 품목 엔티티를 조립합니다.
+     * 품목 동기화 협력자를 만듭니다.
      *
-     * <p>채번(gclMngNo)·순번(gclSno)·환율 표준 조회·외화 재계산은 호출자({@link #createProject}·{@link
-     * #updateProject}의 신규 품목 추가 분기)가 먼저 수행하고, 그 결과만 이 메서드가 엔티티 필드로 옮겨 담습니다. 두 경로가 별도로 필드를 나열하면
-     * 한쪽에서만 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로 강제합니다.
-     *
-     * @param itemDto 품목 요청 DTO (xcr은 호출자가 이미 표준 조회로 덮어쓴 상태)
-     * @param gclMngNo 채번된 품목관리번호
-     * @param gclSno 품목일련번호
-     * @param project 소속 사업 (abusMngNo·sno 스냅샷용)
-     * @param reconciled {@link BudgetAmountCalculator#reconcileAmount}의 결과 [금액, 외화금액]
-     * @return 조립된 품목 엔티티 (아직 저장하지 않음)
+     * <p>Spring 빈으로 주입하지 않고 호출 시점에 만듭니다 — 빈으로 두면 {@code ProjectServiceTest}가 mock으로 대체해 품목 동기화 검증이
+     * 조용히 무력화됩니다. 상태가 없어 매 호출 생성 비용은 무시할 수 있습니다.
      */
-    private Bitemm buildBitemm(
-            ProjectDto.BitemmDto itemDto,
-            String gclMngNo,
-            int gclSno,
-            Bprojm project,
-            BigDecimal[] reconciled) {
-        return Bitemm.builder()
-                .gclMngNo(gclMngNo) // 품목관리번호
-                .sno(gclSno) // 품목일련번호
-                .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
-                .fntTbCrySno(project.getSno()) // 프로젝트순번
-                .ioeC(itemDto.getIoeC()) // 품목구분
-                .gclNm(itemDto.getGclNm()) // 품목명
-                .qty(itemDto.getQty()) // 품목수량
-                .curC(itemDto.getCurC()) // 통화
-                .xcr(itemDto.getXcr()) // 환율
-                .xcrBseDt(DateFormatUtil.toYmd8(itemDto.getXcrBseDt())) // 환율기준일자(yyyyMMdd 정규화)
-                .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
-                .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
-                .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC())) // 지급주기
-                .sectSysUtzYn(itemDto.getSectSysUtzYn() == null ? "N" : itemDto.getSectSysUtzYn())
-                // 정보보호여부
-                .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn())
-                // 통합인프라여부
-                .lstYn("Y") // 최종여부
-                .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
-                .build();
+    private ProjectItemSynchronizer itemSynchronizer() {
+        return new ProjectItemSynchronizer(bitemmRepository, xcrLookupService);
     }
 
     /**
@@ -431,105 +364,7 @@ public class ProjectService {
                 orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
 
         // ===== 품목 정보 동기화 (CUD) =====
-        if (request.getItems() != null) {
-            // 1. 기존 품목 조회 (DEL_YN='N')
-            List<com.kdb.it.domain.budget.project.entity.Bitemm> existingItems =
-                    bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                            prjMngNo, project.getSno(), "N");
-
-            // 처리된 품목 관리번호 추적 (삭제 대상 식별용)
-            java.util.Set<String> processedGclMngNos = new java.util.HashSet<>();
-            // 현재 최대 SNO 계산 (신규 추가 시 MAX+1로 설정)
-            int maxGclSno =
-                    existingItems.stream().mapToInt(value -> value.getSno()).max().orElse(0);
-
-            // 2. 요청 품목 처리 (수정 또는 신규 추가)
-            for (ProjectDto.BitemmDto itemDto : request.getItems()) {
-                if (itemDto.getGclMngNo() != null && !itemDto.getGclMngNo().isEmpty()) {
-                    // === 기존 항목 수정 ===
-                    // gclMngNo로 현재 활성(DEL_YN='N') 항목 찾기 (existingItems는 이미 DEL_YN='N' 필터됨)
-                    com.kdb.it.domain.budget.project.entity.Bitemm existingItem =
-                            existingItems.stream()
-                                    .filter(
-                                            item ->
-                                                    item.getGclMngNo()
-                                                            .equals(itemDto.getGclMngNo()))
-                                    .findFirst()
-                                    .orElse(null);
-
-                    if (existingItem != null) {
-                        // 변경된 필드가 있을 때만 제자리 수정 (변경 없으면 UPDATE·로그 생성 생략)
-                        if (isItemChanged(existingItem, itemDto)) {
-                            // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
-                            itemDto.setXcr(
-                                    xcrLookupService.resolveXcr(
-                                            itemDto.getCurC(), LocalDate.now()));
-                            // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
-                            BigDecimal[] reconciled =
-                                    BudgetAmountCalculator.reconcileAmount(
-                                            itemDto.getFcAmt(),
-                                            itemDto.getAmt(),
-                                            itemDto.getCurC(),
-                                            itemDto.getXcr());
-                            // 기존 활성 레코드를 제자리 수정 (버저닝 폐기 — 새 레코드를 추가하지 않는다).
-                            // PK(GCL_MNG_NO, SNO)와 연관 필드(ABUS_MNG_NO, FNT_TB_CRY_SNO)는 유지하고 업무 필드만
-                            // 갱신.
-                            // Dirty Checking으로 트랜잭션 종료 시 UPDATE가 실행된다.
-                            existingItem.update(
-                                    itemDto.getIoeC(), // 품목구분
-                                    itemDto.getGclNm(), // 품목명
-                                    itemDto.getQty(), // 품목수량
-                                    itemDto.getCurC(), // 통화
-                                    itemDto.getXcr(), // 환율
-                                    DateFormatUtil.toYmd8(
-                                            itemDto.getXcrBseDt()), // 환율기준일자(yyyyMMdd 정규화)
-                                    itemDto.getCncdFdtnCone(), // 예산근거
-                                    toItdYm(itemDto.getBseYm()), // 도입시기
-                                    itemDto.getDfrCleC(), // 지급주기
-                                    defaultYn(itemDto.getSectSysUtzYn()), // 정보보호여부
-                                    defaultYn(itemDto.getItrInfrYn()), // 통합인프라여부
-                                    reconciled[0], // 품목금액 (서버 재계산)
-                                    reconciled[1], // 외화금액 (외화 행에서만 유효)
-                                    clampMpl(
-                                            itemDto.getMplAmt(),
-                                            reconciled[0])); // 예정금액 (0 ≤ mplAmt ≤ amt)
-                        }
-                        processedGclMngNos.add(existingItem.getGclMngNo()); // 변경 여부와 무관하게 처리 완료 표시
-                    }
-                } else {
-                    // === 신규 품목 추가 ===
-                    // Oracle 시퀀스로 품목관리번호 채번
-                    Long gclSeq = bitemmRepository.getNextSequenceValue();
-                    String gclMngNo =
-                            String.format(
-                                    "GCL-%s-%04d", java.time.LocalDate.now().getYear(), gclSeq);
-
-                    // XCR 표준 조회: 클라 xcr 무시, Ccodem 단일 원천으로 덮어쓰기 (CONTEXT.md 결정 E / R3.7)
-                    itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
-
-                    // 외화 재계산: amt = fcAmt × xcr 정규화 (CONTEXT.md 결정 C)
-                    BigDecimal[] reconciled =
-                            BudgetAmountCalculator.reconcileAmount(
-                                    itemDto.getFcAmt(),
-                                    itemDto.getAmt(),
-                                    itemDto.getCurC(),
-                                    itemDto.getXcr());
-
-                    // 조립은 buildBitemm 한 곳으로 모은다 — 생성 경로와 필드가 조용히 갈라지지 않도록.
-                    // project는 prjMngNo로 조회한 엔티티이므로 abusMngNo 스냅샷도 동일하다.
-                    bitemmRepository.save(
-                            buildBitemm(itemDto, gclMngNo, ++maxGclSno, project, reconciled));
-                }
-            }
-
-            // 3. 요청에 없는 기존 품목 Soft Delete 처리
-            // processedGclMngNos에 포함되지 않은 기존 항목은 삭제 대상
-            for (com.kdb.it.domain.budget.project.entity.Bitemm existingItem : existingItems) {
-                if (!processedGclMngNos.contains(existingItem.getGclMngNo())) {
-                    existingItem.delete(); // BaseEntity.delete() → DEL_YN='Y'
-                }
-            }
-        }
+        itemSynchronizer().sync(project, request.getItems());
 
         // 품목 동기화가 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
         applyAmountSnapshot(project, request.getDfrAmt());
@@ -645,32 +480,6 @@ public class ProjectService {
     private record TeamSnapshot(String temC, String temNm) {
         /** 담당자 미지정·미조회 시 사용할 빈 스냅샷(팀코드·팀명 모두 null). */
         private static final TeamSnapshot EMPTY = new TeamSnapshot(null, null);
-    }
-
-    /**
-     * 도입시기를 DB 컬럼 형식(YYYYMM, 6자)으로 변환. 프론트에서 "YYYY-MM-DD" 또는 "YYYY-MM" 형식이 올 수 있으므로 하이픈을 제거한 뒤 앞
-     * 6자만 사용한다. 빈값/null은 그대로 반환.
-     */
-    private static String toItdYm(String itdYm) {
-        if (itdYm == null || itdYm.isBlank()) {
-            return itdYm;
-        }
-        String normalized = itdYm.replace("-", "");
-        return normalized.length() > 6 ? normalized.substring(0, 6) : normalized;
-    }
-
-    /**
-     * 예정금액을 유효 범위 [0, amt]로 보정한다.
-     *
-     * @param mplAmt 입력 예정금액(null이면 0)
-     * @param amt 품목금액(서버 재계산값, null이면 상한 미적용)
-     * @return 0 이상, amt 이하로 클램프된 예정금액
-     */
-    private static BigDecimal clampMpl(BigDecimal mplAmt, BigDecimal amt) {
-        BigDecimal v = (mplAmt == null) ? BigDecimal.ZERO : mplAmt;
-        if (v.signum() < 0) v = BigDecimal.ZERO;
-        if (amt != null && v.compareTo(amt) > 0) v = amt;
-        return v;
     }
 
     /**
