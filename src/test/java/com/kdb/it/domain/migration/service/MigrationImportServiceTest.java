@@ -497,6 +497,57 @@ class MigrationImportServiceTest {
                 .hasMessageContaining("올린 시트가 없습니다");
     }
 
+    /**
+     * requireSupported가 같은 시트 종류의 중복 업로드를 거부한다 (MIG-20).
+     *
+     * <p>시트별 처리 상태({@code createNewRows}·{@code matchedPkByRow} 등)가 {@link SheetKind}를 키로 쓰므로, 같은
+     * 종류를 두 번 올리면 두 페이로드의 엑셀 행 번호가 같은 키 아래 섞인다. 현재 UI는 슬롯당 1개만 허용하지만 API 계약상으로는 막혀 있지 않았다.
+     */
+    @Test
+    @DisplayName("같은 시트 종류를 두 번 올리면 IllegalArgumentException을 던진다")
+    void 같은_시트종류_중복은_예외를_던진다() {
+        MigrationImportService service = service();
+        MigrationDto.CommitRequest duplicated =
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.COST,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of()))),
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.COST,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of())))),
+                        List.of());
+
+        assertThatThrownBy(() -> service.commit(duplicated, "999999"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("같은 시트 종류를 두 번 올릴 수 없습니다");
+    }
+
+    /** dry-run도 같은 계약을 쓴다 — 미리보기에서 먼저 걸러야 반영 단계에서 처음 실패하지 않는다. */
+    @Test
+    @DisplayName("dry-run도 같은 시트 종류 중복을 거부한다")
+    void dry_run도_같은_시트종류_중복을_거부한다() {
+        MigrationImportService service = service();
+        MigrationDto.DryRunRequest duplicated =
+                new MigrationDto.DryRunRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.COST,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of()))),
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.COST,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(3, Map.of())))),
+                        List.of());
+
+        assertThatThrownBy(() -> service.dryRun(duplicated))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("같은 시트 종류를 두 번 올릴 수 없습니다");
+    }
+
     /** requireSupported가 등록된 어댑터가 없는 시트 종류를 거부한다. */
     @Test
     @DisplayName("지원하지 않는 시트 종류는 IllegalArgumentException을 던진다")

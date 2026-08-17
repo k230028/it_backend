@@ -24,6 +24,7 @@ import com.kdb.it.exception.CustomGeneralException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -693,13 +694,21 @@ public class MigrationImportService {
      * <p>예산연도는 반드시 전 시트가 같아야 합니다. 이 서비스는 {@code sheets.get(0).bseYy()} 하나를 연도 스냅샷·매칭·편성률 적용의 기준으로
      * 쓰므로, 시트마다 연도가 다르면 두 번째 시트 이후는 <b>다른 연도의 스냅샷으로 검증되고 첫 시트의 연도로 저장</b>됩니다.
      *
-     * @throws IllegalArgumentException 시트가 없거나, 지원하지 않는 종류이거나, 예산연도가 섞인 경우
+     * <p>시트 종류도 중복될 수 없습니다 (MIG-20). 시트별 처리 상태({@link Plan#createNewRows}·{@link
+     * Plan#matchedPkByRow}, {@code createdPkByRow})가 {@link SheetKind}를 키로 쓰므로, 같은 종류를 두 번 올리면 두
+     * 페이로드의 엑셀 행 번호가 같은 키 아래 섞입니다. 현재 화면은 슬롯당 1개만 허용하지만 계약 자체를 좁혀 API 직접 호출도 막습니다.
+     *
+     * <p>중복 판정은 종류·연도 검사 뒤에 둡니다 — 같은 종류를 다른 연도로 올린 요청은 두 위반에 모두 걸리는데, 연도 혼재가 더 구체적인 안내라 그 메시지를 먼저
+     * 냅니다.
+     *
+     * @throws IllegalArgumentException 시트가 없거나, 지원하지 않는 종류이거나, 예산연도가 섞였거나, 같은 시트 종류가 둘 이상인 경우
      */
     private void requireSupported(List<MigrationDto.SheetPayload> sheets) {
         if (sheets == null || sheets.isEmpty()) {
             throw new IllegalArgumentException("올린 시트가 없습니다.");
         }
         String bseYy = sheets.get(0).bseYy();
+        Set<SheetKind> seen = EnumSet.noneOf(SheetKind.class);
         for (MigrationDto.SheetPayload sheet : sheets) {
             if (!adapters.containsKey(sheet.kind())) {
                 throw new IllegalArgumentException("지원하지 않는 시트 종류입니다: " + sheet.kind());
@@ -707,6 +716,11 @@ public class MigrationImportService {
             if (bseYy == null || !bseYy.equals(sheet.bseYy())) {
                 throw new IllegalArgumentException(
                         "시트마다 예산연도가 다릅니다: " + bseYy + ", " + sheet.bseYy());
+            }
+        }
+        for (MigrationDto.SheetPayload sheet : sheets) {
+            if (!seen.add(sheet.kind())) {
+                throw new IllegalArgumentException("같은 시트 종류를 두 번 올릴 수 없습니다: " + sheet.kind());
             }
         }
     }
