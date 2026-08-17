@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 /**
  * 종합본·조정본의 행을 이미 반입된 요청 원장에 매칭합니다.
  *
- * <p>이 화면은 원장을 만들지 않고 편성금액만 계산하므로(설계 §2.1), 각 행이 어느 원장을 가리키는지 정하는 것이 반영의 출발점입니다. 매칭에 실패한 행은
- * 조용히 새 원장을 만들지 않고 {@link Outcome#NOT_FOUND}·{@link Outcome#AMBIGUOUS}로 돌려보내 관리자가 결정하게 합니다.
+ * <p>이 화면은 원장을 만들지 않고 편성금액만 계산하므로(설계 §2.1), 각 행이 어느 원장을 가리키는지 정하는 것이 반영의 출발점입니다. 매칭에 실패한 행은 조용히 새
+ * 원장을 만들지 않고 {@link Outcome#NOT_FOUND}·{@link Outcome#AMBIGUOUS}로 돌려보내 관리자가 결정하게 합니다.
  *
  * <p>전산업무비 자연키에서 사업코드를 뺀 이유는 {@link MigrationYearSnapshot#costDeptKey} Javadoc에 있습니다.
  */
@@ -71,8 +71,8 @@ public class MigrationLedgerMatcher {
     /**
      * 부서코드로 경상사업({@code ODN_YN='Y'})을 찾습니다.
      *
-     * <p>사업명으로 찾지 않습니다 — 종합본 위임예산 시트는 부점명만 갖고 있고, 1단계가 만든 경상사업의 사업명은 부점이 시트 ②에 적은 임의 문자열이라
-     * 두 값이 일치할 근거가 없습니다.
+     * <p>사업명으로 찾지 않습니다 — 종합본 위임예산 시트는 부점명만 갖고 있고, 1단계가 만든 경상사업의 사업명은 부점이 시트 ②에 적은 임의 문자열이라 두 값이 일치할
+     * 근거가 없습니다.
      *
      * @param deptCode 부점명을 해석한 부서코드. null·공백이면 대상 없음
      * @param snapshot 연도 스냅샷
@@ -134,7 +134,8 @@ public class MigrationLedgerMatcher {
             }
             // 표시용 label이 아니라 계약명 원문을 비교한다 — label에 든 구분자를 파싱하면
             // 상대처에 "/"가 있을 때 조용히 어긋난다
-            if (MigrationYearSnapshot.normalizeText(ref.contractName()).equals(normalizedContract)) {
+            if (MigrationYearSnapshot.normalizeText(ref.contractName())
+                    .equals(normalizedContract)) {
                 byContract.add(costNo);
             }
         }
@@ -148,8 +149,7 @@ public class MigrationLedgerMatcher {
     }
 
     /** 그 연도 사업 전체를 후보로 냅니다. 후보를 비워 두면 화면에 드롭다운이 그려지지 않습니다. */
-    private List<MigrationDto.Candidate> allProjectCandidates(
-            MigrationYearSnapshot.Data snapshot) {
+    private List<MigrationDto.Candidate> allProjectCandidates(MigrationYearSnapshot.Data snapshot) {
         return projectCandidates(snapshot.allProjectNos(), snapshot);
     }
 

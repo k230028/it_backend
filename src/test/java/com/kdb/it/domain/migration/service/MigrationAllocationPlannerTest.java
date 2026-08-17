@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.kdb.it.domain.migration.service.MigrationYearSnapshot.RequestItem;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -52,7 +51,8 @@ class MigrationAllocationPlannerTest {
                         new RequestItem("GCL-1", 1, "103", new BigDecimal("1000")),
                         new RequestItem("GCL-2", 2, "104", new BigDecimal("2000")));
 
-        MigrationAllocationPlanner.Allocation result = planner.allocate(items, new BigDecimal("777"));
+        MigrationAllocationPlanner.Allocation result =
+                planner.allocate(items, new BigDecimal("777"));
 
         MigrationAllocationPlanner.Allocation.Allocated allocated =
                 (MigrationAllocationPlanner.Allocation.Allocated) result;
@@ -147,8 +147,7 @@ class MigrationAllocationPlannerTest {
     @Test
     @DisplayName("allocate_품목이_없고_목표액도_0이면_빈_배분이다")
     void allocate_품목이_없고_목표액도_0이면_빈_배분이다() {
-        MigrationAllocationPlanner.Allocation result =
-                planner.allocate(List.of(), BigDecimal.ZERO);
+        MigrationAllocationPlanner.Allocation result = planner.allocate(List.of(), BigDecimal.ZERO);
 
         MigrationAllocationPlanner.Allocation.Allocated allocated =
                 (MigrationAllocationPlanner.Allocation.Allocated) result;

@@ -330,7 +330,10 @@ class MigrationImportIt {
         assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N"))
                 .as("자본예산 반영이 편성률 70의 품목 편성행을 만든다")
                 .isNotEmpty()
-                .allSatisfy(budget -> assertThat(budget.getAsgRt()).isEqualByComparingTo(BigDecimal.valueOf(70)));
+                .allSatisfy(
+                        budget ->
+                                assertThat(budget.getAsgRt())
+                                        .isEqualByComparingTo(BigDecimal.valueOf(70)));
         int itemBudgetRows =
                 bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N").size();
 
@@ -343,7 +346,10 @@ class MigrationImportIt {
         assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N"))
                 .as("무관한 시트 반영 후에도 기존 사업의 편성률 70이 유지된다")
                 .hasSize(itemBudgetRows)
-                .allSatisfy(budget -> assertThat(budget.getAsgRt()).isEqualByComparingTo(BigDecimal.valueOf(70)));
+                .allSatisfy(
+                        budget ->
+                                assertThat(budget.getAsgRt())
+                                        .isEqualByComparingTo(BigDecimal.valueOf(70)));
         // 전산업무비 원천 편성행도 함께 생겨 있어야 한다 (연도 전체 재작성이 서로를 지우지 않는다)
         assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BCOSTM", "N"))
                 .isNotEmpty();

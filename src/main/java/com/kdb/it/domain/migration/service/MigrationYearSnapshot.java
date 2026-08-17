@@ -23,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 예산연도 하나의 기존 상태를 한 번에 읽어 둡니다.
  *
- * <p>매칭({@code MigrationLedgerMatcher})과 배분({@code MigrationAllocationPlanner})이 같은 데이터를 필요로 하므로
- * 각 요청에서 한 번만 읽습니다.
+ * <p>매칭({@code MigrationLedgerMatcher})과 배분({@code MigrationAllocationPlanner})이 같은 데이터를 필요로 하므로 각
+ * 요청에서 한 번만 읽습니다.
  */
 @Service
 @RequiredArgsConstructor
@@ -157,8 +157,8 @@ public class MigrationYearSnapshot {
     /**
      * 예산연도의 기존 상태를 읽습니다.
      *
-     * <p>매칭(§4)과 배분(§3)이 같은 데이터를 필요로 하므로 각 요청에서 한 번만 읽습니다. 품목 편성률은 자본·일반으로 접지 않고 품목관리번호별 원본을
-     * 그대로 보존합니다 — 종합본이 한 사업 안에서 비목그룹마다 다른 편성률을 주기 때문입니다.
+     * <p>매칭(§4)과 배분(§3)이 같은 데이터를 필요로 하므로 각 요청에서 한 번만 읽습니다. 품목 편성률은 자본·일반으로 접지 않고 품목관리번호별 원본을 그대로
+     * 보존합니다 — 종합본이 한 사업 안에서 비목그룹마다 다른 편성률을 주기 때문입니다.
      *
      * @param bseYy 예산연도 (4자리)
      * @return 스냅샷 데이터
@@ -269,8 +269,8 @@ public class MigrationYearSnapshot {
     /**
      * 부서 기준 전산업무비 자연키를 만듭니다.
      *
-     * <p>사업코드({@code BG_UNT_ABUS_C})를 키에서 뺐습니다. 편성요청서 양식에 그 열이 없어 1단계가 만든 행은 대부분 null이므로,
-     * 사업코드를 키에 두면 같은 계약이 매칭되지 않고 새 행으로 다시 생깁니다.
+     * <p>사업코드({@code BG_UNT_ABUS_C})를 키에서 뺐습니다. 편성요청서 양식에 그 열이 없어 1단계가 만든 행은 대부분 null이므로, 사업코드를 키에
+     * 두면 같은 계약이 매칭되지 않고 새 행으로 다시 생깁니다.
      *
      * @param bseYy 예산연도
      * @param deptCode 주관부서코드 ({@code COST_SVN_DPM_C})

@@ -175,9 +175,19 @@ class BudgetSummaryServiceTest {
         Ccodem code = Ccodem.builder().cNm("자산비").cdva("237").build();
         Ccodem ioeCode = Ccodem.builder().cdva("001").cNm("237-0700").cdvaDtlC("237-0700").build();
         Bbugtm olderRun =
-                Bbugtm.builder().bgNo("BG-2026-0001").sno(1).ioeC("001").asgRt(new BigDecimal("80")).build();
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0001")
+                        .sno(1)
+                        .ioeC("001")
+                        .asgRt(new BigDecimal("80"))
+                        .build();
         Bbugtm newerRun =
-                Bbugtm.builder().bgNo("BG-2026-0002").sno(1).ioeC("001").asgRt(new BigDecimal("50")).build();
+                Bbugtm.builder()
+                        .bgNo("BG-2026-0002")
+                        .sno(1)
+                        .ioeC("001")
+                        .asgRt(new BigDecimal("50"))
+                        .build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(code));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
@@ -270,7 +280,11 @@ class BudgetSummaryServiceTest {
                         .cTp("IOE_IDR")
                         .build();
         Bbugtm bbugtm =
-                Bbugtm.builder().ioeC("101").bgDupAmt(BigDecimal.valueOf(800000)).asgRt(new BigDecimal("80")).build();
+                Bbugtm.builder()
+                        .ioeC("101")
+                        .bgDupAmt(BigDecimal.valueOf(800000))
+                        .asgRt(new BigDecimal("80"))
+                        .build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -718,7 +732,11 @@ class BudgetSummaryServiceTest {
                 Ccodem.builder().cdva("102").cNm("351-9999").cdvaDtlC("351-9999").build();
         // BBUGTM에는 "102"만 있음 (dupBgAmt=300)
         Bbugtm budget =
-                Bbugtm.builder().ioeC("102").bgDupAmt(BigDecimal.valueOf(300)).asgRt(new BigDecimal("30")).build();
+                Bbugtm.builder()
+                        .ioeC("102")
+                        .bgDupAmt(BigDecimal.valueOf(300))
+                        .asgRt(new BigDecimal("30"))
+                        .build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(budget));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -780,10 +798,15 @@ class BudgetSummaryServiceTest {
                         .cTp("IOE_IDR")
                         .build();
         // dupBgAmt=null 레코드 (null 필터 분기)
-        Bbugtm nullBudget = Bbugtm.builder().ioeC("101").bgDupAmt(null).asgRt(new BigDecimal("80")).build();
+        Bbugtm nullBudget =
+                Bbugtm.builder().ioeC("101").bgDupAmt(null).asgRt(new BigDecimal("80")).build();
         // bgDupAmt=200 정상 레코드
         Bbugtm normalBudget =
-                Bbugtm.builder().ioeC("101").bgDupAmt(BigDecimal.valueOf(200)).asgRt(new BigDecimal("80")).build();
+                Bbugtm.builder()
+                        .ioeC("101")
+                        .bgDupAmt(BigDecimal.valueOf(200))
+                        .asgRt(new BigDecimal("80"))
+                        .build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
                 .willReturn(List.of(nullBudget, normalBudget));

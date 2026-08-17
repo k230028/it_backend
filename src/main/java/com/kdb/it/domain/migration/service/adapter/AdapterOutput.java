@@ -7,10 +7,9 @@ import java.util.List;
 /**
  * 어댑터 변환 결과입니다. 비어 있는 목록은 그 어댑터가 그 종류를 만들지 않는다는 뜻입니다.
  *
- * <p><b>Task 9가 실제로 의존하는 불변식은 {@code allocations}와 {@code costs}/{@code projects}가 서로 인덱스
- * 평행이라는 것입니다</b> — 오케스트레이터가 {@code allocations}의 인덱스로 {@code costs}/{@code projects}의 같은 위치를
- * 짝지어 {@code CREATE_NEW} 결정이 난 항목만 골라 쓰기 때문입니다. 어댑터는 자신이 내는 생성요청 하나마다 정확히 대응하는 배분 의도 하나를
- * 같은 위치에 만들어야 합니다.
+ * <p><b>Task 9가 실제로 의존하는 불변식은 {@code allocations}와 {@code costs}/{@code projects}가 서로 인덱스 평행이라는
+ * 것입니다</b> — 오케스트레이터가 {@code allocations}의 인덱스로 {@code costs}/{@code projects}의 같은 위치를 짝지어 {@code
+ * CREATE_NEW} 결정이 난 항목만 골라 쓰기 때문입니다. 어댑터는 자신이 내는 생성요청 하나마다 정확히 대응하는 배분 의도 하나를 같은 위치에 만들어야 합니다.
  *
  * <p>이 인덱스 평행은 어댑터마다 **단위가 다릅니다**. 정보화사업({@code CapitalProjectSheetAdapter})·전산업무비({@code
  * CostSheetAdapter})는 행 단위라 {@code sheet.rows()} 순서와도 1:1로 같고(모든 행에 대해 건너뛰지 않고 생성요청을 만듭니다),

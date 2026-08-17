@@ -16,8 +16,10 @@ class BudgetRepresentativeSelectorTest {
     @Test
     @DisplayName("pick - bgNo가 가장 큰(최신 편성 실행) 행을 선택한다")
     void pick_최신bgNo행선택() {
-        Bbugtm older = Bbugtm.builder().bgNo("BG-2026-0001").sno(9).asgRt(new BigDecimal("80")).build();
-        Bbugtm newer = Bbugtm.builder().bgNo("BG-2026-0002").sno(1).asgRt(new BigDecimal("50")).build();
+        Bbugtm older =
+                Bbugtm.builder().bgNo("BG-2026-0001").sno(9).asgRt(new BigDecimal("80")).build();
+        Bbugtm newer =
+                Bbugtm.builder().bgNo("BG-2026-0002").sno(1).asgRt(new BigDecimal("50")).build();
 
         Bbugtm result = BudgetRepresentativeSelector.pick(List.of(older, newer));
 
@@ -27,8 +29,10 @@ class BudgetRepresentativeSelectorTest {
     @Test
     @DisplayName("pick - bgNo 동률이면 sno가 큰 행을 선택한다")
     void pick_bgNo동률_sno최대행선택() {
-        Bbugtm first = Bbugtm.builder().bgNo("BG-2026-0001").sno(1).asgRt(new BigDecimal("80")).build();
-        Bbugtm second = Bbugtm.builder().bgNo("BG-2026-0001").sno(2).asgRt(new BigDecimal("50")).build();
+        Bbugtm first =
+                Bbugtm.builder().bgNo("BG-2026-0001").sno(1).asgRt(new BigDecimal("80")).build();
+        Bbugtm second =
+                Bbugtm.builder().bgNo("BG-2026-0001").sno(2).asgRt(new BigDecimal("50")).build();
 
         Bbugtm result = BudgetRepresentativeSelector.pick(List.of(second, first));
 
@@ -39,7 +43,8 @@ class BudgetRepresentativeSelectorTest {
     @DisplayName("pick - bgNo null 행은 후순위로 밀린다")
     void pick_bgNoNull_후순위() {
         Bbugtm nullBgNo = Bbugtm.builder().sno(1).asgRt(new BigDecimal("80")).build();
-        Bbugtm withBgNo = Bbugtm.builder().bgNo("BG-2026-0001").sno(1).asgRt(new BigDecimal("50")).build();
+        Bbugtm withBgNo =
+                Bbugtm.builder().bgNo("BG-2026-0001").sno(1).asgRt(new BigDecimal("50")).build();
 
         Bbugtm result = BudgetRepresentativeSelector.pick(List.of(nullBgNo, withBgNo));
 
@@ -58,10 +63,18 @@ class BudgetRepresentativeSelectorTest {
     void pickView_엔티티규칙동일() {
         BudgetReadView older =
                 ReadProjectionStubs.budget(
-                        Bbugtm.builder().bgNo("BG-2026-0001").sno(9).asgRt(new BigDecimal("80")).build());
+                        Bbugtm.builder()
+                                .bgNo("BG-2026-0001")
+                                .sno(9)
+                                .asgRt(new BigDecimal("80"))
+                                .build());
         BudgetReadView newer =
                 ReadProjectionStubs.budget(
-                        Bbugtm.builder().bgNo("BG-2026-0002").sno(1).asgRt(new BigDecimal("50")).build());
+                        Bbugtm.builder()
+                                .bgNo("BG-2026-0002")
+                                .sno(1)
+                                .asgRt(new BigDecimal("50"))
+                                .build());
 
         assertThat(BudgetRepresentativeSelector.pickView(List.of(newer, older)).getAsgRt())
                 .isEqualByComparingTo("50");

@@ -478,7 +478,8 @@ class BudgetRateApplicationServiceTest {
                         "2026",
                         List.of(
                                 new BudgetWorkDto.ItemRate("UNKNOWN", "UNK-1", 10, 20, null),
-                                new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 60, 40, null)));
+                                new BudgetWorkDto.ItemRate(
+                                        "BPROJM", "PRJ-2026-0001", 60, 40, null)));
         Ccodem capitalCodeWithoutDash = Ccodem.builder().cdva("IOE351").build();
         Bitemm item = mock(Bitemm.class);
         given(item.getIoeC()).willReturn(null);
@@ -798,8 +799,7 @@ class BudgetRateApplicationServiceTest {
                                 "103", new BigDecimal("70.00000"),
                                 "101", new BigDecimal("29.58748")));
 
-        budgetWorkService.applyItemRates(
-                new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate)));
+        budgetWorkService.applyItemRates(new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate)));
 
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository, Mockito.times(2)).save(captor.capture());
@@ -827,7 +827,9 @@ class BudgetRateApplicationServiceTest {
         budgetWorkService.applyItemRates(
                 new BudgetWorkDto.ItemApplyRequest(
                         "2026",
-                        List.of(new BudgetWorkDto.ItemRate("BPROJM", "PRJ-2026-0001", 70, 100, null))));
+                        List.of(
+                                new BudgetWorkDto.ItemRate(
+                                        "BPROJM", "PRJ-2026-0001", 70, 100, null))));
 
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository).save(captor.capture());
@@ -855,8 +857,7 @@ class BudgetRateApplicationServiceTest {
                         20,
                         Map.of("103", new BigDecimal("45.50000")));
 
-        budgetWorkService.applyItemRates(
-                new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate)));
+        budgetWorkService.applyItemRates(new BudgetWorkDto.ItemApplyRequest("2026", List.of(rate)));
 
         ArgumentCaptor<Bbugtm> captor = ArgumentCaptor.forClass(Bbugtm.class);
         verify(bbugtmRepository, Mockito.times(2)).save(captor.capture());

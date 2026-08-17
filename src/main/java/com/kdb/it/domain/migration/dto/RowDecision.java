@@ -68,8 +68,8 @@ public record RowDecision(Kind kind, String pk) {
     /**
      * 원장 후보를 결정 드롭다운 선택지로 바꿉니다.
      *
-     * <p>후보를 비워 두면 화면에 드롭다운이 그려지지 않아 손댈 방법이 없으므로, 원장 후보가 없어도 {@code CREATE_NEW}·{@code SKIP} 두
-     * 항목은 항상 붙입니다.
+     * <p>후보를 비워 두면 화면에 드롭다운이 그려지지 않아 손댈 방법이 없으므로, 원장 후보가 없어도 {@code CREATE_NEW}·{@code SKIP} 두 항목은
+     * 항상 붙입니다.
      *
      * @param ledgerCandidates 매처가 낸 원장 후보 (code=PK, label=이름)
      * @return 결정 선택지

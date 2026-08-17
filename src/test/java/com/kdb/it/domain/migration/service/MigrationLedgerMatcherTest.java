@@ -187,8 +187,7 @@ class MigrationLedgerMatcherTest {
 
         assertThat(match.outcome()).isEqualTo(MigrationLedgerMatcher.Outcome.NOT_FOUND);
         assertThat(match.candidates())
-                .containsExactly(
-                        new MigrationDto.Candidate("COST-26-0001", "올인원워크스페이스 / 커브"));
+                .containsExactly(new MigrationDto.Candidate("COST-26-0001", "올인원워크스페이스 / 커브"));
     }
 
     @Test

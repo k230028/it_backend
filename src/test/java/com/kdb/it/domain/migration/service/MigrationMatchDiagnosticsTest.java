@@ -81,11 +81,11 @@ class MigrationMatchDiagnosticsTest {
     void resolve_후보가_둘이면_LEDGER_AMBIGUOUS를_낸다() {
         MigrationYearSnapshot.Data snapshot =
                 snapshotWithOrdinaryProjects(
-                        "920",
-                        Map.of("PRJ-2026-0002", "런던 위임예산", "PRJ-2026-0003", "런던 PF 위임예산"));
+                        "920", Map.of("PRJ-2026-0002", "런던 위임예산", "PRJ-2026-0003", "런던 PF 위임예산"));
 
         MigrationMatchDiagnostics.Resolved resolved =
-                diagnostics.resolve(delegatedSheet(), intentOfOrdinaryDept("920"), snapshot, Map.of());
+                diagnostics.resolve(
+                        delegatedSheet(), intentOfOrdinaryDept("920"), snapshot, Map.of());
 
         assertThat(resolved.action()).isNull();
         assertThat(resolved.pk()).isNull();
@@ -116,7 +116,10 @@ class MigrationMatchDiagnosticsTest {
                         planner);
 
         MigrationDto.CellDiagnostic diagnostic =
-                out.stream().filter(d -> "ITEM_BASE_ZERO".equals(d.code())).findFirst().orElseThrow();
+                out.stream()
+                        .filter(d -> "ITEM_BASE_ZERO".equals(d.code()))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(diagnostic.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
         assertThat(diagnostic.column()).isEqualTo("swAmount");
     }
@@ -172,8 +175,8 @@ class MigrationMatchDiagnosticsTest {
     }
 
     /**
-     * 두 열(dev·sw)이 동시에 어긋나면 삽입 순서(dev→hw→sw)대로 진단이 난다. {@code Map.of()}로 순회했다면 실행마다 순서가 달라져 이
-     * 단정이 흔들렸을 것이다 — hw는 조정열이 비어 건너뛰므로 dev 다음 곧바로 sw가 온다.
+     * 두 열(dev·sw)이 동시에 어긋나면 삽입 순서(dev→hw→sw)대로 진단이 난다. {@code Map.of()}로 순회했다면 실행마다 순서가 달라져 이 단정이
+     * 흔들렸을 것이다 — hw는 조정열이 비어 건너뛰므로 dev 다음 곧바로 sw가 온다.
      */
     @Test
     @DisplayName("checkRateReconcile_두_열이_동시에_어긋나면_dev_sw_순서로_난다")
@@ -187,7 +190,8 @@ class MigrationMatchDiagnosticsTest {
                                 "swAmount", "1406",
                                 "swAdjustAmount", "500"));
 
-        List<MigrationDto.CellDiagnostic> out = diagnostics.checkRateReconcile(sheet(), row, Map.of());
+        List<MigrationDto.CellDiagnostic> out =
+                diagnostics.checkRateReconcile(sheet(), row, Map.of());
 
         assertThat(out)
                 .extracting(MigrationDto.CellDiagnostic::column)

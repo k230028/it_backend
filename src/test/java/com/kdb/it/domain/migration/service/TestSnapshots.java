@@ -93,20 +93,8 @@ public final class TestSnapshots {
     /** 기존 데이터가 없는 연도 스냅샷. */
     public static MigrationYearSnapshot.Data empty(String bseYy) {
         return new MigrationYearSnapshot.Data(
-                bseYy,
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Set.of(),
-                Map.of(),
-                Map.of(),
-                List.of(),
-                List.of());
+                bseYy, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(),
+                Map.of(), Set.of(), Map.of(), Map.of(), List.of(), List.of());
     }
 
     /** 특정 계획구분이 이미 존재하는 연도 스냅샷. PLAN_ADJUSTMENT의 DUPLICATE_EXISTS 픽스처용입니다. */
@@ -114,20 +102,8 @@ public final class TestSnapshots {
         Set<String> types = new LinkedHashSet<>();
         types.add(planType);
         return new MigrationYearSnapshot.Data(
-                bseYy,
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                types,
-                Map.of(),
-                Map.of(),
-                List.of(),
-                List.of());
+                bseYy, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(),
+                Map.of(), types, Map.of(), Map.of(), List.of(), List.of());
     }
 
     /** 정규화 사업명 하나가 이미 있는 연도 스냅샷. CAPITAL_PROJECT의 DUPLICATE_EXISTS·부문계획 매칭 픽스처용입니다. */

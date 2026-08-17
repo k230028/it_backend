@@ -54,14 +54,15 @@ class MigrationYearSnapshotTest {
                         .cttNm("올인원워크스페이스")
                         .costTotXpAmt(new BigDecimal("15401000"))
                         .build();
-        given(costRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).willReturn(List.of(cost));
-        given(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).willReturn(List.of());
+        given(costRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
+                .willReturn(List.of(cost));
+        given(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
+                .willReturn(List.of());
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");
 
-        String key =
-                MigrationYearSnapshot.costDeptKey("2026", "0210", "001", "커브", "올인원워크스페이스");
+        String key = MigrationYearSnapshot.costDeptKey("2026", "0210", "001", "커브", "올인원워크스페이스");
         assertThat(data.costNoByDeptKey(key)).isEqualTo("COST-26-0001");
         assertThat(data.costNosByDeptAndIoe("0210", "001")).containsExactly("COST-26-0001");
         assertThat(data.costOf("COST-26-0001").amount()).isEqualByComparingTo("15401000");
@@ -78,7 +79,8 @@ class MigrationYearSnapshotTest {
                 .willReturn(List.of(ordinary, capital));
         given(costRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).willReturn(List.of());
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of());
-        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyList(), eq("N"))).willReturn(List.of());
+        given(projectItemRepository.findByAbusMngNoInAndDelYn(anyList(), eq("N")))
+                .willReturn(List.of());
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");
 
@@ -143,13 +145,18 @@ class MigrationYearSnapshotTest {
     @Test
     @DisplayName("load_기존_편성률은_품목별_원본으로_보존된다")
     void load_기존_편성률은_품목별_원본으로_보존된다() {
-        given(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).willReturn(List.of());
+        given(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
+                .willReturn(List.of());
         given(costRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).willReturn(List.of());
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
                 .willReturn(
                         List.of(
                                 budgetOf("BITEMM", "GCL-2026-0001", "103", new BigDecimal("70")),
-                                budgetOf("BITEMM", "GCL-2026-0002", "101", new BigDecimal("29.58748"))));
+                                budgetOf(
+                                        "BITEMM",
+                                        "GCL-2026-0002",
+                                        "101",
+                                        new BigDecimal("29.58748"))));
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");
 

@@ -22,8 +22,8 @@ import org.springframework.stereotype.Component;
  * 배수를 곱하지 않습니다. {@code XCR}은 설정하지 않습니다 — {@code ProjectService}가 다시 조회해 덮어쓰기 때문입니다.
  *
  * <p>다른 세 어댑터와 달리 이 어댑터의 {@link AdapterOutput}은 **행 단위가 아니라 부점 그룹 단위**입니다 — forward-fill로 묶은 부점
- * 그룹마다 사업·배분 의도를 하나씩 냅니다. {@code costs}/{@code projects}와 {@code allocations}는 서로 인덱스 평행이지만
- * {@code sheet.rows()}와는 1:1이 아니므로, 행 번호로 역인덱싱하면 안 됩니다.
+ * 그룹마다 사업·배분 의도를 하나씩 냅니다. {@code costs}/{@code projects}와 {@code allocations}는 서로 인덱스 평행이지만 {@code
+ * sheet.rows()}와는 1:1이 아니므로, 행 번호로 역인덱싱하면 안 됩니다.
  */
 @Component
 public class DelegatedBudgetSheetAdapter implements SheetAdapter {
