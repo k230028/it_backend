@@ -797,6 +797,64 @@ class MigrationImportServiceTest {
         assertThat(response.createdIds()).containsExactly("PRJ-2026-0100");
     }
 
+    /**
+     * MIG-23① — {@code CREATE_NEW} 행에 일반관리비 열이 채워져 있으면 그 목표액이 반영되지 않는다는 경고를 낸다.
+     *
+     * <p>{@code CapitalProjectSheetAdapter.items()}는 자본 3열만 품목으로 만들므로, 새로 만든 원장에는 일반관리비 목표액을 담을 품목이
+     * 없다. 종전에는 이 손실이 진단 없이 조용히 일어났다 — 같은 웨이브에서 부문계획 시트의 {@code CREATE_NEW} 무동작에 {@code
+     * CREATE_NOT_SUPPORTED}를 붙인 원칙과 대칭을 맞춘다.
+     */
+    @Test
+    @DisplayName("CREATE_NEW 행의 일반관리비 목표액은 WARNING으로 알린다")
+    void 신규_생성행의_일반관리비_목표액은_경고를_낸다() {
+        MigrationImportService service = capitalService();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        MigrationDto.DryRunResponse response =
+                service.dryRun(
+                        new MigrationDto.DryRunRequest(
+                                List.of(capitalSheetWithGeneralAmount()),
+                                List.of(
+                                        new MigrationDto.CellOverride(
+                                                SheetKind.CAPITAL_PROJECT,
+                                                2,
+                                                RowDecision.COLUMN,
+                                                "CREATE_NEW"))));
+
+        assertThat(response.diagnostics())
+                .filteredOn(d -> "GENERAL_AMOUNT_NOT_CREATABLE".equals(d.code()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.WARNING);
+                            assertThat(d.column()).isEqualTo("generalAmount");
+                            assertThat(d.excelRow()).isEqualTo(2);
+                        });
+    }
+
+    /** 일반관리비 열이 비어 있으면 담을 목표액 자체가 없으므로 ①의 경고를 내지 않는다. */
+    @Test
+    @DisplayName("일반관리비 열이 빈 CREATE_NEW 행에는 경고를 내지 않는다")
+    void 일반관리비_열이_빈_신규_생성행에는_경고를_내지_않는다() {
+        MigrationImportService service = capitalService();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        MigrationDto.DryRunResponse response =
+                service.dryRun(
+                        new MigrationDto.DryRunRequest(
+                                List.of(capitalSheet()),
+                                List.of(
+                                        new MigrationDto.CellOverride(
+                                                SheetKind.CAPITAL_PROJECT,
+                                                2,
+                                                RowDecision.COLUMN,
+                                                "CREATE_NEW"))));
+
+        assertThat(response.diagnostics())
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .doesNotContain("GENERAL_AMOUNT_NOT_CREATABLE");
+    }
+
     /** SKIP으로 결정한 행은 편성 대상에서 빠지고 기존 편성률만 남는다. */
     @Test
     @DisplayName("SKIP으로 결정한 행은 편성 대상에서 빠진다")
@@ -1279,6 +1337,19 @@ class MigrationImportServiceTest {
         Map<String, String> cells = new LinkedHashMap<>();
         cells.put("projectName", "웹한글기안기도입");
         cells.put("swAmount", "1406");
+        cells.put("adjustRate", "0.7");
+        return new MigrationDto.SheetPayload(
+                SheetKind.CAPITAL_PROJECT,
+                "2026",
+                List.of(new MigrationDto.NormalizedRow(2, cells)));
+    }
+
+    /** 같은 자본예산 행에 일반관리비 열까지 채운 시트. MIG-23① 진단 픽스처. */
+    private static MigrationDto.SheetPayload capitalSheetWithGeneralAmount() {
+        Map<String, String> cells = new LinkedHashMap<>();
+        cells.put("projectName", "웹한글기안기도입");
+        cells.put("swAmount", "1406");
+        cells.put("generalAmount", "100");
         cells.put("adjustRate", "0.7");
         return new MigrationDto.SheetPayload(
                 SheetKind.CAPITAL_PROJECT,

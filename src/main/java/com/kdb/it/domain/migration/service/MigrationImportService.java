@@ -352,6 +352,13 @@ public class MigrationImportService {
                         createNewRows
                                 .computeIfAbsent(kind, ignored -> new LinkedHashSet<>())
                                 .add(intent.excelRow());
+                        // MIG-23① 새로 만드는 원장에는 일반관리비 목표액을 담을 품목이 없다. 자본 3열만
+                        // 품목으로 만들어지므로 그 열의 금액은 조용히 빠진다 — 화면에 경고로 남긴다.
+                        if (intent.targetByColumn().containsKey("generalAmount")) {
+                            diagnostics.add(
+                                    matchDiagnostics.generalAmountNotCreatable(
+                                            sheet, intent.excelRow()));
+                        }
                         pk = createdPkByRow.getOrDefault(kind, Map.of()).get(intent.excelRow());
                         if (pk == null) {
                             // 아직 만들기 전이라 배분할 품목이 스냅샷에 없다. 생성 후 재계산이 채운다.

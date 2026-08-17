@@ -221,6 +221,129 @@ class MigrationMatchDiagnosticsTest {
                 .contains("ITEM_BASE_ZERO");
     }
 
+    /**
+     * MIG-23② — 일반관리비 열이 비었고 기존 편성률도 없으면 그 품목이 조용히 100%로 편성됩니다.
+     *
+     * <p>설계 §3.4의 "빈 열은 기존 편성률 유지" 규칙은 유지할 기존값이 있을 때만 성립합니다. 기존 편성행이 없으면 {@code applyItemRates}의
+     * {@code DEFAULT_DUP_RT = 100}이 실려, 조정비율 0.7 사업이어도 일반관리비 품목만 100%로 편성됩니다.
+     */
+    @Test
+    @DisplayName("checkAllocation_일반관리비_열이_비고_기존_편성률도_없으면_WARNING이다")
+    void checkAllocation_일반관리비_열이_비고_기존_편성률도_없으면_WARNING이다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshotWithProject(
+                        "웹한글기안기도입",
+                        "PRJ-2026-0001",
+                        List.of(
+                                new RequestItem("GCL-1", 1, "106", new BigDecimal("1406000000")),
+                                new RequestItem("GCL-2", 1, "001", new BigDecimal("100000000"))));
+
+        List<MigrationDto.CellDiagnostic> out =
+                diagnostics.checkAllocation(
+                        sheet(),
+                        intentWithTarget("swAmount", "984200000"),
+                        "PRJ-2026-0001",
+                        snapshot,
+                        planner);
+
+        MigrationDto.CellDiagnostic diagnostic =
+                out.stream()
+                        .filter(d -> "GENERAL_RATE_DEFAULTED".equals(d.code()))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(diagnostic.severity()).isEqualTo(MigrationDto.Severity.WARNING);
+        assertThat(diagnostic.column()).isEqualTo("generalAmount");
+    }
+
+    /** 기존 편성률이 있으면 설계 §3.4의 "빈 열은 기존 편성률 유지"가 실제로 성립하므로 알릴 것이 없다. */
+    @Test
+    @DisplayName("checkAllocation_기존_편성률이_있으면_일반관리비_경고를_내지_않는다")
+    void checkAllocation_기존_편성률이_있으면_일반관리비_경고를_내지_않는다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshotWithProjectAndRates(
+                        "PRJ-2026-0001",
+                        List.of(
+                                new RequestItem("GCL-1", 1, "106", new BigDecimal("1406000000")),
+                                new RequestItem("GCL-2", 1, "001", new BigDecimal("100000000"))),
+                        Map.of("GCL-2", new BigDecimal("70")));
+
+        assertThat(
+                        diagnostics.checkAllocation(
+                                sheet(),
+                                intentWithTarget("swAmount", "984200000"),
+                                "PRJ-2026-0001",
+                                snapshot,
+                                planner))
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .doesNotContain("GENERAL_RATE_DEFAULTED");
+    }
+
+    /** 일반관리비 열을 채운 행은 목표액이 실리므로 기본 편성률로 떨어지지 않는다. */
+    @Test
+    @DisplayName("checkAllocation_일반관리비_열을_채우면_경고를_내지_않는다")
+    void checkAllocation_일반관리비_열을_채우면_경고를_내지_않는다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshotWithProject(
+                        "웹한글기안기도입",
+                        "PRJ-2026-0001",
+                        List.of(
+                                new RequestItem("GCL-1", 1, "106", new BigDecimal("1406000000")),
+                                new RequestItem("GCL-2", 1, "001", new BigDecimal("100000000"))));
+
+        assertThat(
+                        diagnostics.checkAllocation(
+                                sheet(),
+                                intentWithTarget("generalAmount", "70000000"),
+                                "PRJ-2026-0001",
+                                snapshot,
+                                planner))
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .doesNotContain("GENERAL_RATE_DEFAULTED");
+    }
+
+    /**
+     * 위임예산은 이 경고의 대상이 아니다.
+     *
+     * <p>{@code costAmount}의 배분 대상은 그 사업의 <b>모든</b> 품목이라 자본 계열 밖 품목도 이미 편성률을 받는다. 일반관리비 열이라는 개념 자체가
+     * 없는 시트에 "열이 비었다"고 알리면 손댈 곳이 없는 경고가 된다.
+     */
+    @Test
+    @DisplayName("checkAllocation_위임예산에는_일반관리비_경고를_내지_않는다")
+    void checkAllocation_위임예산에는_일반관리비_경고를_내지_않는다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshotWithProject(
+                        "2026년런던지점위임예산경상",
+                        "PRJ-2026-0002",
+                        List.of(new RequestItem("GCL-1", 1, "001", new BigDecimal("50000000"))));
+
+        assertThat(
+                        diagnostics.checkAllocation(
+                                delegatedSheet(),
+                                intentOfDelegated("50000000"),
+                                "PRJ-2026-0002",
+                                snapshot,
+                                planner))
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .doesNotContain("GENERAL_RATE_DEFAULTED");
+    }
+
+    /**
+     * MIG-23① — 원장을 새로 만드는 행은 일반관리비 목표액을 담을 품목이 없습니다.
+     *
+     * <p>{@code CapitalProjectSheetAdapter.items()}는 자본 3열만 품목으로 만듭니다(엑셀에 비자본 비목 구분이 없어 001/007/013
+     * 중 무엇인지 정할 근거가 없음). 그래서 {@code CREATE_NEW} 행에 일반관리비 열이 채워져 있어도 그 목표액은 반영되지 않습니다.
+     */
+    @Test
+    @DisplayName("generalAmountNotCreatable_신규_생성행의_일반관리비_목표액은_WARNING이다")
+    void generalAmountNotCreatable_신규_생성행의_일반관리비_목표액은_WARNING이다() {
+        MigrationDto.CellDiagnostic diagnostic = diagnostics.generalAmountNotCreatable(sheet(), 2);
+
+        assertThat(diagnostic.code()).isEqualTo("GENERAL_AMOUNT_NOT_CREATABLE");
+        assertThat(diagnostic.severity()).isEqualTo(MigrationDto.Severity.WARNING);
+        assertThat(diagnostic.column()).isEqualTo("generalAmount");
+        assertThat(diagnostic.excelRow()).isEqualTo(2);
+    }
+
     @Test
     @DisplayName("createNotSupported_원장을_만들_수_없는_시트의_CREATE_NEW는_WARNING이다")
     void createNotSupported_원장을_만들_수_없는_시트의_CREATE_NEW는_WARNING이다() {
@@ -388,6 +511,32 @@ class MigrationMatchDiagnosticsTest {
                 Set.of(),
                 Map.of(),
                 Map.of(),
+                List.of(projectNo),
+                List.of());
+    }
+
+    /**
+     * 품목과 그 품목의 기존 편성률을 함께 담은 연도 스냅샷.
+     *
+     * @param ratesByItemNo 품목관리번호 → 기존 편성률. 여기 없는 품목은 기존 편성률이 없는 상태다
+     */
+    private static MigrationYearSnapshot.Data snapshotWithProjectAndRates(
+            String projectNo, List<RequestItem> items, Map<String, BigDecimal> ratesByItemNo) {
+        Map<String, List<RequestItem>> itemsByProject = new LinkedHashMap<>();
+        itemsByProject.put(projectNo, items);
+        return new MigrationYearSnapshot.Data(
+                "2026",
+                Map.of(),
+                Map.of(projectNo, "웹한글 기안기 도입"),
+                Map.of(),
+                itemsByProject,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Set.of(),
+                Map.of(),
+                new LinkedHashMap<>(ratesByItemNo),
                 List.of(projectNo),
                 List.of());
     }

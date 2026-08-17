@@ -45,7 +45,12 @@ class MigrationOpenApiContractTest {
                 "LEDGER_AMBIGUOUS",
                 "ITEM_BASE_ZERO",
                 "AMOUNT_ADJUSTED",
-                "RATE_RECONCILE_MISMATCH");
+                "RATE_RECONCILE_MISMATCH",
+                // CREATE_NOT_SUPPORTED는 서비스가 이미 내고 있었는데 목록에 없어 프론트 생성 타입에서
+                // 빠져 있었다(MIG-23 조치에서 발견). 진단 코드를 추가할 때 이 목록도 함께 늘린다.
+                "CREATE_NOT_SUPPORTED",
+                "GENERAL_AMOUNT_NOT_CREATABLE",
+                "GENERAL_RATE_DEFAULTED");
     }
 
     @Test

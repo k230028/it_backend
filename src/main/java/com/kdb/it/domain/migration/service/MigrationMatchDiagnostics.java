@@ -35,6 +35,9 @@ public class MigrationMatchDiagnostics {
      */
     private static final BigDecimal RECONCILE_TOLERANCE = new BigDecimal("1000000");
 
+    /** 자본 세 그룹 밖 품목(일반관리비 계열)의 목표액 컬럼. 진단 좌표로도 씁니다. */
+    private static final String GENERAL_AMOUNT_COLUMN = "generalAmount";
+
     private final MigrationLedgerMatcher matcher;
 
     /**
@@ -143,7 +146,54 @@ public class MigrationMatchDiagnostics {
             }
         }
         addAmountAdjusted(out, sheet, row, intent.declaredBase(), ledgerBase);
+        addGeneralRateDefaulted(out, sheet, row, intent, all, snapshot);
         return out;
+    }
+
+    /**
+     * 일반관리비 열이 비어 있어 그 품목이 기본 편성률 100%로 떨어지는 경우를 알립니다 (MIG-23②).
+     *
+     * <p>설계 §3.4는 "일반관리비 열이 비어 있으면 기존 편성률을 그대로 유지"라고 정했습니다. 그 규칙은 <b>유지할 기존값이 있을 때만</b> 성립합니다. 기존
+     * 편성행이 없으면 {@code MigrationImportService.itemRates}가 그 비목 칸을 채우지 않고, {@code applyItemRates}의
+     * {@code DEFAULT_DUP_RT = 100}이 실립니다 — 조정비율 0.7 사업이어도 일반관리비 품목만 100%로 편성됩니다.
+     *
+     * <p>판정 단위는 <b>품목이 아니라 비목코드</b>입니다. {@code itemRates}는 비목코드 칸에 편성률을 담고, 같은 비목의 품목 중 하나라도 기존
+     * 편성률이 있으면 그 값이 보존되기 때문입니다. 그래서 "기존 편성률을 가진 품목이 하나도 없는 비목"이 있을 때만 경고합니다.
+     *
+     * <p>자본예산 시트만 대상입니다. 위임예산의 {@code costAmount}는 그 사업의 모든 품목이 배분 대상이라 자본 계열 밖 품목도 이미 편성률을 받고,
+     * 일반관리비 열이라는 개념 자체가 없어 손댈 곳 없는 경고가 됩니다.
+     */
+    private void addGeneralRateDefaulted(
+            List<MigrationDto.CellDiagnostic> out,
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            AllocationIntent intent,
+            List<MigrationYearSnapshot.RequestItem> all,
+            MigrationYearSnapshot.Data snapshot) {
+        if (sheet.kind() != SheetKind.CAPITAL_PROJECT
+                || intent.targetByColumn().containsKey(GENERAL_AMOUNT_COLUMN)) {
+            return;
+        }
+        // 비목코드 → 그 비목의 품목 중 기존 편성률을 가진 것이 있는지
+        Map<String, Boolean> ratedByIoeC = new LinkedHashMap<>();
+        for (MigrationYearSnapshot.RequestItem item :
+                MigrationAllocationPlanner.itemsOutsideCapitalGroups(all)) {
+            if (item.ioeC() == null) {
+                continue;
+            }
+            boolean rated = snapshot.existingItemRateByItemNo().get(item.gclMngNo()) != null;
+            ratedByIoeC.merge(item.ioeC(), rated, Boolean::logicalOr);
+        }
+        if (ratedByIoeC.containsValue(Boolean.FALSE)) {
+            out.add(
+                    MigrationDiagnostics.warning(
+                            sheet,
+                            row,
+                            GENERAL_AMOUNT_COLUMN,
+                            "GENERAL_RATE_DEFAULTED",
+                            "일반관리비 열이 비어 있고 기존 편성률도 없어 일반관리비 품목이 100%로 편성됩니다. 조정비율을 적용하려면 일반관리비 열을 채워"
+                                    + " 주세요."));
+        }
     }
 
     /**
@@ -165,6 +215,29 @@ public class MigrationMatchDiagnostics {
                 "CREATE_NOT_SUPPORTED",
                 "이 시트는 원장을 새로 만들 수 없어 '새로 만들고 편성' 결정이 반영되지 않습니다. 이 행의 조정은 빠집니다 — 결정을 지우거나 대상 원장을 골라"
                         + " 주세요.");
+    }
+
+    /**
+     * 원장을 새로 만드는 행의 일반관리비 목표액이 반영되지 않는다는 진단을 만듭니다 (MIG-23①).
+     *
+     * <p>{@code CapitalProjectSheetAdapter.items()}는 자본 3열만 품목으로 만듭니다 — 엑셀에 비자본 비목 구분(001 전산임차료·007
+     * 국외전산용역비·013 국외회선사용료 등)이 없어 어느 비목으로 만들지 정할 근거가 없기 때문입니다. 그래서 {@code CREATE_NEW} 행에 일반관리비 열이
+     * 채워져 있어도 그 목표액을 담을 품목이 없습니다.
+     *
+     * <p>반영을 막지는 않습니다 — 자본 3열은 정상적으로 만들어지고, 일반관리비만 빠집니다.
+     *
+     * @param sheet 시트 페이로드
+     * @param excelRow 엑셀 행 번호
+     * @return WARNING 진단
+     */
+    public MigrationDto.CellDiagnostic generalAmountNotCreatable(
+            MigrationDto.SheetPayload sheet, int excelRow) {
+        return MigrationDiagnostics.warning(
+                sheet,
+                rowAt(sheet, excelRow),
+                GENERAL_AMOUNT_COLUMN,
+                "GENERAL_AMOUNT_NOT_CREATABLE",
+                "이 행은 원장을 새로 만들므로 일반관리비 목표액을 담을 품목이 없습니다. 일반관리비 편성은 편성요청서로 만든 원장에 매칭했을 때만 반영됩니다.");
     }
 
     /**

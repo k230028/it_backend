@@ -128,12 +128,26 @@ public final class MigrationDto {
                             description = "진단 코드",
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             allowableValues = {
-                                "ORG_UNRESOLVED", "ORG_AMBIGUOUS", "USER_UNRESOLVED",
-                                "USER_AMBIGUOUS", "CODE_UNRESOLVED", "REQUIRED_MISSING",
-                                "DUPLICATE_EXISTS", "LENGTH_EXCEEDED", "PROJECT_NOT_FOUND",
-                                "AMOUNT_MISMATCH", "RATE_OUT_OF_RANGE", "DATE_UNPARSEABLE",
-                                "LEDGER_NOT_MATCHED", "LEDGER_AMBIGUOUS", "ITEM_BASE_ZERO",
-                                "AMOUNT_ADJUSTED", "RATE_RECONCILE_MISMATCH"
+                                "ORG_UNRESOLVED",
+                                "ORG_AMBIGUOUS",
+                                "USER_UNRESOLVED",
+                                "USER_AMBIGUOUS",
+                                "CODE_UNRESOLVED",
+                                "REQUIRED_MISSING",
+                                "DUPLICATE_EXISTS",
+                                "LENGTH_EXCEEDED",
+                                "PROJECT_NOT_FOUND",
+                                "AMOUNT_MISMATCH",
+                                "RATE_OUT_OF_RANGE",
+                                "DATE_UNPARSEABLE",
+                                "LEDGER_NOT_MATCHED",
+                                "LEDGER_AMBIGUOUS",
+                                "ITEM_BASE_ZERO",
+                                "AMOUNT_ADJUSTED",
+                                "RATE_RECONCILE_MISMATCH",
+                                "CREATE_NOT_SUPPORTED",
+                                "GENERAL_AMOUNT_NOT_CREATABLE",
+                                "GENERAL_RATE_DEFAULTED"
                             })
                     String code,
             @Schema(description = "심각도", requiredMode = Schema.RequiredMode.REQUIRED)
