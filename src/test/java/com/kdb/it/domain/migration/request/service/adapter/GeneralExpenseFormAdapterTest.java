@@ -30,6 +30,12 @@ class GeneralExpenseFormAdapterTest {
 
     private FormAdapterContext contextOf(
             byte[] workbookBytes, AmountUnit unit, Map<String, String> overrides) {
+        return contextOf(workbookBytes, unit, overrides, "0210");
+    }
+
+    /** 부서코드로 국내·국외를 가른다. `9`로 시작하면 국외 부점이다(런던 `920`). */
+    private FormAdapterContext contextOf(
+            byte[] workbookBytes, AmountUnit unit, Map<String, String> overrides, String deptCode) {
         Map<FormSheetKind, Sheet> sheets = reader.classify(reader.open(workbookBytes, "픽스처.xls"));
         RequestFormDto.FileEntry entry =
                 new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, unit, "571");
@@ -37,7 +43,7 @@ class GeneralExpenseFormAdapterTest {
                 sheets,
                 "2026",
                 entry,
-                "0210",
+                deptCode,
                 "자금운용실",
                 null,
                 TestIoeIndex.snapshot(),
@@ -62,8 +68,9 @@ class GeneralExpenseFormAdapterTest {
         assertThat(first.getBseYy()).isEqualTo("2026");
         assertThat(first.getCostSvnDpmC()).isEqualTo("0210");
         assertThat(first.getBgUntAbusC()).isEqualTo("571");
-        // 담당자는 상단 머리말의 작성자다. 업로드 사용자를 담당자로 박지 않는다
-        assertThat(first.getCgprId()).isEqualTo("최민호 대리");
+        // 담당자는 상단 머리말의 작성자다. 업로드 사용자를 담당자로 박지 않는다.
+        // 픽스처는 `최민호 대리` — 직책은 인사 정보라 담당자 컬럼에 담지 않는다
+        assertThat(first.getCgprId()).isEqualTo("최민호");
         assertThat(first.getXcrBseDt()).isEqualTo("20260101");
         assertThat(first.getTmnYn()).isEqualTo("N");
     }
@@ -84,9 +91,30 @@ class GeneralExpenseFormAdapterTest {
         FormAdapterOutput output =
                 adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), AmountUnit.WON));
 
-        assertThat(output.costs()).hasSize(2);
+        assertThat(output.costs()).hasSize(3);
         assertThat(output.costs().get(1).getIoeC()).isEqualTo("013");
         assertThat(output.costs().get(1).getCttNm()).isEqualTo("AML Screening");
+    }
+
+    @Test
+    @DisplayName("대조표에 있는 중분류가 후보 하나로 좁혀지면 확인을 묻지 않는다")
+    void confirmsLexiconGroupWithoutWarning() {
+        // 런던 실측: 세부비목 칸에 중분류 `Machinery`를 그대로 적은 행. 대조표에 등록된 어휘이고
+        // 국외 부점이라 `국외기계장치` 하나로 좁혀지므로 사용자가 고를 것이 없다
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.englishFormXls(),
+                                AmountUnit.WON,
+                                Map.of(),
+                                "920"));
+
+        CostDto.CreateRequest machinery = output.costs().get(2);
+        assertThat(machinery.getCttNm()).isEqualTo("Tape backup software");
+        assertThat(machinery.getIoeC()).isEqualTo("102");
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_DEFAULTED);
     }
 
     @Test

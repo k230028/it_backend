@@ -81,8 +81,9 @@ class RecurringProjectFormAdapterTest {
                         .projects()
                         .get(0);
 
-        assertThat(project.getTlrUsid()).isEqualTo("신원석 부부장");
-        // 영문 성명은 컬럼(14자)을 넘어 잘린다
+        // 픽스처는 `신원석 부부장` — 직책은 떼고 이름만 담는다
+        assertThat(project.getTlrUsid()).isEqualTo("신원석");
+        // 영문 성명은 직책을 떼고도 컬럼(14자)을 넘어 잘린다
         assertThat(project.getUsid()).isEqualTo("Luke Buckingha");
     }
 

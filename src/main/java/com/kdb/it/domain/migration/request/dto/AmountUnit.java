@@ -10,15 +10,18 @@ import java.math.MathContext;
  * <p>배수를 숫자로 주고받지 않고 enum으로 둡니다. 숫자에 {@code @Schema(allowableValues=…)}를 붙이면 OpenAPI가 값 집합을 문자열
  * enum으로 내보내 프론트 생성 타입이 {@code "1" | "1000" | "1000000"}이 되고, 서버의 {@code Long}과 어긋납니다. 값 집합이 정해진
  * 도메인 개념이므로 타입으로 표현하는 편이 매직 넘버보다 읽기도 쉽습니다.
+ *
+ * <p>표기명에 통화(`KRW`)를 함께 적습니다. 시트 ③의 `연간` 열은 통화 구분에 따라 원화와 외화가 섞여 있는데 이 배수는 <b>원화 행에만</b> 적용되고 외화 행은
+ * 통화 기본 단위 그대로 `FC_AMT`로 갑니다. 단위 경고와 선택지에 통화가 없으면 사용자가 외화 행까지 이 배수가 곱해진다고 오해합니다.
  */
 @Schema(name = "RequestFormAmountUnit", description = "일반관리비 금액 기재 단위")
 public enum AmountUnit {
     /** 원 단위. 양식 헤더는 천원이지만 원으로 적어 내는 부점이 있습니다(실측). */
-    WON(1L, "원"),
+    WON(1L, "원(KRW)"),
     /** 천원 단위. 양식 헤더 표기입니다. */
-    THOUSAND(1_000L, "천원"),
+    THOUSAND(1_000L, "천원(KRW)"),
     /** 백만원 단위. */
-    MILLION(1_000_000L, "백만원");
+    MILLION(1_000_000L, "백만원(KRW)");
 
     private final long multiplier;
     private final String label;
@@ -40,7 +43,7 @@ public enum AmountUnit {
     /**
      * 사용자에게 보여줄 단위 이름을 반환합니다.
      *
-     * @return `원`·`천원`·`백만원`
+     * @return 통화를 붙인 표기명. `원(KRW)`·`천원(KRW)`·`백만원(KRW)`
      */
     public String label() {
         return label;

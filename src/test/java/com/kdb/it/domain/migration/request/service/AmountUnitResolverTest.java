@@ -88,7 +88,10 @@ class AmountUnitResolverTest {
         assertThat(AmountUnit.WON.multiplier()).isEqualTo(1L);
         assertThat(AmountUnit.THOUSAND.multiplier()).isEqualTo(1_000L);
         assertThat(AmountUnit.MILLION.multiplier()).isEqualTo(1_000_000L);
-        assertThat(AmountUnit.MILLION.label()).isEqualTo("백만원");
+        assertThat(AmountUnit.MILLION.label()).isEqualTo("백만원(KRW)");
+        // 배수가 원화 행에만 걸린다는 것을 경고 문구에서 바로 읽도록 표기명에 통화를 붙인다
+        assertThat(AmountUnit.WON.label()).isEqualTo("원(KRW)");
+        assertThat(AmountUnit.THOUSAND.label()).isEqualTo("천원(KRW)");
     }
 
     @Test

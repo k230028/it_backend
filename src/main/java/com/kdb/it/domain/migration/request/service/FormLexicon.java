@@ -104,6 +104,19 @@ public final class FormLexicon {
     }
 
     /**
+     * 비목 표기가 대조표에 등록된 어휘인지 판정합니다.
+     *
+     * <p>대조표는 실제 제출본을 보고 사람이 채운 것이라, 여기에 걸린 표기는 <b>우연히 코드표와 글자가 맞은 것이 아니라 확인된 대응</b>입니다. 중분류로만 좁힌
+     * 해석에 확인 경고를 붙일지 정할 때 이 구분을 씁니다.
+     *
+     * @param raw 양식의 비목명 (국문 또는 영문)
+     * @return 대조표에 있으면 true. null이면 false
+     */
+    public static boolean hasIoeAlias(String raw) {
+        return raw != null && IOE_CANONICAL.containsKey(SheetAnchorScanner.normalize(raw));
+    }
+
+    /**
      * 계약구분의 계속·신규 표시를 사업구분코드로 바꿉니다.
      *
      * @param continued `계속` 열의 셀 원문

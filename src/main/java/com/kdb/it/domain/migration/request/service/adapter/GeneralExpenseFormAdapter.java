@@ -181,6 +181,12 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             if (byGroup.code() == null) continue;
             request.setIoeC(byGroup.code());
             // 쌍으로 확정한 게 아니라 중분류로 좁힌 값이므로 확인을 요청한다. 반영은 막지 않는다.
+            // 단 대조표에 등록된 어휘(`Machinery` 등)가 후보 하나로 좁혀졌으면 묻지 않는다 — 확인된 대응이라
+            // 추측이 아니고, 고를 대안도 없어서 경고가 사용자에게 줄 선택지가 없다. 경상(②)·자본(1-2)
+            // 어댑터도 대안이 있을 때만 경고한다.
+            boolean confirmed =
+                    FormLexicon.hasIoeAlias(groupLabel) && byGroup.candidates().isEmpty();
+            if (confirmed) return;
             diagnostics.add(
                     diagnostic(
                             row,

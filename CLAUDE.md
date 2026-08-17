@@ -130,7 +130,19 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 
 상세는 [사업 집행 가이드](docs/guides/domains/project-execution.md)와 [Tiptap 변수 가이드](docs/guides/domains/tiptap-variables.md)를 참조합니다.
 
-## 9. 테스트·주석·운영
+## 9. 다국어
+
+- 지원 언어의 단일 출처는 `common/i18n/model/SupportedLanguage`입니다. 언어 코드를 다른 곳에 하드코딩하지 않고 `normalize`(사용자 조회, 미지원 값은 기본 언어)와 `requireSupported`(관리자 입력, 미지원 값은 예외)만 사용합니다. **언어 추가는 이 enum에 상수를 더하는 것이 전부이며 DDL 변경이 필요하지 않습니다.**
+- 사용자에게 표시명을 반환하는 조회 API는 선택적 `lang` 쿼리 파라미터를 받습니다. 생략·미지원·대소문자 혼용은 모두 `SupportedLanguage.normalize`가 기본 언어로 접습니다. 헤더로만 언어를 받지 않습니다 — 프론트 `useApiFetch`의 자동 asyncData 키에 헤더가 포함되지 않아 다른 언어 응답이 같은 엔트리를 공유하기 때문입니다.
+- 번역문은 업무 테이블에 언어별 컬럼을 추가하지 않고 범용 번역 마스터 `TPRMPP_CLANGM`에 행으로 저장합니다. 복합 PK는 `(TC_ID_CONE, DTT_LAN_C, TC_COL_NM)`이며 삭제는 `DEL_YN='Y'` 논리 삭제입니다.
+- `TC_ID_CONE`(원본 식별값) 생성은 `TranslationTargetKey`만 사용합니다. 조회·저장·테스트가 같은 함수를 거쳐야 키가 어긋나지 않습니다. `TC_COL_NM`에는 별칭이나 Java 필드명이 아니라 실제 물리 컬럼명을 넣고, 허용 조합은 `TranslationTarget.validateColumn`이 검증합니다(DB CHECK는 언어 확장을 막지 않기 위해 두지 않습니다).
+- 번역 조회는 원본 목록을 먼저 읽은 뒤 `TranslationCatalogService.findActive`로 대상 키 전체를 일괄 조회합니다. 행마다 번역 리포지토리를 호출하지 않습니다. 기본 언어 요청은 번역 테이블을 아예 조회하지 않습니다.
+- fallback은 **필드 단위**입니다. 활성 번역이 없거나 `TC_DES`가 공백이면 그 필드만 한국어 원본으로 대체하고 나머지 번역 필드는 유지합니다. 번역 누락이 사용자 조회를 실패시키지 않지만, 원본 조회 실패를 빈 번역으로 오인해 숨기지도 않습니다.
+- 일반 사용자 DTO의 필드명은 언어와 무관하게 고정입니다(영어 메뉴명도 `mnuNm`). 코드값·정렬·상위 관계 같은 비표시 필드는 원본 그대로 반환하며, 업무 분기는 번역된 명칭이 아니라 코드값으로만 판단합니다.
+- 관리자 번역 계약은 `{language, columnName, text}` 목록형입니다. 언어나 대상 컬럼이 늘어도 DTO에 `...En` 필드를 추가하지 않습니다. 한국어 원본과 번역은 같은 서비스 트랜잭션에서 저장하고, 빈 번역문은 기존 행의 논리 삭제로 처리합니다.
+- 원본 저장과 번역 저장 모두 영향받는 메뉴·공통코드 캐시의 **모든 언어 엔트리**를 무효화합니다. 영어 응답이 한국어 원본을 fallback으로 포함할 수 있으므로 한국어 원본만 바뀌어도 다른 언어 캐시가 낡습니다.
+
+## 10. 테스트·주석·운영
 
 - 기능 변경 후 `./gradlew test`, 인증·결재·파일·QueryDSL·감사로그 공통 변경은 `./gradlew clean test`를 실행합니다.
 - `./gradlew test`는 Oracle 통합 태그를 제외하고 JaCoCo 보고서를 생성합니다. 병합 전 전체 품질 게이트는 Spotless와 JaCoCo 검증이 연결된 `./gradlew check`를 사용합니다.
@@ -143,7 +155,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 파일 로깅·롤오버 상세는 [로깅 가이드](docs/guides/operations/logging.md), 실시간 감사 피드는 [실시간 로그 가이드](docs/guides/operations/realtime-logs.md)를 따릅니다.
 - 주석 예시는 [주석 스타일](docs/guides/conventions/comment-style.md)을 참조합니다.
 
-## 10. 문서 위치
+## 11. 문서 위치
 
 - 설치·실행·환경변수·배포: `README.md`
 - 상세 개발 가이드: `docs/guides/README.md`

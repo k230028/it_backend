@@ -4,6 +4,7 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 담당자 이름을 물리 컬럼에 맞춰 다듬습니다.
@@ -16,21 +17,63 @@ final class FormPersonNames {
     /** 담당자 컬럼의 물리 길이. 문자 기준(CHAR semantics)입니다. */
     static final int LIMIT = 14;
 
+    /**
+     * 이름 뒤에 붙는 직책·직위 표기.
+     *
+     * <p>양식에는 `Luke Buckingham-Brown 과장`처럼 직책을 붙여 적습니다(런던 실측). 담당자 컬럼은 이름 자리이고 직책은 인사 정보라 원장에 담지
+     * 않습니다 — 직책이 바뀌면 원장 값이 사실과 어긋나고, 14자 한도도 직책이 먹습니다.
+     */
+    private static final Set<String> TITLES =
+            Set.of(
+                    "행원", "사원", "주임", "계장", "대리", "과장", "차장", "부부장", "부장", "파트장", "팀장", "실장", "센터장",
+                    "지점장", "본부장", "수석", "책임", "선임");
+
     private FormPersonNames() {
         throw new UnsupportedOperationException("유틸리티 — 인스턴스화 금지");
     }
 
     /**
-     * 이름을 컬럼 길이에 맞춥니다.
+     * 이름 뒤에 붙은 직책을 떼어 냅니다.
      *
-     * <p>영문 성명은 14자를 넘길 수 있습니다. 파일을 막는 대신 잘라 담고 잘린 사실을 알립니다 — 조용히 자르면 나중에 이름이 왜 끊겨 있는지 아무도 설명하지
-     * 못합니다.
+     * <p><b>공백으로 떨어진 마지막 토큰만</b> 봅니다. 붙여 쓴 표기(`김성원과장`)까지 잘라 내면 이름 끝 글자가 우연히 직책과 겹치는 경우에 진짜 이름이 조용히
+     * 훼손됩니다 — 대조표에 없는 어휘를 추측해 매핑하지 않는다는 {@code FormLexicon}의 원칙과 같은 이유입니다.
      *
-     * @param name 양식에 적힌 이름. null·공백이면 null을 돌려줍니다
+     * <p>{@code endsWith}까지 보는 것은 `IT팀장`·`수석부부장`처럼 직책 앞에 수식이 붙는 표기를 잡기 위함입니다. 남는 토큰이 없어지는 경우에는 떼지
+     * 않습니다 — 직책만 적혀 있으면 그것이 우리가 가진 전부입니다.
+     *
+     * @param name 공백을 정리한 이름
+     * @return 직책을 뗀 이름
+     */
+    private static String stripTitle(String name) {
+        String current = name;
+        while (true) {
+            int lastSpace = current.lastIndexOf(' ');
+            if (lastSpace < 0) return current;
+            String tail = current.substring(lastSpace + 1);
+            if (!isTitle(tail)) return current;
+            current = current.substring(0, lastSpace).trim();
+            if (current.isEmpty()) return name;
+        }
+    }
+
+    private static boolean isTitle(String token) {
+        for (String title : TITLES) {
+            if (token.endsWith(title)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 이름에서 직책을 떼고 컬럼 길이에 맞춥니다.
+     *
+     * <p>영문 성명은 직책을 떼고도 14자를 넘길 수 있습니다. 파일을 막는 대신 잘라 담고 잘린 사실을 알립니다 — 조용히 자르면 나중에 이름이 왜 끊겨 있는지 아무도
+     * 설명하지 못합니다. 진단 문구에는 직책을 뗀 이름을 실어 화면에서 실제 저장 대상과 대조할 수 있게 합니다.
+     *
+     * @param name 양식에 적힌 이름. null·공백이거나 직책만 적혀 있으면 그대로 다룹니다
      * @param label 진단 문구에 쓸 항목 이름 (`확인자` 등)
      * @param sheet 진단 좌표로 쓸 시트
      * @param diagnostics 잘렸을 때 경고를 담을 목록
-     * @return 14자 이내 이름. 이름이 없으면 null
+     * @return 직책을 뗀 14자 이내 이름. 이름이 없으면 null
      */
     static String fit(
             String name,
@@ -38,7 +81,7 @@ final class FormPersonNames {
             FormSheetKind sheet,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (name == null || name.isBlank()) return null;
-        String trimmed = name.trim();
+        String trimmed = stripTitle(name.trim().replaceAll("\\s+", " "));
         if (trimmed.length() <= LIMIT) return trimmed;
 
         diagnostics.add(

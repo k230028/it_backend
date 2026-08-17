@@ -24,6 +24,20 @@ class FormLexiconTest {
     }
 
     @Test
+    @DisplayName("대조표 등록 여부로 확인된 대응과 우연한 일치를 가른다")
+    void reportsWhetherIoeNameIsVetted() {
+        // 중분류로만 좁힌 해석에 확인 경고를 붙일지 정하는 기준이다
+        assertThat(FormLexicon.hasIoeAlias("Machinery")).isTrue();
+        // 공백만 지우고 대소문자는 그대로 본다 — `canonicalIoeName`과 같은 정규화라 판정이 어긋나지 않는다
+        assertThat(FormLexicon.hasIoeAlias(" Machinery ")).isTrue();
+        assertThat(FormLexicon.hasIoeAlias("machinery")).isFalse();
+        assertThat(FormLexicon.hasIoeAlias("국외전산유지보수료")).isTrue();
+        // 코드표의 중분류 이름이지만 대조표에 넣은 적은 없다
+        assertThat(FormLexicon.hasIoeAlias("기계장치")).isFalse();
+        assertThat(FormLexicon.hasIoeAlias(null)).isFalse();
+    }
+
+    @Test
     @DisplayName("컬럼 id별 정본을 별칭 목록으로 펼친다")
     void expandsColumnAliases() {
         Map<String, List<String>> aliases =

@@ -353,6 +353,14 @@ public final class RequestFormFixtures {
             put(s, 6, 6, "Dow Jones");
             put(s, 6, 7, "○");
             put(s, 6, 9, "Ⅹ");
+            // 세부비목 칸에 중분류를 그대로 적은 행 (런던 실측). (중분류, 세부) 쌍이 빗나가 중분류로 좁히는 경로를 탄다
+            put(s, 7, 1, "Machinery");
+            put(s, 7, 2, "Tape backup software");
+            put(s, 7, 3, "GBP");
+            putNumber(s, 7, 5, 1200);
+            put(s, 7, 6, "Veeam");
+            put(s, 7, 7, "○");
+            put(s, 7, 9, "Ⅹ");
         } else {
             put(s, 5, 0, "전산 제비");
             put(s, 5, 1, "회선사용료");
