@@ -194,6 +194,19 @@ class MigrationIoeCatalogReaderTest {
         assertThat(readerWithRepo().generalExpenseRate()).isEqualByComparingTo("100");
     }
 
+    @Test
+    @DisplayName("DUP_IOE_MNGC 코드는 있는데 값 상세가 null이면 건너뛰고 100을 기본값으로 돌려준다")
+    void DUP_IOE_MNGC_값이_null이면_100이다() {
+        // 코드가 아예 없는 경우(위 테스트)·숫자가 아닌 경우와 달리, 코드타입은 일치하는데 CDVA_DTL_C 자체가
+        // null인 행이다 — parse 시도 없이 건너뛰어야 한다(건너뛰지 않으면 trim()에서 NPE).
+        when(codeRepository.findByCIdWithValidDate("DUP_IOE", null))
+                .thenReturn(
+                        List.of(
+                                Ccodem.builder().cId("DUP_IOE").cdva("999").cTp("DUP_IOE_MNGC").build()));
+
+        assertThat(readerWithRepo().generalExpenseRate()).isEqualByComparingTo("100");
+    }
+
     private static Ccodem named(String cId, String cdva, String cdvaNm, String cTp) {
         return Ccodem.builder().cId(cId).cdva(cdva).cdvaNm(cdvaNm).cTp(cTp).build();
     }

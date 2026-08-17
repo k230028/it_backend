@@ -151,6 +151,45 @@ class CostSheetAdapterTest {
         assertThat(intent.targetByColumn().get("costAmount")).isEqualByComparingTo("15401000");
     }
 
+    @Test
+    @DisplayName("통화가 비어 있으면 원화(KRW)로 기본값을 채운다")
+    void 통화가_비어있으면_KRW로_기본값을_채운다() {
+        Map<String, String> cells = cells();
+        cells.put("currency", "");
+
+        CostDto.CreateRequest result = adaptSingle(cells);
+
+        assertThat(result.getCurC()).isEqualTo("KRW");
+    }
+
+    @Test
+    @DisplayName("원화금액 셀이 비어 파싱되지 않으면 배분 기준액을 0으로 잡는다")
+    void 원화금액이_비어있으면_배분기준액을_0으로_잡는다() {
+        // 종합본에 금액이 아직 채워지지 않은 행도 예외 없이 처리돼야 하며, 배분 목표액이 음수/NPE가 아니라 0이어야 한다.
+        Map<String, String> cells = cells();
+        cells.put("krwAmount", "");
+
+        MigrationDto.SheetPayload sheet = sheet(cells);
+        AdapterOutput out = adapter.adapt(sheet, context(Map.of()));
+
+        assertThat(out.costs().get(0).getCostTotXpAmt()).isNull();
+        AllocationIntent intent = out.allocations().get(0);
+        assertThat(intent.targetByColumn().get("costAmount")).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("비목명이 공백이고 카탈로그에도 없으면 비목코드를 null로 둔다")
+    void 비목명이_공백이면_비목코드가_null이다() {
+        // 검증기가 이미 REQUIRED_MISSING으로 막았어야 하는 값이지만, 어댑터 자체는 NPE 없이 null을 그대로 돌려줘야
+        // 상위 저장 경로가 조용히 오염되지 않고 명시적으로 실패한다.
+        Map<String, String> cells = cells();
+        cells.put("ioeName", "");
+
+        CostDto.CreateRequest result = adaptSingle(cells);
+
+        assertThat(result.getIoeC()).isNull();
+    }
+
     private MigrationDto.SheetPayload sheetOf(Map<String, String>... rows) {
         List<MigrationDto.NormalizedRow> normalized = new ArrayList<>();
         int excelRow = 2;

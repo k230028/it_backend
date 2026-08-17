@@ -194,4 +194,104 @@ class MigrationAllocationPlannerTest {
                 .extracting(RequestItem::gclMngNo)
                 .containsExactly("GCL-1", "GCL-2");
     }
+
+    @Test
+    @DisplayName("allocate_목표액이_null이면_0원으로_취급해_편성률과_금액이_모두_0이다")
+    void allocate_목표액이_null이면_0원으로_취급한다() {
+        List<RequestItem> items =
+                List.of(new RequestItem("GCL-1", 1, "106", new BigDecimal("1406000000")));
+
+        MigrationAllocationPlanner.Allocation result = planner.allocate(items, null);
+
+        MigrationAllocationPlanner.Allocation.Allocated allocated =
+                (MigrationAllocationPlanner.Allocation.Allocated) result;
+        assertThat(allocated.effectiveRate()).isEqualByComparingTo("0");
+        assertThat(allocated.items().get(0).amount()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("allocate_요청금액이_null인_품목은_0원으로_취급하고_잔차는_금액이_가장_큰_품목이_흡수한다")
+    void allocate_요청금액이_null인_품목은_0원으로_취급한다() {
+        // BITEMM 행 중에는 금액이 아예 입력되지 않은 품목도 있다 — null을 0으로 접어 배분에서 조용히 빠지되
+        // 예외 없이 나머지 품목과 함께 처리돼야 한다.
+        List<RequestItem> items =
+                List.of(
+                        new RequestItem("GCL-1", 1, "103", new BigDecimal("1000000")),
+                        new RequestItem("GCL-2", 2, "104", null),
+                        new RequestItem("GCL-3", 3, "104", new BigDecimal("2000000")));
+
+        MigrationAllocationPlanner.Allocation result =
+                planner.allocate(items, new BigDecimal("1000000"));
+
+        MigrationAllocationPlanner.Allocation.Allocated allocated =
+                (MigrationAllocationPlanner.Allocation.Allocated) result;
+        assertThat(allocated.effectiveRate()).isEqualByComparingTo("33.33333");
+        MigrationAllocationPlanner.ItemAllocation a = allocated.items().get(0);
+        MigrationAllocationPlanner.ItemAllocation nullAmountItem = allocated.items().get(1);
+        MigrationAllocationPlanner.ItemAllocation c = allocated.items().get(2);
+        assertThat(a.amount()).isEqualByComparingTo("333333.300");
+        assertThat(nullAmountItem.amount()).isEqualByComparingTo("0");
+        // 잔차는 요청금액이 가장 큰 GCL-3(2,000,000)이 흡수한다 — null 품목은 금액이 0이라 흡수 대상이 아니다
+        assertThat(c.amount()).isEqualByComparingTo("666666.700");
+        BigDecimal sum = a.amount().add(nullAmountItem.amount()).add(c.amount());
+        assertThat(sum).isEqualByComparingTo("1000000.000");
+    }
+
+    @Test
+    @DisplayName("allocate_품목_금액과_목표액이_모두_0이면_품목별로_0원_배분을_돌려준다")
+    void allocate_품목_금액과_목표액이_모두_0이면_품목별로_0원_배분을_돌려준다() {
+        // 요청 합계가 0인데 목표액도 0이면(예: 아직 금액이 채워지지 않은 신규 품목) 배분 불가(BaseZero)가 아니라
+        // 품목마다 0원 배분을 돌려준다 — BaseZero는 목표액이 있는데 나눌 기준이 없을 때만 쓴다.
+        List<RequestItem> items =
+                List.of(
+                        new RequestItem("GCL-1", 1, "106", null),
+                        new RequestItem("GCL-2", 2, "106", BigDecimal.ZERO));
+
+        MigrationAllocationPlanner.Allocation result = planner.allocate(items, null);
+
+        MigrationAllocationPlanner.Allocation.Allocated allocated =
+                (MigrationAllocationPlanner.Allocation.Allocated) result;
+        assertThat(allocated.items()).hasSize(2);
+        assertThat(allocated.effectiveRate()).isEqualByComparingTo("0");
+        assertThat(allocated.items().get(0).amount()).isEqualByComparingTo("0");
+        assertThat(allocated.items().get(0).gclMngNo()).isEqualTo("GCL-1");
+        assertThat(allocated.items().get(1).amount()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("groupOf_null이거나_알_수_없는_컬럼이면_빈_집합이다")
+    void groupOf_null이거나_알_수_없는_컬럼이면_빈_집합이다() {
+        assertThat(MigrationAllocationPlanner.groupOf(null)).isEmpty();
+        assertThat(MigrationAllocationPlanner.groupOf("알수없는컬럼")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("itemsInGroup_비목코드가_null인_품목은_제외된다")
+    void itemsInGroup_비목코드가_null인_품목은_제외된다() {
+        List<RequestItem> items =
+                List.of(
+                        new RequestItem("GCL-1", 1, "103", new BigDecimal("100")),
+                        new RequestItem("GCL-2", 2, null, new BigDecimal("200")));
+
+        assertThat(
+                        MigrationAllocationPlanner.itemsInGroup(
+                                items, MigrationAllocationPlanner.GROUP_DEV))
+                .extracting(RequestItem::gclMngNo)
+                .containsExactly("GCL-1");
+    }
+
+    @Test
+    @DisplayName("itemsOutsideCapitalGroups_비목코드가_null이면_자본계열이_아닌_것으로_보고_기계장치와_기타무형자산도_자본계열로_제외한다")
+    void itemsOutsideCapitalGroups_null과_기계장치와_기타무형자산을_처리한다() {
+        List<RequestItem> items =
+                List.of(
+                        new RequestItem("GCL-1", 1, null, new BigDecimal("100")), // 비목 미입력 → 자본계열 아님
+                        new RequestItem("GCL-2", 2, "101", new BigDecimal("200")), // 기계장치(HW) → 자본계열
+                        new RequestItem("GCL-3", 3, "105", new BigDecimal("300")) // 기타무형자산(SW) → 자본계열
+                        );
+
+        assertThat(MigrationAllocationPlanner.itemsOutsideCapitalGroups(items))
+                .extracting(RequestItem::gclMngNo)
+                .containsExactly("GCL-1");
+    }
 }
