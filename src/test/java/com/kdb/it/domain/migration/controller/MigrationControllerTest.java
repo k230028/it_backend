@@ -78,7 +78,15 @@ class MigrationControllerTest {
         given(migrationImportService.dryRun(any()))
                 .willReturn(
                         new MigrationDto.DryRunResponse(
-                                List.of(), new MigrationDto.Summary(3, 0, 1)));
+                                List.of(),
+                                new MigrationDto.Summary(3, 0, 1),
+                                List.of(
+                                        new MigrationDto.ColumnCatalog(
+                                                SheetKind.CAPITAL_PROJECT,
+                                                "devAmountIoeC",
+                                                List.of(
+                                                        new MigrationDto.Candidate(
+                                                                "104", "개발비(감리/컨설팅)"))))));
 
         mockMvc.perform(
                         post("/api/admin/migration/imports/dry-run")
@@ -87,7 +95,11 @@ class MigrationControllerTest {
                                 .content(objectMapper.writeValueAsString(dryRunRequest())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.totalRows").value(3))
-                .andExpect(jsonPath("$.summary.blockerCount").value(0));
+                .andExpect(jsonPath("$.summary.blockerCount").value(0))
+                // 미리보기가 진단 없이도 보정 드롭다운을 그릴 수 있도록 카탈로그를 함께 직렬화한다 (MIG-10)
+                .andExpect(jsonPath("$.catalogs[0].sheet").value("CAPITAL_PROJECT"))
+                .andExpect(jsonPath("$.catalogs[0].column").value("devAmountIoeC"))
+                .andExpect(jsonPath("$.catalogs[0].candidates[0].code").value("104"));
     }
 
     @Test

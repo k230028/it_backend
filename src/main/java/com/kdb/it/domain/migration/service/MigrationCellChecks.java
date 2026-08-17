@@ -1,5 +1,6 @@
 package com.kdb.it.domain.migration.service;
 
+import com.kdb.it.domain.migration.dto.MigrationColumns;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import java.math.BigDecimal;
@@ -45,7 +46,7 @@ final class MigrationCellChecks {
             MigrationLookupIndex index,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        for (String column : List.of("devAmountIoeC", "hwAmountIoeC", "swAmountIoeC")) {
+        for (String column : MigrationColumns.CAPITAL_IOE_OVERRIDES) {
             String override =
                     overrides.get(
                             MigrationDiagnostics.overrideKey(sheet.kind(), row.excelRow(), column));

@@ -174,17 +174,43 @@ public final class MigrationDto {
                     int warningCount) {}
 
     /**
+     * 진단과 무관하게 항상 고를 수 있는 보정 선택지입니다.
+     *
+     * <p>보정 드롭다운의 선택지는 원래 <b>그 셀에 걸린 진단의 {@code candidates}</b>에서만 나옵니다. 그래서 "값이 틀리지 않았지만 다른 값으로 바꾸고
+     * 싶은" 보정은 화면에서 도달할 수 없었습니다 — 자본예산 품목 비목이 그 경우로, 기본값(개발비 103·기계장치 101·기타무형 106)이 정상이라 진단이 붙지 않고,
+     * 따라서 감리(104)·국외(102·105)·SW라이선스(107)로 바꿀 수단이 없었습니다(MIG-10).
+     *
+     * @param sheet 시트 종류
+     * @param column 보정 컬럼 id (엑셀 데이터 컬럼이 아니라 보정 전용 컬럼일 수 있습니다)
+     * @param candidates 고를 수 있는 선택지. 빈 목록이면 내려보내지 않습니다
+     */
+    @Schema(name = "MigrationColumnCatalog", description = "컬럼별 보정 선택지 카탈로그")
+    public record ColumnCatalog(
+            @Schema(description = "시트 종류", requiredMode = Schema.RequiredMode.REQUIRED)
+                    SheetKind sheet,
+            @Schema(
+                            description = "보정 컬럼 id",
+                            example = "devAmountIoeC",
+                            requiredMode = Schema.RequiredMode.REQUIRED)
+                    String column,
+            @Schema(description = "보정 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<Candidate> candidates) {}
+
+    /**
      * dry-run 응답입니다.
      *
      * @param diagnostics 진단 목록. 문제가 없으면 빈 목록
      * @param summary 요약
+     * @param catalogs 진단과 무관하게 고를 수 있는 컬럼별 보정 선택지. 해당 시트가 없으면 빈 목록
      */
     @Schema(name = "MigrationDryRunResponse", description = "이관 사전검증 응답")
     public record DryRunResponse(
             @Schema(description = "진단 목록", requiredMode = Schema.RequiredMode.REQUIRED)
                     List<CellDiagnostic> diagnostics,
             @Schema(description = "요약", requiredMode = Schema.RequiredMode.REQUIRED)
-                    Summary summary) {}
+                    Summary summary,
+            @Schema(description = "컬럼별 보정 선택지 카탈로그", requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<ColumnCatalog> catalogs) {}
 
     /**
      * 사용자가 미리보기에서 보정한 셀 하나입니다.

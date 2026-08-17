@@ -418,6 +418,65 @@ class MigrationImportServiceTest {
     }
 
     /**
+     * dry-run이 자본예산 품목 비목의 보정 선택지를 응답에 싣는다 (MIG-10).
+     *
+     * <p>보정 드롭다운은 그 셀에 걸린 진단의 후보만 보여 주므로, 기본 비목이 정상이라 진단이 붙지 않는 셀은 화면에서 바꿀 수단이 없었다. 검증기는 이미 세 컬럼의
+     * 보정값을 받고 있었으니 빠진 것은 <b>선택지를 내려보내는 일</b>뿐이다.
+     */
+    @Test
+    @DisplayName("dry-run이 자본예산 품목 비목 보정 선택지를 자본 계열만 담아 세 컬럼에 싣는다")
+    void dryRun은_자본비목_보정_선택지를_싣는다() {
+        when(yearSnapshot.load(anyString())).thenReturn(TestSnapshots.empty("2026"));
+        when(orgIdentityResolver.snapshot())
+                .thenReturn(OrgIdentityResolver.Index.of(List.of(), List.of()));
+        // 자본 계열(1xx)과 일반관리비 계열(0xx)을 섞어 둔다 — 품목 비목 보정은 자본 계열만 고를 수 있다
+        when(catalogReader.ioeCodeByName())
+                .thenReturn(
+                        new LinkedHashMap<>(
+                                Map.of(
+                                        "국내기타무형자산(일반)", "106",
+                                        "개발비(일반)", "103",
+                                        "개발비(감리/컨설팅)", "104",
+                                        "유지보수료", "011")));
+        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        when(catalogReader.abusUnitNameByCode()).thenReturn(Map.of());
+        when(catalogReader.generalExpenseRate()).thenReturn(BigDecimal.valueOf(100));
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        MigrationImportService service = serviceWith(List.of(new CapitalProjectSheetAdapter()));
+
+        MigrationDto.DryRunResponse response =
+                service.dryRun(new MigrationDto.DryRunRequest(List.of(capitalSheet()), List.of()));
+
+        assertThat(response.catalogs())
+                .extracting(MigrationDto.ColumnCatalog::column)
+                .containsExactly("devAmountIoeC", "hwAmountIoeC", "swAmountIoeC");
+        assertThat(response.catalogs())
+                .allSatisfy(
+                        catalog -> {
+                            assertThat(catalog.sheet()).isEqualTo(SheetKind.CAPITAL_PROJECT);
+                            // 코드 오름차순 — 상시 노출되는 드롭다운이라 재조회마다 순서가 흔들리면 눈에 띈다
+                            assertThat(catalog.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("103", "104", "106");
+                        });
+    }
+
+    @Test
+    @DisplayName("자본예산 시트가 없으면 보정 선택지 카탈로그를 내려보내지 않는다")
+    void dryRun은_자본시트가_없으면_카탈로그를_비운다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        MigrationDto.DryRunResponse response =
+                service.dryRun(
+                        new MigrationDto.DryRunRequest(
+                                commitRequest().sheets(), commitRequest().overrides()));
+
+        // 쓸 수 없는 보정 컬럼을 미리보기에 그리지 않도록 존재 여부를 응답으로 알린다
+        assertThat(response.catalogs()).isEmpty();
+    }
+
+    /**
      * §7의 원장 반영 순서(일반관리비 → 자본예산 → 위임예산 → 부문계획)를 어댑터 호출 순서로 고정한다.
      *
      * <p>이 순서는 한 사업이 자본예산 시트와 부문계획 시트 양쪽에 나올 때 **하반기 조정이 종합본 편성률을 덮게** 하는 근거이기도 하다.

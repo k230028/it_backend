@@ -24,6 +24,7 @@ class MigrationOpenApiContractTest {
         assertAllPropertiesRequired(MigrationDto.DryRunResponse.class);
         assertAllPropertiesRequired(MigrationDto.Summary.class);
         assertAllPropertiesRequired(MigrationDto.Candidate.class);
+        assertAllPropertiesRequired(MigrationDto.ColumnCatalog.class);
         assertAllPropertiesRequired(MigrationDto.CellDiagnostic.class, "column");
 
         assertEnum(
