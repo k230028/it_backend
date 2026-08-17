@@ -12,7 +12,9 @@ build/
 .factorypath
 .project
 .settings/*
-!.settings/org.eclipse.buildship.core.prefs
+# buildship.core.prefs는 개발자 로컬 환경(JDK 설치 경로, 확장 버전별 init.gradle 경로)이
+# 그대로 기록되는 생성물이라 추적하지 않습니다. Gradle JVM은 VS Code 설정
+# java.import.gradle.java.home으로 각자 지정합니다.
 !.settings/org.eclipse.jdt.core.prefs
 .springBeans
 .sts4-cache
