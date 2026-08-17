@@ -190,6 +190,42 @@ class DelegatedBudgetSheetAdapterTest {
                         });
     }
 
+    /**
+     * MIG-04 잔여 경로: 엑셀 표기와 조직 정식명이 다르면 보정 행이 조용히 다른 그룹으로 갈렸다.
+     *
+     * <p>{@code resolveOrg}의 3단계(부분 일치)는 엑셀 `런던`을 조직 `런던지점`(0910)으로 확정한다. 그래서 보정을 걸지 않은 행의 그룹키는 엑셀
+     * 원문 `런던`, 보정을 건 행은 {@code orgNameOf("0910")}이 돌려주는 정식명 `런던지점`이 되어 <b>같은 부점이 두 사업으로 쪼개졌다</b>. 두
+     * 그룹 모두 {@code svnDpmC}가 0910으로 해석되므로 검증도 통과해 조용히 지나간다 — 정식명과 엑셀 표기가 같았던 기존 테스트로는 드러나지 않는 경로다.
+     *
+     * <p>그룹은 표기가 아니라 <b>해석된 조직코드</b>로 묶어야 한다.
+     */
+    @Test
+    @DisplayName("엑셀 표기와 조직 정식명이 달라도 보정 행을 같은 부점 그룹에 붙인다")
+    void 표기가_달라도_해석된_조직코드로_묶는다() {
+        Map<String, String> overrides =
+                Map.of(
+                        com.kdb.it.domain.migration.service.MigrationValidator.overrideKey(
+                                SheetKind.DELEGATED_BUDGET, 3, "branchName"),
+                        "0910");
+
+        AdapterOutput out =
+                adapter.adapt(
+                        sheet(
+                                List.of(
+                                        row(2, hwCells("런던", "데스크탑", "1", "1000", "1924000")),
+                                        row(3, swCells("", "MS오피스", "1", "1000", "1924000")))),
+                        contextWith(overrides, List.of(org("0910", "런던지점"))));
+
+        assertThat(out.projects())
+                .singleElement()
+                .satisfies(
+                        project -> {
+                            assertThat(project.getSvnDpmC()).isEqualTo("0910");
+                            assertThat(project.getItems()).hasSize(2);
+                        });
+        assertThat(out.allocations()).singleElement();
+    }
+
     private static MigrationDto.NormalizedRow row(int excelRow, Map<String, String> cells) {
         return new MigrationDto.NormalizedRow(excelRow, cells);
     }
@@ -203,11 +239,15 @@ class DelegatedBudgetSheetAdapterTest {
     }
 
     private static AdapterContext contextWith(Map<String, String> overrides) {
+        return contextWith(overrides, List.of(org("0910", "런던"), org("0911", "런던 PF")));
+    }
+
+    /** 조직 카탈로그를 바꿔야 하는 테스트용. 엑셀 표기와 정식명이 다른 상황을 만든다. */
+    private static AdapterContext contextWith(Map<String, String> overrides, List<CorgnI> orgs) {
         return new AdapterContext(
                 "2026",
                 new MigrationLookupIndex(
-                        OrgIdentityResolver.Index.of(
-                                List.of(org("0910", "런던"), org("0911", "런던 PF")), List.of()),
+                        OrgIdentityResolver.Index.of(orgs, List.of()),
                         Map.of(),
                         Map.of("GBP", new BigDecimal("1924"))),
                 TestSnapshots.empty("2026"),

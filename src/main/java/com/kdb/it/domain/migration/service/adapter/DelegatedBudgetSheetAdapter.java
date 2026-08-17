@@ -35,16 +35,20 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
 
     @Override
     public AdapterOutput adapt(MigrationDto.SheetPayload sheet, AdapterContext ctx) {
-        // 부점명 등장 순서를 유지해야 사업 생성 순서가 엑셀과 같아진다
+        // 부점 등장 순서를 유지해야 사업 생성 순서가 엑셀과 같아진다
         Map<String, List<ProjectDto.BitemmDto>> itemsByBranch = new LinkedHashMap<>();
         Map<String, Integer> firstExcelRowByBranch = new LinkedHashMap<>();
         Map<String, BigDecimal> krwTotalByBranch = new LinkedHashMap<>();
+        Map<String, String> labelByBranch = new LinkedHashMap<>();
+        Map<String, String> deptCodeByBranch = new LinkedHashMap<>();
         String currentBranch = null;
 
         for (MigrationDto.NormalizedRow row : sheet.rows()) {
-            String branch = branchLabel(AdapterSupport.cellOf(sheet, row, "branchName", ctx), ctx);
-            if (!branch.isBlank()) {
-                currentBranch = branch;
+            String raw = AdapterSupport.cellOf(sheet, row, "branchName", ctx);
+            if (!raw.isBlank()) {
+                currentBranch = groupKey(raw, ctx);
+                labelByBranch.putIfAbsent(currentBranch, branchLabel(raw, ctx));
+                deptCodeByBranch.putIfAbsent(currentBranch, resolveOrg(raw, ctx));
             }
             if (currentBranch == null) {
                 // 첫 행부터 부점명이 비면 귀속시킬 사업이 없다 — 검증이 이미 막았어야 한다
@@ -64,13 +68,14 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
         List<AllocationIntent> allocations = new ArrayList<>();
         itemsByBranch.forEach(
                 (branch, items) -> {
-                    String projectName = ctx.bseYy() + "년 " + branch + " 위임예산(경상)";
+                    String label = labelByBranch.getOrDefault(branch, branch);
+                    String projectName = ctx.bseYy() + "년 " + label + " 위임예산(경상)";
                     ProjectDto.CreateRequest request = new ProjectDto.CreateRequest();
                     request.setBseYy(ctx.bseYy());
                     request.setAbusNm(projectName);
                     request.setOdnYn("Y");
                     request.setAbusTc("20");
-                    String branchDeptCode = resolveOrg(branch, ctx);
+                    String branchDeptCode = deptCodeByBranch.get(branch);
                     request.setSvnDpmC(branchDeptCode);
                     request.setUsid(ctx.actorEno());
                     request.setDvmUsid(ctx.actorEno());
@@ -150,11 +155,30 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
     }
 
     /**
-     * 부점명 셀을 사람이 읽는 부점명으로 정규화합니다.
+     * 부점 그룹키를 정합니다 (MIG-04).
+     *
+     * <p><b>표기가 아니라 해석된 조직코드로 묶습니다.</b> 표기로 묶으면 같은 부점이 두 사업으로 쪼개집니다 — 보정을 건 행은 {@code cellOf}가
+     * 조직코드를 돌려주고 {@link #branchLabel}이 그것을 조직 <b>정식명</b>으로 바꾸는데, 보정을 걸지 않은 형제 행은 엑셀 원문 표기를 그대로 씁니다.
+     * {@code OrgIdentityResolver.resolveOrg}의 부분 일치 단계가 엑셀 `런던`을 정식명 `런던지점`으로 확정하는 경우처럼 둘이 다르면 그룹이
+     * 갈립니다. 두 그룹 모두 주관부서가 같은 코드로 해석되므로 검증도 통과해 조용히 지나갑니다.
+     *
+     * @param raw 부점명 셀 값 또는 보정값 (공백이 아님)
+     * @param ctx 어댑터 컨텍스트
+     * @return 조직코드. 해석되지 않으면 표기 그대로(검증이 BLOCKER로 막을 상태)
+     */
+    private String groupKey(String raw, AdapterContext ctx) {
+        String code = resolveOrg(raw, ctx);
+        return code != null ? code : raw;
+    }
+
+    /**
+     * 사업명에 쓸 부점 표시명을 정합니다.
      *
      * <p>부점명 셀에 보정이 걸리면 {@code cellOf}가 조직**코드**를 돌려줍니다. 그 값을 그대로 쓰면 사업명이 `2026년 0910 위임예산(경상)`이
-     * 되고, 같은 부점의 다른 행(원본 이름)과 그룹이 갈려 한 부점이 두 사업으로 쪼개집니다. {@code ABUS_NM}은 중복 판정과 부문계획 매칭의 자연키이므로
-     * 반드시 사람이 읽는 부점명이어야 합니다.
+     * 되므로 조직명으로 되돌립니다. {@code ABUS_NM}은 사람이 읽는 이름이어야 합니다.
+     *
+     * <p>표시명은 그룹 <b>안에서 먼저 등장한 행</b>의 것만 씁니다({@code labelByBranch.putIfAbsent}) — 그룹핑 자체는 {@link
+     * #groupKey}가 조직코드로 하므로 표시명이 행마다 달라도 사업은 하나입니다.
      *
      * @param raw 셀 값 또는 보정값
      * @param ctx 어댑터 컨텍스트
