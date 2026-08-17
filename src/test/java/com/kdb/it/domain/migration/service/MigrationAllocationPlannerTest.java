@@ -285,9 +285,12 @@ class MigrationAllocationPlannerTest {
     void itemsOutsideCapitalGroups_null과_기계장치와_기타무형자산을_처리한다() {
         List<RequestItem> items =
                 List.of(
-                        new RequestItem("GCL-1", 1, null, new BigDecimal("100")), // 비목 미입력 → 자본계열 아님
-                        new RequestItem("GCL-2", 2, "101", new BigDecimal("200")), // 기계장치(HW) → 자본계열
-                        new RequestItem("GCL-3", 3, "105", new BigDecimal("300")) // 기타무형자산(SW) → 자본계열
+                        new RequestItem(
+                                "GCL-1", 1, null, new BigDecimal("100")), // 비목 미입력 → 자본계열 아님
+                        new RequestItem(
+                                "GCL-2", 2, "101", new BigDecimal("200")), // 기계장치(HW) → 자본계열
+                        new RequestItem(
+                                "GCL-3", 3, "105", new BigDecimal("300")) // 기타무형자산(SW) → 자본계열
                         );
 
         assertThat(MigrationAllocationPlanner.itemsOutsideCapitalGroups(items))

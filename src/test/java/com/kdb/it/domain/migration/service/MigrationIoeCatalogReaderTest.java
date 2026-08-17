@@ -202,7 +202,11 @@ class MigrationIoeCatalogReaderTest {
         when(codeRepository.findByCIdWithValidDate("DUP_IOE", null))
                 .thenReturn(
                         List.of(
-                                Ccodem.builder().cId("DUP_IOE").cdva("999").cTp("DUP_IOE_MNGC").build()));
+                                Ccodem.builder()
+                                        .cId("DUP_IOE")
+                                        .cdva("999")
+                                        .cTp("DUP_IOE_MNGC")
+                                        .build()));
 
         assertThat(readerWithRepo().generalExpenseRate()).isEqualByComparingTo("100");
     }

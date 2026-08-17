@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
@@ -883,6 +884,11 @@ class MigrationImportServiceTest {
      * <p>정상 경로에서는 {@code MigrationValidator}가 이 값을 모든 전산업무비 행에서 검사해 미리보기에서 막지만, 코드 카탈로그가 비면(코드그룹
      * 미적재) 판정 근거가 없어 그대로 통과한다. 이 테스트는 검증기를 목으로 비워 그 구멍을 재현하고, 쓰기 직전 방어가 원장을 오염시키지 않는지 확인한다 — {@code
      * BG_UNT_ABUS_C}는 3자라 원문이 그대로 흘러가면 flush에서 {@code ORA-12899}가 나거나 길이가 맞는 오타가 조용히 저장된다.
+     *
+     * <p><b>이 테스트가 덮지 않는 것</b>: 검증기 자체를 목으로 비웠으므로 "카탈로그가 비면 검증기가 실제로 통과시킨다"는 조건은 증명하지 않는다 — 검증기가 어떤
+     * 이유로든 통과했다고 가정할 뿐이다. 그 실제 조건(카탈로그 자체가 빈 상태에서 REAL {@code MigrationValidator}가 통과시키는 것)은 {@link
+     * #사업코드_카탈로그가_비면_검증을_통과하되_채우지도_않는다}가 덮는다. 실 Oracle에서 "카탈로그가 채워진 환경에서는 검증기가 더 앞에서 막는다"는 반대 사실은
+     * {@code MigrationImportIt.미등록_사업코드는_검증에서_차단되어_채워지지_않는다}(통합 테스트)가 고정한다.
      */
     @Test
     @DisplayName("코드표에 없는 사업코드는 전산업무비에 채우지 않는다")
@@ -956,6 +962,48 @@ class MigrationImportServiceTest {
         verify(costRepository, never()).findByCostBgNoAndDelYn("COST-2026-0055", "N");
     }
 
+    /**
+     * {@code fillCostBudgetUnitCodes} 자신의 카탈로그 방어가 실제로 실행되는 유일한 조건을 재현합니다.
+     *
+     * <p>{@link #미등록_사업코드는_채우지_않는다}는 검증기를 통째로 목으로 비워 "검증기가 통과시켰다"만 가정하지만, 실제로는 사업코드 카탈로그가 채워져 있으면
+     * {@code MigrationValidator.validateCostRowAlways}가 매칭 행에도 사업코드를 항상 검사해 미등록 값을 {@code
+     * CODE_UNRESOLVED} BLOCKER로 막는다({@code MigrationValidatorTest.매칭행의_미등록_사업코드도_블로커다}가 그 사실을
+     * 고정한다). 그 검사를 실제로 우회하는 유일한 조건은 {@code MigrationCellChecks.resolveCodeCell}의 {@code
+     * codeCatalog.isEmpty()} 조기 반환 — 사업코드 공통코드 그룹 자체가 로드되지 않은 예외 상황뿐이다.
+     *
+     * <p>그래서 이 테스트는 목이 아닌 REAL {@link MigrationValidator} 인스턴스로 서비스를 조립해 그 조건을 그대로 재현한다. 카탈로그가 정말
+     * 비어 있어야만 하므로 부서·비목은 실제로 해석되게(조직 인덱스에 IT기획부를 심어) 두고 사업코드 카탈로그만 빈 맵으로 만든다 — 그래야 abusCode 검사만
+     * 우회되고 다른 이유로 BLOCKER가 나 커밋 자체가 막히는 일이 없다. 검증기를 통과한 뒤 {@code fillCostBudgetUnitCodes} 자신의
+     * {@code containsKey} 검사가 실제로 실행돼 {@code BG_UNT_ABUS_C}를 채우지 않는지 확인한다 — 이 컬럼은 {@code
+     * VARCHAR2(3)}이라 이 방어가 없으면 등록되지 않은 원문이 그대로 저장을 시도해 {@code ORA-12899}로 이어질 수 있다. 실 Oracle에서
+     * "카탈로그가 채워진 환경에서는 검증기가 더 앞에서 막는다"는 반대 사실은 {@code
+     * MigrationImportIt.미등록_사업코드는_검증에서_차단되어_채워지지_않는다}(통합 테스트)가 고정한다.
+     */
+    @Test
+    @DisplayName("사업코드 카탈로그가 비어 있으면 검증기를 통과하되 fillCostBudgetUnitCodes도 채우지 않는다")
+    void 사업코드_카탈로그가_비면_검증을_통과하되_채우지도_않는다() {
+        when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatchingWithDept("180"));
+        when(orgIdentityResolver.snapshot())
+                .thenReturn(OrgIdentityResolver.Index.of(List.of(org("180", "IT기획부")), List.of()));
+        when(catalogReader.ioeCodeByName()).thenReturn(Map.of("유지보수료", "011"));
+        when(catalogReader.xcrByCurrency()).thenReturn(Map.of());
+        // 사업코드 공통코드 그룹 자체가 로드되지 않은 예외 상황 재현 — resolveCodeCell을 실제로 조기 반환시키는 유일한 조건
+        when(catalogReader.abusUnitNameByCode()).thenReturn(Map.of());
+        when(catalogReader.generalExpenseRate()).thenReturn(BigDecimal.valueOf(100));
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+        Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
+        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+                .thenReturn(List.of(matched));
+
+        MigrationImportService service =
+                serviceWith(List.of(new CostSheetAdapter()), new MigrationValidator());
+
+        service.commit(commitRequestWithoutDecision(), "999999");
+
+        assertThat(matched.getBgUntAbusC()).isNull();
+    }
+
     // ------------------------------------------------------------------
     // 픽스처
     // ------------------------------------------------------------------
@@ -999,9 +1047,19 @@ class MigrationImportServiceTest {
     }
 
     private MigrationImportService serviceWith(List<SheetAdapter> adapters) {
+        return serviceWith(adapters, validator);
+    }
+
+    /**
+     * 검증기를 지정해 서비스를 조립합니다. 대부분의 테스트는 목 {@link #validator}를 그대로 쓰지만, {@link
+     * #사업코드_카탈로그가_비면_검증을_통과하되_채우지도_않는다}처럼 REAL {@link MigrationValidator} 인스턴스가 필요한 테스트는 이 오버로드로 바꿔
+     * 낀다.
+     */
+    private MigrationImportService serviceWith(
+            List<SheetAdapter> adapters, MigrationValidator validatorToUse) {
         return new MigrationImportService(
                 adapters,
-                validator,
+                validatorToUse,
                 new MigrationMatchDiagnostics(new MigrationLedgerMatcher()),
                 new MigrationAllocationPlanner(),
                 yearSnapshot,
@@ -1097,6 +1155,47 @@ class MigrationImportServiceTest {
                 Map.of(),
                 List.of(),
                 List.of("COST-2026-0055"));
+    }
+
+    /**
+     * {@link #costSnapshotMatching}과 같은 원장이지만 부서 기준 자연키의 부서코드를 지정합니다. 조직 인덱스에 실제 부서를 심어 REAL {@link
+     * MigrationValidator}로 부서명을 해석시키는 테스트가 씁니다 — 그 경로에서는 미해석 부서코드(null)로는 매칭 키가 맞지 않습니다.
+     */
+    private MigrationYearSnapshot.Data costSnapshotMatchingWithDept(String deptCode) {
+        String key = MigrationYearSnapshot.costDeptKey("2026", deptCode, "011", "커브", "올인원워크스페이스");
+        Map<String, MigrationYearSnapshot.CostRef> costByNo = new LinkedHashMap<>();
+        costByNo.put(
+                "COST-2026-0055",
+                new MigrationYearSnapshot.CostRef(
+                        "COST-2026-0055",
+                        1,
+                        "011",
+                        new BigDecimal("15401000"),
+                        "올인원워크스페이스",
+                        "올인원워크스페이스 / 커브"));
+        Map<String, String> byKey = new LinkedHashMap<>();
+        byKey.put(key, "COST-2026-0055");
+        Map<String, String> bgUntAbusC = new LinkedHashMap<>();
+        bgUntAbusC.put("COST-2026-0055", null);
+        return new MigrationYearSnapshot.Data(
+                "2026",
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                costByNo,
+                byKey,
+                Map.of(),
+                bgUntAbusC,
+                Set.of(),
+                Map.of(),
+                Map.of(),
+                List.of(),
+                List.of("COST-2026-0055"));
+    }
+
+    private static CorgnI org(String code, String name) {
+        return CorgnI.builder().prlmOgzCCone(code).bbrNm(name).build();
     }
 
     /** 사업·전산업무비 목록만 갈아 끼운 연도 스냅샷. */
