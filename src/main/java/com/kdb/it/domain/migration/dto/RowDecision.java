@@ -68,21 +68,26 @@ public record RowDecision(Kind kind, String pk) {
     /**
      * 원장 후보를 결정 드롭다운 선택지로 바꿉니다.
      *
-     * <p>후보를 비워 두면 화면에 드롭다운이 그려지지 않아 손댈 방법이 없으므로, 원장 후보가 없어도 {@code CREATE_NEW}·{@code SKIP} 두 항목은
-     * 항상 붙입니다.
+     * <p>후보를 비워 두면 화면에 드롭다운이 그려지지 않아 손댈 방법이 없으므로, 원장 후보가 없어도 {@code SKIP}은 항상 붙입니다.
+     *
+     * <p>{@code CREATE_NEW}는 그 시트가 실제로 원장을 만들 수 있을 때만 붙입니다({@link SheetKind#canCreateLedger}). 만들 수
+     * 없는 시트에 이 선택지를 내면 관리자가 골라도 아무 일이 일어나지 않은 채 그 행의 조정이 사라집니다.
      *
      * @param ledgerCandidates 매처가 낸 원장 후보 (code=PK, label=이름)
+     * @param sheet 이 결정이 붙을 시트 종류
      * @return 결정 선택지
      */
     public static List<MigrationDto.Candidate> decisionCandidates(
-            List<MigrationDto.Candidate> ledgerCandidates) {
+            List<MigrationDto.Candidate> ledgerCandidates, SheetKind sheet) {
         List<MigrationDto.Candidate> out = new ArrayList<>();
         for (MigrationDto.Candidate candidate : ledgerCandidates) {
             out.add(
                     new MigrationDto.Candidate(
                             matchValue(candidate.code()), "기존 사업에 편성: " + candidate.label()));
         }
-        out.add(new MigrationDto.Candidate(Kind.CREATE_NEW.name(), "원장을 새로 만들고 편성"));
+        if (sheet.canCreateLedger()) {
+            out.add(new MigrationDto.Candidate(Kind.CREATE_NEW.name(), "원장을 새로 만들고 편성"));
+        }
         out.add(new MigrationDto.Candidate(Kind.SKIP.name(), "이 행은 편성하지 않음"));
         return out;
     }

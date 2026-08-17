@@ -10,15 +10,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
  * 매칭·배분 계열 진단을 만듭니다.
  *
- * <p>{@link MigrationValidator}에 넣지 않은 이유는 그쪽이 이미 700줄을 넘고 시트 종류별 분기가 크기 때문입니다. 검증 규칙(값이 올바른가)과 매칭
- * 판정(어느 원장을 가리키는가)은 판단의 종류가 다릅니다.
+ * <p>{@link MigrationValidator}에 넣지 않은 이유는 검증 규칙(값이 올바른가)과 매칭 판정(어느 원장을 가리키는가)이 판단의 종류가 다르기 때문입니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -53,7 +51,8 @@ public class MigrationMatchDiagnostics {
      * 배분 의도를 기존 원장에 붙입니다.
      *
      * <p>관리자가 이미 결정한 행은 그 결정을 그대로 따르고, 그렇지 않으면 매처에게 묻습니다. 매칭에 실패하면 결정을 요구하는 BLOCKER를 내며, 후보에는 항상
-     * {@code CREATE_NEW}·{@code SKIP}이 붙습니다 — 후보가 비면 화면에 드롭다운이 그려지지 않아 손댈 방법이 없습니다.
+     * {@code SKIP}이(원장을 만들 수 있는 시트라면 {@code CREATE_NEW}도) 붙습니다 — 후보가 비면 화면에 드롭다운이 그려지지 않아 손댈 방법이
+     * 없습니다.
      *
      * @param sheet 시트 페이로드 (진단 좌표)
      * @param intent 배분 의도
@@ -96,7 +95,7 @@ public class MigrationMatchDiagnostics {
                                 RowDecision.COLUMN,
                                 code,
                                 message,
-                                RowDecision.decisionCandidates(match.candidates()))));
+                                RowDecision.decisionCandidates(match.candidates(), sheet.kind()))));
     }
 
     /**
@@ -134,7 +133,9 @@ public class MigrationMatchDiagnostics {
         for (Map.Entry<String, BigDecimal> entry : intent.targetByColumn().entrySet()) {
             List<MigrationYearSnapshot.RequestItem> items = itemsFor(entry.getKey(), all);
             for (MigrationYearSnapshot.RequestItem item : items) {
-                ledgerBase = ledgerBase.add(item.amount());
+                // RequestItem의 amount는 null이면 0원이라는 계약이다 (배분기도 같은 규칙으로 합산한다)
+                ledgerBase =
+                        ledgerBase.add(item.amount() == null ? BigDecimal.ZERO : item.amount());
             }
             if (planner.allocate(items, entry.getValue())
                     instanceof MigrationAllocationPlanner.Allocation.BaseZero) {
@@ -143,6 +144,27 @@ public class MigrationMatchDiagnostics {
         }
         addAmountAdjusted(out, sheet, row, intent.declaredBase(), ledgerBase);
         return out;
+    }
+
+    /**
+     * 원장을 만들 수 없는 시트에 {@code CREATE_NEW} 결정이 온 행의 진단을 만듭니다.
+     *
+     * <p>그 행은 편성 대상에서 빠지므로 조정이 통째로 사라집니다. 반영 자체를 막지는 않습니다 — 나머지 행은 정상이고, 관리자가 결정을 지우면 그대로 매칭 경로로
+     * 돌아갑니다.
+     *
+     * @param sheet 시트 페이로드
+     * @param excelRow 엑셀 행 번호
+     * @return WARNING 진단
+     */
+    public MigrationDto.CellDiagnostic createNotSupported(
+            MigrationDto.SheetPayload sheet, int excelRow) {
+        return MigrationDiagnostics.warning(
+                sheet,
+                rowAt(sheet, excelRow),
+                RowDecision.COLUMN,
+                "CREATE_NOT_SUPPORTED",
+                "이 시트는 원장을 새로 만들 수 없어 '새로 만들고 편성' 결정이 반영되지 않습니다. 이 행의 조정은 빠집니다 — 결정을 지우거나 대상 원장을 골라"
+                        + " 주세요.");
     }
 
     /**
@@ -222,10 +244,7 @@ public class MigrationMatchDiagnostics {
 
     private List<MigrationYearSnapshot.RequestItem> itemsFor(
             String column, List<MigrationYearSnapshot.RequestItem> all) {
-        Set<String> group = MigrationAllocationPlanner.groupOf(column);
-        return group.isEmpty()
-                ? MigrationAllocationPlanner.itemsOutsideCapitalGroups(all)
-                : MigrationAllocationPlanner.itemsInGroup(all, group);
+        return MigrationAllocationPlanner.itemsForColumn(column, all);
     }
 
     private MigrationDto.CellDiagnostic baseZero(

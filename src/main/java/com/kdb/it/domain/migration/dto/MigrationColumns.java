@@ -32,7 +32,12 @@ public final class MigrationColumns {
                     "krwAmount",
                     "remark");
 
-    /** 자본예산 '1-1. 26년정보화사업(전산예산반영)'. 편성요청 3열과 조정비율·조정 3열까지 받습니다. */
+    /**
+     * 자본예산 '1-1. 26년정보화사업(전산예산반영)'. 편성요청 3열·일반관리비와 조정비율·조정 3열까지 받습니다.
+     *
+     * <p>`일반관리비`는 편성요청 3열 다음, `총 사업예산` 앞에 있는 실제 엑셀 열입니다. 자본 세 그룹 어디에도 들지 않는 품목의 기준액이라 받지 않으면 그 품목들이
+     * 조정비율을 못 받습니다 (설계 §3.4).
+     */
     private static final List<String> CAPITAL_PROJECT =
             List.of(
                     "projectName",
@@ -51,6 +56,7 @@ public final class MigrationColumns {
                     "devAmount",
                     "hwAmount",
                     "swAmount",
+                    "generalAmount",
                     "adjustRate",
                     "devAdjustAmount",
                     "hwAdjustAmount",

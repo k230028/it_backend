@@ -39,12 +39,41 @@ class RowDecisionTest {
     void decisionCandidates_원장후보_뒤에_생성과_제외가_붙는다() {
         List<MigrationDto.Candidate> candidates =
                 RowDecision.decisionCandidates(
-                        List.of(new MigrationDto.Candidate("PRJ-2026-0001", "웹한글 기안기 도입")));
+                        List.of(new MigrationDto.Candidate("PRJ-2026-0001", "웹한글 기안기 도입")),
+                        SheetKind.CAPITAL_PROJECT);
 
         assertThat(candidates)
                 .extracting(MigrationDto.Candidate::code)
                 .containsExactly("MATCH:PRJ-2026-0001", "CREATE_NEW", "SKIP");
         assertThat(candidates.get(0).label()).isEqualTo("기존 사업에 편성: 웹한글 기안기 도입");
+    }
+
+    /**
+     * 부문계획 조정 시트는 원장을 만들지 않으므로 {@code CREATE_NEW}를 후보로 내지 않습니다.
+     *
+     * <p>{@code PlanAdjustmentSheetAdapter}는 {@code projects}·{@code costs}를 아예 만들지 않아, 이 결정을 받아도
+     * {@code MigrationImportService.hasCreateRequest}가 false를 돌려주고 그 행의 조정이 통째로 사라집니다.
+     */
+    @Test
+    @DisplayName("decisionCandidates_원장을_만들_수_없는_시트에는_생성_선택지가_없다")
+    void decisionCandidates_원장을_만들_수_없는_시트에는_생성_선택지가_없다() {
+        List<MigrationDto.Candidate> candidates =
+                RowDecision.decisionCandidates(
+                        List.of(new MigrationDto.Candidate("PRJ-2026-0001", "웹한글 기안기 도입")),
+                        SheetKind.PLAN_ADJUSTMENT);
+
+        assertThat(candidates)
+                .extracting(MigrationDto.Candidate::code)
+                .containsExactly("MATCH:PRJ-2026-0001", "SKIP");
+    }
+
+    @Test
+    @DisplayName("canCreateLedger는_부문계획만_false다")
+    void canCreateLedger는_부문계획만_false다() {
+        assertThat(SheetKind.PLAN_ADJUSTMENT.canCreateLedger()).isFalse();
+        assertThat(SheetKind.COST.canCreateLedger()).isTrue();
+        assertThat(SheetKind.CAPITAL_PROJECT.canCreateLedger()).isTrue();
+        assertThat(SheetKind.DELEGATED_BUDGET.canCreateLedger()).isTrue();
     }
 
     @Test

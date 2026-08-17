@@ -165,6 +165,50 @@ class MigrationAllocationPlannerTest {
         assertThat(MigrationAllocationPlanner.groupOf("generalAmount")).isEmpty();
     }
 
+    /**
+     * 컬럼 → 배분 대상 매핑을 한 곳에 모은 계약을 고정합니다.
+     *
+     * <p>{@code costAmount}(위임예산)가 핵심입니다 — 비목그룹이 없다는 이유로 "자본 계열 밖 품목"으로 떨어지면, 품목이 전부 자본 계열인 위임예산
+     * 경상사업의 배분 대상이 빈 목록이 되어 매칭에 성공한 전 행이 {@code ITEM_BASE_ZERO}로 막힙니다.
+     */
+    @Test
+    @DisplayName("itemsForColumn_컬럼마다_배분_대상이_다르다")
+    void itemsForColumn_컬럼마다_배분_대상이_다르다() {
+        List<RequestItem> items =
+                List.of(
+                        new RequestItem("GCL-DEV", 1, "103", new BigDecimal("100")),
+                        new RequestItem("GCL-HW", 2, "102", new BigDecimal("200")),
+                        new RequestItem("GCL-SW", 3, "105", new BigDecimal("300")),
+                        new RequestItem("GCL-GEN", 4, "001", new BigDecimal("400")));
+
+        assertThat(MigrationAllocationPlanner.itemsForColumn("devAmount", items))
+                .extracting(RequestItem::gclMngNo)
+                .containsExactly("GCL-DEV");
+        assertThat(MigrationAllocationPlanner.itemsForColumn("hwAmount", items))
+                .extracting(RequestItem::gclMngNo)
+                .containsExactly("GCL-HW");
+        assertThat(MigrationAllocationPlanner.itemsForColumn("swAmount", items))
+                .extracting(RequestItem::gclMngNo)
+                .containsExactly("GCL-SW");
+        assertThat(MigrationAllocationPlanner.itemsForColumn("generalAmount", items))
+                .extracting(RequestItem::gclMngNo)
+                .containsExactly("GCL-GEN");
+        assertThat(MigrationAllocationPlanner.itemsForColumn("costAmount", items))
+                .as("위임예산은 부점 편성액 하나를 그 사업의 모든 품목에 배분한다")
+                .extracting(RequestItem::gclMngNo)
+                .containsExactly("GCL-DEV", "GCL-HW", "GCL-SW", "GCL-GEN");
+    }
+
+    @Test
+    @DisplayName("itemsForColumn_알_수_없는_컬럼은_빈_목록이라_BaseZero로_드러난다")
+    void itemsForColumn_알_수_없는_컬럼은_빈_목록이다() {
+        List<RequestItem> items =
+                List.of(new RequestItem("GCL-1", 1, "103", new BigDecimal("100")));
+
+        assertThat(MigrationAllocationPlanner.itemsForColumn("알수없는컬럼", items)).isEmpty();
+        assertThat(MigrationAllocationPlanner.itemsForColumn(null, items)).isEmpty();
+    }
+
     @Test
     @DisplayName("itemsOutsideCapitalGroups_자본계열이_아닌_품목만_남는다")
     void itemsOutsideCapitalGroups_자본계열이_아닌_품목만_남는다() {

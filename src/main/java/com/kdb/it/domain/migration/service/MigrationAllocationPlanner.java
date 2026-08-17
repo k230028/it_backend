@@ -18,6 +18,11 @@ import org.springframework.stereotype.Component;
  *
  * <p>그룹 합계는 목표액과 정확히 일치시키고 반올림 잔차는 요청금액이 가장 큰 품목이 흡수합니다. 그 품목 하나만 개별 곱과 0.001원 어긋나지만, 예산 집계는 그룹 합계로
  * 이뤄지므로 합계 정확성을 택합니다.
+ *
+ * <p><b>이 보장은 {@link #allocate} 반환값 한정입니다.</b> 파이프라인 전체에서는 {@code MigrationImportService.ratesOf}가
+ * 금액이 아니라 실효 편성률만 다음 단계로 넘기고 {@code BudgetRateApplicationService.applyItemRates}가 `요청금액 × 편성률`로
+ * 편성금액을 다시 계산하므로, 편성률의 스케일 5 반올림이 금액으로 되곱해지며 그룹 합계에 오차가 남습니다({@code
+ * MigrationImportIt.GROUP_AMOUNT_TOLERANCE}가 그 크기를 실측해 두었습니다).
  */
 @Component
 public class MigrationAllocationPlanner {
@@ -153,7 +158,39 @@ public class MigrationAllocationPlanner {
     }
 
     /**
+     * 종합본 금액 컬럼 하나가 배분 대상으로 삼는 요청 품목을 골라냅니다.
+     *
+     * <p><b>컬럼 → 품목 매핑은 이 메서드 하나만 압니다.</b> 종전에는 호출부 두 곳({@code
+     * MigrationMatchDiagnostics.itemsFor}·{@code MigrationImportService.ratesOf})이 각각 "{@link
+     * #groupOf}가 빈 집합이면 자본 계열 밖 품목"이라는 암묵 규칙을 복사해 갖고 있었습니다. 그 규칙은 {@code generalAmount}에는 맞지만 위임예산의
+     * {@code costAmount}에는 틀립니다 — 위임예산 경상사업의 품목은 전부 자본 계열({@code 102}·{@code 105})이라 자본 계열 밖 품목이
+     * 하나도 없어 배분 대상이 빈 목록이 되고, 목표액이 0보다 크므로 전 행이 {@code ITEM_BASE_ZERO} BLOCKER로 막혔습니다.
+     *
+     * <p>{@code costAmount}는 <b>그 사업의 모든 품목</b>이 대상입니다. 위임예산 시트는 부점 하나의 편성액을 숫자 하나로 주므로("이 부점의 위임예산
+     * 전체를 한 숫자로"), 비목그룹으로 쪼갤 근거가 애초에 없습니다. 전산업무비({@code BCOSTM})의 {@code costAmount}는 여기 오지 않습니다 —
+     * 원장 한 행이 곧 단위라 호출부가 {@code snapshot.costOf(pk)}로 직접 처리합니다.
+     *
+     * @param amountColumn 정규 컬럼 id
+     * @param all 사업의 활성 요청 품목 전체
+     * @return 배분 대상 품목. 순서는 입력 순서를 유지합니다. 알 수 없는 컬럼이면 빈 목록(목표액이 0보다 크면 {@link Allocation.BaseZero}로
+     *     드러납니다)
+     */
+    public static List<RequestItem> itemsForColumn(String amountColumn, List<RequestItem> all) {
+        String column = amountColumn == null ? "" : amountColumn;
+        if ("costAmount".equals(column)) {
+            return new ArrayList<>(all);
+        }
+        if ("generalAmount".equals(column)) {
+            return itemsOutsideCapitalGroups(all);
+        }
+        return itemsInGroup(all, groupOf(column));
+    }
+
+    /**
      * 종합본 금액 컬럼에 대응하는 비목그룹을 반환합니다.
+     *
+     * <p>자본예산 세 열만 그룹을 갖습니다. 나머지 컬럼의 배분 대상은 그룹이 아니라 {@link #itemsForColumn}이 정하므로, 이 메서드의 빈 집합을 "자본
+     * 계열 밖 품목"으로 해석하지 마세요.
      *
      * @param amountColumn 정규 컬럼 id (`devAmount`·`hwAmount`·`swAmount`)
      * @return 그 그룹의 비목코드 집합. 대응하는 그룹이 없으면 빈 집합

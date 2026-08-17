@@ -170,6 +170,64 @@ class CapitalProjectSheetAdapterTest {
         assertThat(intent.declaredBase()).isEqualByComparingTo("1406000000");
     }
 
+    /**
+     * 일반관리비 열이 채워져 있으면 네 번째 목표액으로 나갑니다 (설계 §3.4).
+     *
+     * <p>이 키가 없으면 자본 세 그룹 밖 품목(1단계가 {@code BITEMM}에 함께 담은 일반관리비 계열)이 {@code ioeRates}에 아예 실리지 않아,
+     * {@code applyItemRates}의 2버킷 폴백이 기본값 100%를 적용합니다 — 진단 하나 없이 예산 총액이 부풀어 오릅니다.
+     */
+    @Test
+    @DisplayName("adapt_일반관리비_열이_있으면_네_번째_목표액과_기준액에_들어간다")
+    void adapt_일반관리비_열이_있으면_네_번째_목표액과_기준액에_들어간다() {
+        MigrationDto.SheetPayload sheet =
+                sheetOf(
+                        Map.of(
+                                "projectName", "웹한글 기안기 도입",
+                                "swAmount", "1406",
+                                "generalAmount", "100",
+                                "adjustRate", "0.7"));
+
+        AllocationIntent intent = adapter.adapt(sheet, context()).allocations().get(0);
+
+        assertThat(intent.targetByColumn().get("generalAmount")).isEqualByComparingTo("70000000");
+        assertThat(intent.declaredBase())
+                .as("기준액 대사 상대에 일반관리비 품목의 요청금액도 들어오므로 기준액에도 더한다")
+                .isEqualByComparingTo("1506000000");
+    }
+
+    @Test
+    @DisplayName("adapt_일반관리비_열이_비면_키를_넣지_않아_기존_편성률이_보존된다")
+    void adapt_일반관리비_열이_비면_키를_넣지_않는다() {
+        MigrationDto.SheetPayload sheet =
+                sheetOf(
+                        Map.of(
+                                "projectName", "웹한글 기안기 도입",
+                                "swAmount", "1406",
+                                "generalAmount", "",
+                                "adjustRate", "0.7"));
+
+        AllocationIntent intent = adapter.adapt(sheet, context()).allocations().get(0);
+
+        assertThat(intent.targetByColumn()).doesNotContainKey("generalAmount");
+        assertThat(intent.declaredBase()).isEqualByComparingTo("1406000000");
+    }
+
+    @Test
+    @DisplayName("adapt_일반관리비_0원은_키를_넣어_그_품목을_0원으로_편성한다")
+    void adapt_일반관리비_0원은_키를_넣는다() {
+        MigrationDto.SheetPayload sheet =
+                sheetOf(
+                        Map.of(
+                                "projectName", "웹한글 기안기 도입",
+                                "swAmount", "1406",
+                                "generalAmount", "0",
+                                "adjustRate", "0.7"));
+
+        AllocationIntent intent = adapter.adapt(sheet, context()).allocations().get(0);
+
+        assertThat(intent.targetByColumn().get("generalAmount")).isEqualByComparingTo("0");
+    }
+
     @Test
     @DisplayName("adapt_원장_생성요청은_행_순서를_그대로_유지한다")
     void adapt_원장_생성요청은_행_순서를_그대로_유지한다() {

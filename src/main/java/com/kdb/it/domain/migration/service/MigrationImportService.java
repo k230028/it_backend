@@ -336,11 +336,16 @@ public class MigrationImportService {
                         if (!hasCreateRequest(output, intent, i)) {
                             // 부문계획 시트처럼 원장 생성요청을 내지 않는 어댑터의 행이다.
                             // 만들 것이 없으므로 편성 대상에서도 뺀다 (SKIP과 같은 결과).
+                            // 후보 목록이 이 결정을 더 이상 제시하지 않지만(SheetKind.canCreateLedger),
+                            // 보정값은 클라이언트가 임의로 보낼 수 있으므로 그 행의 조정이 통째로
+                            // 사라진다는 사실을 로그가 아니라 화면에 남긴다.
                             log.warn(
                                     "원장을 만들 수 없는 시트에 CREATE_NEW 결정이 왔습니다 — 편성 대상에서 제외합니다"
                                             + " (시트={}, 행={})",
                                     kind,
                                     intent.excelRow());
+                            diagnostics.add(
+                                    matchDiagnostics.createNotSupported(sheet, intent.excelRow()));
                             continue;
                         }
                         createNewRows
@@ -392,9 +397,9 @@ public class MigrationImportService {
     /**
      * 배분 의도를 비목코드별 실효 편성률로 환산합니다.
      *
-     * <p>같은 비목코드가 두 번 담기지 않습니다 — 비목그룹({@code GROUP_DEV}·{@code GROUP_HW}·{@code GROUP_SW})은 서로소이고
-     * 나머지 한 그룹은 그 셋의 여집합이라, 한 의도 안에서 두 그룹이 같은 비목을 건드릴 수 없습니다. 한 그룹 안의 품목은 모두 그룹 공통 실효율을 받으므로 값도
-     * 같습니다.
+     * <p>같은 비목코드가 두 번 담기지 않습니다. 정보화사업 의도가 쓰는 네 컬럼의 대상 집합은 서로소입니다 — 비목그룹({@code GROUP_DEV}·{@code
+     * GROUP_HW}·{@code GROUP_SW})이 서로소이고 {@code generalAmount}는 그 셋의 여집합입니다. 위임예산 의도는 {@code
+     * costAmount} 한 컬럼뿐이라(대상은 그 사업의 모든 품목) 겹칠 상대가 없습니다. 한 대상 집합 안의 품목은 모두 공통 실효율을 받으므로 값도 같습니다.
      *
      * @param intent 배분 의도
      * @param pk 편성 대상 원장 PK
@@ -424,11 +429,8 @@ public class MigrationImportService {
 
         List<MigrationYearSnapshot.RequestItem> all = snapshot.itemsOfProject(pk);
         for (Map.Entry<String, BigDecimal> entry : intent.targetByColumn().entrySet()) {
-            Set<String> group = MigrationAllocationPlanner.groupOf(entry.getKey());
             List<MigrationYearSnapshot.RequestItem> items =
-                    group.isEmpty()
-                            ? MigrationAllocationPlanner.itemsOutsideCapitalGroups(all)
-                            : MigrationAllocationPlanner.itemsInGroup(all, group);
+                    MigrationAllocationPlanner.itemsForColumn(entry.getKey(), all);
             if (items.isEmpty()) {
                 continue;
             }

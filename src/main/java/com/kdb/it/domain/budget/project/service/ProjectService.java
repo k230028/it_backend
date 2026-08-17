@@ -279,66 +279,11 @@ public class ProjectService {
     }
 
     /**
-     * 이관 전용 — 사업의 활성 품목을 새 버전으로 교체합니다.
-     *
-     * <p>호출자가 교체 대상 기존 활성 품목을 이미 논리삭제한 상태를 전제합니다({@code LST_YN='Y'}, {@code DEL_YN='N'} 조회 결과에
-     * {@link Bitemm#delete()}를 미리 호출). 채번({@code GCL-{연도}-{4자리}})과 환율 표준 조회, 외화 금액 재계산, 정보보호·통합인프라
-     * 여부 기본값("N"), 예정금액 클램프는 {@link #createProject(ProjectDto.CreateRequest, boolean)}와 같은 규칙을
-     * 따릅니다.
-     *
-     * <p>금액 스냅샷은 규칙이 갈립니다. 교체 후 {@code TOT_RQM_AMT}·{@code MPL_AMT}는 {@link #sumActiveItems}로 다시
-     * 계산해 반영하지만, 사용자 입력인 {@code DFR_AMT}는 이 경로가 받지 않으므로 기존 값을 그대로 둡니다. {@code createProject}가 쓰는
-     * {@link #applyAmountSnapshot}을 재사용하지 않는 이유도 같습니다 — 그 메서드의 "기 지급예산 ≤ 총 예산" 검증은 조정으로 총액이 낮아진
-     * 사업에서 예외를 던져 이관 트랜잭션 전체를 롤백시킵니다.
-     *
-     * <p>{@link #updateProject}를 재사용하지 않는 이유: 수기 엑셀 이관은 사업 생성 직후 같은 트랜잭션 안에서 결재완료 받이({@code
-     * MigrationApprovalStamper})를 그 사업에 이미 붙이므로, {@code updateProject}의 결재 상태 확인(결재중·결재완료 상태는 수정
-     * 불가)이 곧바로 이 호출을 막습니다. {@code updateProject}는 예산 신청 기간 검증과 로그인 사용자 소유권 검증도 요구하는데, 이관은 편성 시즌
-     * 밖·비로그인 배치 컨텍스트에서 실행되어야 하므로 두 요구 모두 충족할 수 없습니다. 부문계획 조정액이 편성률로 재현되지 않아 품목 금액 자체를 바꿔야 하는 경로에만
-     * 씁니다(§5.4).
-     *
-     * @param abusMngNo 사업관리번호
-     * @param items 새 품목 목록 (비어 있으면 아무것도 하지 않습니다)
-     * @throws IllegalArgumentException 사업이 없거나 최종 버전이 아닌 경우
-     */
-    @Transactional
-    public void replaceItemsForMigration(String abusMngNo, List<ProjectDto.BitemmDto> items) {
-        if (items == null || items.isEmpty()) {
-            return;
-        }
-        Bprojm project =
-                projectRepository
-                        .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
-                        .orElseThrow(
-                                () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
-        int gclSno = 0;
-        for (ProjectDto.BitemmDto itemDto : items) {
-            Long gclSeq = bitemmRepository.getNextSequenceValue();
-            String gclMngNo = String.format("GCL-%s-%04d", LocalDate.now().getYear(), gclSeq);
-
-            itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
-            BigDecimal[] reconciled =
-                    BudgetAmountCalculator.reconcileAmount(
-                            itemDto.getFcAmt(),
-                            itemDto.getAmt(),
-                            itemDto.getCurC(),
-                            itemDto.getXcr());
-
-            bitemmRepository.save(buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
-        }
-
-        // 교체된 활성 품목으로 합계만 갱신한다. 기 지급예산은 이 경로가 받지 않으므로 기존 값을 그대로 넘긴다.
-        ProjectBudgetSummaryService.AmountSnapshot snapshot = sumActiveItems(project);
-        project.assignAmountSnapshot(snapshot.totRqmAmt(), snapshot.mplAmt(), project.getDfrAmt());
-    }
-
-    /**
      * 품목 엔티티를 조립합니다.
      *
      * <p>채번(gclMngNo)·순번(gclSno)·환율 표준 조회·외화 재계산은 호출자({@link #createProject}·{@link
-     * #updateProject}의 신규 품목 추가 분기·{@link #replaceItemsForMigration})가 먼저 수행하고, 그 결과만 이 메서드가 엔티티
-     * 필드로 옮겨 담습니다. 세 경로가 별도로 필드를 나열하면 한쪽에서만 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로
-     * 강제합니다.
+     * #updateProject}의 신규 품목 추가 분기)가 먼저 수행하고, 그 결과만 이 메서드가 엔티티 필드로 옮겨 담습니다. 두 경로가 별도로 필드를 나열하면
+     * 한쪽에서만 필드가 빠지거나 정규화가 생략되는 식으로 조용히 갈라질 수 있어, 조립 자체를 이 메서드 하나로 강제합니다.
      *
      * @param itemDto 품목 요청 DTO (xcr은 호출자가 이미 표준 조회로 덮어쓴 상태)
      * @param gclMngNo 채번된 품목관리번호
@@ -622,9 +567,8 @@ public class ProjectService {
     /**
      * 활성 품목을 다시 조회해 사업 단위 금액 합계를 계산합니다.
      *
-     * <p>{@link #applyAmountSnapshot}(사용자 입력 기 지급예산을 검증하는 저장 경로)과 {@link
-     * #replaceItemsForMigration}(검증 없이 합계만 갱신하는 이관 경로)이 공유하는 합산 단계입니다. 두 경로가 같은 활성 품목 집합을 보도록 조회
-     * 조건을 이 메서드 하나로 고정하고, 차이는 호출부의 검증 유무로만 둡니다.
+     * <p>{@link #applyAmountSnapshot}(사용자 입력 기 지급예산을 검증하는 저장 경로)이 쓰는 합산 단계입니다. 활성 품목 집합의 조회 조건을 이
+     * 메서드 하나로 고정해, 합계를 다시 계산하는 경로가 늘어도 같은 집합을 보게 합니다.
      *
      * @param project 대상 사업 엔티티 (영속 상태)
      * @return 활성 품목 기준 총 예산·익년 이후 예산 합계

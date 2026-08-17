@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -297,7 +298,7 @@ public class MigrationYearSnapshot {
 
     /** 상대처·계약명 비교용 정규화입니다. 공백을 모두 없애고 소문자로 접습니다. */
     public static String normalizeText(String value) {
-        return value == null ? "" : value.replaceAll("\\s+", "").toLowerCase(java.util.Locale.ROOT);
+        return value == null ? "" : value.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
     }
 
     private static String nz(String value) {

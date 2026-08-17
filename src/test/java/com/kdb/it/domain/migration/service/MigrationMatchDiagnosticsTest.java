@@ -150,6 +150,93 @@ class MigrationMatchDiagnosticsTest {
         assertThat(diagnostic.severity()).isEqualTo(MigrationDto.Severity.WARNING);
     }
 
+    /**
+     * 위임예산({@code costAmount})의 배분 대상은 그 사업의 <b>모든</b> 품목입니다.
+     *
+     * <p>회귀 고정: 종전에는 {@code costAmount}가 비목그룹을 갖지 않는다는 이유로 "자본 계열 밖 품목"으로 떨어졌습니다. 그런데 1단계가 만든 위임예산
+     * 경상사업의 품목은 전부 자본 계열({@code 102}·{@code 105})이라 대상이 빈 목록이 되고, 목표액이 0보다 크므로 <b>매칭에 성공한 전 행</b>이
+     * {@code ITEM_BASE_ZERO} BLOCKER로 막혔습니다.
+     */
+    @Test
+    @DisplayName("checkAllocation_위임예산의_costAmount는_자본계열_품목에도_배분된다")
+    void checkAllocation_위임예산의_costAmount는_자본계열_품목에도_배분된다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshotWithProject(
+                        "2026년런던지점위임예산경상",
+                        "PRJ-2026-0002",
+                        List.of(
+                                new RequestItem("GCL-1", 1, "102", new BigDecimal("30000000")),
+                                new RequestItem("GCL-2", 1, "105", new BigDecimal("20000000"))));
+
+        List<MigrationDto.CellDiagnostic> out =
+                diagnostics.checkAllocation(
+                        delegatedSheet(),
+                        intentOfDelegated("50000000"),
+                        "PRJ-2026-0002",
+                        snapshot,
+                        planner);
+
+        assertThat(out).as("배분 대상이 있으므로 ITEM_BASE_ZERO도, 기준액 대사 WARNING도 나지 않는다").isEmpty();
+    }
+
+    /** 일반관리비 목표액은 자본 세 그룹 밖 품목에만 배분됩니다 (설계 §3.4의 네 번째 그룹). */
+    @Test
+    @DisplayName("checkAllocation_일반관리비_목표액은_자본계열_밖_품목에_배분된다")
+    void checkAllocation_일반관리비_목표액은_자본계열_밖_품목에_배분된다() {
+        MigrationYearSnapshot.Data snapshot =
+                snapshotWithProject(
+                        "웹한글기안기도입",
+                        "PRJ-2026-0001",
+                        List.of(
+                                new RequestItem("GCL-1", 1, "106", new BigDecimal("1406000000")),
+                                new RequestItem("GCL-2", 1, "001", new BigDecimal("100000000"))));
+
+        assertThat(
+                        diagnostics.checkAllocation(
+                                sheet(),
+                                intentWithTarget("generalAmount", "70000000"),
+                                "PRJ-2026-0001",
+                                snapshot,
+                                planner))
+                .as("일반관리비 품목(001)이 있으므로 배분 대상이 비지 않는다")
+                .isEmpty();
+
+        assertThat(
+                        diagnostics.checkAllocation(
+                                sheet(),
+                                intentWithTarget("generalAmount", "70000000"),
+                                "PRJ-2026-0001",
+                                snapshotWithProject(
+                                        "웹한글기안기도입",
+                                        "PRJ-2026-0001",
+                                        List.of(
+                                                new RequestItem(
+                                                        "GCL-1",
+                                                        1,
+                                                        "106",
+                                                        new BigDecimal("1406000000")))),
+                                planner))
+                .as("자본 계열 품목만 있으면 일반관리비 목표액을 배분할 대상이 없어 BLOCKER다")
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .contains("ITEM_BASE_ZERO");
+    }
+
+    @Test
+    @DisplayName("createNotSupported_원장을_만들_수_없는_시트의_CREATE_NEW는_WARNING이다")
+    void createNotSupported_원장을_만들_수_없는_시트의_CREATE_NEW는_WARNING이다() {
+        MigrationDto.SheetPayload plan =
+                new MigrationDto.SheetPayload(
+                        SheetKind.PLAN_ADJUSTMENT,
+                        "2026",
+                        List.of(new MigrationDto.NormalizedRow(2, Map.of())));
+
+        MigrationDto.CellDiagnostic diagnostic = diagnostics.createNotSupported(plan, 2);
+
+        assertThat(diagnostic.code()).isEqualTo("CREATE_NOT_SUPPORTED");
+        assertThat(diagnostic.severity()).isEqualTo(MigrationDto.Severity.WARNING);
+        assertThat(diagnostic.column()).isEqualTo(RowDecision.COLUMN);
+    }
+
     @Test
     @DisplayName("checkRateReconcile_조정열과_기준액곱이_어긋나면_WARNING이다")
     void checkRateReconcile_조정열과_기준액곱이_어긋나면_WARNING이다() {
@@ -250,6 +337,22 @@ class MigrationMatchDiagnosticsTest {
                 AllocationIntent.MatchKey.ofProjectName("무관"),
                 Map.of(column, new BigDecimal(amount)),
                 null);
+    }
+
+    /**
+     * 위임예산 배분 의도. 목표액과 기준액이 같은 값이라(편성률 100%가 "적어 낸 금액 그대로") 배분만 성립하면 진단이 하나도 나지 않아야 한다.
+     *
+     * @param amountKrw 부점 그룹의 원화환산 합계
+     */
+    private static AllocationIntent intentOfDelegated(String amountKrw) {
+        BigDecimal amount = new BigDecimal(amountKrw);
+        return new AllocationIntent(
+                SheetKind.DELEGATED_BUDGET,
+                2,
+                "BPROJM",
+                AllocationIntent.MatchKey.ofOrdinaryDept("920"),
+                Map.of("costAmount", amount),
+                amount);
     }
 
     /** 종합본 기준액만 채운 배분 의도. swAmount 그룹으로 원장 품목을 걸어 ledgerBase를 계산시킨다. */

@@ -64,7 +64,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>편성률 단일 적용({@code applyItemRates}의 연도 전체 재작성)이 서로 다른 원천(자본예산·전산업무비)의 기존 편성행을 지우지 않는다.
  *   <li>편성요청서 반입(1단계)이 만든 원장에 종합본·하반기 조정(2·3단계)을 매칭으로 반영해도 차단되지 않고, 요청 품목({@code BITEMM})은 그대로 활성으로
  *       남는다(Task 10). 부문계획 조정은 더 이상 품목을 버전 교체하지 않는다 — {@code
- *       ProjectService.replaceItemsForMigration}는 재설계 이후 어디서도 호출되지 않는다.
+ *       ProjectService.replaceItemsForMigration}는 재설계 이후 호출자가 없어 삭제했다.
+ *   <li>위임예산 시트가 기존 경상사업에 매칭되면 그 사업의 <b>모든</b> 품목에 배분돼 편성행이 생긴다. 그 품목들은 전부 자본 계열({@code 102}·{@code
+ *       105})이라, 배분 대상을 "자본 계열 밖 품목"으로 잡으면 매칭에 성공한 전 행이 {@code ITEM_BASE_ZERO}로 막힌다.
+ *   <li>정보화사업에 자본 계열이 아닌 품목(일반관리비 계열)이 섞여 있어도 종합본의 `일반관리비` 열을 기준으로 같은 조정비율을 받는다 — 기본 편성률 100%로 조용히
+ *       편성되지 않는다.
  *   <li>재업로드는 더 이상 {@code DUPLICATE_EXISTS}로 차단되지 않는다(설계 문서 §5.1이 그 BLOCKER를 명시적으로 삭제했다 — "존재가 이제
  *       매칭 성공 조건"). 대신 보정값 없이 같은 종합본을 다시 올리면 매칭으로 흘러 원장을 다시 만들지 않고 편성만 멱등하게 다시 적용한다.
  * </ul>
@@ -116,6 +120,12 @@ class MigrationImportIt {
 
     /** 로컬 BG_UNT_ABUS_C 공통코드에 등록되지 않은 값(실측: 501~570·571·802만 등록). */
     private static final String UNREGISTERED_ABUS_CODE = "999";
+
+    /**
+     * 자본 계열이 아닌 비목코드 하나(일반관리비 계열). {@code MigrationIoeCodes.CAPITAL_CODES}에 들지 않아 세 비목그룹 어디에도 속하지
+     * 않으므로, 종합본의 `일반관리비` 열을 기준으로 하는 네 번째 그룹의 대상이 됩니다 (설계 §3.4).
+     */
+    private static final String GENERAL_IOE_C = "001";
 
     /**
      * 그룹 합계 허용오차(원). {@link com.kdb.it.domain.migration.service.MigrationAllocationPlanner}가 계산한
@@ -308,10 +318,9 @@ class MigrationImportIt {
     /**
      * Task 10에서 실 Oracle로 확인한 회귀: 이 테스트의 전제("부문계획 조정이 품목을 버전 교체한다")는 Task 9 재설계 이전 동작입니다. 재설계된
      * {@code MigrationImportService.commit}은 4단계 주석에 명시된 대로 "하반기 조정 계획 문서만 만들고 {@code BITEMM}은 건드리지
-     * 않습니다" — {@code ProjectService.replaceItemsForMigration}는 이제 어디서도 호출되지 않습니다(실측: {@code grep}으로
-     * 호출부 없음 확인). 그 결과 활성 품목은 조정 금액(8,000,000)이 아니라 자본예산 원값 (5,000,000)에 그대로 남아 이 테스트의 {@code
-     * active} 단정이 깨집니다. 새 동작("요청 품목이 활성으로 남는다")은 {@link #하반기_조정_후에도_요청_품목이_활성으로_남는다}가 이미 고정하므로, 이
-     * 테스트는 중복이자 오래된 전제라 비활성화합니다.
+     * 않습니다" — 그 경로였던 {@code ProjectService.replaceItemsForMigration}는 호출자가 없어 삭제했습니다. 그 결과 활성 품목은
+     * 조정 금액(8,000,000)이 아니라 자본예산 원값 (5,000,000)에 그대로 남아 이 테스트의 {@code active} 단정이 깨집니다. 새 동작("요청
+     * 품목이 활성으로 남는다")은 {@link #하반기_조정_후에도_요청_품목이_활성으로_남는다}가 이미 고정하므로, 이 테스트는 중복이자 오래된 전제라 비활성화합니다.
      */
     @Disabled("Task 9 재설계로 품목 버전 교체가 폐지됨 — 새 동작은 하반기_조정_후에도_요청_품목이_활성으로_남는다가 고정")
     @Test
@@ -690,8 +699,118 @@ class MigrationImportIt {
         assertThat(unchanged.getBgUntAbusC()).isEqualTo("501");
     }
 
+    /**
+     * 위임예산 시트가 1단계의 경상사업에 매칭되면 배분이 성립해 편성행이 생깁니다.
+     *
+     * <p><b>회귀 고정.</b> 위임예산의 목표액 컬럼은 {@code costAmount}인데, 종전에는 이 컬럼이 비목그룹을 갖지 않는다는 이유로 배분 대상이 "자본
+     * 계열 밖 품목"으로 떨어졌습니다. 그런데 1단계가 만드는 위임예산 경상사업의 품목은 전부 자본 계열({@code 102} 국외기계장치·{@code 105}
+     * 국외기타무형자산)이라 대상이 <b>빈 목록</b>이 되고, 목표액이 0보다 크므로 매칭에 성공한 <b>전 행</b>이 {@code ITEM_BASE_ZERO}
+     * BLOCKER로 막혔습니다. 관리자가 {@code CREATE_NEW}로 우회하면 같은 부점의 경상사업이 중복 생성됩니다.
+     *
+     * <p>종합본 합계(40,000,000)를 원장 요청 합계(50,000,000)와 다르게 두어 실효 편성률이 실제로 계산되는지(100%로 떨어지지 않는지) 함께
+     * 확인합니다.
+     */
+    @Test
+    @Tag("it")
+    @DisplayName("위임예산이_기존_경상사업에_매칭되면_차단되지_않고_편성된다")
+    void 위임예산이_기존_경상사업에_매칭되면_차단되지_않고_편성된다() {
+        String projectNo =
+                요청경상사업을_만든다(
+                        List.of(
+                                new 요청품목(
+                                        MigrationIoeCodes.IOE_HW_OVERSEA,
+                                        new BigDecimal("30000000")),
+                                new 요청품목(
+                                        MigrationIoeCodes.IOE_SW_OVERSEA,
+                                        new BigDecimal("20000000"))));
+
+        MigrationDto.CommitRequest request = 위임예산_커밋요청("25000000", "15000000");
+
+        // 사전검증에 ITEM_BASE_ZERO가 남지 않는다 — 매칭에 성공한 행이 배분에서 막히지 않는다는 뜻이다
+        assertThat(
+                        service.dryRun(
+                                        new MigrationDto.DryRunRequest(
+                                                request.sheets(), request.overrides()))
+                                .diagnostics())
+                .extracting(MigrationDto.CellDiagnostic::code)
+                .doesNotContain("ITEM_BASE_ZERO");
+
+        MigrationDto.CommitResponse response = service.commit(request, ACTOR_ENO);
+
+        assertThat(response.projectCount()).as("경상사업을 중복 생성하지 않는다").isZero();
+        assertThat(projectRepository.findByBseYyAndLstYnAndDelYn(BSE_YY, "Y", "N")).hasSize(1);
+
+        List<String> itemNos =
+                projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(projectNo, "N", "Y").stream()
+                        .map(Bitemm::getGclMngNo)
+                        .toList();
+        List<Bbugtm> budgets =
+                bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N").stream()
+                        .filter(b -> itemNos.contains(b.getPkColNm()))
+                        .toList();
+
+        assertThat(budgets).as("자본 계열 품목 두 건에 모두 편성행이 생긴다").hasSize(2);
+        // 40,000,000 / 50,000,000 × 100 = 80. 위임예산은 사업의 모든 품목이 한 대상이라 실효율이 같다
+        assertThat(budgets)
+                .allSatisfy(b -> assertThat(b.getAsgRt()).isEqualByComparingTo("80.00000"));
+        BigDecimal sum =
+                budgets.stream().map(Bbugtm::getBgDupAmt).reduce(BigDecimal.ZERO, BigDecimal::add);
+        허용오차_내에서_같다(sum, new BigDecimal("40000000"));
+    }
+
+    /**
+     * 정보화사업에 섞인 비자본 품목도 종합본의 `일반관리비` 열을 기준으로 같은 조정비율을 받습니다 (설계 §3.4).
+     *
+     * <p><b>회귀 고정.</b> 자본예산 어댑터가 {@code devAmount}·{@code hwAmount}·{@code swAmount} 셋만 목표액으로 내던
+     * 동안, 1단계가 {@code BITEMM}에 함께 담은 일반관리비 계열 품목은 {@code ioeRates}에 키가 없어 {@code
+     * BudgetRateApplicationService}의 2버킷 폴백으로 떨어졌고, 이관은 두 버킷을 모두 null로 넘기므로 <b>기본 편성률 100%</b>가
+     * 적용됐습니다. 진단이 하나도 나지 않아 조정비율 0.7 사업의 일반관리비만 조용히 100%로 편성됐습니다.
+     */
+    @Test
+    @Tag("it")
+    @DisplayName("정보화사업의_비자본_품목도_조정비율로_편성된다")
+    void 정보화사업의_비자본_품목도_조정비율로_편성된다() {
+        String projectNo =
+                요청사업을_만든다(
+                        "웹한글 기안기 도입",
+                        List.of(
+                                new 요청품목(MigrationIoeCodes.IOE_SW, new BigDecimal("1406000000")),
+                                new 요청품목(GENERAL_IOE_C, new BigDecimal("100000000"))));
+
+        service.commit(자본예산_커밋요청("웹한글 기안기 도입", "1406", "0.7", "100"), ACTOR_ENO);
+
+        Map<String, BigDecimal> rateByIoeC = new LinkedHashMap<>();
+        for (Bitemm item :
+                projectItemRepository.findByAbusMngNoAndDelYnAndLstYn(projectNo, "N", "Y")) {
+            bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N").stream()
+                    .filter(b -> item.getGclMngNo().equals(b.getPkColNm()))
+                    .findFirst()
+                    .ifPresent(b -> rateByIoeC.put(item.getIoeC(), b.getAsgRt()));
+        }
+
+        assertThat(rateByIoeC).containsKeys(MigrationIoeCodes.IOE_SW, GENERAL_IOE_C);
+        assertThat(rateByIoeC.get(MigrationIoeCodes.IOE_SW)).isEqualByComparingTo("70.00000");
+        assertThat(rateByIoeC.get(GENERAL_IOE_C))
+                .as("일반관리비 품목이 기본 편성률 100%로 조용히 편성되면 안 된다")
+                .isNotEqualByComparingTo(BigDecimal.valueOf(100));
+        assertThat(rateByIoeC.get(GENERAL_IOE_C)).isEqualByComparingTo("70.00000");
+    }
+
     /** 요청 품목 하나의 비목코드·금액입니다. {@link #요청사업을_만든다(String, List)}가 여러 품목을 조립할 때 씁니다. */
     private record 요청품목(String ioeC, BigDecimal amount) {}
+
+    /**
+     * 편성요청서 반입(1단계)이 만드는 위임예산 경상사업({@code ODN_YN='Y'})을 조립합니다.
+     *
+     * <p>위임예산 매칭은 사업명이 아니라 `부서코드 + ODN_YN='Y'`로 이뤄지므로({@code
+     * MigrationLedgerMatcher.matchOrdinaryProject}) 사업명은 매칭에 관여하지 않습니다.
+     *
+     * @param items 요청 품목 목록 (위임예산은 국외 계열 {@code 102}·{@code 105})
+     * @return 생성된 사업관리번호
+     */
+    private String 요청경상사업을_만든다(List<요청품목> items) {
+        return 요청사업을_만든다(BSE_YY + "년 IT기획부 위임예산(경상)", items, "Y");
+    }
 
     /**
      * 편성요청서 반입(1단계)이 만드는 상태를 직접 조립합니다. {@code RequestFormImportService}를 부르지 않고 실제 반입 경로({@code
@@ -701,9 +820,10 @@ class MigrationImportIt {
      *
      * @param projectName 사업명
      * @param items 요청 품목 목록 (비지 않음)
+     * @param odnYn 경상 여부. 위임예산 매칭 대상은 {@code "Y"}입니다
      * @return 생성된 사업관리번호
      */
-    private String 요청사업을_만든다(String projectName, List<요청품목> items) {
+    private String 요청사업을_만든다(String projectName, List<요청품목> items, String odnYn) {
         ProjectDto.CreateRequest request = new ProjectDto.CreateRequest();
         request.setBseYy(BSE_YY);
         request.setAbusNm(projectName);
@@ -713,7 +833,7 @@ class MigrationImportIt {
         request.setDvmTemC(DEPT_CODE);
         request.setUsid(ACTOR_ENO);
         request.setTlrUsid(ACTOR_ENO);
-        request.setOdnYn("N");
+        request.setOdnYn(odnYn);
 
         List<ProjectDto.BitemmDto> bitemms = new ArrayList<>();
         for (요청품목 spec : items) {
@@ -732,6 +852,11 @@ class MigrationImportIt {
         approvalStamper.stamp(
                 "BPROJM", projectNo, created.getSno(), "테스트 편성요청서 반입", ACTOR_ENO, BSE_YY);
         return projectNo;
+    }
+
+    /** 정보화사업(경상이 아님)을 조립합니다. {@link #요청사업을_만든다(String, List, String)}의 오버로드입니다. */
+    private String 요청사업을_만든다(String projectName, List<요청품목> items) {
+        return 요청사업을_만든다(projectName, items, "N");
     }
 
     /** 요청 품목이 하나뿐인 사업을 조립합니다. {@link #요청사업을_만든다(String, List)}의 단일 품목 오버로드입니다. */
@@ -814,14 +939,54 @@ class MigrationImportIt {
      */
     private MigrationDto.CommitRequest 자본예산_커밋요청(
             String projectName, String swAmountMillion, String adjustRate) {
-        Map<String, String> cells =
-                Map.of(
-                        "projectName", projectName,
-                        "swAmount", swAmountMillion,
-                        "adjustRate", adjustRate);
+        return 자본예산_커밋요청(projectName, swAmountMillion, adjustRate, "");
+    }
+
+    /**
+     * 일반관리비 열까지 채운 자본예산 커밋 요청입니다.
+     *
+     * @param generalAmountMillion 백만원 단위 일반관리비. 빈 문자열이면 그 열을 비운 것으로 봅니다(기존 편성률 유지)
+     */
+    private MigrationDto.CommitRequest 자본예산_커밋요청(
+            String projectName,
+            String swAmountMillion,
+            String adjustRate,
+            String generalAmountMillion) {
+        Map<String, String> cells = new LinkedHashMap<>();
+        cells.put("projectName", projectName);
+        cells.put("swAmount", swAmountMillion);
+        cells.put("adjustRate", adjustRate);
+        cells.put("generalAmount", generalAmountMillion);
         MigrationDto.SheetPayload sheet =
                 new MigrationDto.SheetPayload(
                         SheetKind.CAPITAL_PROJECT,
+                        BSE_YY,
+                        List.of(new MigrationDto.NormalizedRow(2, cells)));
+        return new MigrationDto.CommitRequest(List.of(sheet), List.of());
+    }
+
+    /**
+     * 위임예산 시트 커밋 요청을 만듭니다. 이 시트의 원화환산액은 이미 원 단위라 백만원 배수를 곱하지 않습니다.
+     *
+     * <p>부점명은 {@link #요청경상사업을_만든다}가 쓴 부서코드({@link #DEPT_CODE})로 해석되는 이름이어야 매칭됩니다.
+     *
+     * @param hwKrw HW 원화환산액(원)
+     * @param swKrw SW 원화환산액(원)
+     */
+    private MigrationDto.CommitRequest 위임예산_커밋요청(String hwKrw, String swKrw) {
+        Map<String, String> cells = new LinkedHashMap<>();
+        cells.put("branchName", "IT기획부");
+        cells.put("itemName", "테스트 위임예산 품목");
+        cells.put("currency", "KRW");
+        cells.put("hwQty", "1");
+        cells.put("hwFcAmount", "");
+        cells.put("hwKrwAmount", hwKrw);
+        cells.put("swQty", "1");
+        cells.put("swFcAmount", "");
+        cells.put("swKrwAmount", swKrw);
+        MigrationDto.SheetPayload sheet =
+                new MigrationDto.SheetPayload(
+                        SheetKind.DELEGATED_BUDGET,
                         BSE_YY,
                         List.of(new MigrationDto.NormalizedRow(2, cells)));
         return new MigrationDto.CommitRequest(List.of(sheet), List.of());

@@ -644,7 +644,8 @@ class MigrationImportServiceTest {
         assertThat(response.planReqDocNo()).isEqualTo("PLN-2026-0009");
         // 하반기 조정은 요청 품목을 만들지도 지우지도 않는다 (설계 §5.4)
         assertThat(response.itemCount()).isZero();
-        verify(projectService, never()).replaceItemsForMigration(anyString(), any());
+        // 품목 교체 경로(구 ProjectService.replaceItemsForMigration)는 재설계로 삭제했으므로,
+        // 이제 "조정이 품목을 건드리지 않는다"는 호출 검증이 아니라 구조로 보장된다.
         verify(planService)
                 .createPlanForMigration(
                         eq("2026"), eq("조정"), eq(List.of("PRJ-2026-0005")), any(), any(), any());
@@ -683,7 +684,8 @@ class MigrationImportServiceTest {
 
         assertThat(response.planReqDocNo()).isNull();
         assertThat(response.itemCount()).isZero();
-        verify(projectService, never()).replaceItemsForMigration(anyString(), any());
+        // 품목 교체 경로(구 ProjectService.replaceItemsForMigration)는 재설계로 삭제했으므로,
+        // 이제 "조정이 품목을 건드리지 않는다"는 호출 검증이 아니라 구조로 보장된다.
         verify(planService, never())
                 .createPlanForMigration(anyString(), anyString(), any(), any(), any(), any());
     }

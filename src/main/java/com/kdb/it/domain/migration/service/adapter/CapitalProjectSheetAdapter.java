@@ -23,6 +23,15 @@ import org.springframework.stereotype.Component;
  * <p>추진가능성(`EXE_PTT_YN` 1자)과 전결권(`IT_PTL_EDRT_TC` 2자)은 엑셀에 **라벨**로 적혀 있고 물리 컬럼은 코드값만 담을 수 있으므로 공통코드
  * 라벨→코드 변환을 거칩니다. 원문을 그대로 대입하면 `추진계획 검토중`(8자)에서 `ORA-12899`가 납니다. 변환에 실패한 값은 검증기가 이미
  * `CODE_UNRESOLVED`로 막았어야 하며, 여기서는 null로 두어 저장되지 않게 합니다.
+ *
+ * <p>배분 의도의 목표액은 자본 세 열에 더해 `일반관리비` 열까지 냅니다(설계 §3.4의 네 번째 그룹). 1단계 편성요청서 반입이 일반관리비 계열 품목도 같은 {@code
+ * BITEMM}에 담으므로, 이 열을 내지 않으면 그 품목들만 조정비율을 못 받고 기본 편성률 100%로 조용히 편성됩니다. <b>열이 비어 있으면 키를 넣지 않아</b> 기존
+ * 편성률이 그대로 유지됩니다.
+ *
+ * <p>다만 {@code items()}는 일반관리비 품목을 만들지 않습니다 — 엑셀에 비목 구분이 없어 {@code 001}·{@code 007}·{@code 013} 중
+ * 어느 것인지 정할 근거가 없습니다. 그래서 {@code CREATE_NEW}로 원장을 새로 만드는 예외 경로에서 일반관리비 열이 채워져 있으면 배분 대상 품목이 없어 그 열의
+ * 목표액이 반영되지 않습니다({@code MigrationImportService}의 생성 후 재계산이 BLOCKER로 잡아 로그로 남깁니다). 정상 경로(1단계가 만든 원장에
+ * 매칭)에서는 그 품목이 이미 있으므로 해당하지 않습니다.
  */
 @Component
 public class CapitalProjectSheetAdapter implements SheetAdapter {
@@ -85,6 +94,14 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
             targets.put("hwAmount", hw.multiply(rate));
             targets.put("swAmount", sw.multiply(rate));
 
+            // 자본 세 그룹 밖 품목(1단계가 BITEMM에 함께 담은 일반관리비 계열 001·007·013 등)의 목표액이다.
+            // 열이 비어 있으면 키를 넣지 않는다 — 설계 §3.4가 정한 "그 열이 비어 있으면 기존 편성률을 그대로
+            // 유지"다. 0원을 넣으면 그 품목들이 조용히 0원으로 편성된다.
+            BigDecimal general = declaredGeneral(sheet, row, ctx);
+            if (general != null) {
+                targets.put("generalAmount", general.multiply(rate));
+            }
+
             allocations.add(
                     new AllocationIntent(
                             sheet.kind(),
@@ -93,9 +110,24 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
                             AllocationIntent.MatchKey.ofProjectName(
                                     MigrationYearSnapshot.normalizeName(projectName)),
                             targets,
-                            dev.add(hw).add(sw)));
+                            // 기준액 대사(AMOUNT_ADJUSTED)의 상대는 targets가 고른 품목들의 요청 합계다.
+                            // 일반관리비 열을 목표에 넣은 행은 그 품목들도 합계에 들어오므로 기준액에도 더한다.
+                            general == null
+                                    ? dev.add(hw).add(sw)
+                                    : dev.add(hw).add(sw).add(general)));
         }
         return new AdapterOutput(List.of(), projects, List.of(), allocations);
+    }
+
+    /**
+     * 종합본이 적어 낸 일반관리비 기준액을 원 단위로 읽습니다.
+     *
+     * @return 기준액. <b>열이 비어 있으면 null</b>이며, 호출자는 이때 목표액 키를 아예 넣지 않아 기존 편성률을 보존합니다(설계 §3.4)
+     */
+    private BigDecimal declaredGeneral(
+            MigrationDto.SheetPayload sheet, MigrationDto.NormalizedRow row, AdapterContext ctx) {
+        String cell = AdapterSupport.cellOf(sheet, row, "generalAmount", ctx);
+        return cell.isBlank() ? null : amountOf(sheet, row, ctx, "generalAmount");
     }
 
     /** 금액 셀을 원 단위로 읽습니다. 비었거나 음수면 0원입니다. */

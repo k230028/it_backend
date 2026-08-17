@@ -56,6 +56,7 @@ class MigrationColumnsTest {
                         "devAmount",
                         "hwAmount",
                         "swAmount",
+                        "generalAmount",
                         "adjustRate",
                         "devAdjustAmount",
                         "hwAdjustAmount",
