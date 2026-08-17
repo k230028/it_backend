@@ -134,7 +134,7 @@ public class MigrationValidator {
                             sheet,
                             row,
                             "projectName",
-                            "DUPLICATE_EXISTS",
+                            MigrationDiagnosticCode.DUPLICATE_EXISTS,
                             "같은 반영의 " + firstRow + "행과 사업명이 같습니다. 한 사업으로 합치거나 사업명을 구분해 주세요.",
                             List.of()));
         }
@@ -245,7 +245,7 @@ public class MigrationValidator {
                                     sheet,
                                     row,
                                     "ioeName",
-                                    "CODE_UNRESOLVED",
+                                    MigrationDiagnosticCode.CODE_UNRESOLVED,
                                     "보정값 '"
                                             + ioeOverride
                                             + "'에 해당하는 비목코드를 찾지 못했습니다. 비목을 다시 선택해 주세요.",
@@ -254,7 +254,7 @@ public class MigrationValidator {
                                     sheet,
                                     row,
                                     "ioeName",
-                                    "CODE_UNRESOLVED",
+                                    MigrationDiagnosticCode.CODE_UNRESOLVED,
                                     "비목 '" + ioeName + "'에 대응하는 비목코드를 찾지 못했습니다. 비목을 직접 선택해 주세요.",
                                     MigrationDiagnostics.candidatesOfIoe(index, false)));
         }
@@ -339,7 +339,7 @@ public class MigrationValidator {
                             sheet,
                             first,
                             "branchName",
-                            "REQUIRED_MISSING",
+                            MigrationDiagnosticCode.REQUIRED_MISSING,
                             "첫 행의 부점명이 비어 있어 이후 행을 귀속시킬 사업을 만들 수 없습니다.",
                             List.of()));
         }
@@ -398,7 +398,7 @@ public class MigrationValidator {
                             sheet,
                             row,
                             "projectName",
-                            "PROJECT_NOT_FOUND",
+                            MigrationDiagnosticCode.PROJECT_NOT_FOUND,
                             "이 사업이 같은 반영의 자본예산 시트에도, 포탈에도 없습니다. 자본예산 편성요구서를 함께 올리거나 사업명을 확인해 주세요.",
                             List.of()));
         }
@@ -408,7 +408,7 @@ public class MigrationValidator {
                             sheet,
                             row,
                             null,
-                            "DUPLICATE_EXISTS",
+                            MigrationDiagnosticCode.DUPLICATE_EXISTS,
                             sheet.bseYy() + "년 조정 계획이 이미 있습니다.",
                             List.of()));
         }

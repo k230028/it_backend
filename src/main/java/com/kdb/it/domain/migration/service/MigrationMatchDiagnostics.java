@@ -83,7 +83,10 @@ public class MigrationMatchDiagnostics {
         }
 
         boolean ambiguous = match.outcome() == MigrationLedgerMatcher.Outcome.AMBIGUOUS;
-        String code = ambiguous ? "LEDGER_AMBIGUOUS" : "LEDGER_NOT_MATCHED";
+        MigrationDiagnosticCode code =
+                ambiguous
+                        ? MigrationDiagnosticCode.LEDGER_AMBIGUOUS
+                        : MigrationDiagnosticCode.LEDGER_NOT_MATCHED;
         String message =
                 ambiguous
                         ? "이 행에 해당하는 원장 후보가 둘 이상입니다. 편성할 대상을 골라 주세요."
@@ -190,7 +193,7 @@ public class MigrationMatchDiagnostics {
                             sheet,
                             row,
                             GENERAL_AMOUNT_COLUMN,
-                            "GENERAL_RATE_DEFAULTED",
+                            MigrationDiagnosticCode.GENERAL_RATE_DEFAULTED,
                             "일반관리비 열이 비어 있고 기존 편성률도 없어 일반관리비 품목이 100%로 편성됩니다. 조정비율을 적용하려면 일반관리비 열을 채워"
                                     + " 주세요."));
         }
@@ -212,7 +215,7 @@ public class MigrationMatchDiagnostics {
                 sheet,
                 rowAt(sheet, excelRow),
                 RowDecision.COLUMN,
-                "CREATE_NOT_SUPPORTED",
+                MigrationDiagnosticCode.CREATE_NOT_SUPPORTED,
                 "이 시트는 원장을 새로 만들 수 없어 '새로 만들고 편성' 결정이 반영되지 않습니다. 이 행의 조정은 빠집니다 — 결정을 지우거나 대상 원장을 골라"
                         + " 주세요.");
     }
@@ -236,7 +239,7 @@ public class MigrationMatchDiagnostics {
                 sheet,
                 rowAt(sheet, excelRow),
                 GENERAL_AMOUNT_COLUMN,
-                "GENERAL_AMOUNT_NOT_CREATABLE",
+                MigrationDiagnosticCode.GENERAL_AMOUNT_NOT_CREATABLE,
                 "이 행은 원장을 새로 만들므로 일반관리비 목표액을 담을 품목이 없습니다. 일반관리비 편성은 편성요청서로 만든 원장에 매칭했을 때만 반영됩니다.");
     }
 
@@ -291,7 +294,7 @@ public class MigrationMatchDiagnostics {
                                 sheet,
                                 row,
                                 pair.getValue(),
-                                "RATE_RECONCILE_MISMATCH",
+                                MigrationDiagnosticCode.RATE_RECONCILE_MISMATCH,
                                 "엑셀의 조정 금액이 기준액 × 조정비율과 다릅니다. 편성은 기준액 × 조정비율로 계산합니다."));
             }
         }
@@ -326,7 +329,7 @@ public class MigrationMatchDiagnostics {
                 sheet,
                 row,
                 column,
-                "ITEM_BASE_ZERO",
+                MigrationDiagnosticCode.ITEM_BASE_ZERO,
                 "편성할 금액이 있는데 대상 원장의 요청금액이 0원이라 배분할 수 없습니다. 요청 원장을 확인하거나 이 행을 제외해 주세요.",
                 List.of());
     }
@@ -346,7 +349,7 @@ public class MigrationMatchDiagnostics {
                             sheet,
                             row,
                             null,
-                            "AMOUNT_ADJUSTED",
+                            MigrationDiagnosticCode.AMOUNT_ADJUSTED,
                             "종합본 금액이 부서가 제출한 요청 금액과 다릅니다. 편성은 종합본 금액을 기준으로 계산합니다."));
         }
     }

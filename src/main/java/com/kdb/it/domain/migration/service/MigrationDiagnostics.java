@@ -61,36 +61,41 @@ final class MigrationDiagnostics {
         return overrides.get(overrideKey(sheet.kind(), row.excelRow(), column));
     }
 
-    /** BLOCKER 진단을 만듭니다. 하나라도 남으면 반영이 거부됩니다. */
+    /**
+     * BLOCKER 진단을 만듭니다. 하나라도 남으면 반영이 거부됩니다.
+     *
+     * <p>코드는 {@link MigrationDiagnosticCode}만 받습니다 — 문자열 리터럴을 허용하면 응답 스키마의 {@code allowableValues}
+     * 목록에 없는 코드가 조용히 발행됩니다(BE-38).
+     */
     static MigrationDto.CellDiagnostic blocker(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             String column,
-            String code,
+            MigrationDiagnosticCode code,
             String message,
             List<MigrationDto.Candidate> candidates) {
         return new MigrationDto.CellDiagnostic(
                 sheet.kind(),
                 row.excelRow(),
                 column,
-                code,
+                code.name(),
                 MigrationDto.Severity.BLOCKER,
                 message,
                 candidates);
     }
 
-    /** WARNING 진단을 만듭니다. 반영을 막지 않습니다. */
+    /** WARNING 진단을 만듭니다. 반영을 막지 않습니다. 코드 제약은 {@link #blocker}와 같습니다. */
     static MigrationDto.CellDiagnostic warning(
             MigrationDto.SheetPayload sheet,
             MigrationDto.NormalizedRow row,
             String column,
-            String code,
+            MigrationDiagnosticCode code,
             String message) {
         return new MigrationDto.CellDiagnostic(
                 sheet.kind(),
                 row.excelRow(),
                 column,
-                code,
+                code.name(),
                 MigrationDto.Severity.WARNING,
                 message,
                 List.of());

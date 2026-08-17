@@ -55,7 +55,7 @@ final class MigrationCellChecks {
                                 sheet,
                                 row,
                                 column,
-                                "CODE_UNRESOLVED",
+                                MigrationDiagnosticCode.CODE_UNRESOLVED,
                                 "'" + override + "'는 자본예산 계열 비목이 아닙니다.",
                                 MigrationDiagnostics.candidatesOfIoe(index, true)));
             }
@@ -85,7 +85,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             "currency",
-                            "CODE_UNRESOLVED",
+                            MigrationDiagnosticCode.CODE_UNRESOLVED,
                             "통화 '"
                                     + currency
                                     + "'의 예산환율이 공통코드에 없습니다. 등록된 통화 중에서 선택하거나 환율 시드를 먼저 적용해 주세요.",
@@ -158,7 +158,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             krwColumn,
-                            "AMOUNT_MISMATCH",
+                            MigrationDiagnosticCode.AMOUNT_MISMATCH,
                             "서버 재계산액 "
                                     + recomputed.stripTrailingZeros().toPlainString()
                                     + "원이 엑셀 원화열 "
@@ -186,7 +186,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             column,
-                            "RATE_OUT_OF_RANGE",
+                            MigrationDiagnosticCode.RATE_OUT_OF_RANGE,
                             "조정비율 "
                                     + rate.toPlainString()
                                     + "이 0~1 범위를 벗어났습니다. 편성률은 0~100으로 잘립니다."));
@@ -209,7 +209,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             column,
-                            "DATE_UNPARSEABLE",
+                            MigrationDiagnosticCode.DATE_UNPARSEABLE,
                             "'" + value + "'을 연월로 읽지 못했습니다. 날짜가 비워진 채 저장됩니다."));
         }
     }
@@ -224,7 +224,12 @@ final class MigrationCellChecks {
         if (MigrationDiagnostics.cell(row, column, overrides, sheet).isBlank()) {
             out.add(
                     MigrationDiagnostics.blocker(
-                            sheet, row, column, "REQUIRED_MISSING", "필수 값이 비어 있습니다.", List.of()));
+                            sheet,
+                            row,
+                            column,
+                            MigrationDiagnosticCode.REQUIRED_MISSING,
+                            "필수 값이 비어 있습니다.",
+                            List.of()));
         }
     }
 
@@ -243,7 +248,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             column,
-                            "LENGTH_EXCEEDED",
+                            MigrationDiagnosticCode.LENGTH_EXCEEDED,
                             "값이 " + value.length() + "자로 최대 " + maxLength + "자를 넘습니다.",
                             List.of()));
         }
@@ -270,7 +275,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             column,
-                            "LENGTH_EXCEEDED",
+                            MigrationDiagnosticCode.LENGTH_EXCEEDED,
                             "값이 " + bytes + "바이트로 최대 " + maxBytes + "바이트를 넘습니다(한글은 한 자에 3바이트).",
                             List.of()));
         }
@@ -311,7 +316,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             column,
-                            "CODE_UNRESOLVED",
+                            MigrationDiagnosticCode.CODE_UNRESOLVED,
                             "'" + value + "'에 해당하는 " + label + " 코드를 찾지 못했습니다. 목록에서 선택해 주세요.",
                             MigrationDiagnostics.candidatesOfCatalog(codeCatalog, byName)));
         }
@@ -336,7 +341,7 @@ final class MigrationCellChecks {
                                 sheet,
                                 row,
                                 column,
-                                "ORG_UNRESOLVED",
+                                MigrationDiagnosticCode.ORG_UNRESOLVED,
                                 "보정값 '" + overrideValue + "'에 해당하는 조직코드를 찾지 못했습니다. 조직을 다시 선택해 주세요.",
                                 index.org()
                                         .resolveOrg(MigrationDiagnostics.rawCell(row, column))
@@ -355,7 +360,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             column,
-                            "ORG_AMBIGUOUS",
+                            MigrationDiagnosticCode.ORG_AMBIGUOUS,
                             "'" + value + "'에 해당하는 조직이 여러 개입니다. 하나를 선택해 주세요.",
                             resolution.candidates()));
             return;
@@ -366,7 +371,7 @@ final class MigrationCellChecks {
                             sheet,
                             row,
                             column,
-                            "ORG_UNRESOLVED",
+                            MigrationDiagnosticCode.ORG_UNRESOLVED,
                             MigrationDiagnostics.unresolvedMessage(
                                     "'" + value + "'에 해당하는 조직을 찾지 못했습니다.", resolution),
                             resolution.candidates()));
@@ -391,7 +396,7 @@ final class MigrationCellChecks {
                                 sheet,
                                 row,
                                 column,
-                                "USER_UNRESOLVED",
+                                MigrationDiagnosticCode.USER_UNRESOLVED,
                                 "보정값 '" + overrideValue + "'에 해당하는 사번을 찾지 못했습니다. 담당자를 다시 선택해 주세요.",
                                 index.org()
                                         .resolveUser(
@@ -414,7 +419,9 @@ final class MigrationCellChecks {
                         sheet,
                         row,
                         column,
-                        resolution.isAmbiguous() ? "USER_AMBIGUOUS" : "USER_UNRESOLVED",
+                        resolution.isAmbiguous()
+                                ? MigrationDiagnosticCode.USER_AMBIGUOUS
+                                : MigrationDiagnosticCode.USER_UNRESOLVED,
                         resolution.isAmbiguous()
                                 ? "'" + value + "'에 해당하는 직원이 여러 명입니다. 한 명을 선택해 주세요."
                                 : MigrationDiagnostics.unresolvedMessage(
