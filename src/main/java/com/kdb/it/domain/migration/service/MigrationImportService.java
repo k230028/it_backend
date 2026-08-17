@@ -12,7 +12,6 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.service.BudgetRateApplicationService;
-import com.kdb.it.domain.migration.dto.MigrationColumns;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.RowDecision;
 import com.kdb.it.domain.migration.dto.SheetKind;
@@ -24,7 +23,6 @@ import com.kdb.it.domain.migration.service.adapter.SheetAdapter;
 import com.kdb.it.exception.CustomGeneralException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -147,69 +145,7 @@ public class MigrationImportService {
         return new MigrationDto.DryRunResponse(
                 plan.diagnostics(),
                 new MigrationDto.Summary(totalRows, blockers, plan.diagnostics().size() - blockers),
-                overrideColumnCatalogs(request.sheets(), index));
-    }
-
-    /**
-     * 자본예산 품목 비목 보정의 선택지를 만듭니다 (MIG-10).
-     *
-     * <p>보정 드롭다운은 원래 그 셀에 걸린 진단의 후보만 보여 주므로, 기본 비목이 정상이라 진단이 붙지 않는 셀은 <b>바꿀 수단이 없었습니다</b>. 진단과 무관하게
-     * 고를 수 있는 선택지를 응답에 실어 그 경로를 엽니다.
-     *
-     * <p>자본예산 시트가 없으면 빈 목록입니다 — 쓰지 못하는 컬럼을 미리보기에 그리지 않기 위해 존재 여부를 응답으로 알립니다.
-     *
-     * @param sheets 이번 요청의 시트 목록
-     * @param index 코드 조회 인덱스
-     * @return 컬럼별 선택지. 자본예산 시트가 없거나 비목 코드가 하나도 없으면 빈 목록
-     */
-    /**
-     * 미리보기에 그릴 보정 전용 컬럼 카탈로그를 모읍니다 (MIG-10·MIG-03).
-     *
-     * <p>카탈로그는 <b>어떤 컬럼을 그릴지</b>도 정합니다. 선택지가 행마다 다른 컬럼은 후보를 비워 컬럼만 선언하고, 실제 후보는 그 행의 진단이 싣습니다 —
-     * 위임예산 담당자가 그 경우로, 부점마다 소속 사용자가 다릅니다.
-     *
-     * @param sheets 이번 요청의 시트 목록
-     * @param index 코드 조회 인덱스
-     * @return 컬럼별 카탈로그. 해당 시트가 없으면 빈 목록
-     */
-    private List<MigrationDto.ColumnCatalog> overrideColumnCatalogs(
-            List<MigrationDto.SheetPayload> sheets, MigrationLookupIndex index) {
-        List<MigrationDto.ColumnCatalog> catalogs =
-                new ArrayList<>(capitalIoeCatalogs(sheets, index));
-        boolean hasDelegatedSheet =
-                sheets.stream().anyMatch(sheet -> sheet.kind() == SheetKind.DELEGATED_BUDGET);
-        if (hasDelegatedSheet) {
-            catalogs.add(
-                    new MigrationDto.ColumnCatalog(
-                            SheetKind.DELEGATED_BUDGET,
-                            MigrationColumns.DELEGATED_OWNER_OVERRIDE,
-                            List.of()));
-        }
-        return List.copyOf(catalogs);
-    }
-
-    private List<MigrationDto.ColumnCatalog> capitalIoeCatalogs(
-            List<MigrationDto.SheetPayload> sheets, MigrationLookupIndex index) {
-        boolean hasCapitalSheet =
-                sheets.stream().anyMatch(sheet -> sheet.kind() == SheetKind.CAPITAL_PROJECT);
-        if (!hasCapitalSheet) {
-            return List.of();
-        }
-        // 드롭다운 순서를 고정하려고 코드 오름차순으로 정렬한다 — 진단 후보는 조회 순서를 그대로
-        // 쓰지만, 이 카탈로그는 화면에 상시 노출되므로 재조회마다 순서가 흔들리면 눈에 띈다.
-        List<MigrationDto.Candidate> candidates =
-                MigrationDiagnostics.candidatesOfIoe(index, true).stream()
-                        .sorted(Comparator.comparing(MigrationDto.Candidate::code))
-                        .toList();
-        if (candidates.isEmpty()) {
-            return List.of();
-        }
-        return MigrationColumns.CAPITAL_IOE_OVERRIDES.stream()
-                .map(
-                        column ->
-                                new MigrationDto.ColumnCatalog(
-                                        SheetKind.CAPITAL_PROJECT, column, candidates))
-                .toList();
+                MigrationOverrideCatalogs.of(request.sheets(), index));
     }
 
     /**
