@@ -47,6 +47,14 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
      */
     private static final BigDecimal AMOUNT_COLUMN_LIMIT = BigDecimal.TEN.pow(15);
 
+    /**
+     * 폴백 경로에서 허용하는 `총 사업금액(전체기간)` ÷ (`'26년도 합계` + `'26년도 이후`) 비율 상한 (MIG-14).
+     *
+     * <p>업무 확정값 <b>100배</b>입니다. 정상 다년도 사업의 비율은 실측 한~두 자릿수이고, 두 칸의 단위가 뒤섞이면 5자릿수 이상 벌어집니다. 그 사이를 넉넉히
+     * 가르는 값이라 정상 파일을 막지 않습니다.
+     */
+    private static final BigDecimal WHOLE_PERIOD_RATIO_LIMIT = BigDecimal.valueOf(100);
+
     private final CapitalOverviewReader overviewReader;
     private final ResourceTableReader resourceTableReader;
     private final MigrationIoeCatalogReader catalogReader;
@@ -321,9 +329,11 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         // 빠뜨리면 폴백 경로의 정상 파일(WON 단위)이 전부 미적재로 돌아가는 회귀가 된다.
         // whole은 이 판정과 무관하게 계속 candidateA를 쓴다: 이 조건은 적재 여부만 조이고
         // 값을 candidateB로 바꾸지 않는다.
-        if (declared.wholePeriodWon() == null
-                && declared.wholePeriodRaw() != null
-                && resolved != AmountUnit.WON) {
+        boolean usedSummaryMultiplier =
+                declared.wholePeriodWon() == null
+                        && declared.wholePeriodRaw() != null
+                        && resolved != AmountUnit.WON;
+        if (usedSummaryMultiplier) {
             BigDecimal candidateB = declared.wholePeriodRaw();
             BigDecimal paidB = candidateB.subtract(later).subtract(year);
             if (paid.signum() >= 0 && paidB.signum() >= 0) {
@@ -346,6 +356,25 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             return skipAmounts(
                     projectName,
                     "산출한 금액(%s)이 저장 가능한 범위를 넘습니다.".formatted(overflow.toPlainString()),
+                    diagnostics);
+        }
+        // 조건 ⑦(비율 상한, MIG-14): 조건 ⑥은 두 해석이 **둘 다 성립할 때**만 막으므로, 원 단위 해석의
+        // 지급금액이 음수인 경우(= 원 단위 총액이 요약표 합계보다 작은 경우)는 모호로 판정되지 않아
+        // 배수가 곱해진 총액이 그대로 적재됐다. 그 구멍을 비율로 닫는다.
+        //
+        // 컬럼 용량 검사(조건 ⑤) 뒤에 둔다 — 저장 가능 여부는 하드 제약이고 이쪽은 업무 타당성
+        // 판정이라, 둘 다 걸리는 파일에서는 저장 제약 문구가 원인에 더 가깝다(선례: 조건⑤ 테스트).
+        BigDecimal declaredBase = year.add(later);
+        if (usedSummaryMultiplier
+                && declaredBase.signum() > 0
+                && whole.compareTo(declaredBase.multiply(WHOLE_PERIOD_RATIO_LIMIT)) > 0) {
+            return skipAmounts(
+                    projectName,
+                    "`총 사업금액(전체기간)`(%s)이 요약표 합계(%s)의 %s배를 넘습니다. 단위 표기가 뒤섞였는지 확인해 주세요."
+                            .formatted(
+                                    whole.toPlainString(),
+                                    declaredBase.toPlainString(),
+                                    WHOLE_PERIOD_RATIO_LIMIT.toPlainString()),
                     diagnostics);
         }
         return new ProjectAmounts(whole, later, paid);

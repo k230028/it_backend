@@ -146,8 +146,7 @@ public class MigrationImportService {
         int blockers = (int) blockerCount(plan.diagnostics());
         return new MigrationDto.DryRunResponse(
                 plan.diagnostics(),
-                new MigrationDto.Summary(
-                        totalRows, blockers, plan.diagnostics().size() - blockers),
+                new MigrationDto.Summary(totalRows, blockers, plan.diagnostics().size() - blockers),
                 capitalIoeCatalogs(request.sheets(), index));
     }
 

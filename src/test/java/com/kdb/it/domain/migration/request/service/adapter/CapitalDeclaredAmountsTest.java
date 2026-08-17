@@ -156,6 +156,44 @@ class CapitalDeclaredAmountsTest {
         assertThat(amounts.dfrAmt()).isEqualByComparingTo("800000000");
     }
 
+    /**
+     * MIG-14 — 조건⑥이 닫지 못한 잔여 구멍.
+     *
+     * <p>조건⑥은 두 해석이 <b>둘 다 성립할 때</b>만 막는다. 원 단위 해석의 지급금액이 음수면 모호로 판정되지 않아 배수가 곱해진 총액이 그대로 적재됐다. 정상
+     * 다년도 사업의 비율은 실측 한~두 자릿수, 단위가 섞이면 5자릿수 이상이므로 업무 확정 상한 100배로 가른다.
+     */
+    @Test
+    @DisplayName("[조건⑦] 폴백 총액이 요약표 합계의 100배를 넘으면 단위 혼재로 보아 적재하지 않는다")
+    void skipsAmountsWhenFallbackRatioExceedsLimit() {
+        // '26년도 합계 1,000(raw)이 품목 합계 10억원과 MILLION 배수로 대사된다.
+        // `총 사업금액(전체기간)`은 접미사 없이 2,000,000이라 적혀 있어 폴백이 발동하고,
+        // candidateA(배수 적용)=2조원 → 요약표 합계 10억원의 2,000배다. 원 단위 해석
+        // (candidateB=2,000,000)은 지급금액이 음수라 조건⑥에는 걸리지 않는다.
+        FormAdapterOutput output =
+                adaptWithResource("2000000", 1000d, 0d, "기계장치(HW)", 1_000_000_000d);
+
+        assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
+        assertThat(amountWarning(output)).contains("100배를 넘습니다");
+        // 조건⑥·④의 문구로 새지 않았는지 함께 본다
+        assertThat(amountWarning(output)).doesNotContain("확정할 수 없습니다");
+        assertThat(amountWarning(output)).doesNotContain("보다 작습니다");
+        // 미적재는 경고일 뿐이라 사업은 그대로 만들어 파일을 막지 않는다
+        assertThat(output.projects()).hasSize(1);
+        assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
+    }
+
+    @Test
+    @DisplayName("[조건⑦ 대조] 100배 이내면 정상 다년도 사업으로 보아 그대로 적재한다")
+    void loadsAmountsWhenFallbackRatioIsWithinLimit() {
+        // 같은 폴백 경로에서 candidateA=20억원, 요약표 합계=10억원이라 비율이 2배다.
+        // 정상 다년도 사업의 실측 비율(한~두 자릿수)이 막히지 않는지 확인한다.
+        FormAdapterOutput output = adaptWithResource("2000", 1000d, 0d, "기계장치(HW)", 1_000_000_000d);
+
+        ProjectAmounts amounts = output.projectAmounts().get(0);
+        assertThat(amounts.isPresent()).isTrue();
+        assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
+    }
+
     @Test
     @DisplayName("[조건⑥ 예외] 배수가 원 단위(WON)면 두 해석이 같은 값이라 모호 판정을 하지 않는다")
     void doesNotFlagAmbiguityWhenResolvedUnitIsWon() {

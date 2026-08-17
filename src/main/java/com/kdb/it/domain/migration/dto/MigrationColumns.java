@@ -110,8 +110,8 @@ public final class MigrationColumns {
      * <p>엑셀 열이 아니라 <b>미리보기에서만 고르는 값</b>이므로 {@link #of(SheetKind)}의 정규 컬럼 목록에 넣지 않습니다. 그 목록은 업로드된
      * 시트를 읽는 순서 계약이고 프론트와 자동 대조되므로(MIG-02), 엑셀에 없는 컬럼을 섞으면 계약의 의미가 흐려집니다.
      *
-     * <p>보정값 검증({@code MigrationCellChecks.checkCapitalIoeOverrides})과 미리보기 선택지 카탈로그(MIG-10)가 같은 목록을
-     * 봐야 하므로 여기 한곳에 둡니다.
+     * <p>보정값 검증({@code MigrationCellChecks.checkCapitalIoeOverrides})과 미리보기 선택지 카탈로그(MIG-10)가 같은
+     * 목록을 봐야 하므로 여기 한곳에 둡니다.
      */
     public static final List<String> CAPITAL_IOE_OVERRIDES =
             List.of("devAmountIoeC", "hwAmountIoeC", "swAmountIoeC");
