@@ -9,6 +9,7 @@ import com.kdb.it.common.iam.entity.CroleI;
 import com.kdb.it.common.iam.entity.CroleIId;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -210,17 +211,11 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                         "dtsDtlCone",
                         "prlmHrkOgzCCone",
                         "prlmHrkOgzCNm");
-        assertThat(
-                        Arrays.stream(UserRepository.UserNameView.class.getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(UserRepository.UserNameView.class))
                 .containsExactlyInAnyOrder("getEno", "getUsrNm", "getPtCNm");
-        assertThat(
-                        Arrays.stream(UserRepository.UserOrgCodeView.class.getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(UserRepository.UserOrgCodeView.class))
                 .containsExactlyInAnyOrder("getEno", "getTemC", "getBbrC");
-        assertThat(
-                        Arrays.stream(UserRepository.AdminUserView.class.getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(UserRepository.AdminUserView.class))
                 .containsExactlyInAnyOrder(
                         "getEno",
                         "getUsrNm",
@@ -228,15 +223,30 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                         "getTemC",
                         "getTemNm",
                         "getBbrC",
+                        // 파생 프로젝션은 부점명을 채울 수 없어 default null을 반환하고,
+                        // QueryDSL 구현(AdminUserProjection)만 실제 값을 채운다.
+                        "getBbrNm",
                         "getEtrMilAddrNm",
                         "getInleNo",
                         "getCpnTpn",
                         "getFstEnrDtm",
                         "getLstChgDtm");
-        assertThat(
-                        Arrays.stream(UserRepository.CommitteeUserRow.class.getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(UserRepository.CommitteeUserRow.class))
                 .containsExactlyInAnyOrder("getTemC", "getEno", "getUsrNm", "getBbrNm", "getPtCNm");
+    }
+
+    /**
+     * 프로젝션 인터페이스가 선언한 메서드 이름을 반환합니다.
+     *
+     * <p>합성 메서드를 걸러냅니다 — JaCoCo 에이전트는 <b>본문이 있는 메서드를 가진</b> 인터페이스(여기서는 {@code default getBbrNm()}을
+     * 가진 {@link UserRepository.AdminUserView})에 합성 {@code $jacocoInit}을 넣으므로, 걸러내지 않으면 커버리지를 켠
+     * 실행에서만 실패한다.
+     */
+    private static List<String> declaredMethodNames(Class<?> projection) {
+        return Arrays.stream(projection.getDeclaredMethods())
+                .filter(method -> !method.isSynthetic())
+                .map(Method::getName)
+                .toList();
     }
 
     private CorgnI organization(String code, String name, String parentCode) {
