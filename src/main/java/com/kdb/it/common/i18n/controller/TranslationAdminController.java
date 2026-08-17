@@ -31,7 +31,8 @@ public class TranslationAdminController {
     @GetMapping("/{target}")
     @Operation(summary = "대상별 번역 조회")
     public ResponseEntity<List<TranslationDto.Value>> getTranslations(
-            @PathVariable String target, @RequestParam String targetKey) {
+            @PathVariable(name = "target") String target,
+            @RequestParam(name = "targetKey") String targetKey) {
         return ResponseEntity.ok(translationCatalogService.findAll(parseTarget(target), targetKey));
     }
 
@@ -39,8 +40,8 @@ public class TranslationAdminController {
     @PutMapping("/{target}")
     @Operation(summary = "대상별 번역 저장")
     public ResponseEntity<Void> updateTranslations(
-            @PathVariable String target,
-            @RequestParam String targetKey,
+            @PathVariable(name = "target") String target,
+            @RequestParam(name = "targetKey") String targetKey,
             @RequestBody UpdateRequest request) {
         translationCatalogService.apply(parseTarget(target), targetKey, request.translations());
         return ResponseEntity.noContent().build();
