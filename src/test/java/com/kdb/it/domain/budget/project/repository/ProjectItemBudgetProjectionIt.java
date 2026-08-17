@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.project.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -44,7 +45,7 @@ class ProjectItemBudgetProjectionIt extends AbstractOracleRepositoryTest {
                             assertThat(view.getMplAmt()).isEqualByComparingTo("23.000");
                         });
         assertThat(views).extracting(view -> view.getGclMngNo()).doesNotContain(deletedGcl);
-        assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods())
+        assertThat(declaredMethodNames(ProjectItemRepository.ProjectItemBudgetView.class))
                 .hasSize(5);
     }
 

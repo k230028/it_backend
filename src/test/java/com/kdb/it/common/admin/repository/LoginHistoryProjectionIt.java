@@ -1,5 +1,6 @@
 package com.kdb.it.common.admin.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
@@ -55,7 +56,7 @@ class LoginHistoryProjectionIt extends AbstractOracleRepositoryTest {
                                 "agent-new",
                                 base.plusMinutes(1)),
                         tuple("BE03-LOGIN-OLDER", base, "1", "10.0.0.1", null, "agent-old", base));
-        assertThat(LoginHistoryRepository.LoginHistoryView.class.getDeclaredMethods()).hasSize(7);
+        assertThat(declaredMethodNames(LoginHistoryRepository.LoginHistoryView.class)).hasSize(7);
     }
 
     private Clognh login(

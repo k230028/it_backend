@@ -1,5 +1,6 @@
 package com.kdb.it.common.admin.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.system.entity.Crtokm;
@@ -62,10 +63,10 @@ class AdminListProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(token.getEndDtm()).isEqualTo(registeredAt.plusDays(7));
         assertThat(token.getEcyRnwPubTokCone()).isEqualTo("BE03-ADMIN-LOOKUP-UNIQUE");
         assertThat(token.getFstEnrDtm()).isEqualTo(registeredAt);
-        assertThat(FileRepository.AdminFileView.class.getDeclaredMethods()).hasSize(6);
-        assertThat(RefreshTokenRepository.AdminTokenView.class.getDeclaredMethods()).hasSize(4);
-        assertThat(RefreshTokenRepository.AdminTokenView.class.getDeclaredMethods())
-                .noneMatch(method -> method.getName().equals("getApiTokCone"));
+        assertThat(declaredMethodNames(FileRepository.AdminFileView.class)).hasSize(6);
+        assertThat(declaredMethodNames(RefreshTokenRepository.AdminTokenView.class))
+                .hasSize(4)
+                .doesNotContain("getApiTokCone");
     }
 
     private Cfilem file(String id, String delYn, LocalDateTime registeredAt) {

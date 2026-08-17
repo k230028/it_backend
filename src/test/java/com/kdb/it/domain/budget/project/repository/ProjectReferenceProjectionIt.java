@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.project.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -38,8 +39,7 @@ class ProjectReferenceProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(view.getAbusNm()).isEqualTo("BE03 최신 사업");
         assertThat(repository.findNameViewByAbusMngNoAndLstYnAndDelYn(deletedNo, "Y", "N"))
                 .isEmpty();
-        assertThat(ProjectRepository.ProjectNameView.class.getDeclaredMethods())
-                .extracting(method -> method.getName())
+        assertThat(declaredMethodNames(ProjectRepository.ProjectNameView.class))
                 .containsExactlyInAnyOrder("getAbusMngNo", "getAbusNm");
     }
 
@@ -66,7 +66,7 @@ class ProjectReferenceProjectionIt extends AbstractOracleRepositoryTest {
                             assertThat(view.getAbusMngNo()).isEqualTo(projectNo);
                             assertThat(view.getAbusNm()).isEqualTo("현재 사업");
                         });
-        assertThat(ProjectRepository.ProjectKeyView.class.getDeclaredMethods()).hasSize(2);
+        assertThat(declaredMethodNames(ProjectRepository.ProjectKeyView.class)).hasSize(2);
     }
 
     private Bprojm project(

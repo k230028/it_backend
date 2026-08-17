@@ -1,5 +1,6 @@
 package com.kdb.it.common.iam.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.iam.entity.CorgnI;
@@ -7,7 +8,6 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.service.UserRepresentativeSelector;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -101,11 +101,7 @@ class CommitteeUserProjectionIt extends AbstractOracleRepositoryTest {
         Map<String, UserRepository.CouncilMemberUserRow> byEno =
                 rows.stream().collect(Collectors.toMap(row -> row.getEno(), Function.identity()));
 
-        assertThat(
-                        Arrays.stream(
-                                        UserRepository.CouncilMemberUserRow.class
-                                                .getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(UserRepository.CouncilMemberUserRow.class))
                 .containsExactlyInAnyOrder("getEno", "getUsrNm", "getBbrNm", "getPtCNm");
         assertThat(byEno).containsOnlyKeys("BE27CU001", "BE27CU002", "BE27CU012");
         assertThat(byEno.get("BE27CU001").getBbrNm()).isEqualTo("디지털부");

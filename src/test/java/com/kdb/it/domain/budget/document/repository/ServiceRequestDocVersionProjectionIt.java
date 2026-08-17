@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.document.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.document.entity.Brdocm;
@@ -69,7 +70,7 @@ class ServiceRequestDocVersionProjectionIt extends AbstractOracleRepositoryTest 
                         LocalDateTime.of(2026, 7, 21, 10, 5),
                         LocalDateTime.of(2026, 7, 21, 9, 5));
         assertThat(views).extracting(view -> view.getDelYn()).containsOnly("N");
-        assertThat(ServiceRequestDocRepository.VersionHistoryView.class.getDeclaredMethods())
+        assertThat(declaredMethodNames(ServiceRequestDocRepository.VersionHistoryView.class))
                 .hasSize(5);
     }
 

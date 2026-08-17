@@ -1,11 +1,11 @@
 package com.kdb.it.common.iam.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,11 +81,7 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
                 .get()
                 .extracting(row -> row.getBbrNm())
                 .isEqualTo("디지털부");
-        assertThat(
-                        Arrays.stream(
-                                        OrganizationRepository.OrganizationNameView.class
-                                                .getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(OrganizationRepository.OrganizationNameView.class))
                 .containsExactlyInAnyOrder("getPrlmOgzCCone", "getBbrNm");
     }
 
@@ -107,11 +103,7 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
                             assertThat(row.getBbrNm()).isEqualTo("디지털부");
                             assertThat(row.getPrlmHrkOgzCCone()).isEqualTo("100");
                         });
-        assertThat(
-                        Arrays.stream(
-                                        OrganizationRepository.OrganizationListView.class
-                                                .getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(OrganizationRepository.OrganizationListView.class))
                 .containsExactlyInAnyOrder("getPrlmOgzCCone", "getPrlmHrkOgzCCone", "getBbrNm");
     }
 
@@ -170,11 +162,7 @@ class OrganizationNameProjectionIt extends AbstractOracleRepositoryTest {
                             assertThat(row.getFstEnrDtm()).isEqualTo(activeEntity.getFstEnrDtm());
                             assertThat(row.getLstChgDtm()).isEqualTo(activeEntity.getLstChgDtm());
                         });
-        assertThat(
-                        Arrays.stream(
-                                        OrganizationRepository.OrganizationAdminView.class
-                                                .getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(OrganizationRepository.OrganizationAdminView.class))
                 .containsExactlyInAnyOrder(
                         "getPrlmOgzCCone",
                         "getBbrNm",

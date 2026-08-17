@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.project.service;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -159,8 +160,7 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(response.getAssetBg()).isEqualByComparingTo("1000");
         assertThat(response.getCostBg()).isEqualByComparingTo("500");
         assertThat(response.getTotRqmAmt()).isEqualByComparingTo("1000");
-        assertThat(ProjectItemRepository.ProjectItemBudgetView.class.getDeclaredMethods())
-                .extracting(method -> method.getName())
+        assertThat(declaredMethodNames(ProjectItemRepository.ProjectItemBudgetView.class))
                 .containsExactlyInAnyOrder(
                         "getGclMngNo", "getAbusMngNo", "getIoeC", "getAmt", "getMplAmt");
     }

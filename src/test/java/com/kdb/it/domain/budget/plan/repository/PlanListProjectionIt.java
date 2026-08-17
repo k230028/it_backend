@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.plan.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
@@ -59,7 +60,7 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
                                         .filter(view -> oldNo.equals(view.getReqDocNo()))
                                         .findFirst()
                                         .orElseThrow()));
-        assertThat(BplanmRepository.PlanListView.class.getDeclaredMethods()).hasSize(9);
+        assertThat(declaredMethodNames(BplanmRepository.PlanListView.class)).hasSize(9);
     }
 
     private Bplanm plan(String reqDocNo, LocalDateTime createdAt, String snapshot, String delYn) {

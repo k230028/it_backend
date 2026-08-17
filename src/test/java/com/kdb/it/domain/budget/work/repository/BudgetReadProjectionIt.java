@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.work.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
@@ -61,6 +62,6 @@ class BudgetReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(view.getIoeC()).isEqualTo(loaded.getIoeC());
         assertThat(view.getBgDupAmt()).isEqualByComparingTo(loaded.getBgDupAmt());
         assertThat(view.getAsgRt()).isEqualByComparingTo(loaded.getAsgRt());
-        assertThat(BudgetReadView.class.getDeclaredMethods()).hasSize(7);
+        assertThat(declaredMethodNames(BudgetReadView.class)).hasSize(7);
     }
 }

@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
@@ -41,7 +42,7 @@ class CostRepresentativeProjectionIt extends AbstractOracleRepositoryTest {
                         org.assertj.core.groups.Tuple.tuple(costBgNo, 1, "N", "구버전"),
                         org.assertj.core.groups.Tuple.tuple(costBgNo, 2, "Y", "최신"));
         assertThat(CostRepresentativeSelector.pickView(views).getCttNm()).isEqualTo("최신");
-        assertThat(CostRepository.CostRepresentativeView.class.getDeclaredMethods()).hasSize(4);
+        assertThat(declaredMethodNames(CostRepository.CostRepresentativeView.class)).hasSize(4);
     }
 
     private Bcostm cost(String costBgNo, int sno, String lstYn, String name, LocalDateTime now) {

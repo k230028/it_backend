@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.document.service;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -72,9 +73,7 @@ class GuideDocServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).docMngNo()).isEqualTo("GDOC-2026-0001");
         assertThat(result.get(0).docTtlCone()).isEqualTo("가이드문서1");
-        assertThat(GuideDocDto.ListResponse.class.getDeclaredMethods())
-                .extracting(java.lang.reflect.Method::getName)
-                .doesNotContain("nacTxtInf");
+        assertThat(declaredMethodNames(GuideDocDto.ListResponse.class)).doesNotContain("nacTxtInf");
         verify(guideDocRepository).findListViewsByDelYn("N");
     }
 

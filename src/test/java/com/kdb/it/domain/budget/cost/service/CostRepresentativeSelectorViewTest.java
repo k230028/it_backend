@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.service;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
@@ -41,8 +42,7 @@ class CostRepresentativeSelectorViewTest {
 
     @Test
     void 프로젝션은정확히네필드만노출한다() {
-        assertThat(CostRepository.CostRepresentativeView.class.getDeclaredMethods())
-                .extracting(method -> method.getName())
+        assertThat(declaredMethodNames(CostRepository.CostRepresentativeView.class))
                 .containsExactlyInAnyOrder("getCostBgNo", "getBgSno", "getLstYn", "getCttNm");
     }
 }

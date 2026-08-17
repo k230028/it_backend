@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
@@ -110,12 +111,12 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(single).extracting(view -> view.getDcrSqnSno()).containsExactly(1, 2);
         assertThat(batch).extracting(view -> view.getDcrSqnSno()).containsExactly(1, 2);
 
-        assertThat(ApplicationMapRepository.ApplicationMapView.class.getDeclaredMethods())
+        assertThat(declaredMethodNames(ApplicationMapRepository.ApplicationMapView.class))
                 .hasSize(3);
-        assertThat(ApplicationRepository.ApplicationSummaryView.class.getDeclaredMethods())
+        assertThat(declaredMethodNames(ApplicationRepository.ApplicationSummaryView.class))
                 .hasSize(6);
-        assertThat(ApproverRepository.ApproverReadView.class.getDeclaredMethods()).hasSize(7);
-        assertThat(ApplicationRepository.ApplicationReadView.class.getDeclaredMethods()).hasSize(8);
+        assertThat(declaredMethodNames(ApproverRepository.ApproverReadView.class)).hasSize(7);
+        assertThat(declaredMethodNames(ApplicationRepository.ApplicationReadView.class)).hasSize(8);
     }
 
     @Test

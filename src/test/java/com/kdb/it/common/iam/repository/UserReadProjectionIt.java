@@ -1,5 +1,6 @@
 package com.kdb.it.common.iam.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.iam.dto.UserDto;
@@ -9,7 +10,6 @@ import com.kdb.it.common.iam.entity.CroleI;
 import com.kdb.it.common.iam.entity.CroleIId;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
-import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -233,20 +233,6 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                         "getLstChgDtm");
         assertThat(declaredMethodNames(UserRepository.CommitteeUserRow.class))
                 .containsExactlyInAnyOrder("getTemC", "getEno", "getUsrNm", "getBbrNm", "getPtCNm");
-    }
-
-    /**
-     * 프로젝션 인터페이스가 선언한 메서드 이름을 반환합니다.
-     *
-     * <p>합성 메서드를 걸러냅니다 — JaCoCo 에이전트는 <b>본문이 있는 메서드를 가진</b> 인터페이스(여기서는 {@code default getBbrNm()}을
-     * 가진 {@link UserRepository.AdminUserView})에 합성 {@code $jacocoInit}을 넣으므로, 걸러내지 않으면 커버리지를 켠
-     * 실행에서만 실패한다.
-     */
-    private static List<String> declaredMethodNames(Class<?> projection) {
-        return Arrays.stream(projection.getDeclaredMethods())
-                .filter(method -> !method.isSynthetic())
-                .map(Method::getName)
-                .toList();
     }
 
     private CorgnI organization(String code, String name, String parentCode) {

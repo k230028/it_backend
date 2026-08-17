@@ -1,11 +1,11 @@
 package com.kdb.it.domain.budget.document.repository;
 
+import static com.kdb.it.support.ProjectionContracts.declaredMethodNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -70,11 +70,8 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
                 .satisfies(v -> assertThat(v.getDocMngNo()).isEqualTo("GDOC-BE03LIST-DL"));
 
         // 프로젝션 인터페이스에는 본문(nacTxtInf) getter가 존재하지 않고 정확히 7개 getter만 선언되어 있다
-        assertThat(
-                        Arrays.stream(
-                                        GuideDocRepository.GuideDocListView.class
-                                                .getDeclaredMethods())
-                                .map(method -> method.getName()))
+        assertThat(declaredMethodNames(GuideDocRepository.GuideDocListView.class))
+                .hasSize(7)
                 .containsExactlyInAnyOrder(
                         "getDocMngNo",
                         "getDocTtlCone",
@@ -83,7 +80,6 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
                         "getFstEnrUsid",
                         "getLstChgDtm",
                         "getLstChgUsid");
-        assertThat(GuideDocRepository.GuideDocListView.class.getDeclaredMethods()).hasSize(7);
     }
 
     private Bgdocm document(String docMngNo, String docTtlCone, String delYn) {
