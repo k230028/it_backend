@@ -117,6 +117,16 @@ public final class MigrationColumns {
             List.of("devAmountIoeC", "hwAmountIoeC", "swAmountIoeC");
 
     /**
+     * 위임예산 담당자 보정 전용 컬럼입니다 (MIG-03).
+     *
+     * <p>위임예산 시트에는 담당자 열이 없어 어댑터가 업로드 사용자 사번을 담당자·IT담당자로 넣습니다. 그러면 원장에 실제 담당자가 아닌 이름이 남으므로, 미리보기에서
+     * 부점별 담당자를 골라 덮을 수 있게 합니다. 시트에 없는 값이라 <b>필수가 아니며</b> 미지정은 WARNING으로만 알립니다.
+     *
+     * <p>{@link #CAPITAL_IOE_OVERRIDES}와 같은 이유로 {@link #of(SheetKind)}의 정규 컬럼 목록에는 넣지 않습니다.
+     */
+    public static final String DELEGATED_OWNER_OVERRIDE = "cgprEno";
+
+    /**
      * 시트 종류에 해당하는 정규 컬럼 id 목록을 반환합니다.
      *
      * @param kind 시트 종류 (null 아님)

@@ -147,7 +147,7 @@ public class MigrationImportService {
         return new MigrationDto.DryRunResponse(
                 plan.diagnostics(),
                 new MigrationDto.Summary(totalRows, blockers, plan.diagnostics().size() - blockers),
-                capitalIoeCatalogs(request.sheets(), index));
+                overrideColumnCatalogs(request.sheets(), index));
     }
 
     /**
@@ -162,6 +162,32 @@ public class MigrationImportService {
      * @param index 코드 조회 인덱스
      * @return 컬럼별 선택지. 자본예산 시트가 없거나 비목 코드가 하나도 없으면 빈 목록
      */
+    /**
+     * 미리보기에 그릴 보정 전용 컬럼 카탈로그를 모읍니다 (MIG-10·MIG-03).
+     *
+     * <p>카탈로그는 <b>어떤 컬럼을 그릴지</b>도 정합니다. 선택지가 행마다 다른 컬럼은 후보를 비워 컬럼만 선언하고, 실제 후보는 그 행의 진단이 싣습니다 —
+     * 위임예산 담당자가 그 경우로, 부점마다 소속 사용자가 다릅니다.
+     *
+     * @param sheets 이번 요청의 시트 목록
+     * @param index 코드 조회 인덱스
+     * @return 컬럼별 카탈로그. 해당 시트가 없으면 빈 목록
+     */
+    private List<MigrationDto.ColumnCatalog> overrideColumnCatalogs(
+            List<MigrationDto.SheetPayload> sheets, MigrationLookupIndex index) {
+        List<MigrationDto.ColumnCatalog> catalogs =
+                new ArrayList<>(capitalIoeCatalogs(sheets, index));
+        boolean hasDelegatedSheet =
+                sheets.stream().anyMatch(sheet -> sheet.kind() == SheetKind.DELEGATED_BUDGET);
+        if (hasDelegatedSheet) {
+            catalogs.add(
+                    new MigrationDto.ColumnCatalog(
+                            SheetKind.DELEGATED_BUDGET,
+                            MigrationColumns.DELEGATED_OWNER_OVERRIDE,
+                            List.of()));
+        }
+        return List.copyOf(catalogs);
+    }
+
     private List<MigrationDto.ColumnCatalog> capitalIoeCatalogs(
             List<MigrationDto.SheetPayload> sheets, MigrationLookupIndex index) {
         boolean hasCapitalSheet =

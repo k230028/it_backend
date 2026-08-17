@@ -21,6 +21,8 @@ enum MigrationDiagnosticCode {
 
     /** 담당자를 사번·성명으로 찾지 못했습니다. */
     USER_UNRESOLVED,
+    /** 시트에 값이 없어 기본값(업로드 사용자)으로 채웠음을 알립니다 — 필수가 아니라 WARNING입니다 (MIG-03). */
+    USER_DEFAULTED,
 
     /** 같은 이름의 사용자가 둘 이상입니다. */
     USER_AMBIGUOUS,

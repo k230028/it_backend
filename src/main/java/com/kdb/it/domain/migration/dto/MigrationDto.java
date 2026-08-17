@@ -131,6 +131,7 @@ public final class MigrationDto {
                                 "ORG_UNRESOLVED",
                                 "ORG_AMBIGUOUS",
                                 "USER_UNRESOLVED",
+                                "USER_DEFAULTED",
                                 "USER_AMBIGUOUS",
                                 "CODE_UNRESOLVED",
                                 "REQUIRED_MISSING",

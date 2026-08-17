@@ -1,5 +1,6 @@
 package com.kdb.it.domain.migration.service;
 
+import com.kdb.it.domain.migration.dto.MigrationColumns;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import java.util.ArrayList;
@@ -68,6 +69,7 @@ public class MigrationValidator {
         for (MigrationDto.SheetPayload sheet : sheets) {
             if (sheet.kind() == SheetKind.DELEGATED_BUDGET) {
                 checkDelegatedFirstBranch(sheet, overrides, out);
+                checkDelegatedOwners(sheet, index, overrides, out);
             }
             // 같은 반영 안의 사업명 중복은 행 단위로는 보이지 않는다 — 시트별로 앞선 행을 기억해 뒤 행에서 짚는다
             Map<String, Integer> projectNameRows = new LinkedHashMap<>();
@@ -325,6 +327,61 @@ public class MigrationValidator {
      * 시트 단위 BLOCKER로 막습니다. 행별 검사({@link #validateDelegatedRowAlways})는 이 전제를 알고 부점명을 필수값으로 요구하지
      * 않습니다.
      */
+    /**
+     * 부점 그룹마다 담당자 지정 여부를 확인합니다 (MIG-03).
+     *
+     * <p>위임예산 시트에는 담당자 열이 없어 어댑터가 업로드 사용자를 담당자·IT담당자로 넣습니다. 그러면 원장에 실제 담당자가 아닌 이름이 남으므로 미리보기에서 고를 수
+     * 있게 하되, <b>필수는 아니므로 WARNING</b>으로만 알립니다(업무 판단). 후보는 그 부점의 소속 사용자입니다 — 후보가 비면 화면에 드롭다운이 그려지지 않아
+     * 고를 수단이 없습니다.
+     *
+     * <p>진단은 <b>부점 그룹마다 한 번</b>만 냅니다. 어댑터가 그룹 단위로 사업을 만들고 담당자도 그룹 단위 값이라, 행마다 내면 10행짜리 부점에 같은 경고가
+     * 10번 붙습니다. 그룹의 첫 행에 붙이므로 보정 키도 그 행 번호를 씁니다.
+     */
+    private void checkDelegatedOwners(
+            MigrationDto.SheetPayload sheet,
+            MigrationLookupIndex index,
+            Map<String, String> overrides,
+            List<MigrationDto.CellDiagnostic> out) {
+        String previousBranch = null;
+        for (MigrationDto.NormalizedRow row : sheet.rows()) {
+            String branch = MigrationDiagnostics.cell(row, "branchName", overrides, sheet).trim();
+            if (branch.isEmpty() || branch.equals(previousBranch)) {
+                continue;
+            }
+            previousBranch = branch;
+            String override =
+                    overrides.get(
+                            MigrationDiagnostics.overrideKey(
+                                    sheet.kind(),
+                                    row.excelRow(),
+                                    MigrationColumns.DELEGATED_OWNER_OVERRIDE));
+            String orgCode = index.org().resolveOrg(branch).code();
+            if (override != null && !override.isBlank()) {
+                if (!index.org().userExists(override)) {
+                    out.add(
+                            MigrationDiagnostics.blocker(
+                                    sheet,
+                                    row,
+                                    MigrationColumns.DELEGATED_OWNER_OVERRIDE,
+                                    MigrationDiagnosticCode.USER_UNRESOLVED,
+                                    "보정한 사번 '" + override + "'을 찾지 못했습니다. 담당자를 다시 선택해 주세요.",
+                                    index.org().userCandidatesOfOrg(orgCode)));
+                }
+                continue;
+            }
+            out.add(
+                    MigrationDiagnostics.warning(
+                            sheet,
+                            row,
+                            MigrationColumns.DELEGATED_OWNER_OVERRIDE,
+                            MigrationDiagnosticCode.USER_DEFAULTED,
+                            "위임예산 시트에는 담당자 열이 없어 '"
+                                    + branch
+                                    + "' 사업의 담당자를 업로드 사용자로 채웁니다. 부점 담당자를 지정하려면 골라 주세요.",
+                            index.org().userCandidatesOfOrg(orgCode)));
+        }
+    }
+
     private void checkDelegatedFirstBranch(
             MigrationDto.SheetPayload sheet,
             Map<String, String> overrides,

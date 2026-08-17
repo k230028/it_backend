@@ -407,6 +407,32 @@ public class OrgIdentityResolver {
          * @param eno 사번
          * @return 등록되어 있으면 true
          */
+        /**
+         * 부점에 소속된 사용자를 보정 후보로 돌려줍니다 (MIG-03).
+         *
+         * <p>위임예산 담당자는 시트에 열이 없어 이름으로 해석할 대상이 없습니다. 그래서 이름 해석 후보가 아니라 <b>그 부점의 소속 사용자 전체</b>를 후보로
+         * 냅니다 — 후보가 비면 화면에 드롭다운이 그려지지 않아 "고르라"고 해놓고 고를 수단이 없는 상태가 됩니다.
+         *
+         * @param orgCode 부점 조직코드. null이면 빈 목록
+         * @return 사번 오름차순 후보. 표시명은 `이름 직위`(직위가 없으면 이름)
+         */
+        public List<MigrationDto.Candidate> userCandidatesOfOrg(String orgCode) {
+            if (orgCode == null) {
+                return List.of();
+            }
+            return allUsers.stream()
+                    .filter(user -> orgCode.equals(user.getBbrC()))
+                    .sorted(Comparator.comparing(CuserI::getEno))
+                    .map(
+                            user ->
+                                    new MigrationDto.Candidate(
+                                            user.getEno(),
+                                            user.getPtCNm() == null || user.getPtCNm().isBlank()
+                                                    ? user.getUsrNm()
+                                                    : user.getUsrNm() + " " + user.getPtCNm()))
+                    .toList();
+        }
+
         public boolean userExists(String eno) {
             return eno != null && userByEno.containsKey(eno);
         }

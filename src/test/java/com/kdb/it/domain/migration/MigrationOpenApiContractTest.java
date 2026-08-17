@@ -33,6 +33,8 @@ class MigrationOpenApiContractTest {
                 "ORG_UNRESOLVED",
                 "ORG_AMBIGUOUS",
                 "USER_UNRESOLVED",
+                // MIG-03: 위임예산 담당자가 시트에 없어 업로드 사용자로 채웠음을 알리는 경고
+                "USER_DEFAULTED",
                 "USER_AMBIGUOUS",
                 "CODE_UNRESOLVED",
                 "REQUIRED_MISSING",

@@ -548,6 +548,108 @@ class MigrationValidatorTest {
         assertThat(result).noneMatch(d -> "hwKrwAmount".equals(d.column()));
     }
 
+    /**
+     * MIG-03 — 위임예산 담당자는 시트에 열이 없어 업로드 사용자로 채워진다.
+     *
+     * <p>업무 판단은 "필수는 아니지만 고를 수 있게 하고, 미지정은 경고로 알린다"였다. 경고는 <b>부점 그룹마다 한 번</b>만 내야 한다 — 행마다 내면 10행짜리
+     * 부점에 같은 경고가 10번 붙는다. 후보가 비면 화면에 드롭다운이 그려지지 않으므로 그 부점 소속 사용자를 후보로 싣는다.
+     */
+    @Test
+    @DisplayName("위임예산 담당자 미지정은 부점마다 한 번 USER_DEFAULTED 경고를 내고 소속 사용자를 후보로 싣는다")
+    void 위임예산_담당자_미지정은_부점당_한번_경고다() {
+        Map<String, String> first = delegatedCells(Map.of("branchName", "런던"));
+        Map<String, String> second = delegatedCells(Map.of("branchName", "런던"));
+        Map<String, String> third = delegatedCells(Map.of("branchName", "시드니"));
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.DELEGATED_BUDGET,
+                                        "2026",
+                                        List.of(row(2, first), row(3, second), row(4, third)))),
+                        TestSnapshots.indexWithOrgsAndUsers(
+                                List.of(org("0910", "런던"), org("0920", "시드니")),
+                                List.of(
+                                        user("L0001", "김런던", "과장", "0910", null, null),
+                                        user("L0002", "이런던", null, "0910", null, null),
+                                        user("S0001", "박시드니", "차장", "0920", null, null))),
+                        TestSnapshots.empty("2026"),
+                        Map.of(),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "USER_DEFAULTED".equals(d.code()))
+                .hasSize(2)
+                .allSatisfy(
+                        d -> {
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.WARNING);
+                            assertThat(d.column()).isEqualTo("cgprEno");
+                        })
+                .satisfiesExactly(
+                        london -> {
+                            // 그룹의 첫 행에만 붙는다 — 보정 키가 어댑터가 읽는 좌표와 같아야 한다
+                            assertThat(london.excelRow()).isEqualTo(2);
+                            assertThat(london.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("L0001", "L0002");
+                            // 직위가 없는 사용자는 이름만 표시한다
+                            assertThat(london.candidates())
+                                    .extracting(MigrationDto.Candidate::label)
+                                    .containsExactly("김런던 과장", "이런던");
+                        },
+                        sydney -> {
+                            assertThat(sydney.excelRow()).isEqualTo(4);
+                            assertThat(sydney.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("S0001");
+                        });
+    }
+
+    @Test
+    @DisplayName("위임예산 담당자를 지정하면 경고가 사라지고, 없는 사번이면 BLOCKER를 낸다")
+    void 위임예산_담당자_보정값을_검증한다() {
+        Map<String, String> cells = delegatedCells(Map.of("branchName", "런던"));
+        MigrationLookupIndex index =
+                TestSnapshots.indexWithOrgsAndUsers(
+                        List.of(org("0910", "런던")),
+                        List.of(user("L0001", "김런던", "과장", "0910", null, null)));
+        List<MigrationDto.SheetPayload> sheets =
+                List.of(
+                        new MigrationDto.SheetPayload(
+                                SheetKind.DELEGATED_BUDGET, "2026", List.of(row(2, cells))));
+
+        List<MigrationDto.CellDiagnostic> chosen =
+                validator.validate(
+                        sheets,
+                        index,
+                        TestSnapshots.empty("2026"),
+                        Map.of("DELEGATED_BUDGET|2|cgprEno", "L0001"),
+                        Map.of());
+        List<MigrationDto.CellDiagnostic> unknown =
+                validator.validate(
+                        sheets,
+                        index,
+                        TestSnapshots.empty("2026"),
+                        Map.of("DELEGATED_BUDGET|2|cgprEno", "NOBODY"),
+                        Map.of());
+
+        assertThat(chosen).noneMatch(d -> "USER_DEFAULTED".equals(d.code()));
+        assertThat(chosen).noneMatch(d -> "cgprEno".equals(d.column()));
+        assertThat(unknown)
+                .filteredOn(d -> "cgprEno".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("USER_UNRESOLVED");
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
+                            // 되돌릴 수 있도록 후보를 유지한다
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("L0001");
+                        });
+    }
+
     /** 위임예산 첫 행부터 부점명이 비면 이후 행을 귀속시킬 사업이 없으므로 시트 단위 BLOCKER. */
     @Test
     @DisplayName("위임예산 첫 행 부점명이 비면 REQUIRED_MISSING BLOCKER를 낸다")

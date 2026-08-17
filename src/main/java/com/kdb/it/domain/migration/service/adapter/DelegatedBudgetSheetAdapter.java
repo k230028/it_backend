@@ -1,16 +1,19 @@
 package com.kdb.it.domain.migration.service.adapter;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.dto.MigrationColumns;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import com.kdb.it.domain.migration.service.MigrationAmounts;
 import com.kdb.it.domain.migration.service.MigrationIoeCodes;
+import com.kdb.it.domain.migration.service.MigrationValidator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -77,8 +80,14 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
                     request.setAbusTc("20");
                     String branchDeptCode = deptCodeByBranch.get(branch);
                     request.setSvnDpmC(branchDeptCode);
-                    request.setUsid(ctx.actorEno());
-                    request.setDvmUsid(ctx.actorEno());
+                    // 미리보기에서 부점 담당자를 골랐으면 그 사번을 쓴다 (MIG-03).
+                    // 시트에 담당자 열이 없어 필수가 아니며, 미지정은 검증기가 WARNING으로 알리고
+                    // 여기서는 종전대로 업로드 사용자로 채운다.
+                    String owner =
+                            ownerOverride(ctx, firstExcelRowByBranch.get(branch))
+                                    .orElse(ctx.actorEno());
+                    request.setUsid(owner);
+                    request.setDvmUsid(owner);
                     int year = Integer.parseInt(ctx.bseYy());
                     request.setSttDtm(LocalDate.of(year, 1, 1));
                     request.setEndDtm(LocalDate.of(year, 12, 31));
@@ -99,6 +108,29 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
                                     groupTotalKrw));
                 });
         return new AdapterOutput(List.of(), projects, List.of(), allocations);
+    }
+
+    /**
+     * 부점 그룹의 담당자 보정값을 읽습니다 (MIG-03).
+     *
+     * <p>담당자는 그룹 단위 값이라 보정도 그룹의 첫 행에 붙습니다 — 검증기가 경고를 낸 행과 같은 좌표여야 사용자가 고른 값이 여기로 들어옵니다.
+     *
+     * @param ctx 어댑터 실행 맥락
+     * @param firstExcelRow 그룹의 첫 엑셀 행 번호
+     * @return 고른 사번. 지정하지 않았으면 빈 Optional
+     */
+    private Optional<String> ownerOverride(AdapterContext ctx, Integer firstExcelRow) {
+        if (firstExcelRow == null) {
+            return Optional.empty();
+        }
+        String value =
+                ctx.overrides()
+                        .get(
+                                MigrationValidator.overrideKey(
+                                        SheetKind.DELEGATED_BUDGET,
+                                        firstExcelRow,
+                                        MigrationColumns.DELEGATED_OWNER_OVERRIDE));
+        return value == null || value.isBlank() ? Optional.empty() : Optional.of(value);
     }
 
     /** 한 행의 HW·SW 원화환산액 합계입니다. 비었거나 음수인 항목은 0으로 접습니다. */

@@ -91,6 +91,21 @@ final class MigrationDiagnostics {
             String column,
             MigrationDiagnosticCode code,
             String message) {
+        return warning(sheet, row, column, code, message, List.of());
+    }
+
+    /**
+     * 보정 후보를 함께 담은 경고입니다.
+     *
+     * <p>"틀리지는 않았지만 바꿀 수 있는" 값에 씁니다 — 후보가 없으면 화면에 드롭다운이 그려지지 않아 고를 수단이 없습니다(선례: 위임예산 담당자, MIG-03).
+     */
+    static MigrationDto.CellDiagnostic warning(
+            MigrationDto.SheetPayload sheet,
+            MigrationDto.NormalizedRow row,
+            String column,
+            MigrationDiagnosticCode code,
+            String message,
+            List<MigrationDto.Candidate> candidates) {
         return new MigrationDto.CellDiagnostic(
                 sheet.kind(),
                 row.excelRow(),
@@ -98,7 +113,7 @@ final class MigrationDiagnostics {
                 code.name(),
                 MigrationDto.Severity.WARNING,
                 message,
-                List.of());
+                List.copyOf(candidates));
     }
 
     /**
