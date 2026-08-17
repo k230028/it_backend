@@ -307,8 +307,12 @@ public final class RequestFormFixtures {
         s.addMergedRegion(new CellRangeAddress(10, 10, 0, 1));
     }
 
-    /** 시트 ③을 씁니다. `english=true`면 런던 샘플처럼 라벨·비목명이 영문입니다. */
-    private static void writeGeneralExpense(Workbook wb, String name, boolean english) {
+    /**
+     * 시트 ③의 머리말과 2행 헤더만 씁니다.
+     *
+     * @return 만든 시트. 데이터 행은 호출자가 채웁니다
+     */
+    private static Sheet writeGeneralExpenseHeader(Workbook wb, String name, boolean english) {
         Sheet s = wb.createSheet(name);
         // 상단 머리말 — 런던 실측은 라벨과 이름이 같은 칸에 붙어 있다
         put(s, 1, 8, "(확인자)");
@@ -334,6 +338,71 @@ public final class RequestFormFixtures {
         put(s, 4, 6, english ? "Counterparty" : "상대처");
         put(s, 4, 7, english ? "Cont." : "계속");
         put(s, 4, 8, english ? "New" : "신규");
+        return s;
+    }
+
+    /**
+     * 시트 ③의 비목 해석 갈래를 한 파일에 모은 .xls입니다.
+     *
+     * <p>행 구성(0-based 시트 행 → 엑셀 행): 5→6 중분류 기본값 경로(`개발비`/`개발용역`), 6→7 중의적 경로(`전산 제비`/없는 세부), 7→8
+     * JPY 천엔 단위 행, 8→9 연간 금액이 빈 원화 행(단위 추정 표본에서 빠지는지 확인).
+     */
+    public static byte[] generalExpenseIoeBranchesXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet s = writeGeneralExpenseHeader(wb, "③ (일반관리비) 전산 일반관리비 편성요청서", false);
+            // (중분류, 세부) 쌍이 빗나가고 중분류 `개발비`가 기본값 103으로 좁혀지는 행 — 대안 104가 남아 확인을 묻는다
+            put(s, 5, 0, "개발비");
+            put(s, 5, 1, "개발용역");
+            put(s, 5, 2, "차세대 설계용역");
+            put(s, 5, 3, "KRW");
+            putNumber(s, 5, 5, 120_000_000d);
+            put(s, 5, 6, "메가컨설팅");
+            put(s, 5, 7, "√");
+            put(s, 5, 9, "○");
+            // 중분류 `전산 제비`가 국내 3건으로만 좁혀져 기본값이 없는 행 — 고르라고 요청한다.
+            // A열을 비우면 위 행의 `개발비`를 이어받아(forward-fill) 갈래가 달라지므로 반드시 채운다
+            put(s, 6, 0, "전산 제비");
+            put(s, 6, 1, "없는세부항목");
+            put(s, 6, 2, "정체불명 계약");
+            put(s, 6, 3, "KRW");
+            putNumber(s, 6, 5, 5_000_000d);
+            put(s, 6, 6, "미지정");
+            put(s, 6, 8, "√");
+            put(s, 6, 9, "○");
+            // JPY는 양식이 천엔 단위라 엔으로 편다
+            put(s, 7, 0, "전산 제비");
+            put(s, 7, 1, "국외유지보수료");
+            put(s, 7, 2, "도쿄 서버 유지보수");
+            put(s, 7, 3, "JPY");
+            putNumber(s, 7, 5, 1_500d);
+            put(s, 7, 6, "NTT Data");
+            put(s, 7, 7, "√");
+            put(s, 7, 9, "○");
+            // 연간 금액이 빈 원화 행 — 단위 추정 표본에서 빠져야 한다
+            put(s, 8, 2, "금액 미정 계약");
+            put(s, 8, 3, "KRW");
+            put(s, 8, 6, "미정");
+            put(s, 8, 7, "√");
+            put(s, 8, 9, "○");
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** 시트 ③의 헤더만 있고 데이터 행이 없는 .xls (서식만 남은 제출본). */
+    public static byte[] generalExpenseHeaderOnlyXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            writeGeneralExpenseHeader(wb, "③ (일반관리비) 전산 일반관리비 편성요청서", false);
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** 시트 ③을 씁니다. `english=true`면 런던 샘플처럼 라벨·비목명이 영문입니다. */
+    private static void writeGeneralExpense(Workbook wb, String name, boolean english) {
+        Sheet s = writeGeneralExpenseHeader(wb, name, english);
 
         if (english) {
             put(s, 5, 0, "IT Expenses");

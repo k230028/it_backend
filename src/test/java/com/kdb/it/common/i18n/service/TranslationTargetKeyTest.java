@@ -35,6 +35,25 @@ class TranslationTargetKeyTest {
     }
 
     @Test
+    void 구성요소가_null이거나_공백이면_어느_값인지_알려주고_거부한다() {
+        assertThatThrownBy(() -> TranslationTargetKey.menu(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("메뉴 ID");
+        assertThatThrownBy(() -> TranslationTargetKey.menu(" "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("메뉴 ID");
+        assertThatThrownBy(() -> TranslationTargetKey.code(null, "10", "20260101"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("공통코드 ID");
+        assertThatThrownBy(() -> TranslationTargetKey.code("ABUS_TC", "", "20260101"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("코드값 ID");
+        assertThatThrownBy(() -> TranslationTargetKey.code("ABUS_TC", "10", "\t"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("시작일자");
+    }
+
+    @Test
     void 미지원언어는_사용자조회에서_한국어로_정규화한다() {
         assertThat(SupportedLanguage.normalize(" FR ")).isEqualTo(SupportedLanguage.KO);
         assertThat(SupportedLanguage.normalize(" EN ")).isEqualTo(SupportedLanguage.EN);

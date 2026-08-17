@@ -3,18 +3,26 @@ package com.kdb.it.common.code.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.code.dto.CodeDto;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CcodemResponseRow;
 import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.common.i18n.model.SupportedLanguage;
+import com.kdb.it.common.i18n.model.TranslationColumns;
+import com.kdb.it.common.i18n.model.TranslationTarget;
+import com.kdb.it.common.i18n.service.TranslationCatalogService;
+import com.kdb.it.common.i18n.service.TranslationTargetKey;
 import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +44,8 @@ import org.mockito.quality.Strictness;
 class CodeServiceTest {
 
     @Mock private CodeRepository codeRepository;
+
+    @Mock private TranslationCatalogService translationCatalogService;
 
     @InjectMocks private CodeService codeService;
 
@@ -332,5 +342,119 @@ class CodeServiceTest {
         given(codeRepository.findByCIdWithValidDate("PRJ_TP", null)).willReturn(List.of(code));
 
         assertThat(codeService.findCodeEntitiesByCId("PRJ_TP")).containsExactly(code);
+    }
+
+    @Test
+    @DisplayName("findCodeEntitiesByCIdWithoutCache: 캐시를 거치지 않고 같은 목록을 반환한다")
+    void findCodeEntitiesByCIdWithoutCache_엔티티목록반환() {
+        Ccodem code = mockCcodem("001", "PRJ_TP");
+        given(codeRepository.findByCIdWithValidDate("PRJ_TP", null)).willReturn(List.of(code));
+
+        assertThat(codeService.findCodeEntitiesByCIdWithoutCache("PRJ_TP")).containsExactly(code);
+    }
+
+    @Test
+    @DisplayName("getBudgetPeriod: 시작 코드가 없으면 IllegalArgumentException을 던진다")
+    void getBudgetPeriod_시작코드없음_IllegalArgumentException발생() {
+        given(codeRepository.findByCIdAndCdvaWithValidDate(eq("BG_RQS"), eq("STA"), any()))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> codeService.getBudgetPeriod())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("시작일자");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // 언어별 조회 (localize)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("한국어 조회는 번역 카탈로그를 호출하지 않고 원본을 낸다")
+    void 한국어조회는_번역카탈로그를_호출하지_않는다() {
+        given(codeRepository.findResponseRowsByCIdWithValidDate(eq("PRJ_TP"), any()))
+                .willReturn(List.of(responseRow("PRJ_TP", "001", "PRJ_TP")));
+
+        List<CodeDto.Response> result =
+                codeService.getCcodemsByCId("PRJ_TP", null, SupportedLanguage.KO);
+
+        assertThat(result)
+                .singleElement()
+                .satisfies(row -> assertThat(row.getCdvaNm()).isEqualTo("테스트코드값명"));
+        verify(translationCatalogService, never()).findActive(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("영어 조회는 코드ID·코드값·시작일자로 만든 키의 번역만 덮어쓴다")
+    void 영어조회는_대상키의_번역을_덮어쓴다() {
+        given(codeRepository.findResponseRowsByCIdWithValidDate(eq("PRJ_TP"), any()))
+                .willReturn(
+                        List.of(
+                                responseRow("PRJ_TP", "001", "PRJ_TP"),
+                                responseRow("PRJ_TP", "002", "PRJ_TP")));
+        String key = TranslationTargetKey.code("PRJ_TP", "001", "20260101");
+        given(
+                        translationCatalogService.findActive(
+                                eq(TranslationTarget.COMMON_CODE),
+                                eq(SupportedLanguage.EN),
+                                anyList()))
+                .willReturn(Map.of(key, Map.of(TranslationColumns.CDVA_NM, "New development")));
+
+        List<CodeDto.Response> result =
+                codeService.getCcodemsByCId("PRJ_TP", null, SupportedLanguage.EN);
+
+        // 번역이 있는 001만 영문, 번역이 없는 002는 한국어 원본으로 남는다(필드 단위 fallback).
+        assertThat(result)
+                .extracting(CodeDto.Response::getCdvaNm)
+                .containsExactly("New development", "테스트코드값명");
+    }
+
+    @Test
+    @DisplayName("코드유형 조회도 같은 언어 규칙을 따른다")
+    void 코드유형_영어조회() {
+        given(codeRepository.findResponseRowsByCTpWithValidDate(eq("IOE_LEAFE"), any()))
+                .willReturn(List.of(responseRow("CD001", "001", "IOE_LEAFE")));
+        given(
+                        translationCatalogService.findActive(
+                                eq(TranslationTarget.COMMON_CODE),
+                                eq(SupportedLanguage.EN),
+                                anyList()))
+                .willReturn(Map.of());
+
+        assertThat(codeService.getCcodemsByCTp("IOE_LEAFE", null, SupportedLanguage.EN))
+                .singleElement()
+                .satisfies(row -> assertThat(row.getCdvaNm()).isEqualTo("테스트코드값명"));
+    }
+
+    @Test
+    @DisplayName("단건 조회도 선택 언어의 번역을 적용한다")
+    void 단건_영어조회() {
+        given(
+                        codeRepository.findResponseRowByCIdAndCdvaWithValidDate(
+                                eq("PRJ_TP"), eq("001"), any()))
+                .willReturn(Optional.of(responseRow("PRJ_TP", "001", "PRJ_TP")));
+        String key = TranslationTargetKey.code("PRJ_TP", "001", "20260101");
+        given(
+                        translationCatalogService.findActive(
+                                eq(TranslationTarget.COMMON_CODE),
+                                eq(SupportedLanguage.EN),
+                                anyList()))
+                .willReturn(Map.of(key, Map.of(TranslationColumns.CDVA_NM, "New development")));
+
+        assertThat(codeService.getCcodem("PRJ_TP", "001", null, SupportedLanguage.EN).getCdvaNm())
+                .isEqualTo("New development");
+    }
+
+    @Test
+    @DisplayName("언어를 지정한 단건 조회도 없는 코드는 거부한다")
+    void 단건_언어조회_존재하지않음_IllegalArgumentException발생() {
+        given(
+                        codeRepository.findResponseRowByCIdAndCdvaWithValidDate(
+                                eq("INVALID"), eq("001"), any()))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () -> codeService.getCcodem("INVALID", "001", null, SupportedLanguage.EN))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("INVALID");
     }
 }

@@ -1,6 +1,7 @@
 package com.kdb.it.common.i18n.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,5 +32,33 @@ class TranslationAdminControllerTest {
                 "menu", "M1", new TranslationAdminController.UpdateRequest(values));
 
         verify(service).apply(TranslationTarget.MENU, "M1", values);
+    }
+
+    @Test
+    void 공통코드_대상은_대소문자와_공백을_흘려도_같은_대상으로_해석한다() {
+        TranslationAdminController controller = new TranslationAdminController(service);
+
+        controller.updateTranslations(
+                " Common-Code ",
+                "7:ABUS_TC2:108:20260101",
+                new TranslationAdminController.UpdateRequest(List.of()));
+
+        verify(service).apply(TranslationTarget.COMMON_CODE, "7:ABUS_TC2:108:20260101", List.of());
+    }
+
+    @Test
+    void 알수없는_대상은_거부한다() {
+        TranslationAdminController controller = new TranslationAdminController(service);
+
+        assertThatThrownBy(() -> controller.getTranslations("project", "P1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("project");
+        assertThatThrownBy(
+                        () ->
+                                controller.updateTranslations(
+                                        null,
+                                        "M1",
+                                        new TranslationAdminController.UpdateRequest(List.of())))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -2,20 +2,26 @@ package com.kdb.it.domain.migration.request.service.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.kdb.it.common.code.CommonCodeGroups;
+import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
+import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.service.WorkbookReader;
 import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class GeneralExpenseFormAdapterTest {
 
@@ -48,6 +54,26 @@ class GeneralExpenseFormAdapterTest {
                 null,
                 TestIoeIndex.snapshot(),
                 overrides,
+                "12345678");
+    }
+
+    /** 비목 공통코드가 하나도 없는 맥락. 후보를 실을 수 없는 미해석 경로를 확인합니다. */
+    private FormAdapterContext emptyIoeContext() {
+        CodeRepository emptyRepository = Mockito.mock(CodeRepository.class);
+        Mockito.when(emptyRepository.findByCIdAndDelYn(CommonCodeGroups.IOE, "N"))
+                .thenReturn(List.of());
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(
+                        reader.open(RequestFormFixtures.generalExpenseIoeBranchesXls(), "픽스처.xls"));
+        return new FormAdapterContext(
+                sheets,
+                "2026",
+                new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571"),
+                "0210",
+                "자금운용실",
+                null,
+                new IoeHierarchyIndex(emptyRepository).snapshot(),
+                Map.of(),
                 "12345678");
     }
 
@@ -212,6 +238,110 @@ class GeneralExpenseFormAdapterTest {
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .contains(RequestFormDiagnosticCode.CODE_UNRESOLVED);
+    }
+
+    @Test
+    @DisplayName("이 어댑터는 시트 ③에만 반응한다")
+    void triggersOnGeneralExpenseSheetOnly() {
+        assertThat(adapter.trigger()).isEqualTo(FormSheetKind.GENERAL_EXPENSE);
+    }
+
+    @Test
+    @DisplayName("중분류 기본값으로 정하면 대안 후보와 함께 확인을 요청한다")
+    void warnsWhenGroupDefaultChosen() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseIoeBranchesXls(),
+                                AmountUnit.WON));
+
+        // `개발비`는 국내·국외 구분이 없어 기본값 103으로 정하고 감리/컨설팅 104를 대안으로 남긴다
+        assertThat(output.costs().get(0).getIoeC()).isEqualTo("103");
+        assertThat(output.diagnostics())
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.CODE_DEFAULTED)
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.excelRow()).isEqualTo(6);
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("103", "104");
+                        });
+    }
+
+    @Test
+    @DisplayName("중분류로도 좁혀지지 않으면 후보를 실어 중의적 진단을 낸다")
+    void reportsAmbiguousWithCandidates() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseIoeBranchesXls(),
+                                AmountUnit.WON));
+
+        assertThat(output.costs().get(1).getIoeC()).isNull();
+        assertThat(output.diagnostics())
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.CODE_AMBIGUOUS)
+                .singleElement()
+                .satisfies(
+                        d ->
+                                // 국내 전산제비 3건(회선사용료·유지보수료·전산소모품비)이 후보로 남는다
+                                assertThat(d.candidates())
+                                        .extracting(MigrationDto.Candidate::code)
+                                        .containsExactly("010", "011", "012"));
+    }
+
+    @Test
+    @DisplayName("비목 카탈로그가 비어 있으면 고를 후보가 없어 미해석으로 낸다")
+    void reportsUnresolvedWhenCatalogEmpty() {
+        FormAdapterOutput output = adapter.adapt(emptyIoeContext());
+
+        assertThat(output.diagnostics())
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.CODE_UNRESOLVED)
+                .isNotEmpty()
+                .allSatisfy(d -> assertThat(d.candidates()).isEmpty());
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_AMBIGUOUS);
+    }
+
+    @Test
+    @DisplayName("JPY 행은 양식이 천엔 단위라 엔으로 펴서 담는다")
+    void expandsJpyThousandUnit() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseIoeBranchesXls(),
+                                AmountUnit.WON));
+
+        CostDto.CreateRequest jpy = output.costs().get(2);
+        assertThat(jpy.getCurC()).isEqualTo("JPY");
+        assertThat(jpy.getFcAmt()).isEqualByComparingTo(new BigDecimal("1500000"));
+        assertThat(jpy.getCostTotXpAmt()).isNull();
+    }
+
+    @Test
+    @DisplayName("연간 금액이 빈 원화 행은 단위 추정 표본에서 뺀다")
+    void excludesBlankAmountRowFromUnitSuggestion() {
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.generalExpenseIoeBranchesXls(), null));
+
+        assertThat(output.costs().get(3).getCostTotXpAmt()).isNull();
+        assertThat(output.suggestedGeneralExpenseUnit()).isNotNull();
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .contains(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
+    }
+
+    @Test
+    @DisplayName("헤더만 있고 데이터 행이 없으면 빈 결과를 돌려준다")
+    void returnsEmptyWhenNoDataRows() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseHeaderOnlyXls(), AmountUnit.WON));
+
+        assertThat(output.costs()).isEmpty();
+        assertThat(output.diagnostics()).isEmpty();
     }
 
     @Test
