@@ -60,7 +60,8 @@ class ApplicationResponseMigratedTest {
     @DisplayName("엔티티 변환도 이관 표식 문구가 있으면 migrated=true")
     void migrated_whenMigrationNoteFromEntity() {
         ApplicationDto.Response response =
-                ApplicationDto.Response.fromEntity(application(MigrationApprovalMarker.NOTE), List.of());
+                ApplicationDto.Response.fromEntity(
+                        application(MigrationApprovalMarker.NOTE), List.of());
 
         assertThat(response.isMigrated()).isTrue();
     }

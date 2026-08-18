@@ -302,8 +302,7 @@ public class FileService {
     /**
      * 이미 저장된 파일을 다른 부모에 추가로 연결합니다.
      *
-     * <p>물리 파일을 다시 쓰지 않고 메타데이터 행만 만듭니다. 같은 파일이 여러 부모에 붙어야 할 때 {@link
-     * #uploadFile} 반복 호출 대신 씁니다.
+     * <p>물리 파일을 다시 쓰지 않고 메타데이터 행만 만듭니다. 같은 파일이 여러 부모에 붙어야 할 때 {@link #uploadFile} 반복 호출 대신 씁니다.
      *
      * @param sourceFlMpnId 원본 파일매핑ID
      * @param request 새 연결의 종류와 부모 식별자

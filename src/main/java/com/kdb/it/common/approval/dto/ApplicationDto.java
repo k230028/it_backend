@@ -365,9 +365,7 @@ public class ApplicationDto {
          *
          * <p>이 값이 true면 신청서 본문이 없으므로 화면은 신청서 PDF 대신 반입 원본 파일 목록을 보여줍니다.
          */
-        @Schema(
-                description = "편성요청서 반입 생성 여부",
-                requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "편성요청서 반입 생성 여부", requiredMode = Schema.RequiredMode.REQUIRED)
         private boolean migrated;
 
         /** 결재자 목록 (순번 순서대로) */

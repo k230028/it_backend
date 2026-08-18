@@ -26,8 +26,8 @@ import org.springframework.util.StringUtils;
  *   <li>그 외(미인증, 부모 없음, 원장 없음) → 거부
  * </ul>
  *
- * <p>판정은 {@code (PK_COL_NM, PK_CONE, user)}의 순수 함수라는 {@link FileReadAuthorizer}의 불변식을 지킵니다. 개별 파일의 다른
- * 속성을 보지 않습니다.
+ * <p>판정은 {@code (PK_COL_NM, PK_CONE, user)}의 순수 함수라는 {@link FileReadAuthorizer}의 불변식을 지킵니다. 개별 파일의
+ * 다른 속성을 보지 않습니다.
  */
 @Component
 @RequiredArgsConstructor
