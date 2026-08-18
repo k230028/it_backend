@@ -256,9 +256,12 @@ public class ApplicationService {
     /**
      * 결재요청 메일 페이로드를 만듭니다.
      *
-     * <p>실제 조회·렌더링은 {@link com.kdb.it.common.approval.mail.ApprovalMailPayloadProvider#render}가 독립
-     * 트랜잭션에서 수행하며 자신의 실패를 스스로 삼켜 null을 반환합니다. 이 메서드의 try/catch는 그 계약이 깨지는 경우(예: 프록시를 거치지 않은 예외 전파)에
-     * 대비한 2차 방어선입니다. 렌더링이나 이름·부서 조회가 실패해도 알림 발행을 막지 않습니다. null을 반환하면 발송 계층이 기존 기본 본문으로 폴백합니다.
+     * <p>실제 조회·렌더링은 {@link com.kdb.it.common.approval.mail.ApprovalMailPayloadProvider#render}가
+     * 수행합니다. 신청자명·부서명 조회는 그 안에서 {@code REQUIRES_NEW} 독립 트랜잭션으로 실행되지만, 그 트랜잭션을 감싸는 예외 처리는 트랜잭션 경계
+     * 밖(제공자 자신은 더 이상 {@code @Transactional}이 아님)에 있어 조회 실패가 rollback-only 표시 후 {@code
+     * UnexpectedRollbackException}으로 되돌아오는 문제 없이 그대로 제공자 안에서 삼켜집니다. 이 메서드의 try/catch는 그 계약이 어떤 이유로든
+     * 깨졌을 때(예: 제공자 빈 자체의 예상 밖 예외)에 대비한 마지막 방어선이며, 정상 경로에서는 제공자가 이미 null을 반환하므로 이 catch가 실행될 일은
+     * 없습니다. 렌더링이나 이름·부서 조회가 실패해도 알림 발행을 막지 않습니다. null을 반환하면 발송 계층이 기존 기본 본문으로 폴백합니다.
      *
      * @param capplm 신청서 마스터
      * @return 메일 페이로드 JSON. 실패 시 null
