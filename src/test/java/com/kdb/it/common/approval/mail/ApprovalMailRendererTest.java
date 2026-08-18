@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.notification.dispatcher.MailPayload;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
@@ -152,14 +151,15 @@ class ApprovalMailRendererTest {
     }
 
     @Test
-    @DisplayName("본문은 UTF-8 4000바이트를 넘지 않고 잘리면 남은 건수를 알린다")
+    @DisplayName("항목이 예산을 채울 만큼 많아도 목록 packer가 JSON 오버헤드를 미리 반영해 폴백 없이 실린다")
     void html_staysWithinBudget() throws Exception {
         // 총액이 인덱스와 함께 오름차순이 되도록 만든다 — 목록에 원본 순서 그대로 실리면(정렬 삭제 회귀)
         // 총액이 가장 큰 마지막 항목(299번)이 예산 밖으로 밀려 빠지므로, 그 항목의 존재 여부로 정렬을 가른다.
         //
-        // 항목을 이만큼 채우면 packer가 본문을 예산 상한 바로 아래까지 채우므로, renderPayloadJson을 거치면
-        // 봉투·이스케이프 오버헤드 때문에 JSON 레벨 가드(별도 테스트로 검증)에 걸려 null이 된다. 이 테스트는
-        // packer 자체(정렬·잘림·예산 준수)를 보는 것이 목적이라 html()을 직접 호출해 그 가드를 우회한다.
+        // 회귀(2da0942c) 당시에는 항목을 이만큼 채우면 packer가 본문 바이트만으로 예산 상한 바로 아래까지
+        // 채워, renderPayloadJson을 거칠 때 봉투·이스케이프 오버헤드 때문에 JSON 레벨 가드에 걸려 매번
+        // null이 됐다. 이 테스트는 그 오버헤드를 packer가 미리 반영해 renderPayloadJson(공개 API)을 거쳐도
+        // 폴백하지 않고 실제로 실림을 검증한다.
         String manyProjects =
                 IntStream.range(0, 300)
                         .mapToObj(
@@ -169,21 +169,25 @@ class ApprovalMailRendererTest {
                                                         + " \"assetBg\": 1, \"costBg\": 1}")
                                                 .formatted(i, i + 1))
                         .collect(Collectors.joining(","));
-        String html = htmlOnly(context("{\"projects\": [" + manyProjects + "], \"costs\": []}"));
 
-        assertThat(html.getBytes(StandardCharsets.UTF_8).length)
+        String json =
+                renderer.renderPayloadJson(
+                        context("{\"projects\": [" + manyProjects + "], \"costs\": []}"));
+
+        assertThat(json).isNotNull();
+        assertThat(json.getBytes(StandardCharsets.UTF_8).length)
                 .isLessThanOrEqualTo(ApprovalMailRenderer.CONTENTS_BUDGET_BYTES);
+        String html = objectMapper.readValue(json, MailPayload.class).html();
         assertThat(html).contains("외 ").contains("건");
         // 총액이 가장 큰 항목(299번, totRqmAmt=300)이 정렬로 맨 앞에 와야 예산 안에 실린다.
         assertThat(html).contains("매우 긴 이름을 가진 정보화사업 항목 299");
-    }
-
-    /** private html(context)을 리플렉션으로 직접 호출한다. 본문 조립 로직만 보고 JSON 직렬화 예산 가드는 우회한다. */
-    private String htmlOnly(ApprovalMailContext context) throws Exception {
-        Method htmlMethod =
-                ApprovalMailRenderer.class.getDeclaredMethod("html", ApprovalMailContext.class);
-        htmlMethod.setAccessible(true);
-        return (String) htmlMethod.invoke(renderer, context);
+        // packer가 예산을 지키려고 지나치게 보수적으로 굴어 목록을 텅 비우는 회귀(빈 목록도 테스트를
+        // 통과시킨다)를 잡기 위해, 실제로 쓸모 있는 건수가 실렸는지 못박는다.
+        long rows =
+                IntStream.range(0, 300)
+                        .filter(i -> html.contains("매우 긴 이름을 가진 정보화사업 항목 " + i))
+                        .count();
+        assertThat(rows).isGreaterThanOrEqualTo(5);
     }
 
     @Test
@@ -278,17 +282,22 @@ class ApprovalMailRendererTest {
     }
 
     @Test
-    @DisplayName("본문은 예산 안이어도 직렬화된 JSON이 예산을 넘기면 null을 반환해 폴백을 유도한다")
-    void renderPayloadJson_bodyFitsButJsonOverflows_returnsNull() throws Exception {
-        // 봉투({"subject":...,"html":...})와 본문 안 큰따옴표의 백슬래시 이스케이프가 본문 위에 추가로
-        // 붙으므로, 본문만으로는 예산 안(<=4000바이트)인 값도 직렬화된 JSON은 예산을 넘을 수 있다.
-        // 실측: 이 제목 길이에서 본문은 3693바이트(예산 안)지만 직렬화된 JSON은 4006바이트(예산 초과)다.
-        ApprovalMailContext context = context("가".repeat(430), SNAPSHOT);
-
-        // 본문 자체는 예산 안임을 먼저 못박아, 이 테스트가 본문 레벨 가드(이미 있는 테스트)가 아니라
-        // JSON 레벨 가드를 검증한다는 것을 보장한다.
-        assertThat(htmlOnly(context).getBytes(StandardCharsets.UTF_8).length)
-                .isLessThanOrEqualTo(ApprovalMailRenderer.CONTENTS_BUDGET_BYTES);
+    @DisplayName("상세보기 URL만으로도 예산을 넘기면 목록 packer와 무관하게 null을 반환해 폴백을 유도한다")
+    void renderPayloadJson_detailUrlAloneOverflowsBudget_returnsNull() {
+        // detailUrl은 개요의 상세보기 버튼(및 목록이 잘리면 안내 문구)에 실리는 고정 영역이라
+        // 목록 packer가 손댈 수 없다. packer가 목록을 통째로 비워도(entries가 있어도 없어도) 이 필드
+        // 하나만으로 이미 예산을 넘기면 렌더러는 여전히 null을 돌려줘야 한다.
+        String hugeDetailUrl =
+                "https://it.kdb.co.kr/approval/APF-2026-0001?ref=" + "x".repeat(5000);
+        ApprovalMailContext context =
+                new ApprovalMailContext(
+                        "APF-2026-0001",
+                        "전산예산 신청서",
+                        LocalDate.of(2026, 8, 18),
+                        "홍길동",
+                        "IT기획부",
+                        hugeDetailUrl,
+                        SNAPSHOT);
 
         assertThat(renderer.renderPayloadJson(context)).isNull();
     }

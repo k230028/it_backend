@@ -44,30 +44,25 @@ public class ApprovalMailRenderer {
     /**
      * 메일 페이로드 JSON을 만듭니다.
      *
+     * <p>저장 대상은 본문 HTML이 아니라 이 메서드가 반환하는 직렬화된 JSON이다. 봉투({"subject":...,"html":...})와 본문 안 큰따옴표의
+     * 백슬래시 이스케이프(\")가 본문 바이트 위에 추가로 붙으므로, {@link #html} 목록 packer는 후보를 추가할 때마다 이 envelope까지 포함해 직접
+     * 재직렬화한 크기로 예산을 판단한다(과거에는 본문 바이트만 보고 채운 뒤 사후에 JSON 크기를 검사해, 목록이 예산을 꽉 채우는 흔한 경우 항상 초과해 폴백하는 회귀가
+     * 있었다). 아래 검사는 그래서 평소에는 걸리지 않아야 하는 최종 방어선이다 — 개요·총괄표처럼 목록 packer가 손댈 수 없는 필수 영역만으로 이미 예산을 넘는
+     * 극단값(예: 매우 긴 제목)에 대비한 안전망이며 WARN은 그 경우를 진단하기 위한 것이다.
+     *
      * @param context 렌더링 입력. {@code null}이면 렌더링을 시도하지 않는다.
-     * @return {@code {"subject":...,"html":...}} JSON. {@code context}가 null이거나, 렌더링이 실패하거나, 조립된
-     *     본문이 {@link #CONTENTS_BUDGET_BYTES}를 넘거나, 직렬화된 JSON 자체가 {@link #CONTENTS_BUDGET_BYTES}를
-     *     넘으면 {@code null}(호출자는 기존 기본 본문으로 폴백)
+     * @return {@code {"subject":...,"html":...}} JSON. {@code context}가 null이거나, 렌더링이 실패하거나, 직렬화된
+     *     JSON이 {@link #CONTENTS_BUDGET_BYTES}를 넘으면 {@code null}(호출자는 기존 기본 본문으로 폴백)
      */
     public String renderPayloadJson(ApprovalMailContext context) {
         if (context == null) {
             return null;
         }
         try {
-            String html = html(context);
-            int bodyBytes = MailHtml.utf8Length(html);
-            if (bodyBytes > CONTENTS_BUDGET_BYTES) {
-                log.warn(
-                        "결재요청 메일 본문이 예산을 초과해 렌더링을 포기합니다: apfMngNo={}, 크기={}바이트",
-                        context.apfMngNo(),
-                        bodyBytes);
-                return null;
-            }
-            MailPayload payload = new MailPayload(subject(context), html);
+            String subject = subject(context);
+            String html = html(context, subject);
+            MailPayload payload = new MailPayload(subject, html);
             String json = objectMapper.writeValueAsString(payload);
-            // 저장 대상은 본문 HTML이 아니라 이 직렬화된 JSON이다. 봉투({"subject":...,"html":...})와
-            // 본문 안의 큰따옴표 이스케이프(\")가 본문 바이트 위에 추가로 붙으므로, 본문이 예산 안이어도
-            // JSON은 넘을 수 있다. 실제 저장될 값을 기준으로 다시 재보아 예산 안인지 확인한다.
             int jsonBytes = MailHtml.utf8Length(json);
             if (jsonBytes > CONTENTS_BUDGET_BYTES) {
                 log.warn(
@@ -103,8 +98,14 @@ public class ApprovalMailRenderer {
         return MailHtml.truncateUtf8(title, titleBudget);
     }
 
-    /** 본문 HTML — 개요와 합계는 필수, 목록은 남는 예산만큼. */
-    private String html(ApprovalMailContext context) {
+    /**
+     * 본문 HTML — 개요와 합계는 필수, 목록은 남는 예산만큼.
+     *
+     * @param subject 이미 조립된 메일 제목. 목록 packer가 후보 크기를 잴 때 {@link MailPayload} envelope에 그대로 실어
+     *     재직렬화하므로 여기서 다시 계산하지 않고 전달받는다.
+     */
+    private String html(ApprovalMailContext context, String subject)
+            throws JsonProcessingException {
         ApprovalMailSnapshot snapshot = parseSnapshot(context);
         List<ProjectItem> regular =
                 sortedProjects(snapshot.projects().stream().filter(p -> !p.ordinary()).toList());
@@ -124,7 +125,7 @@ public class ApprovalMailRenderer {
         regular.forEach(p -> entries.add(new ListEntry("정보화사업", p.abusNm(), p.total())));
         costs.forEach(c -> entries.add(new ListEntry("전산업무비", c.cttNm(), c.total())));
         ordinary.forEach(p -> entries.add(new ListEntry("경상사업", p.abusNm(), p.total())));
-        body.append(itemList(context, entries, MailHtml.utf8Length(wrap(body.toString()))));
+        body.append(itemList(context, subject, entries, body.toString()));
 
         return wrap(body.toString());
     }
@@ -298,45 +299,56 @@ public class ApprovalMailRenderer {
      * <p>구분별로 표를 따로 두면 머리글이 세 번 반복되어 예산 대부분을 머리글이 먹는다. 구분 열을 가진 표 하나로 합치고 구분 순서(정보화사업 → 전산업무비 →
      * 경상사업), 구분 안에서는 총 예산 내림차순으로 싣는다.
      *
+     * <p>예산 판정은 본문 바이트가 아니라 {@link #fitsBudget}으로 후보를 매번 실제 {@link MailPayload} JSON으로 재직렬화해 잰다.
+     * 봉투({"subject":...,"html":...})와 본문 안 큰따옴표의 백슬래시 이스케이프가 본문 바이트 위에 그대로 얹히므로, 본문 바이트만 보고 채우면 그
+     * 오버헤드를 사후에야 발견해 예산을 항상 넘기는 회귀가 생긴다(2da0942c). 재직렬화 비용은 후보가 많아야 수십 건이라 무시할 수 있는 수준이고, 손으로 이스케이프
+     * 바이트 수를 세는 것보다 Jackson의 실제 이스케이프 규칙과 어긋날 위험이 없다.
+     *
      * <p>잘림 안내({@link #moreLink})는 {@code context.detailUrl()}을 그대로 담아 호출자가 준 URL 길이에 따라 바이트 수가
-     * 달라지므로, 고정 상수가 아니라 전체 항목이 잘렸다고 가정한 실제 안내 문구 길이로 예산을 미리 뺀다. 항목 수가 가장 클 때 안내 문구도 가장 길므로(자릿수 증가)
-     * 이 값이 실제 필요보다 부족해지는 일은 없다. 닫는 태그는 {@code usedBytes}에 이미 포함된 래퍼({@link #wrap})의 몫이라 별도로 뺄 여유가
-     * 필요하지 않다.
+     * 달라지므로, 매 후보마다 남은 건수로 다시 만들지 않고 전체 항목이 잘렸다고 가정한 안내({@code worstNotice})를 매번 함께 실어 예산을 잰다. 항목
+     * 수가 가장 클 때 안내 문구도 가장 길므로(자릿수 증가) 이 값이 실제 필요보다 부족해지는 일은 없다.
      *
      * @param context 렌더링 입력 (전체 보기 링크용)
+     * @param subject 메일 제목 — 후보 재직렬화 시 envelope에 함께 싣는다
      * @param entries 구분 순서로 이미 정렬된 목록
-     * @param usedBytes 지금까지 조립한 본문의 UTF-8 바이트
+     * @param usedBody 지금까지 조립한 본문(개요·총괄표 등, {@link #wrap} 적용 전)
      * @return 목록 섹션 HTML. 머리글이나 첫 행조차 못 넣을 예산이면 잘림 안내만 담은 문구, 그 안내조차 못 넣을 예산이면 빈 문자열
      */
-    private String itemList(ApprovalMailContext context, List<ListEntry> entries, int usedBytes) {
+    private String itemList(
+            ApprovalMailContext context, String subject, List<ListEntry> entries, String usedBody)
+            throws JsonProcessingException {
         if (entries.isEmpty()) {
             return "";
         }
-        int notice = MailHtml.utf8Length(moreLink(entries.size(), context));
-        int budget = CONTENTS_BUDGET_BYTES - notice - usedBytes;
-        String shell = MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow());
-        int consumed = MailHtml.utf8Length(shell);
-        if (consumed > budget) {
-            return noticeIfFits(notice, usedBytes, entries, context);
+        String worstNotice = moreLink(entries.size(), context);
+        if (!fitsBudget(subject, usedBody + worstNotice)) {
+            // 안내 문구조차 못 실을 정도로 필수 본문이 이미 예산을 채웠으면 목록 섹션 전체를 생략한다.
+            return "";
+        }
+        String header = MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow());
+        if (!fitsBudget(subject, usedBody + header + worstNotice)) {
+            return worstNotice;
         }
 
-        StringBuilder included = new StringBuilder();
+        StringBuilder rows = new StringBuilder();
         int taken = 0;
         for (ListEntry entry : entries) {
-            String row = listRow(entry);
-            int next = MailHtml.utf8Length(row);
-            if (consumed + next > budget) {
+            String candidateRows = rows + listRow(entry);
+            String candidate =
+                    usedBody
+                            + MailHtml.sectionTitle("신청 사업 목록")
+                            + MailHtml.table(listHeaderRow() + candidateRows)
+                            + worstNotice;
+            if (!fitsBudget(subject, candidate)) {
                 break;
             }
-            included.append(row);
-            consumed += next;
+            rows.append(listRow(entry));
             taken++;
         }
         if (taken == 0) {
-            return noticeIfFits(notice, usedBytes, entries, context);
+            return worstNotice;
         }
-        String section =
-                MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow() + included);
+        String section = MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow() + rows);
         if (taken < entries.size()) {
             section += moreLink(entries.size() - taken, context);
         }
@@ -344,20 +356,15 @@ public class ApprovalMailRenderer {
     }
 
     /**
-     * 목록 표를 아예 못 실을 때(머리글조차 못 들어가거나 첫 행조차 못 들어감) 잘림 안내라도 넣을지 판단한다.
+     * 후보 본문이 최종 저장 형태({@link MailPayload} JSON) 기준으로 예산 안에 들어오는지 그 자리에서 직접 직렬화해 확인한다.
      *
-     * <p>안내 문구({@code notice}) 자체도 바이트를 먹는다. {@code usedBytes}(개요·합계 등 필수 본문)만으로 이미 예산을 넘겼다면 안내를
-     * 붙여도 최종 본문이 4000바이트를 넘으므로, 이때는 안내조차 생략하고 빈 문자열을 돌려준다.
-     *
-     * @param notice {@link #moreLink}의 UTF-8 바이트 길이
-     * @param usedBytes 목록 이전까지 조립한 필수 본문의 UTF-8 바이트
-     * @param entries 잘림 안내에 표기할 전체 항목 수의 근거
-     * @param context 잘림 안내의 전체 보기 링크용
-     * @return 안내 문구가 예산 안에 들어오면 그 HTML, 아니면 빈 문자열
+     * @param subject 메일 제목
+     * @param bodyContent {@link #wrap} 적용 전 본문 후보
+     * @return 실제로 저장될 JSON이 {@link #CONTENTS_BUDGET_BYTES} 이하이면 {@code true}
      */
-    private static String noticeIfFits(
-            int notice, int usedBytes, List<ListEntry> entries, ApprovalMailContext context) {
-        return notice + usedBytes <= CONTENTS_BUDGET_BYTES ? moreLink(entries.size(), context) : "";
+    private boolean fitsBudget(String subject, String bodyContent) throws JsonProcessingException {
+        String json = objectMapper.writeValueAsString(new MailPayload(subject, wrap(bodyContent)));
+        return MailHtml.utf8Length(json) <= CONTENTS_BUDGET_BYTES;
     }
 
     private static String moreLink(int remaining, ApprovalMailContext context) {
