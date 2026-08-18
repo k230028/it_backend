@@ -201,8 +201,8 @@ class ApplicationServiceTest {
     @Mock private ApprovalLineDelegate approvalLineDelegate;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
-    @Mock private com.kdb.it.common.approval.mail.ApprovalMailRenderer approvalMailRenderer;
-    @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
+    @Mock
+    private com.kdb.it.common.approval.mail.ApprovalMailPayloadProvider approvalMailPayloadProvider;
 
     @InjectMocks private ApplicationService applicationService;
 
@@ -254,8 +254,7 @@ class ApplicationServiceTest {
                 eventPublisher,
                 new ApprovalLineDelegate(new ObjectMapper()),
                 bprojaSyncService,
-                approvalMailRenderer,
-                orgNameResolver);
+                approvalMailPayloadProvider);
     }
 
     // ───────────────────────────────────────────────────────
@@ -844,6 +843,34 @@ class ApplicationServiceTest {
                 .isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
         assertThat(captor.getValue().itPtlSdTc())
                 .isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
+    }
+
+    @Test
+    @DisplayName("submit: 메일 페이로드 생성이 실패해도 신청서 등록과 결재요청 알림 발행은 그대로 성공한다")
+    void submit_메일페이로드생성실패_신청서등록과알림발행유지() {
+        given(applicationRepository.getNextVal()).willReturn(1L);
+        given(approvalMailPayloadProvider.render(any()))
+                .willThrow(new RuntimeException("메일 렌더링 실패(테스트)"));
+
+        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+        request.setApfNm("테스트 신청서");
+        request.setRqsEno("10001");
+        request.setApproverEnos(List.of("10002"));
+        given(
+                        approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(
+                                "APF-" + LocalDate.now().getYear() + "-00000001"))
+                .willReturn(List.of(pendingApprover("10002", 1, "Y")));
+
+        // 렌더링 실패가 submit() 호출 자체를 실패시키지 않는다 — Finding 1의 핵심 계약
+        String result = applicationService.submit(request);
+        assertThat(result).startsWith("APF-");
+
+        // 렌더링 실패에도 결재요청 알림은 sdPayload=null로(기본 본문 폴백) 계속 발행된다
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().itPtlInfmSvcTc())
+                .isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
+        assertThat(captor.getValue().sdPayload()).isNull();
     }
 
     @Test

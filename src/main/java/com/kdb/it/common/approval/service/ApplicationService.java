@@ -102,15 +102,12 @@ public class ApplicationService {
     /** 정보화사업관계(TPRMPP_BPROJA) 동기화 서비스: 예산편성 결재 상신(02)/완료(09) 적재용 */
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
-    /** 결재요청 메일 본문 렌더러 */
-    private final com.kdb.it.common.approval.mail.ApprovalMailRenderer approvalMailRenderer;
-
-    /** 조직코드→조직명 해석기: 메일 개요의 작성부서명 표시용 */
-    private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
-
-    /** 프론트 기준 URL: 메일의 신청서 상세 링크 조립용 */
-    @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
-    private String frontendUrl;
+    /**
+     * 결재요청 메일 페이로드 제공자 — 신청자명·부서명 조회와 렌더링을 {@code REQUIRES_NEW} 독립 트랜잭션에서 수행한다. 실패해도 본 서비스의
+     * submit/approve 트랜잭션을 rollback-only로 오염시키지 않는다(ERR-05).
+     */
+    private final com.kdb.it.common.approval.mail.ApprovalMailPayloadProvider
+            approvalMailPayloadProvider;
 
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
@@ -259,22 +256,16 @@ public class ApplicationService {
     /**
      * 결재요청 메일 페이로드를 만듭니다.
      *
-     * <p>렌더링이나 이름·부서 조회가 실패해도 알림 발행을 막지 않습니다. null을 반환하면 발송 계층이 기존 기본 본문으로 폴백합니다.
+     * <p>실제 조회·렌더링은 {@link com.kdb.it.common.approval.mail.ApprovalMailPayloadProvider#render}가 독립
+     * 트랜잭션에서 수행하며 자신의 실패를 스스로 삼켜 null을 반환합니다. 이 메서드의 try/catch는 그 계약이 깨지는 경우(예: 프록시를 거치지 않은 예외 전파)에
+     * 대비한 2차 방어선입니다. 렌더링이나 이름·부서 조회가 실패해도 알림 발행을 막지 않습니다. null을 반환하면 발송 계층이 기존 기본 본문으로 폴백합니다.
      *
      * @param capplm 신청서 마스터
      * @return 메일 페이로드 JSON. 실패 시 null
      */
     private String renderApprovalMail(Capplm capplm) {
         try {
-            String requesterName =
-                    userRepository
-                            .findNameViewByEno(safeText(capplm.getDcdReqUsid()))
-                            .map(user -> user.getUsrNm())
-                            .orElse(null);
-            String deptName = orgNameResolver.resolveName(capplm.getDcdReqBbrC());
-            return approvalMailRenderer.renderPayloadJson(
-                    com.kdb.it.common.approval.mail.ApprovalMailContextFactory.create(
-                            capplm, requesterName, deptName, frontendUrl));
+            return approvalMailPayloadProvider.render(capplm);
         } catch (RuntimeException e) {
             log.warn(
                     "결재요청 메일 페이로드 생성 실패 — 기본 본문으로 발송합니다: apfMngNo={}, 사유={}",
