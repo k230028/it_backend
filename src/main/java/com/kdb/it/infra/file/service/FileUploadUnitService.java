@@ -112,6 +112,8 @@ public class FileUploadUnitService {
      * @param source 원본 파일 메타데이터. 파일물리명·저장경로·파일명·크기를 그대로 물려받습니다
      * @param request 새 연결의 종류와 부모 식별자
      * @return 새로 만들어진 파일 메타데이터 엔티티
+     * @throws NullPointerException source 또는 request가 null인 경우
+     * @throws RuntimeException 파일매핑ID 채번, 메타데이터 영속화 또는 flush 과정에서 발생한 예외를 그대로 전파하는 경우
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Cfilem linkExistingFileInNewTransaction(Cfilem source, FileDto.UploadRequest request) {

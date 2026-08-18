@@ -91,6 +91,45 @@ class FileUploadUnitServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
+    // linkExistingFileInNewTransaction — 물리 파일 메타데이터 재연결
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("linkExistingFileInNewTransaction: 물리 파일 메타데이터를 복사하고 새 부모 메타행을 영속화한다")
+    void linkExistingFileInNewTransaction_물리파일메타데이터복사후영속화() {
+        Cfilem source =
+                Cfilem.builder()
+                        .flMpnId("FL-00000001")
+                        .flNm("편성요청서.xlsx")
+                        .flPysNm("SVR1_20260818120000_abc.xlsx")
+                        .flKpnPth("/data/files/편성요청서반입/2026/08")
+                        .apgFlSz(2048L)
+                        .pkColNm("편성요청서반입")
+                        .pkCone("APF-2026-00000001")
+                        .build();
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .flTpCone("첨부파일")
+                        .pkColNm("편성요청서반입")
+                        .pkCone("APF-2026-00000002")
+                        .build();
+        given(fileRepository.getNextSequenceValue()).willReturn(2L);
+
+        Cfilem linked = fileUploadUnitService.linkExistingFileInNewTransaction(source, request);
+
+        assertThat(linked.getFlMpnId()).isEqualTo("FL-00000002");
+        assertThat(linked.getFlNm()).isEqualTo("편성요청서.xlsx");
+        assertThat(linked.getFlPysNm()).isEqualTo("SVR1_20260818120000_abc.xlsx");
+        assertThat(linked.getFlKpnPth()).isEqualTo("/data/files/편성요청서반입/2026/08");
+        assertThat(linked.getApgFlSz()).isEqualTo(2048L);
+        assertThat(linked.getFlTpCone()).isEqualTo("첨부파일");
+        assertThat(linked.getPkColNm()).isEqualTo("편성요청서반입");
+        assertThat(linked.getPkCone()).isEqualTo("APF-2026-00000002");
+        verify(entityManager).persist(linked);
+        verify(entityManager).flush();
+    }
+
+    // ───────────────────────────────────────────────────────
     // generateFlPysNm 분기 — 원본 파일명의 확장자 파싱
     // ───────────────────────────────────────────────────────
 
