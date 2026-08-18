@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.notification.dispatcher.MailPayload;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
@@ -35,9 +36,13 @@ class ApprovalMailRendererTest {
             """;
 
     private static ApprovalMailContext context(String detailJson) {
+        return context("전산예산 신청서", detailJson);
+    }
+
+    private static ApprovalMailContext context(String title, String detailJson) {
         return new ApprovalMailContext(
                 "APF-2026-0001",
-                "전산예산 신청서",
+                title,
                 LocalDate.of(2026, 8, 18),
                 "홍길동",
                 "IT기획부",
@@ -46,7 +51,11 @@ class ApprovalMailRendererTest {
     }
 
     private MailPayload render(String detailJson) throws Exception {
-        String json = renderer.renderPayloadJson(context(detailJson));
+        return render("전산예산 신청서", detailJson);
+    }
+
+    private MailPayload render(String title, String detailJson) throws Exception {
+        String json = renderer.renderPayloadJson(context(title, detailJson));
         assertThat(json).isNotNull();
         return objectMapper.readValue(json, MailPayload.class);
     }
@@ -147,6 +156,10 @@ class ApprovalMailRendererTest {
     void html_staysWithinBudget() throws Exception {
         // 총액이 인덱스와 함께 오름차순이 되도록 만든다 — 목록에 원본 순서 그대로 실리면(정렬 삭제 회귀)
         // 총액이 가장 큰 마지막 항목(299번)이 예산 밖으로 밀려 빠지므로, 그 항목의 존재 여부로 정렬을 가른다.
+        //
+        // 항목을 이만큼 채우면 packer가 본문을 예산 상한 바로 아래까지 채우므로, renderPayloadJson을 거치면
+        // 봉투·이스케이프 오버헤드 때문에 JSON 레벨 가드(별도 테스트로 검증)에 걸려 null이 된다. 이 테스트는
+        // packer 자체(정렬·잘림·예산 준수)를 보는 것이 목적이라 html()을 직접 호출해 그 가드를 우회한다.
         String manyProjects =
                 IntStream.range(0, 300)
                         .mapToObj(
@@ -156,13 +169,21 @@ class ApprovalMailRendererTest {
                                                         + " \"assetBg\": 1, \"costBg\": 1}")
                                                 .formatted(i, i + 1))
                         .collect(Collectors.joining(","));
-        String html = render("{\"projects\": [" + manyProjects + "], \"costs\": []}").html();
+        String html = htmlOnly(context("{\"projects\": [" + manyProjects + "], \"costs\": []}"));
 
         assertThat(html.getBytes(StandardCharsets.UTF_8).length)
                 .isLessThanOrEqualTo(ApprovalMailRenderer.CONTENTS_BUDGET_BYTES);
         assertThat(html).contains("외 ").contains("건");
         // 총액이 가장 큰 항목(299번, totRqmAmt=300)이 정렬로 맨 앞에 와야 예산 안에 실린다.
         assertThat(html).contains("매우 긴 이름을 가진 정보화사업 항목 299");
+    }
+
+    /** private html(context)을 리플렉션으로 직접 호출한다. 본문 조립 로직만 보고 JSON 직렬화 예산 가드는 우회한다. */
+    private String htmlOnly(ApprovalMailContext context) throws Exception {
+        Method htmlMethod =
+                ApprovalMailRenderer.class.getDeclaredMethod("html", ApprovalMailContext.class);
+        htmlMethod.setAccessible(true);
+        return (String) htmlMethod.invoke(renderer, context);
     }
 
     @Test
@@ -254,5 +275,33 @@ class ApprovalMailRendererTest {
     @DisplayName("context가 null이면 예외 없이 null을 반환한다")
     void renderPayloadJson_nullContext_returnsNull() {
         assertThat(renderer.renderPayloadJson(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("본문은 예산 안이어도 직렬화된 JSON이 예산을 넘기면 null을 반환해 폴백을 유도한다")
+    void renderPayloadJson_bodyFitsButJsonOverflows_returnsNull() throws Exception {
+        // 봉투({"subject":...,"html":...})와 본문 안 큰따옴표의 백슬래시 이스케이프가 본문 위에 추가로
+        // 붙으므로, 본문만으로는 예산 안(<=4000바이트)인 값도 직렬화된 JSON은 예산을 넘을 수 있다.
+        // 실측: 이 제목 길이에서 본문은 3693바이트(예산 안)지만 직렬화된 JSON은 4006바이트(예산 초과)다.
+        ApprovalMailContext context = context("가".repeat(430), SNAPSHOT);
+
+        // 본문 자체는 예산 안임을 먼저 못박아, 이 테스트가 본문 레벨 가드(이미 있는 테스트)가 아니라
+        // JSON 레벨 가드를 검증한다는 것을 보장한다.
+        assertThat(htmlOnly(context).getBytes(StandardCharsets.UTF_8).length)
+                .isLessThanOrEqualTo(ApprovalMailRenderer.CONTENTS_BUDGET_BYTES);
+
+        assertThat(renderer.renderPayloadJson(context)).isNull();
+    }
+
+    @Test
+    @DisplayName("긴 제목도 제목 필드 폭 안에서 결재 요청 문구가 끝까지 살아남는다")
+    void subject_longTitle_keepsApprovalSuffixWithinFieldBudget() throws Exception {
+        // Capplm.dcdReqTtl 상한(255자)을 웃도는 길이로도 접미어가 잘리지 않는지 확인한다.
+        String longTitle = "제목".repeat(200);
+        String subject = render(longTitle, SNAPSHOT).subject();
+
+        assertThat(subject.getBytes(StandardCharsets.UTF_8).length)
+                .isLessThanOrEqualTo(200); // GWE 전문 SUBJECT 필드 폭
+        assertThat(subject).startsWith("[IT정보화포탈] ").endsWith(" 결재 요청");
     }
 }

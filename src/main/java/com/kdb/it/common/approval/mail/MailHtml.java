@@ -56,6 +56,40 @@ final class MailHtml {
         return html == null ? 0 : html.getBytes(StandardCharsets.UTF_8).length;
     }
 
+    /**
+     * 문자열을 UTF-8 바이트 예산 안으로 자릅니다. 멀티바이트 문자(한글, 서로게이트 쌍)는 중간에서 끊지 않습니다.
+     *
+     * <p>코드포인트 단위로 누적 바이트를 세다가 다음 문자를 더하면 예산을 넘기는 지점에서 멈추므로, 항상 온전한 문자까지만 남습니다.
+     *
+     * @param value 원본 문자열. null이면 빈 문자열로 취급
+     * @param maxBytes 허용 최대 바이트 수
+     * @return 예산 이하로 인코딩되는 문자열
+     */
+    static String truncateUtf8(String value, int maxBytes) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        if (utf8Length(value) <= maxBytes) {
+            return value;
+        }
+        StringBuilder result = new StringBuilder();
+        int usedBytes = 0;
+        int i = 0;
+        while (i < value.length()) {
+            int codePoint = value.codePointAt(i);
+            int charCount = Character.charCount(codePoint);
+            String ch = value.substring(i, i + charCount);
+            int chBytes = utf8Length(ch);
+            if (usedBytes + chBytes > maxBytes) {
+                break;
+            }
+            result.append(ch);
+            usedBytes += chBytes;
+            i += charCount;
+        }
+        return result.toString();
+    }
+
     /** 머리글 셀 — 테두리·여백은 표가 주므로 배경색만 남긴다. */
     static String labelCell(String text) {
         return "<th style=\"background:" + HEADER_BG + ";\">" + escape(text) + "</th>";

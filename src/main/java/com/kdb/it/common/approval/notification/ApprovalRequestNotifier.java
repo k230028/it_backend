@@ -57,12 +57,14 @@ public class ApprovalRequestNotifier {
                         .findFirst()
                         .orElse(null);
         if (next == null || next.getDcrEno() == null || next.getDcrEno().isBlank()) {
+            // if 조건이 이미 참인 이 블록 안에서는 next != null이면 dcrEno가 null·공백임이 보장되므로
+            // 재검사하지 않는다(그렇지 않으면 JaCoCo가 절대 거짓이 될 수 없는 분기를 미도달로 표시한다).
             log.info(
                     "[알림 진단] APPROVAL_REQUEST publishEvent 건너뜀: apfMngNo={}, approvers={}, nextNull={}, nextEnoBlank={}",
                     capplm.getApfMngNo(),
                     approvers.size(),
                     next == null,
-                    next != null && (next.getDcrEno() == null || next.getDcrEno().isBlank()));
+                    next != null);
             return;
         }
         log.debug(

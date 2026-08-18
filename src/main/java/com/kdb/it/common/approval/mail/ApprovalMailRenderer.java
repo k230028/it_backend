@@ -31,6 +31,12 @@ public class ApprovalMailRenderer {
     /** 본문 바이트 예산 — GWE 전문 CONTENTS 필드 폭과 같다. */
     public static final int CONTENTS_BUDGET_BYTES = 4000;
 
+    /** 제목 필드 예산 — GWE 전문 SUBJECT 필드 폭과 같은 UTF-8 200바이트. */
+    private static final int SUBJECT_BUDGET_BYTES = 200;
+
+    private static final String SUBJECT_PREFIX = "[IT정보화포탈] ";
+    private static final String SUBJECT_SUFFIX = " 결재 요청";
+
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final ObjectMapper objectMapper;
@@ -40,7 +46,8 @@ public class ApprovalMailRenderer {
      *
      * @param context 렌더링 입력. {@code null}이면 렌더링을 시도하지 않는다.
      * @return {@code {"subject":...,"html":...}} JSON. {@code context}가 null이거나, 렌더링이 실패하거나, 조립된
-     *     본문이 {@link #CONTENTS_BUDGET_BYTES}를 넘으면 {@code null}(호출자는 기존 기본 본문으로 폴백)
+     *     본문이 {@link #CONTENTS_BUDGET_BYTES}를 넘거나, 직렬화된 JSON 자체가 {@link #CONTENTS_BUDGET_BYTES}를
+     *     넘으면 {@code null}(호출자는 기존 기본 본문으로 폴백)
      */
     public String renderPayloadJson(ApprovalMailContext context) {
         if (context == null) {
@@ -57,16 +64,43 @@ public class ApprovalMailRenderer {
                 return null;
             }
             MailPayload payload = new MailPayload(subject(context), html);
-            return objectMapper.writeValueAsString(payload);
+            String json = objectMapper.writeValueAsString(payload);
+            // 저장 대상은 본문 HTML이 아니라 이 직렬화된 JSON이다. 봉투({"subject":...,"html":...})와
+            // 본문 안의 큰따옴표 이스케이프(\")가 본문 바이트 위에 추가로 붙으므로, 본문이 예산 안이어도
+            // JSON은 넘을 수 있다. 실제 저장될 값을 기준으로 다시 재보아 예산 안인지 확인한다.
+            int jsonBytes = MailHtml.utf8Length(json);
+            if (jsonBytes > CONTENTS_BUDGET_BYTES) {
+                log.warn(
+                        "결재요청 메일 페이로드 JSON이 예산을 초과해 렌더링을 포기합니다: apfMngNo={}, 크기={}바이트",
+                        context.apfMngNo(),
+                        jsonBytes);
+                return null;
+            }
+            return json;
         } catch (JsonProcessingException | RuntimeException e) {
             log.warn("결재요청 메일 렌더링 실패: apfMngNo={}, 사유={}", context.apfMngNo(), e.toString());
             return null;
         }
     }
 
-    /** 메일 제목 — 포탈 접두어와 결재 요청 문구를 붙인다. */
+    /**
+     * 메일 제목 — 포탈 접두어와 결재 요청 문구를 붙인다.
+     *
+     * <p>전문 SUBJECT 필드는 200바이트라 EAI 전송 계층({@code GwePayloadSection.lpadFit})이 넘치면 꼬리부터 자른다. 접두어 뒤에
+     * 제목을 그대로 붙이면 제목이 길 때 " 결재 요청" 문구까지 잘려나가 결재 요청임을 알 수 없는 제목이 남는다. 그래서 접두어·접미어를 뺀 나머지 바이트만 제목에
+     * 배정해 여기서 미리 잘라, 접미어가 항상 살아남게 한다.
+     */
     private String subject(ApprovalMailContext context) {
-        return "[IT정보화포탈] %s 결재 요청".formatted(text(context.title()));
+        return SUBJECT_PREFIX + fitTitleForSubject(text(context.title())) + SUBJECT_SUFFIX;
+    }
+
+    /** 제목을 SUBJECT 필드 예산에서 접두어·접미어를 뺀 나머지 바이트로 자른다. */
+    private static String fitTitleForSubject(String title) {
+        int titleBudget =
+                SUBJECT_BUDGET_BYTES
+                        - MailHtml.utf8Length(SUBJECT_PREFIX)
+                        - MailHtml.utf8Length(SUBJECT_SUFFIX);
+        return MailHtml.truncateUtf8(title, titleBudget);
     }
 
     /** 본문 HTML — 개요와 합계는 필수, 목록은 남는 예산만큼. */
