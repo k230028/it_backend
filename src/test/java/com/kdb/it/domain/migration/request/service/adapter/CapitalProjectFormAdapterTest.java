@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
@@ -172,6 +173,26 @@ class CapitalProjectFormAdapterTest {
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls())).projects().get(0);
 
         assertThat(project.getEdrtTc()).isEqualTo("21");
+    }
+
+    @Test
+    @DisplayName("전결권자가 코드표에 없으면 카탈로그의 전결권 자본 후보를 진단에 싣는다")
+    void suppliesEdrtCandidatesWhenDelegationUnresolved() {
+        // 어댑터가 catalogs()에서 edrtTc 후보를 빼먹으면 이 진단의 candidates가 비어
+        // 화면에서 고를 수 없게 되고 그 파일은 영구히 차단된다 (설계 의도는 catalogs() 주석 참고)
+        when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of());
+        when(catalogReader.edrtCapitalCandidates())
+                .thenReturn(List.of(new MigrationDto.Candidate("22", "부문장")));
+
+        FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
+
+        assertThat(output.diagnostics())
+                .filteredOn(d -> "edrtTc".equals(d.field()))
+                .singleElement()
+                .satisfies(
+                        d ->
+                                assertThat(d.candidates())
+                                        .containsExactly(new MigrationDto.Candidate("22", "부문장")));
     }
 
     @Test

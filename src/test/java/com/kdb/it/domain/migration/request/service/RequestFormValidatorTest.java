@@ -235,6 +235,50 @@ class RequestFormValidatorTest {
     }
 
     @Test
+    @DisplayName("어댑터가 이미 짚은 통화 미해석 행은 통화·금액 필수값을 다시 보고하지 않는다")
+    void doesNotRepeatCurrencyAlreadyReportedByAdapter() {
+        // 통화 미해석 행은 curC·금액이 모두 null로 남는다 — 같은 사건을 두 번 내면
+        // 통화를 골라도 금액 누락 차단이 남아 파일이 계속 막힌다
+        CostDto.CreateRequest unresolvedCurrency = new CostDto.CreateRequest();
+        unresolvedCurrency.setIoeC("010");
+        unresolvedCurrency.setCttNm("블룸버그 회선사용료");
+        unresolvedCurrency.setCttOppNm("Bloomberg");
+        unresolvedCurrency.setCostSvnDpmC("0210");
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(),
+                        List.of(unresolvedCurrency),
+                        List.of(
+                                RequestFormDto.FormDiagnostic.about(
+                                        FormSheetKind.GENERAL_EXPENSE,
+                                        5,
+                                        "curC",
+                                        "블룸버그 회선사용료",
+                                        RequestFormDiagnosticCode.CODE_UNRESOLVED,
+                                        "통화 구분이 비어 있습니다. 통화를 골라 주세요.",
+                                        List.of(new MigrationDto.Candidate("KRW", "원화")))),
+                        null);
+
+        assertThat(validator().validate(output, "2026"))
+                .extracting(RequestFormDto.FormDiagnostic::field)
+                .doesNotContain("curC", "amt");
+    }
+
+    @Test
+    @DisplayName("어댑터가 짚지 않은 행의 통화·금액 누락은 그대로 보고한다")
+    void stillReportsCurrencyAndAmountMissingWithoutAdapterDiagnostic() {
+        CostDto.CreateRequest missingCurrency = new CostDto.CreateRequest();
+        missingCurrency.setIoeC("010");
+        missingCurrency.setCttNm("다른 계약");
+        missingCurrency.setCttOppNm("Bloomberg");
+        missingCurrency.setCostSvnDpmC("0210");
+
+        assertThat(validator().validate(costsOf(missingCurrency), "2026"))
+                .extracting(RequestFormDto.FormDiagnostic::field)
+                .contains("curC", "amt");
+    }
+
+    @Test
     @DisplayName("전산업무비 진단은 계약명을 대상으로 짚어 준다")
     void namesTheContractBehindEachDiagnostic() {
         FormAdapterOutput output =

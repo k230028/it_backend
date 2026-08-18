@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -151,6 +152,24 @@ class MigrationIoeCatalogReaderTest {
                 .containsEntry("이사회", "25")
                 .hasSize(2);
         assertThat(reader.abusUnitNameByCode()).containsEntry("571", "운영시스템 유지보수");
+    }
+
+    @Test
+    @DisplayName("전결권 자본예산 후보는 자본 계열만 담고 후보값은 코드값이다")
+    void 전결권_자본_후보를_만든다() {
+        // 경상 계열(EDRT_MNGC) 행을 섞어 두어야 계열 필터가 실제로 걸러내는지 검증된다.
+        // 물리 컬럼 IT_PTL_EDRT_TC는 2자리 코드이므로 후보값은 코드값명이 아니라 코드값이어야 한다.
+        when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.EDRT, "N"))
+                .thenReturn(
+                        List.of(
+                                named(CommonCodeGroups.EDRT, "12", "부문장", "EDRT_MNGC"),
+                                named(CommonCodeGroups.EDRT, "22", "부문장", "EDRT_CPIT"),
+                                named(CommonCodeGroups.EDRT, "25", "이사회", "EDRT_CPIT")));
+
+        List<MigrationDto.Candidate> result = readerWithRepo().edrtCapitalCandidates();
+
+        assertThat(result).extracting(MigrationDto.Candidate::code).containsExactly("22", "25");
+        assertThat(result).extracting(MigrationDto.Candidate::label).containsExactly("부문장", "이사회");
     }
 
     @Test

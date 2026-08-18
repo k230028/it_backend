@@ -44,6 +44,27 @@ public class RequestFormValidator {
     private static final String IOE_FIELD = "ioeC";
 
     /**
+     * 통화 필드 id. 어댑터(시트 ③)가 이미 {@code CODE_UNRESOLVED}로 보고한 대상은 여기서 다시 보지 않습니다.
+     *
+     * <p>통화 미해석 행은 금액도 함께 비어 있으므로({@link #ADAPTER_RESOLVED_AMOUNT_SKIP_FIELDS}) 이 필드가 걸리면 금액 필수 검사도
+     * 같이 건너뜁니다.
+     */
+    private static final String CUR_C_FIELD = "curC";
+
+    /**
+     * 어댑터가 이미 코드 해석 진단을 낸 필드 목록. {@link #adapterResolvedFieldSubjects}가 이 필드들만 (필드, 대상) 짝으로 모읍니다.
+     */
+    private static final Set<String> ADAPTER_RESOLVED_FIELDS = Set.of(IOE_FIELD, CUR_C_FIELD);
+
+    /**
+     * 어댑터가 코드를 해석하지 못해 금액까지 비게 되는 필드. 이 필드가 걸린 행은 금액 필수 검사도 건너뜁니다.
+     *
+     * <p>통화가 미해석이면 어댑터가 {@code curC}·{@code costTotXpAmt}·{@code fcAmt}를 전부 채우지 못합니다. 비목({@code
+     * ioeC})은 금액과 무관하므로 포함하지 않습니다.
+     */
+    private static final Set<String> ADAPTER_RESOLVED_AMOUNT_SKIP_FIELDS = Set.of(CUR_C_FIELD);
+
+    /**
      * 자연키 구성요소 구분자.
      *
      * <p>제어문자(UNIT SEPARATOR)를 씁니다 — 계약명·상대처는 자유 입력이라 `|` 같은 흔한 문자를 쓰면 `A|B`와 `A`+`B`가 같은 키가 되어 서로
@@ -64,36 +85,40 @@ public class RequestFormValidator {
     @Transactional(readOnly = true)
     public List<RequestFormDto.FormDiagnostic> validate(FormAdapterOutput output, String bseYy) {
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
-        Set<String> alreadyReported = ioeSubjectsAlreadyReported(output);
+        Set<FieldSubject> alreadyReported = adapterResolvedFieldSubjects(output);
         validateCosts(output.costs(), bseYy, alreadyReported, diagnostics);
         validateProjects(output.projects(), bseYy, alreadyReported, diagnostics);
         return List.copyOf(diagnostics);
     }
 
+    /** 필드 id와 대상 이름(사업명·품목명·계약명)의 조합입니다. */
+    private record FieldSubject(String field, String subject) {}
+
     /**
-     * 어댑터가 이미 비목 진단을 낸 대상(품목명·계약명)을 모읍니다.
+     * 어댑터가 이미 코드 해석 진단({@link #ADAPTER_RESOLVED_FIELDS})을 낸 (필드, 대상) 짝을 모읍니다.
      *
-     * <p>비목이 비어 있는 이유는 <b>어댑터가 해석하지 못했기 때문</b>이고, 어댑터는 그 사실을 행 좌표와 후보까지 붙여 이미 보고했습니다. 여기서 같은 사건을
-     * 필수값 누락으로 한 번 더 내면 사용자에게는 <b>고칠 수 없는 차단</b>이 하나 더 생깁니다 — 행 진단에서 비목을 골라도 이 중복이 남아 파일이 계속 막힙니다
-     * (실측: 자금운용실 품목 3·4·5).
+     * <p>필드가 비어 있는 이유는 <b>어댑터가 해석하지 못했기 때문</b>이고, 어댑터는 그 사실을 행 좌표와 후보까지 붙여 이미 보고했습니다. 여기서 같은 사건을
+     * 필수값 누락으로 한 번 더 내면 사용자에게는 <b>고칠 수 없는 차단</b>이 하나 더 생깁니다 — 행 진단에서 값을 골라도 이 중복이 남아 파일이 계속 막힙니다
+     * (실측: 비목 미해석 — 자금운용실 품목 3·4·5, 통화 미해석 — curC 빈 칸 행).
      *
      * @param output 어댑터가 조립한 생성 요청
-     * @return 어댑터가 짚은 대상 이름 집합. 이름이 없는 진단은 담지 않습니다
+     * @return 어댑터가 짚은 (필드, 대상) 짝 집합. 대상 이름이 없는 진단은 담지 않습니다
      */
-    private static Set<String> ioeSubjectsAlreadyReported(FormAdapterOutput output) {
-        Set<String> subjects = new HashSet<>();
+    private static Set<FieldSubject> adapterResolvedFieldSubjects(FormAdapterOutput output) {
+        Set<FieldSubject> resolved = new HashSet<>();
         for (RequestFormDto.FormDiagnostic diagnostic : output.diagnostics()) {
-            if (IOE_FIELD.equals(diagnostic.field()) && diagnostic.subject() != null) {
-                subjects.add(diagnostic.subject());
+            if (diagnostic.subject() != null
+                    && ADAPTER_RESOLVED_FIELDS.contains(diagnostic.field())) {
+                resolved.add(new FieldSubject(diagnostic.field(), diagnostic.subject()));
             }
         }
-        return subjects;
+        return resolved;
     }
 
     private void validateCosts(
             List<CostDto.CreateRequest> costs,
             String bseYy,
-            Set<String> ioeAlreadyReported,
+            Set<FieldSubject> alreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (costs.isEmpty()) return;
         Set<String> existing = new HashSet<>();
@@ -109,7 +134,8 @@ public class RequestFormValidator {
 
         for (CostDto.CreateRequest cost : costs) {
             String subject = subjectOf(cost.getCttNm(), "계약명 미기재");
-            if (!ioeAlreadyReported.contains(nullSafe(cost.getCttNm()))) {
+            String cttNm = nullSafe(cost.getCttNm());
+            if (!alreadyReported.contains(new FieldSubject(IOE_FIELD, cttNm))) {
                 requireText(
                         cost.getIoeC(),
                         FormSheetKind.GENERAL_EXPENSE,
@@ -125,14 +151,24 @@ public class RequestFormValidator {
                     subject,
                     "계약명",
                     diagnostics);
-            requireText(
-                    cost.getCurC(),
-                    FormSheetKind.GENERAL_EXPENSE,
-                    "curC",
-                    subject,
-                    "통화",
-                    diagnostics);
-            if (cost.getCostTotXpAmt() == null && cost.getFcAmt() == null) {
+            boolean curCAlreadyReported =
+                    alreadyReported.contains(new FieldSubject(CUR_C_FIELD, cttNm));
+            if (!curCAlreadyReported) {
+                requireText(
+                        cost.getCurC(),
+                        FormSheetKind.GENERAL_EXPENSE,
+                        CUR_C_FIELD,
+                        subject,
+                        "통화",
+                        diagnostics);
+            }
+            boolean skipAmountCheck =
+                    ADAPTER_RESOLVED_AMOUNT_SKIP_FIELDS.stream()
+                            .anyMatch(
+                                    field ->
+                                            alreadyReported.contains(
+                                                    new FieldSubject(field, cttNm)));
+            if (!skipAmountCheck && cost.getCostTotXpAmt() == null && cost.getFcAmt() == null) {
                 diagnostics.add(
                         blocker(
                                 FormSheetKind.GENERAL_EXPENSE,
@@ -187,7 +223,7 @@ public class RequestFormValidator {
     private void validateProjects(
             List<ProjectDto.CreateRequest> projects,
             String bseYy,
-            Set<String> ioeAlreadyReported,
+            Set<FieldSubject> alreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (projects.isEmpty()) return;
         Set<String> existing = new HashSet<>();
@@ -211,7 +247,7 @@ public class RequestFormValidator {
                     subject,
                     "사업명",
                     diagnostics);
-            validateItems(project, sheet, subject, ioeAlreadyReported, diagnostics);
+            validateItems(project, sheet, subject, alreadyReported, diagnostics);
 
             String key = normalizeProjectName(project.getAbusNm());
             if (key.isEmpty()) continue;
@@ -237,7 +273,7 @@ public class RequestFormValidator {
             ProjectDto.CreateRequest project,
             FormSheetKind sheet,
             String projectSubject,
-            Set<String> ioeAlreadyReported,
+            Set<FieldSubject> alreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (project.getItems() == null) return;
         for (ProjectDto.BitemmDto item : project.getItems()) {
@@ -247,7 +283,7 @@ public class RequestFormValidator {
                                     projectSubject,
                                     item.getSno() == null ? 0 : item.getSno(),
                                     subjectOf(item.getGclNm(), "품목명 미기재"));
-            if (!ioeAlreadyReported.contains(nullSafe(item.getGclNm()))) {
+            if (!alreadyReported.contains(new FieldSubject(IOE_FIELD, nullSafe(item.getGclNm())))) {
                 requireText(item.getIoeC(), sheet, IOE_FIELD, subject, "비목코드", diagnostics);
             }
             limit(item.getGclNm(), ITEM_NAME_LIMIT, sheet, "gclNm", subject, "품목명", diagnostics);
