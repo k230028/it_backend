@@ -365,7 +365,9 @@ public class ApplicationDto {
          *
          * <p>이 값이 true면 신청서 본문이 없으므로 화면은 신청서 PDF 대신 반입 원본 파일 목록을 보여줍니다.
          */
-        @Schema(description = "편성요청서 반입 생성 여부")
+        @Schema(
+                description = "편성요청서 반입 생성 여부",
+                requiredMode = Schema.RequiredMode.REQUIRED)
         private boolean migrated;
 
         /** 결재자 목록 (순번 순서대로) */
@@ -424,6 +426,7 @@ public class ApplicationDto {
                     .rqsBbrNm(requesterBbrNm) // 신청부서명
                     .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
                     .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
+                    .migrated(MigrationApprovalMarker.isMigrated(capplm.getRgprDcdReqCone()))
                     .approvers(
                             approvers.stream()
                                     .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
