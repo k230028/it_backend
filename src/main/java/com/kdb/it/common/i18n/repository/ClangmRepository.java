@@ -20,6 +20,13 @@ public interface ClangmRepository extends JpaRepository<Clangm, ClangmId> {
             @Param("language") String language,
             @Param("targetKeys") Collection<String> targetKeys);
 
+    /** 지정 대상 키에 속한 활성 번역을 언어 구분 없이 일괄 조회합니다. */
+    @Query(
+            "SELECT c FROM Clangm c WHERE c.dttNm = :target "
+                    + "AND c.tcIdCone IN :targetKeys AND c.delYn = 'N'")
+    List<Clangm> findActiveByTargetAndKeys(
+            @Param("target") String target, @Param("targetKeys") Collection<String> targetKeys);
+
     /** 대상 키의 삭제 행을 포함한 모든 번역을 조회합니다. */
     @Query("SELECT c FROM Clangm c WHERE c.dttNm = :target AND c.tcIdCone = :targetKey")
     List<Clangm> findByDttNmAndTcIdCone(
