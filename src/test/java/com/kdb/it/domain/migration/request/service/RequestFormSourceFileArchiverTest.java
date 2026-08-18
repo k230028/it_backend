@@ -128,6 +128,42 @@ class RequestFormSourceFileArchiverTest {
     }
 
     @Test
+    @DisplayName("다른 폴더가 같은 검증 부서코드로 확정돼도 파일과 신청서번호를 섞지 않는다")
+    void archive_doesNotCrossFoldersSharingEffectiveDepartmentCode() {
+        MultipartFile firstFile = file("a.xlsx");
+        MultipartFile secondFile = file("b.xlsx");
+        RequestFormDto.FileResult firstResult =
+                result(
+                        "첫폴더/a.xlsx",
+                        "첫폴더",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-FIRST"));
+        RequestFormDto.FileResult secondResult =
+                result(
+                        "둘째폴더/b.xlsx",
+                        "둘째폴더",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-SECOND"));
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
+                List.of(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                firstFile, "D01", firstResult),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                secondFile, "D01", secondResult));
+        given(fileService.uploadFile(any(), any())).willReturn("FL-FIRST", "FL-SECOND");
+
+        archiver.archive(plan);
+
+        ArgumentCaptor<FileDto.UploadRequest> requestCaptor =
+                ArgumentCaptor.forClass(FileDto.UploadRequest.class);
+        then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
+        then(fileService).should(never()).linkExistingFile(any(), any());
+        assertThat(requestCaptor.getAllValues())
+                .extracting(FileDto.UploadRequest::getPkCone)
+                .containsExactlyInAnyOrder("APF-FIRST", "APF-SECOND");
+    }
+
+    @Test
     @DisplayName("같은 폴더명이 서로 다른 검증 부서코드로 확정되면 파일과 신청서번호를 섞지 않는다")
     void archive_doesNotCrossEffectiveDepartmentCodes() {
         MultipartFile firstFile = file("a.xlsx");

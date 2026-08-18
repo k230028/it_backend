@@ -19,9 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 반입한 편성요청서 원본을 공통첨부파일에 보관합니다.
  *
- * <p>보관 단위는 파일 처리에서 확정한 <b>부서코드</b>입니다. 한 폴더명이 보정값 때문에 서로 다른 부서코드로 확정되더라도 파일과 신청서번호가 섞이지 않습니다. 같은
- * 부서코드의 파일은 그 부서가 만든 모든 원장에서 함께 보여야 하므로 신청서번호마다 연결을 만듭니다. 다만 디스크 기록은 <b>파일당 1회</b>이고 두 번째 연결부터는 물리
- * 경로를 공유하는 메타행만 추가합니다({@link FileService#linkExistingFile(String, FileDto.UploadRequest)}).
+ * <p>보관 단위는 <b>원본 최상위 폴더와 파일 처리에서 확정한 부서코드의 조합</b>입니다. 폴더명이 같아도 검증 코드가 다르거나, 검증 코드가 같아도 폴더명이 다르면
+ * 파일과 신청서번호를 섞지 않습니다. 두 값이 모두 같은 폴더의 파일만 그 폴더가 만든 모든 원장에서 함께 보이도록 연결합니다. 다만 디스크 기록은 <b>파일당 1회</b>이고
+ * 두 번째 연결부터는 물리 경로를 공유하는 메타행만 추가합니다({@link FileService#linkExistingFile(String,
+ * FileDto.UploadRequest)}).
  *
  * <p>APPLIED 파일만 보관합니다. BLOCKED·FAILED 파일은 원장을 만들지 않아 붙일 신청서번호가 없고, 같은 폴더의 정상 건에 얹으면 그 사업과 무관한 실패
  * 파일이 목록에 섞입니다. 반입 실패는 반입 화면의 진단이 다룹니다.
@@ -46,8 +47,11 @@ public class RequestFormSourceFileArchiver {
     record ArchivePlanItem(
             MultipartFile file, String effectiveDeptCode, RequestFormDto.FileResult result) {}
 
+    /** 원본 폴더 단위와 검증된 부서코드를 모두 보존하는 보관 그룹 키입니다. */
+    private record ArchiveGroupKey(String deptName, String effectiveDeptCode) {}
+
     /**
-     * 반입 배치의 원본 파일을 검증된 부서코드 단위로 보관합니다.
+     * 반입 배치의 원본 파일을 원본 폴더·검증된 부서코드 조합 단위로 보관합니다.
      *
      * <p>호출자는 commit 경로에서만 부릅니다. dry-run은 원장을 만들지 않으므로 보관할 대상도 없습니다. 보관 중 파일 저장이나 재연결이 실패하면 ERROR
      * 로그만 남기고 예외를 전파하지 않습니다.
@@ -55,9 +59,9 @@ public class RequestFormSourceFileArchiver {
      * @param plan 업로드 파일·실제 적용 부서코드·파일별 반영 결과를 묶은 내부 계획
      */
     void archive(List<ArchivePlanItem> plan) {
-        // 실제 적용 부서코드별로 (보관할 파일 목록, 그 부서가 만든 신청서번호 집합)을 모은다
-        Map<String, List<MultipartFile>> filesByDept = new LinkedHashMap<>();
-        Map<String, Set<String>> apfMngNosByDept = new LinkedHashMap<>();
+        // 원본 폴더·실제 적용 부서코드별로 (파일 목록, 신청서번호 집합)을 모은다
+        Map<ArchiveGroupKey, List<MultipartFile>> filesByGroup = new LinkedHashMap<>();
+        Map<ArchiveGroupKey, Set<String>> apfMngNosByGroup = new LinkedHashMap<>();
 
         for (ArchivePlanItem item : plan) {
             RequestFormDto.FileResult result = item.result();
@@ -67,9 +71,10 @@ public class RequestFormSourceFileArchiver {
                     || !StringUtils.hasText(deptCode)) {
                 continue;
             }
-            filesByDept.computeIfAbsent(deptCode, key -> new ArrayList<>()).add(item.file());
+            ArchiveGroupKey groupKey = new ArchiveGroupKey(result.deptName(), deptCode);
+            filesByGroup.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(item.file());
             Set<String> apfMngNos =
-                    apfMngNosByDept.computeIfAbsent(deptCode, key -> new LinkedHashSet<>());
+                    apfMngNosByGroup.computeIfAbsent(groupKey, key -> new LinkedHashSet<>());
             for (RequestFormDto.CreatedRecord created : result.created()) {
                 if (created.apfMngNo() != null) {
                     apfMngNos.add(created.apfMngNo());
@@ -77,8 +82,8 @@ public class RequestFormSourceFileArchiver {
             }
         }
 
-        for (Map.Entry<String, List<MultipartFile>> group : filesByDept.entrySet()) {
-            Set<String> apfMngNos = apfMngNosByDept.getOrDefault(group.getKey(), Set.of());
+        for (Map.Entry<ArchiveGroupKey, List<MultipartFile>> group : filesByGroup.entrySet()) {
+            Set<String> apfMngNos = apfMngNosByGroup.getOrDefault(group.getKey(), Set.of());
             if (apfMngNos.isEmpty()) {
                 continue;
             }
@@ -93,7 +98,7 @@ public class RequestFormSourceFileArchiver {
      *
      * <p>첫 신청서번호에만 디스크에 쓰고, 나머지는 그 물리 파일을 공유하는 메타행만 만듭니다.
      */
-    private void archiveOne(MultipartFile file, Set<String> apfMngNos, String deptCode) {
+    private void archiveOne(MultipartFile file, Set<String> apfMngNos, ArchiveGroupKey groupKey) {
         Iterator<String> applicationNumbers = apfMngNos.iterator();
         String firstApfMngNo = applicationNumbers.next();
         String sourceFlMpnId;
@@ -102,8 +107,9 @@ public class RequestFormSourceFileArchiver {
         } catch (RuntimeException e) {
             // 원본 파일을 확보하지 못하면 나머지 신청서번호에는 재연결할 물리 파일도 없다
             log.error(
-                    "편성요청서 반입 원본 보관 실패: deptCode={}, apfMngNo={}, fileName={}",
-                    deptCode,
+                    "편성요청서 반입 원본 보관 실패: deptName={}, deptCode={}, apfMngNo={}, fileName={}",
+                    groupKey.deptName(),
+                    groupKey.effectiveDeptCode(),
                     firstApfMngNo,
                     file.getOriginalFilename(),
                     e);
@@ -117,8 +123,9 @@ public class RequestFormSourceFileArchiver {
             } catch (RuntimeException e) {
                 // 보관 실패가 이미 커밋된 원장을 되돌리게 두지 않는다. 해당 건은 파일 0건 상태로 남는다
                 log.error(
-                        "편성요청서 반입 원본 보관 실패: deptCode={}, apfMngNo={}, fileName={}",
-                        deptCode,
+                        "편성요청서 반입 원본 보관 실패: deptName={}, deptCode={}, apfMngNo={}, fileName={}",
+                        groupKey.deptName(),
+                        groupKey.effectiveDeptCode(),
                         apfMngNo,
                         file.getOriginalFilename(),
                         e);
