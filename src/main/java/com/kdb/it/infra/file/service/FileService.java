@@ -300,6 +300,32 @@ public class FileService {
     }
 
     /**
+     * 이미 저장된 파일을 다른 부모에 추가로 연결합니다.
+     *
+     * <p>물리 파일을 다시 쓰지 않고 메타데이터 행만 만듭니다. 같은 파일이 여러 부모에 붙어야 할 때 {@link
+     * #uploadFile} 반복 호출 대신 씁니다.
+     *
+     * @param sourceFlMpnId 원본 파일매핑ID
+     * @param request 새 연결의 종류와 부모 식별자
+     * @return 새로 만들어진 파일매핑ID
+     * @throws CustomGeneralException 원본 파일이 없거나 이미 삭제된 경우
+     */
+    @Transactional
+    public String linkExistingFile(String sourceFlMpnId, FileDto.UploadRequest request) {
+        Cfilem source =
+                fileRepository
+                        .findByFlMpnIdAndDelYn(sourceFlMpnId, "N")
+                        .orElseThrow(
+                                () ->
+                                        new CustomGeneralException(
+                                                "존재하지 않는 파일입니다. 파일매핑ID: " + sourceFlMpnId));
+
+        Cfilem linked = fileUploadUnitService.linkExistingFileInNewTransaction(source, request);
+        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
+        return linked.getFlMpnId();
+    }
+
+    /**
      * 파일 다건 일괄 업로드
      *
      * <p>개별 파일 업로드를 반복하며 특정 파일이 실패해도 후속 파일 처리를 계속하고 결과에 성공·실패 목록을 모두 포함합니다. 다만 영속성 예외가 현재 트랜잭션을

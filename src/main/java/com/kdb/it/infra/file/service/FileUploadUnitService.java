@@ -102,6 +102,36 @@ public class FileUploadUnitService {
         return cfilem;
     }
 
+    /**
+     * 이미 저장된 물리 파일을 다른 부모에 추가로 연결합니다.
+     *
+     * <p>디스크에 다시 쓰지 않고 메타데이터 행만 만듭니다. 같은 파일을 여러 원장에 붙여야 하는 편성요청서 반입이
+     * 이 경로를 씁니다. 삭제가 논리 삭제({@code DEL_YN='Y'})라 물리 파일을 공유해도 형제 행의 다운로드가 깨지지
+     * 않는다는 전제 위에 있습니다. 물리 삭제를 도입하면 이 메서드도 함께 고쳐야 합니다.
+     *
+     * @param source 원본 파일 메타데이터. 파일물리명·저장경로·파일명·크기를 그대로 물려받습니다
+     * @param request 새 연결의 종류와 부모 식별자
+     * @return 새로 만들어진 파일 메타데이터 엔티티
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Cfilem linkExistingFileInNewTransaction(Cfilem source, FileDto.UploadRequest request) {
+        Cfilem linked =
+                Cfilem.builder()
+                        .flMpnId(generateFlMpnId())
+                        .flNm(source.getFlNm())
+                        .flPysNm(source.getFlPysNm())
+                        .flKpnPth(source.getFlKpnPth())
+                        .flTpCone(request.getFlTpCone())
+                        .apgFlSz(source.getApgFlSz())
+                        .pkCone(request.getPkCone())
+                        .pkColNm(request.getPkColNm())
+                        .build();
+
+        entityManager.persist(linked);
+        entityManager.flush();
+        return linked;
+    }
+
     private String generateFlMpnId() {
         Long seq = fileRepository.getNextSequenceValue();
         return String.format("FL-%08d", seq);
