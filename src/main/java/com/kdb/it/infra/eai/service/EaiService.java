@@ -10,6 +10,7 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -30,6 +31,7 @@ public class EaiService {
     private final Charset charset;
     private final EaiMessageBuilder builder;
     private final EaiErrorResponseParser errorResponseParser = new EaiErrorResponseParser();
+    private final EaiWireLogger wire;
 
     public EaiService(
             EaiProperties props,
@@ -42,6 +44,7 @@ public class EaiService {
         this.props = props;
         this.restClient = restClient;
         this.charset = Charset.forName(props.charset());
+        this.wire = new EaiWireLogger(charset);
         this.builder =
                 new EaiMessageBuilder(props, eaiClock, guidRandom, host, randomDigits, sections);
     }
@@ -53,6 +56,7 @@ public class EaiService {
      * @return 전송 결과(성공/스킵/실패). 절대 예외를 던지지 않는다.
      */
     public EaiResult sendEai(EaiRequest request) {
+        String payloadType = request.payload().getClass().getSimpleName();
         byte[] message;
         try {
             message = builder.build(request);
@@ -60,16 +64,18 @@ public class EaiService {
             log.warn(
                     "EAI 전문 조립 실패: ifId={}, payload={}, 사유={}",
                     request.ifId(),
-                    request.payload().getClass().getSimpleName(),
+                    payloadType,
                     safeMessage(e));
             return EaiResult.failure("전문 조립 실패: " + safeMessage(e));
         }
+
+        wire.logRequest(request.ifId(), payloadType, message);
 
         if (!props.enabled()) {
             log.info(
                     "EAI 비활성화(eai.enabled=false) — 전송 스킵. ifId={}, payload={}, len={}바이트, 미리보기=[{}]",
                     request.ifId(),
-                    request.payload().getClass().getSimpleName(),
+                    payloadType,
                     message.length,
                     maskedPreview(message));
             return EaiResult.skip();
@@ -86,57 +92,68 @@ public class EaiService {
                                     (httpRequest, response) -> {
                                         int status = response.getStatusCode().value();
                                         byte[] responseBody = response.getBody().readAllBytes();
+                                        HttpHeaders headers = response.getHeaders();
+                                        wire.logResponse(
+                                                request.ifId(), status, headers, responseBody);
                                         if (status == 204) {
                                             return EaiResult.success("");
                                         }
-                                        if (status == 200) {
-                                            return errorResponseParser
-                                                    .parse(responseBody, charset)
-                                                    .map(EaiResult::failure)
-                                                    .orElseGet(
-                                                            () -> {
-                                                                // 오류 코드를 못 읽으면 표준전문 여부와 판정
-                                                                // 바이트를 남겨 원인(짧은 응답/다른 플래그)을
-                                                                // 구분할 수 있게 한다.
-                                                                log.warn(
-                                                                        "EAI 200 응답을 오류 전문으로"
-                                                                                + " 해석하지 못함:"
-                                                                                + " ifId={}, {}",
-                                                                        request.ifId(),
-                                                                        errorResponseParser
-                                                                                .diagnostics(
-                                                                                        responseBody,
-                                                                                        charset));
-                                                                return EaiResult.failure(
-                                                                        "EAI 오류 응답 파싱 실패");
-                                                            });
-                                        }
-                                        return EaiResult.failure(
-                                                "EAI HTTP 오류: %d(len=%d)"
-                                                        .formatted(status, responseBody.length));
+                                        EaiResult failure = classifyFailure(status, responseBody);
+                                        // 실패 건은 상세 로그 설정과 무관하게 요청·응답 전문을 남긴다.
+                                        // 스케줄러 재시도 경로는 재현이 어려우므로 한 번의 발생만으로
+                                        // 원인(비표준 응답/플래그 불일치/헤더 값 오류)을 좁힐 수 있어야 한다.
+                                        log.warn(
+                                                "EAI 실패 전문 상세: ifId={}, 사유={}, 판정={}\n{}\n{}",
+                                                request.ifId(),
+                                                failure.errorMessage(),
+                                                errorResponseParser.diagnostics(
+                                                        responseBody, charset),
+                                                wire.requestDetail(payloadType, message),
+                                                wire.responseDetail(status, headers, responseBody));
+                                        return failure;
                                     });
             if (result.success()) {
                 log.info(
                         "EAI 전송 성공: ifId={}, payload={}, reqLen={}바이트",
                         request.ifId(),
-                        request.payload().getClass().getSimpleName(),
+                        payloadType,
                         message.length);
             } else {
                 log.warn(
                         "EAI 응답 오류: ifId={}, payload={}, 사유={}",
                         request.ifId(),
-                        request.payload().getClass().getSimpleName(),
+                        payloadType,
                         result.errorMessage());
             }
             return result;
         } catch (RuntimeException e) {
             log.warn(
-                    "EAI 전송 실패: ifId={}, payload={}, 사유={}",
+                    "EAI 전송 실패: ifId={}, payload={}, 사유={}\n{}",
                     request.ifId(),
-                    request.payload().getClass().getSimpleName(),
-                    safeMessage(e));
+                    payloadType,
+                    safeMessage(e),
+                    wire.requestDetail(payloadType, message));
             return EaiResult.failure("전송 실패: " + safeMessage(e));
         }
+    }
+
+    /**
+     * 비-204 응답을 실패 결과로 분류합니다.
+     *
+     * <p>HTTP 200은 게이트웨이 오류 전문으로 보고 SEEAI 코드를 추출하며, 오류 전문으로 해석하지 못하면 파싱 실패로 남깁니다.
+     *
+     * @param status HTTP 상태코드
+     * @param responseBody 응답 본문
+     * @return 실패 결과
+     */
+    private EaiResult classifyFailure(int status, byte[] responseBody) {
+        if (status == 200) {
+            return errorResponseParser
+                    .parse(responseBody, charset)
+                    .map(EaiResult::failure)
+                    .orElseGet(() -> EaiResult.failure("EAI 오류 응답 파싱 실패"));
+        }
+        return EaiResult.failure("EAI HTTP 오류: %d(len=%d)".formatted(status, responseBody.length));
     }
 
     /** 예외 메시지를 안전하게 추출 — null/과도한 길이를 방어해 결과/로그 오염을 막는다. (패키지 가시성: 단위 테스트 직접 검증용) */

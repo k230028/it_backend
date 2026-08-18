@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param enabled 실제 HTTP 전송 여부. false면 전문 빌드·로깅만 수행.
  * @param url EAI 게이트웨이 URL. enabled=true일 때 필수.
- * @param charset 고정길이 전문 인코딩(기본 MS949).
+ * @param charset 고정길이 전문 인코딩(기본 UTF-8). 고정길이 필드의 패딩도 이 문자셋의 바이트 길이 기준이므로 EAI 규격과 일치해야 한다.
  * @param connectTimeout 연결 타임아웃(ms).
  * @param readTimeout 읽기 타임아웃(ms).
  * @param sysEnvTc 시스템환경구분코드 1자리(운영 "P" / 그 외 "L").
@@ -33,12 +33,12 @@ public record EaiProperties(
         String appBzLv1C) {
     /** 누락 기본값 보정 — 프로퍼티 미지정 시 안전한 기본값 적용. */
     public EaiProperties {
-        if (charset == null || charset.isBlank()) charset = "MS949";
+        if (charset == null || charset.isBlank()) charset = "UTF-8";
         if (connectTimeout <= 0) connectTimeout = 3000;
         if (readTimeout <= 0) readTimeout = 3000;
         if (sysEnvTc == null || sysEnvTc.isBlank()) sysEnvTc = "L";
-        if (fwdiSysC == null || fwdiSysC.isBlank()) fwdiSysC = "IPP";
-        if (bzCS3 == null || bzCS3.isBlank()) bzCS3 = "IPP";
+        if (fwdiSysC == null || fwdiSysC.isBlank()) fwdiSysC = "ITP";
+        if (bzCS3 == null || bzCS3.isBlank()) bzCS3 = "ITP";
         if (appC == null || appC.isBlank()) appC = "PRM";
         if (appBzLv1C == null || appBzLv1C.isBlank()) appBzLv1C = "PP";
         if (fwdiSysC.length() != 3)

@@ -15,8 +15,8 @@ import java.util.function.Supplier;
 /**
  * KDB 표준전문(고정길이 전문) 조립기.
  *
- * <p>ePAMS {@code EaiService.getReqData()}의 필드·오프셋·기본값을 그대로 옮기되, 인코딩을 명시적 charset(MS949)으로 중앙화하고,
- * 시각/난수/IP·MAC를 주입 시임으로 외부화하여 테스트 가능하게 한다. 본 빌더는 전송을 수행하지 않는다.
+ * <p>ePAMS {@code EaiService.getReqData()}의 필드·오프셋·기본값을 그대로 옮기되, 인코딩을 명시적 charset(eai.charset)으로
+ * 중앙화하고, 시각/난수/IP·MAC를 주입 시임으로 외부화하여 테스트 가능하게 한다. 본 빌더는 전송을 수행하지 않는다.
  */
 public class EaiMessageBuilder {
 

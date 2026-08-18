@@ -9,4 +9,6 @@
 - Windows 콘솔은 `stdout.encoding`을 따라 한글 깨짐을 방지합니다.
 - 로그 수준은 프로파일의 `logging.level.*` 설정을 사용합니다.
 
+- EAI 전문 상세 로그는 전용 로거 `com.kdb.it.infra.eai.wire`로 분리합니다(`EAI_WIRE_LOG_LEVEL`). 공통부만 필드 단위로 남기고 개별부는 길이만 남깁니다.
+
 JWT, 비밀번호, DB 비밀값, 휴대폰, OTP, 외부 전문 전체는 로그에 기록하지 않습니다. 실패를 삼키는 부수효과 경로도 식별자와 원인을 진단할 수 있는 warn/error를 남깁니다.

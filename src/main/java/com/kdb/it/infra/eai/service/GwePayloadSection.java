@@ -43,8 +43,10 @@ public class GwePayloadSection implements EaiPayloadSection {
         p.append(ctx.lpad("C", 4000, g.recvIds())); // RECV_IDS     수신자 정보
         p.append(ctx.lpad("C", 500, g.ccRecvIds())); // CC_RECV_IDS  참조 (메일)
         p.append(ctx.lpad("C", 500, g.bccRecvIds())); // BCC_RECV_IDS 숨은참조 (메일)
-        p.append(ctx.lpad("C", 200, g.subject())); // SUBJECT      제목
-        p.append(ctx.lpad("C", 4000, g.contents())); // CONTENTS     내용 (HTML)
+        // 제목·본문은 원본 컬럼 길이(TTL 100자, INFM_MSG_CONE 4000자)가 전문 문자셋에 따라
+        // 필드 예산을 넘을 수 있어 잘라서 담는다. 수신자 필드는 잘리면 오배송이라 그대로 둔다.
+        p.append(ctx.lpadFit(200, g.subject(), "SUBJECT")); // SUBJECT      제목
+        p.append(ctx.lpadFit(4000, g.contents(), "CONTENTS")); // CONTENTS     내용 (HTML)
         p.append(ctx.lpad("C", 500, g.url())); // URL          메신저 클릭URL
         p.append(ctx.lpad("C", 1, g.attFlag())); // ATT_FLAG     첨부여부 (메일)
         p.append(ctx.lpad("C", 4000, g.att())); // ATT          첨부정보 (메일)
