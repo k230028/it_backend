@@ -4,6 +4,15 @@
 --
 -- 실행 대상 DB: Oracle XEPDB1 (ITPAPP 사용자)
 -- 실행 방법: sqlplus ITPAPP@XEPDB1 @audit_log_sequences_ddl.sql
+--
+-- [참조·복구 전용] 이 파일은 스키마를 처음부터 세우거나 시퀀스 유실을 수동 복구할 때 쓰는
+-- 참조 DDL이며, 실제 기준(SoT)은 ../it_database/migrations/의 Flyway 마이그레이션이다.
+-- 아래 항목은 전부 MAXVALUE를 지정하지 않아 파일 내 일관성은 있지만, 실제 적용된
+-- 마이그레이션은 V20260730_003__NormalizeSequenceMaxValues.sql이 도입한 MAXVALUE
+-- 기준(문자열 채번 zero-padding 폭 등)을 갖고 있어 이 파일과 값이 다르다. 이 파일로
+-- 새로 시퀀스를 만들 일이 생기면 해당 마이그레이션과 대상 테이블의 실제 정의를 함께
+-- 확인해 MAXVALUE를 맞춘다. 새로 추가하는 SQ_TPRMPP_CLANGL_1은 V20260818_001의
+-- 값을 그대로 반영해 두었다.
 
 -- 정보화실무협의회 기본정보 변경 로그 (TPRMPP_BASCTL)
 CREATE SEQUENCE SQ_TPRMPP_BASCTL_1
@@ -95,6 +104,6 @@ CREATE SEQUENCE SQ_TPRMPP_CMENUL_1
 
 -- 구분언어마스터 변경 로그 (TPRMPP_CLANGL)
 CREATE SEQUENCE SQ_TPRMPP_CLANGL_1
-    START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE;
+    START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE MAXVALUE 999999999999999000;
 
 COMMIT;

@@ -13,11 +13,11 @@ public final class TranslationDto {
     public record Value(String language, String columnName, String text) {}
 
     /** 원본 한 건과 그 번역 현황입니다. */
-    public record Entry(
+    public record TranslationEntry(
             String targetKey,
             Map<String, String> source,
             String label,
-            List<ColumnValue> columns,
+            List<TranslationColumnValue> columns,
             boolean translated,
             String lastChangedBy,
             LocalDateTime lastChangedAt) {}
@@ -27,6 +27,6 @@ public final class TranslationDto {
      *
      * <p>{@code maxLength}는 원본 컬럼 길이와 {@code TC_DES}(2000) 중 작은 값이며, 관리자 화면 입력 제한에 씁니다.
      */
-    public record ColumnValue(
+    public record TranslationColumnValue(
             String columnName, String koText, int maxLength, Map<String, String> translations) {}
 }

@@ -77,9 +77,14 @@ class ClangmChangeLogIt extends AbstractOracleRepositoryTest {
     @AfterEach
     void tearDown() {
         // 커밋된 로그·마스터 행을 남기지 않도록 자신이 만든 키만 정리한다(자식 로그 먼저).
-        jdbcTemplate.update("DELETE FROM TPRMPP_CLANGL WHERE TC_ID_CONE = ?", targetKey);
-        jdbcTemplate.update("DELETE FROM TPRMPP_CLANGM WHERE TC_ID_CONE = ?", targetKey);
-        SecurityContextHolder.clearContext();
+        // DELETE 중 하나가 예외를 던져도 인증 주체가 후속 테스트로 새지 않도록 clearContext()는
+        // finally에서 항상 실행한다.
+        try {
+            jdbcTemplate.update("DELETE FROM TPRMPP_CLANGL WHERE TC_ID_CONE = ?", targetKey);
+            jdbcTemplate.update("DELETE FROM TPRMPP_CLANGM WHERE TC_ID_CONE = ?", targetKey);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     @Test

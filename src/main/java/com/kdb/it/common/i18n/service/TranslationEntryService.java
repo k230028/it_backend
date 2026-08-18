@@ -9,7 +9,9 @@ import com.kdb.it.common.i18n.model.TranslationTarget;
 import com.kdb.it.common.i18n.repository.ClangmRepository;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,12 +66,12 @@ public class TranslationEntryService {
      * @return 원본 순서를 유지한 번역 현황 목록
      */
     @Transactional(readOnly = true)
-    public List<TranslationDto.Entry> findEntries(TranslationTarget target) {
+    public List<TranslationDto.TranslationEntry> findEntries(TranslationTarget target) {
         List<Draft> drafts = target == TranslationTarget.MENU ? menuDrafts() : commonCodeDrafts();
         Map<String, List<Clangm>> translations =
                 findTranslations(target, drafts.stream().map(Draft::targetKey).toList());
 
-        List<TranslationDto.Entry> entries = new ArrayList<>(drafts.size());
+        List<TranslationDto.TranslationEntry> entries = new ArrayList<>(drafts.size());
         for (Draft draft : drafts) {
             entries.add(toEntry(draft, translations.getOrDefault(draft.targetKey(), List.of())));
         }
@@ -91,7 +93,14 @@ public class TranslationEntryService {
 
     private List<Draft> commonCodeDrafts() {
         List<Draft> drafts = new ArrayList<>();
+        String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         for (Ccodem code : codeRepository.findAllActive()) {
+            // CodeRepository.findAllActive()는 DEL_YN만 거르고 END_DT 만료를 보지 않는다(관리자 공통코드
+            // 화면은 만료 코드도 조회·편집해야 하므로 공유 메서드는 그대로 둔다). 번역 현황 화면에는 번역할
+            // 필요가 없는 종료 코드값이 "미번역"으로 쌓이지 않도록 이 서비스에서만 만료 코드를 제외한다.
+            if (isExpired(code.getEndDt(), today)) {
+                continue;
+            }
             Map<String, String> koTexts = new LinkedHashMap<>();
             koTexts.put(TranslationColumns.CO_C_NM, code.getCNm());
             koTexts.put(TranslationColumns.CDVA_NM, code.getCdvaNm());
@@ -129,8 +138,8 @@ public class TranslationEntryService {
         return grouped;
     }
 
-    private TranslationDto.Entry toEntry(Draft draft, List<Clangm> rows) {
-        List<TranslationDto.ColumnValue> columns = new ArrayList<>();
+    private TranslationDto.TranslationEntry toEntry(Draft draft, List<Clangm> rows) {
+        List<TranslationDto.TranslationColumnValue> columns = new ArrayList<>();
         // 번역할 한국어 원문이 있는 컬럼만 완료 판정에 넣는다. 원문이 없는 컬럼(공통코드 nullable
         // 컬럼 다수)까지 미번역으로 세면, 번역 행을 만들 원문 자체가 없어 영원히 완료가 될 수 없다.
         boolean hasSourceText = false;
@@ -152,7 +161,7 @@ public class TranslationEntryService {
                 }
             }
             columns.add(
-                    new TranslationDto.ColumnValue(
+                    new TranslationDto.TranslationColumnValue(
                             koText.getKey(),
                             koText.getValue(),
                             maxLengthOf(koText.getKey()),
@@ -168,7 +177,7 @@ public class TranslationEntryService {
                 latest = row;
             }
         }
-        return new TranslationDto.Entry(
+        return new TranslationDto.TranslationEntry(
                 draft.targetKey(),
                 draft.source(),
                 draft.label(),
@@ -193,6 +202,11 @@ public class TranslationEntryService {
      */
     static Set<String> sourceColumnNames() {
         return SOURCE_COLUMN_LENGTHS.keySet();
+    }
+
+    /** END_DT가 null이 아니고 기준일(YYYYMMDD) 미만이면 만료로 본다. 두 값 모두 문자열이라 사전식 비교가 곧 날짜 비교와 일치한다. */
+    private static boolean isExpired(String endDt, String today) {
+        return endDt != null && endDt.compareTo(today) < 0;
     }
 
     private static boolean isAfter(LocalDateTime candidate, LocalDateTime current) {

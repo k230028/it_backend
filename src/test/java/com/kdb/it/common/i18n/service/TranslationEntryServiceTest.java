@@ -38,10 +38,10 @@ class TranslationEntryServiceTest {
                                         TranslationColumns.MNU_NM,
                                         "Dashboard")));
 
-        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.MENU);
+        List<TranslationDto.TranslationEntry> entries = service.findEntries(TranslationTarget.MENU);
 
         assertThat(entries).hasSize(1);
-        TranslationDto.Entry entry = entries.get(0);
+        TranslationDto.TranslationEntry entry = entries.get(0);
         assertThat(entry.targetKey()).isEqualTo("MNU0001001");
         assertThat(entry.label()).isEqualTo("MNU0001001");
         assertThat(entry.source()).containsEntry("mnuId", "MNU0001001");
@@ -59,7 +59,7 @@ class TranslationEntryServiceTest {
         when(translationRepository.findActiveByTargetAndKeys("메뉴", List.of("MNU0001002")))
                 .thenReturn(List.of());
 
-        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.MENU);
+        List<TranslationDto.TranslationEntry> entries = service.findEntries(TranslationTarget.MENU);
 
         assertThat(entries.get(0).translated()).isFalse();
         assertThat(entries.get(0).columns().get(0).translations()).isEmpty();
@@ -80,7 +80,8 @@ class TranslationEntryServiceTest {
                                         TranslationColumns.CDVA_NM,
                                         "New Development")));
 
-        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.COMMON_CODE);
+        List<TranslationDto.TranslationEntry> entries =
+                service.findEntries(TranslationTarget.COMMON_CODE);
 
         assertThat(entries.get(0).targetKey()).isEqualTo(targetKey);
         assertThat(entries.get(0).source())
@@ -129,7 +130,8 @@ class TranslationEntryServiceTest {
                                         TranslationColumns.CDVA_NM,
                                         "New Development")));
 
-        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.COMMON_CODE);
+        List<TranslationDto.TranslationEntry> entries =
+                service.findEntries(TranslationTarget.COMMON_CODE);
 
         // 원문 없는 CO_CDVA_ABV_NM/CO_CDVA_SPS/CO_C_INTN_CONE도 목록에는 그대로 남는다
         assertThat(entries.get(0).columns()).hasSize(5);
@@ -168,7 +170,8 @@ class TranslationEntryServiceTest {
                                         TranslationColumns.CDVA_NM,
                                         "New Development")));
 
-        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.COMMON_CODE);
+        List<TranslationDto.TranslationEntry> entries =
+                service.findEntries(TranslationTarget.COMMON_CODE);
 
         assertThat(entries.get(0).translated()).isFalse();
     }
@@ -193,7 +196,8 @@ class TranslationEntryServiceTest {
         when(translationRepository.findActiveByTargetAndKeys("공통코드", List.of(targetKey)))
                 .thenReturn(List.of());
 
-        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.COMMON_CODE);
+        List<TranslationDto.TranslationEntry> entries =
+                service.findEntries(TranslationTarget.COMMON_CODE);
 
         // 번역할 원문 자체가 없으므로 컬럼 목록은 유지한 채 완료로 취급한다
         assertThat(entries.get(0).columns()).hasSize(5);
@@ -204,11 +208,43 @@ class TranslationEntryServiceTest {
     void 서비스의_길이_상수_맵이_번역대상_컬럼_전체와_정확히_일치한다() {
         // TranslationTarget.columns()가 번역 가능 컬럼의 단일 진실 공급원이므로, 서비스 내부
         // 길이 상수 맵의 키 집합이 그 합집합과 어긋나면(enum에 컬럼 추가·삭제 시) 이 테스트가 실패해야 한다.
-        java.util.Set<String> expectedColumns = new java.util.HashSet<>();
-        expectedColumns.addAll(TranslationTarget.MENU.columns());
-        expectedColumns.addAll(TranslationTarget.COMMON_CODE.columns());
+        // 상수를 나열하지 않고 values()를 순회해야 세 번째 대상 구분이 추가돼도 드리프트를 잡는다.
+        java.util.Set<String> expectedColumns =
+                java.util.Arrays.stream(TranslationTarget.values())
+                        .flatMap(target -> target.columns().stream())
+                        .collect(java.util.stream.Collectors.toSet());
 
         assertThat(TranslationEntryService.sourceColumnNames()).isEqualTo(expectedColumns);
+    }
+
+    @Test
+    void 종료일자가_지난_공통코드는_번역현황목록에서_제외한다() {
+        TranslationEntryService service = service();
+        String yesterday =
+                java.time.LocalDate.now()
+                        .minusDays(1)
+                        .format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+        Ccodem expired =
+                Ccodem.builder()
+                        .cId("ABUS_PPO")
+                        .cdva("999")
+                        .sttDt("20200101")
+                        .endDt(yesterday)
+                        .cNm("종료된코드")
+                        .delYn("N")
+                        .build();
+        Ccodem active = code();
+        when(codeRepository.findAllActive()).thenReturn(List.of(expired, active));
+        when(translationRepository.findActiveByTargetAndKeys(
+                        org.mockito.ArgumentMatchers.eq("공통코드"),
+                        org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(List.of());
+
+        List<TranslationDto.TranslationEntry> entries =
+                service.findEntries(TranslationTarget.COMMON_CODE);
+
+        assertThat(entries).hasSize(1);
+        assertThat(entries.get(0).source()).containsEntry("cdva", "001");
     }
 
     @Test
@@ -235,8 +271,8 @@ class TranslationEntryServiceTest {
         return new TranslationEntryService(menuRepository, codeRepository, translationRepository);
     }
 
-    private static TranslationDto.ColumnValue columnOf(
-            TranslationDto.Entry entry, String columnName) {
+    private static TranslationDto.TranslationColumnValue columnOf(
+            TranslationDto.TranslationEntry entry, String columnName) {
         return entry.columns().stream()
                 .filter(column -> column.columnName().equals(columnName))
                 .findFirst()

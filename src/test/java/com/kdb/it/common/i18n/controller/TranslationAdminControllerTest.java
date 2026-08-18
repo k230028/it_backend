@@ -73,12 +73,12 @@ class TranslationAdminControllerTest {
                 new TranslationAdminController(service, entryService);
         var entries =
                 List.of(
-                        new TranslationDto.Entry(
+                        new TranslationDto.TranslationEntry(
                                 "MNU0001001",
                                 java.util.Map.of("mnuId", "MNU0001001"),
                                 "MNU0001001",
                                 List.of(
-                                        new TranslationDto.ColumnValue(
+                                        new TranslationDto.TranslationColumnValue(
                                                 TranslationColumns.MNU_NM,
                                                 "대시보드",
                                                 100,

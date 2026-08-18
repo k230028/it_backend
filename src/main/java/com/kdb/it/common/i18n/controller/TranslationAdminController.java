@@ -41,7 +41,7 @@ public class TranslationAdminController {
     /** 대상 구분의 원본 전체와 등록된 번역을 병합해 반환합니다. */
     @GetMapping("/{target}/entries")
     @Operation(summary = "대상별 번역 현황 목록")
-    public ResponseEntity<List<TranslationDto.Entry>> getEntries(
+    public ResponseEntity<List<TranslationDto.TranslationEntry>> getEntries(
             @PathVariable(name = "target") String target) {
         return ResponseEntity.ok(translationEntryService.findEntries(parseTarget(target)));
     }
