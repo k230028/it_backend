@@ -61,4 +61,28 @@ class MailHtmlTest {
                 .doesNotContain("<script>")
                 .contains("&lt;script&gt;");
     }
+
+    @Test
+    @DisplayName("테두리·여백은 표가 주고 셀은 반복하지 않는다")
+    void cells_doNotRepeatBorderStyle() {
+        // 셀마다 인라인 테두리를 반복하면 필수 항목만으로 4000바이트 예산을 넘는다(실측 5007바이트).
+        assertThat(MailHtml.textCell("값")).doesNotContain("border").doesNotContain("padding");
+        assertThat(MailHtml.amountCell("1 원")).doesNotContain("border").doesNotContain("padding");
+        assertThat(MailHtml.labelCell("구분")).doesNotContain("border").doesNotContain("padding");
+
+        String table = MailHtml.table(MailHtml.row(MailHtml.textCell("값")));
+        assertThat(table).contains("cellpadding=").contains("border=");
+    }
+
+    @Test
+    @DisplayName("5열 표 한 행이 200바이트를 넘지 않는다")
+    void row_staysCheap() {
+        String row =
+                MailHtml.row(
+                        MailHtml.textCell("정보화사업"),
+                        MailHtml.textCell("차세대 통합 시스템 구축 사업"),
+                        MailHtml.amountCell("3,000 원"));
+
+        assertThat(MailHtml.utf8Length(row)).isLessThanOrEqualTo(200);
+    }
 }

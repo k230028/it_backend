@@ -26,8 +26,17 @@ final class MailHtml {
     /** 표 테두리색. */
     static final String BORDER = "#d1d5db";
 
-    private static final String CELL_BASE =
-            "border:1px solid " + BORDER + ";padding:6px 8px;font-size:13px;";
+    /**
+     * 표 여는 태그 — 테두리와 여백을 <b>표 수준 표현 속성</b>({@code border}/{@code cellpadding})으로 준다.
+     *
+     * <p>셀마다 인라인 스타일을 반복하면 필수 항목(개요+총괄표)만으로 4000바이트 예산을 넘는다(실측 5007바이트). 표현 속성은 메일 클라이언트 호환성도 인라인
+     * 스타일보다 넓다.
+     */
+    private static final String TABLE_OPEN =
+            "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse:collapse;"
+                    + "width:100%;margin:0 0 12px;border-color:"
+                    + BORDER
+                    + ";font-size:13px;\">";
 
     private MailHtml() {}
 
@@ -47,29 +56,19 @@ final class MailHtml {
         return html == null ? 0 : html.getBytes(StandardCharsets.UTF_8).length;
     }
 
-    /** 머리글 셀. */
+    /** 머리글 셀 — 테두리·여백은 표가 주므로 배경색만 남긴다. */
     static String labelCell(String text) {
-        return "<th style=\""
-                + CELL_BASE
-                + "background:"
-                + HEADER_BG
-                + ";text-align:center;font-weight:600;\">"
-                + escape(text)
-                + "</th>";
+        return "<th style=\"background:" + HEADER_BG + ";\">" + escape(text) + "</th>";
     }
 
     /** 좌측 정렬 본문 셀. */
     static String textCell(String text) {
-        return "<td style=\"" + CELL_BASE + "\">" + escape(text) + "</td>";
+        return "<td>" + escape(text) + "</td>";
     }
 
     /** 우측 정렬 금액 셀. */
     static String amountCell(String text) {
-        return "<td style=\""
-                + CELL_BASE
-                + "text-align:right;white-space:nowrap;\">"
-                + escape(text)
-                + "</td>";
+        return "<td align=\"right\">" + escape(text) + "</td>";
     }
 
     /** 행 조립. 인자는 이미 셀 HTML이어야 한다. */
@@ -79,9 +78,7 @@ final class MailHtml {
 
     /** 표 조립. 인자는 이미 행 HTML이어야 한다. */
     static String table(String bodyRows) {
-        return "<table style=\"border-collapse:collapse;width:100%;margin:0 0 14px;\">"
-                + bodyRows
-                + "</table>";
+        return TABLE_OPEN + bodyRows + "</table>";
     }
 
     /** 구분 제목. */
