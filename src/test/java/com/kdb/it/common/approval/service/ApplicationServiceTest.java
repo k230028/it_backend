@@ -18,14 +18,13 @@ import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
+import com.kdb.it.common.approval.notification.ApprovalRequestNotifier;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
-import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -200,9 +199,7 @@ class ApplicationServiceTest {
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
-
-    @Mock
-    private com.kdb.it.common.approval.mail.ApprovalMailPayloadProvider approvalMailPayloadProvider;
+    @Mock private ApprovalRequestNotifier approvalRequestNotifier;
 
     @InjectMocks private ApplicationService applicationService;
 
@@ -254,7 +251,7 @@ class ApplicationServiceTest {
                 eventPublisher,
                 new ApprovalLineDelegate(new ObjectMapper()),
                 bprojaSyncService,
-                approvalMailPayloadProvider);
+                approvalRequestNotifier);
     }
 
     // ───────────────────────────────────────────────────────
@@ -394,6 +391,8 @@ class ApplicationServiceTest {
 
         verify(capplm, never()).updateStatus(any());
         verify(eventPublisher, never()).publishEvent(any());
+        // 중간 승인은 결재완료 이벤트 대신 다음 결재자 알림 발행을 위임한다
+        verify(approvalRequestNotifier).notifyApprovalRequest(capplm);
     }
 
     @Test
@@ -821,56 +820,23 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("submit: 1차 결재자 알림은 EAI 채널로 발행한다")
-    void submit_결재요청알림_EAI채널발행() {
+    @DisplayName("submit: 신청서 등록 후 결재요청 알림 발행을 ApprovalRequestNotifier에 위임한다")
+    void submit_결재요청알림_알림발행위임() {
         given(applicationRepository.getNextVal()).willReturn(1L);
 
         ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
         request.setApfNm("테스트 신청서");
         request.setRqsEno("10001");
         request.setApproverEnos(List.of("10002"));
-        given(
-                        approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(
-                                "APF-" + LocalDate.now().getYear() + "-00000001"))
-                .willReturn(List.of(pendingApprover("10002", 1, "Y")));
 
         applicationService.submit(request);
 
-        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
-        verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue().recipientEno()).isEqualTo("10002");
-        assertThat(captor.getValue().itPtlInfmSvcTc())
-                .isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
-        assertThat(captor.getValue().itPtlSdTc())
-                .isEqualTo(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
-    }
-
-    @Test
-    @DisplayName("submit: 메일 페이로드 생성이 실패해도 신청서 등록과 결재요청 알림 발행은 그대로 성공한다")
-    void submit_메일페이로드생성실패_신청서등록과알림발행유지() {
-        given(applicationRepository.getNextVal()).willReturn(1L);
-        given(approvalMailPayloadProvider.render(any()))
-                .willThrow(new RuntimeException("메일 렌더링 실패(테스트)"));
-
-        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
-        request.setApfNm("테스트 신청서");
-        request.setRqsEno("10001");
-        request.setApproverEnos(List.of("10002"));
-        given(
-                        approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(
-                                "APF-" + LocalDate.now().getYear() + "-00000001"))
-                .willReturn(List.of(pendingApprover("10002", 1, "Y")));
-
-        // 렌더링 실패가 submit() 호출 자체를 실패시키지 않는다 — Finding 1의 핵심 계약
-        String result = applicationService.submit(request);
-        assertThat(result).startsWith("APF-");
-
-        // 렌더링 실패에도 결재요청 알림은 sdPayload=null로(기본 본문 폴백) 계속 발행된다
-        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
-        verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue().itPtlInfmSvcTc())
-                .isEqualTo(NotificationEvent.TYPE_APPROVAL_REQUEST);
-        assertThat(captor.getValue().sdPayload()).isNull();
+        // 알림 발행의 상세(수신자 선정, 채널, 페이로드 렌더링 실패 방어)는
+        // ApprovalRequestNotifierTest가 검증하고, 여기서는 위임 자체만 확인한다.
+        ArgumentCaptor<Capplm> captor = ArgumentCaptor.forClass(Capplm.class);
+        verify(approvalRequestNotifier).notifyApprovalRequest(captor.capture());
+        assertThat(captor.getValue().getApfMngNo())
+                .isEqualTo("APF-" + LocalDate.now().getYear() + "-00000001");
     }
 
     @Test
@@ -1162,23 +1128,8 @@ class ApplicationServiceTest {
         assertThat(captor.getValue().getDcdReqBbrC()).isNull();
     }
 
-    @Test
-    @DisplayName("submit: 다음 결재자 사번이 공백이면 결재요청 알림을 발행하지 않는다")
-    void submit_다음결재자사번공백_알림생략() {
-        given(applicationRepository.getNextVal()).willReturn(13L);
-        String apf = "APF-" + LocalDate.now().getYear() + "-00000013";
-        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(apf))
-                .willReturn(List.of(pendingApprover("   ", 1, "Y")));
-
-        ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
-        request.setApfNm("공백 결재자 신청");
-        request.setRqsEno("10001");
-        request.setApproverEnos(List.of("   "));
-
-        applicationService.submit(request);
-
-        verify(eventPublisher, never()).publishEvent(any(NotificationEvent.class));
-    }
+    // 참고: 다음 결재자 사번이 공백일 때 알림을 생략하는 수신자 선정 로직은
+    // ApprovalRequestNotifier로 이동했으므로 ApprovalRequestNotifierTest에서 검증한다.
 
     @Test
     @DisplayName("getPendingCount: bgYy가 공백이면 연도 필터 없이 집계한다")
