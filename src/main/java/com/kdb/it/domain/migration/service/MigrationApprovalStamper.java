@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.service;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.domain.MigrationApprovalMarker;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
@@ -24,9 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class MigrationApprovalStamper {
-
-    /** 이관으로 생성된 결재완료 기록임을 등록자결재요청내용에 남기는 고정 문구입니다. */
-    private static final String MIGRATION_NOTE = "수기 엑셀 이관으로 생성된 결재완료 기록입니다. 실제 결재선을 거치지 않았습니다.";
 
     private final ApplicationRepository applicationRepository;
     private final ApplicationMapRepository applicationMapRepository;
@@ -74,7 +72,7 @@ public class MigrationApprovalStamper {
                         .dcdReqTtl(title)
                         .dcdReqUsid(actorEno)
                         .dcdReqDtm(LocalDate.now())
-                        .rgprDcdReqCone(MIGRATION_NOTE)
+                        .rgprDcdReqCone(MigrationApprovalMarker.NOTE)
                         .fstEnrUsid(actorEno)
                         .lstChgUsid(actorEno)
                         .build();
