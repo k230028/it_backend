@@ -74,4 +74,23 @@ class NotificationDispatcherRouterMailPayloadTest {
         assertThat(payload.subject()).isEqualTo("결재요청: 전산예산 신청서");
         assertThat(payload.contents()).contains("결재 화면으로 이동");
     }
+
+    @Test
+    @DisplayName("제목은 있고 본문이 빈 문자열이면 제목은 페이로드값, 본문은 기본 본문으로 폴백한다")
+    void withBlankHtml_subjectFromPayload_contentsFallsBack() {
+        GwePayload payload =
+                dispatchAndCapture("{\"subject\":\"[IT정보화포탈] 전산예산 신청서 결재 요청\"," + "\"html\":\"\"}");
+
+        assertThat(payload.subject()).isEqualTo("[IT정보화포탈] 전산예산 신청서 결재 요청");
+        assertThat(payload.contents()).contains("본문").contains("결재 화면으로 이동");
+    }
+
+    @Test
+    @DisplayName("제목이 공백뿐이고 본문이 있으면 본문은 페이로드값, 제목은 알림 제목으로 폴백한다")
+    void withBlankSubject_contentsFromPayload_subjectFallsBack() {
+        GwePayload payload = dispatchAndCapture("{\"subject\":\"   \",\"html\":\"<p>총괄표</p>\"}");
+
+        assertThat(payload.subject()).isEqualTo("결재요청: 전산예산 신청서");
+        assertThat(payload.contents()).isEqualTo("<p>총괄표</p>");
+    }
 }
