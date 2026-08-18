@@ -88,6 +88,16 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, CapplaId
     java.util.List<Cappla> findByApfDcmNoAndFntTbNm(String apfDcmNo, String fntTbNm);
 
     /**
+     * 신청서번호로 연결된 원장 매핑을 모두 조회합니다.
+     *
+     * <p>반입 원본 파일의 열람 권한 판정이 씁니다. 파일의 부모는 신청서번호이고, 판정 기준은 그 신청서가 가리키는 원장의 주관부서이기 때문입니다.
+     *
+     * @param apfDcmNo 신청서식별번호
+     * @return 연결된 매핑 목록. 없으면 빈 목록
+     */
+    java.util.List<Cappla> findByApfDcmNo(String apfDcmNo);
+
+    /**
      * 원천 데이터에 특정 상태의 신청서가 존재하는지 확인
      *
      * <p>원천 테이블명, PK컬럼명, 적재SNO 조건으로 Cappla와 Capplm을 조인하여 지정한 상태 목록({@code statuses})에 해당하는 신청서가
