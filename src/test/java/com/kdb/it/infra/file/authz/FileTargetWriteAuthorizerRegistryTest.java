@@ -53,4 +53,26 @@ class FileTargetWriteAuthorizerRegistryTest {
         assertThatCode(() -> registry.verifyTargetWriteAccess("요구사항정의서", "DOC-2026-0001", user))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    @DisplayName("등록된 일반 종류도 별도 차단 정책이 없으면 generic 수정을 계속 허용한다")
+    void registeredLegacyKindAllowsGenericMutationByDefault() {
+        FileTargetWriteAuthorizer legacyAuthorizer =
+                new FileTargetWriteAuthorizer() {
+                    @Override
+                    public Set<String> supportedPkColNms() {
+                        return Set.of("공통게시판");
+                    }
+
+                    @Override
+                    public boolean canWrite(String pkCone, CustomUserDetails currentUser) {
+                        return true;
+                    }
+                };
+        FileTargetWriteAuthorizerRegistry registry =
+                new FileTargetWriteAuthorizerRegistry(List.of(legacyAuthorizer));
+
+        assertThatCode(() -> registry.verifyGenericMutationAllowed("공통게시판"))
+                .doesNotThrowAnyException();
+    }
 }

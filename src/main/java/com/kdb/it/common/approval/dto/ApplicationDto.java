@@ -1,6 +1,7 @@
 package com.kdb.it.common.approval.dto;
 
 import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.domain.MigrationApprovalMarker;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
@@ -311,6 +312,7 @@ public class ApplicationDto {
                 "rqsBbrNm",
                 "rqsDt",
                 "rqsOpnn",
+                "migrated",
                 "approvers"
             })
     public static class Response {
@@ -357,6 +359,14 @@ public class ApplicationDto {
         /** 신청의견 */
         @Schema(description = "신청의견", nullable = true)
         private String rqsOpnn;
+
+        /**
+         * 편성요청서 반입으로 만들어진 결재완료 기록이면 true.
+         *
+         * <p>이 값이 true면 신청서 본문이 없으므로 화면은 신청서 PDF 대신 반입 원본 파일 목록을 보여줍니다.
+         */
+        @Schema(description = "편성요청서 반입 생성 여부", requiredMode = Schema.RequiredMode.REQUIRED)
+        private boolean migrated;
 
         /** 결재자 목록 (순번 순서대로) */
         @Schema(description = "결재자 목록")
@@ -414,6 +424,7 @@ public class ApplicationDto {
                     .rqsBbrNm(requesterBbrNm) // 신청부서명
                     .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
                     .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
+                    .migrated(MigrationApprovalMarker.isMigrated(capplm.getRgprDcdReqCone()))
                     .approvers(
                             approvers.stream()
                                     .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
@@ -455,6 +466,7 @@ public class ApplicationDto {
                     .rqsBbrNm(requesterBbrNm)
                     .rqsDt(view.getDcdReqDtm())
                     .rqsOpnn(view.getRgprDcdReqCone())
+                    .migrated(MigrationApprovalMarker.isMigrated(view.getRgprDcdReqCone()))
                     .approvers(approvers.stream().map(ApproverResponse::fromReadView).toList())
                     .build();
         }

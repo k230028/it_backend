@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -39,6 +40,7 @@ class RequestFormImportServiceTest {
     @Mock private OrgIdentityResolver.Index orgIndex;
     @Mock private IoeHierarchyIndex ioeHierarchyIndex;
     @Mock private RequestFormFileImporter fileImporter;
+    @Mock private RequestFormSourceFileArchiver sourceFileArchiver;
     @Mock private CapitalProjectFormAdapter capitalAdapter;
     @Mock private RecurringProjectFormAdapter recurringAdapter;
     @Mock private GeneralExpenseFormAdapter generalAdapter;
@@ -68,6 +70,7 @@ class RequestFormImportServiceTest {
                 orgIdentityResolver,
                 ioeHierarchyIndex,
                 fileImporter,
+                sourceFileArchiver,
                 List.of(capitalAdapter, recurringAdapter, generalAdapter),
                 maxFilesPerBatch);
     }
@@ -97,7 +100,9 @@ class RequestFormImportServiceTest {
                 "자금운용실",
                 RequestFormDto.FileStatus.APPLIED,
                 List.of(),
-                List.of(new RequestFormDto.CreatedRecord("BCOSTM", "COST-2026-0001", "계약")),
+                List.of(
+                        new RequestFormDto.CreatedRecord(
+                                "BCOSTM", "COST-2026-0001", "계약", "APF-2026-00000001")),
                 new RequestFormDto.RecordCounts(0, 0, 1),
                 AmountUnit.WON);
     }
@@ -138,6 +143,73 @@ class RequestFormImportServiceTest {
         assertThat(response.dryRun()).isTrue();
         org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.never())
                 .apply(any(), any(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("dry-run은 원본을 보관하지 않는다")
+    void dryRun_doesNotArchive() {
+        when(fileImporter.preview(any(), any(), anyString())).thenReturn(applied("자금운용실/요청서.xls"));
+
+        service(50)
+                .importBatch(
+                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                        manifest("자금운용실/요청서.xls"),
+                        "12345678",
+                        true);
+
+        org.mockito.Mockito.verify(sourceFileArchiver, org.mockito.Mockito.never()).archive(any());
+    }
+
+    @Test
+    @DisplayName("commit은 원본을 보관한다")
+    void commit_archives() {
+        when(fileImporter.apply(any(), any(), anyString(), anyString()))
+                .thenReturn(applied("자금운용실/요청서.xls"));
+
+        service(50)
+                .importBatch(
+                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                        manifest("자금운용실/요청서.xls"),
+                        "12345678",
+                        false);
+
+        org.mockito.Mockito.verify(sourceFileArchiver).archive(any());
+    }
+
+    @Test
+    @DisplayName("같은 폴더의 상충한 부서 보정값을 검증된 부서코드별 archive plan으로 전달한다")
+    void commit_carriesEffectiveDepartmentCodesIntoArchivePlan() {
+        List<RequestFormDto.FileEntry> entries =
+                List.of(
+                        new RequestFormDto.FileEntry(
+                                "동일폴더/a.xls", "동일폴더", "D01", AmountUnit.WON, "571"),
+                        new RequestFormDto.FileEntry(
+                                "동일폴더/b.xls", "동일폴더", "D02", AmountUnit.WON, "571"));
+        RequestFormDto.ImportManifest manifest =
+                new RequestFormDto.ImportManifest("2026", entries, List.of());
+        when(fileImporter.apply(any(), any(), anyString(), anyString()))
+                .thenAnswer(
+                        invocation -> {
+                            RequestFormDto.FileEntry entry = invocation.getArgument(1);
+                            return applied(entry.fileKey());
+                        });
+
+        service(50)
+                .importBatch(
+                        List.of(
+                                file("a.xls", RequestFormFixtures.fullFormXls()),
+                                file("b.xls", RequestFormFixtures.fullFormXls())),
+                        manifest,
+                        "12345678",
+                        false);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<RequestFormSourceFileArchiver.ArchivePlanItem>> planCaptor =
+                ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(sourceFileArchiver).archive(planCaptor.capture());
+        assertThat(planCaptor.getValue())
+                .extracting(RequestFormSourceFileArchiver.ArchivePlanItem::effectiveDeptCode)
+                .containsExactly("D01", "D02");
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.kdb.it.common.board.service.BoardPostFileCacheService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
@@ -68,6 +69,9 @@ public class FileService {
 
     /** 파일별 업로드를 독립 트랜잭션으로 처리하는 단위 서비스 */
     private final FileUploadUnitService fileUploadUnitService;
+
+    /** 전용 writer 소유 파일 종류의 generic 수정·삭제 차단 정책 */
+    private final FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
 
     /** 공통게시판 게시물의 첨부파일 수 캐시 동기화 서비스 */
     private final BoardPostFileCacheService boardPostFileCacheService;
@@ -300,6 +304,31 @@ public class FileService {
     }
 
     /**
+     * 이미 저장된 파일을 다른 부모에 추가로 연결합니다.
+     *
+     * <p>물리 파일을 다시 쓰지 않고 메타데이터 행만 만듭니다. 같은 파일이 여러 부모에 붙어야 할 때 {@link #uploadFile} 반복 호출 대신 씁니다.
+     *
+     * @param sourceFlMpnId 원본 파일매핑ID
+     * @param request 새 연결의 종류와 부모 식별자
+     * @return 새로 만들어진 파일매핑ID
+     * @throws CustomGeneralException 원본 파일이 없거나 이미 삭제된 경우
+     */
+    @Transactional
+    public String linkExistingFile(String sourceFlMpnId, FileDto.UploadRequest request) {
+        Cfilem source =
+                fileRepository
+                        .findByFlMpnIdAndDelYn(sourceFlMpnId, "N")
+                        .orElseThrow(
+                                () ->
+                                        new CustomGeneralException(
+                                                "존재하지 않는 파일입니다. 파일매핑ID: " + sourceFlMpnId));
+
+        Cfilem linked = fileUploadUnitService.linkExistingFileInNewTransaction(source, request);
+        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
+        return linked.getFlMpnId();
+    }
+
+    /**
      * 파일 다건 일괄 업로드
      *
      * <p>개별 파일 업로드를 반복하며 특정 파일이 실패해도 후속 파일 처리를 계속하고 결과에 성공·실패 목록을 모두 포함합니다. 다만 영속성 예외가 현재 트랜잭션을
@@ -369,6 +398,8 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getPkColNm());
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(request.getPkColNm());
         // JPA Dirty Checking으로 자동 UPDATE
         cfilem.updateMeta(request.getPkCone(), request.getPkColNm());
         return flMpnId;
@@ -396,6 +427,7 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getPkColNm());
         // 논리 삭제(DEL_YN = 'Y')
         cfilem.delete();
         syncBoardFileCacheIfNeeded(cfilem.getPkColNm(), cfilem.getPkCone());
@@ -425,6 +457,7 @@ public class FileService {
      */
     @Transactional
     public int deleteFilesByOrc(String pkColNm, String pkCone, CustomUserDetails user) {
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(pkColNm);
         List<Cfilem> files = fileRepository.findAllByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
 
         // 인증 정보가 없으면 대상 목록이 비어 있어도 즉시 거부 — 빈 목록에 기대지 않는 서비스 계약

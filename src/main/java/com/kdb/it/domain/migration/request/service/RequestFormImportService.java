@@ -37,20 +37,26 @@ public class RequestFormImportService {
     private final OrgIdentityResolver orgIdentityResolver;
     private final IoeHierarchyIndex ioeHierarchyIndex;
     private final RequestFormFileImporter fileImporter;
+    private final RequestFormSourceFileArchiver sourceFileArchiver;
     private final List<FormSheetAdapter> adapters;
     private final int maxFilesPerBatch;
+
+    /** 파일 처리 결과와 그 처리에 실제 적용한 검증 부서코드를 함께 유지합니다. */
+    private record ProcessedFile(RequestFormDto.FileResult result, String effectiveDeptCode) {}
 
     public RequestFormImportService(
             WorkbookReader workbookReader,
             OrgIdentityResolver orgIdentityResolver,
             IoeHierarchyIndex ioeHierarchyIndex,
             RequestFormFileImporter fileImporter,
+            RequestFormSourceFileArchiver sourceFileArchiver,
             List<FormSheetAdapter> adapters,
             @Value("${app.migration.request.max-files-per-batch}") int maxFilesPerBatch) {
         this.workbookReader = workbookReader;
         this.orgIdentityResolver = orgIdentityResolver;
         this.ioeHierarchyIndex = ioeHierarchyIndex;
         this.fileImporter = fileImporter;
+        this.sourceFileArchiver = sourceFileArchiver;
         this.adapters = adapters;
         this.maxFilesPerBatch = maxFilesPerBatch;
     }
@@ -83,24 +89,35 @@ public class RequestFormImportService {
         Map<String, Map<String, String>> overridesByFile = groupOverrides(manifest);
 
         List<RequestFormDto.FileResult> results = new ArrayList<>();
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> archivePlan = new ArrayList<>();
         for (int i = 0; i < files.size(); i++) {
             RequestFormDto.FileEntry entry = manifest.entries().get(i);
-            results.add(
+            MultipartFile file = files.get(i);
+            ProcessedFile processed =
                     processFile(
-                            files.get(i),
+                            file,
                             entry,
                             manifest.bseYy(),
                             orgIndex,
                             ioeIndex,
                             overridesByFile.getOrDefault(entry.fileKey(), Map.of()),
                             actorEno,
-                            dryRun));
+                            dryRun);
+            results.add(processed.result());
+            archivePlan.add(
+                    new RequestFormSourceFileArchiver.ArchivePlanItem(
+                            file, processed.effectiveDeptCode(), processed.result()));
+        }
+        // 원장 반영(파일별 REQUIRES_NEW)이 모두 끝난 뒤에 보관한다. 순서를 뒤집으면 첨부 실패가
+        // 정상 반입을 통째로 되돌린다. 보관은 예외를 던지지 않으므로 여기서 감싸지 않는다.
+        if (!dryRun) {
+            sourceFileArchiver.archive(archivePlan);
         }
         return new RequestFormDto.ImportResponse(
                 dryRun, summarize(files.size(), results), List.copyOf(results));
     }
 
-    private RequestFormDto.FileResult processFile(
+    private ProcessedFile processFile(
             MultipartFile file,
             RequestFormDto.FileEntry entry,
             String bseYy,
@@ -114,10 +131,12 @@ public class RequestFormImportService {
             workbook = workbookReader.open(readBytes(file), entry.fileKey());
             Map<FormSheetKind, Sheet> sheets = workbookReader.classify(workbook);
             if (sheets.isEmpty()) {
-                return failed(
-                        entry,
-                        RequestFormDiagnosticCode.SHEET_NOT_FOUND,
-                        "인식할 수 있는 편성요청서 시트가 없습니다.");
+                return new ProcessedFile(
+                        failed(
+                                entry,
+                                RequestFormDiagnosticCode.SHEET_NOT_FOUND,
+                                "인식할 수 있는 편성요청서 시트가 없습니다."),
+                        null);
             }
 
             // 폴더명은 `부서명(부서코드)` 표기이므로 이름이 아니라 병기된 코드를 우선 기준으로 삼는다
@@ -127,7 +146,9 @@ public class RequestFormImportService {
                     entry.deptCodeOverride() != null
                             ? entry.deptCodeOverride()
                             : deptResolution.code();
-            if (deptCode == null) return unresolvedDepartment(entry, deptResolution);
+            if (deptCode == null) {
+                return new ProcessedFile(unresolvedDepartment(entry, deptResolution), null);
+            }
 
             FormAdapterContext context =
                     new FormAdapterContext(
@@ -147,18 +168,23 @@ public class RequestFormImportService {
                     output = output.merge(adapter.adapt(context));
             }
 
-            return dryRun
-                    ? fileImporter.preview(output, entry, bseYy)
-                    : fileImporter.apply(output, entry, bseYy, actorEno);
+            RequestFormDto.FileResult result =
+                    dryRun
+                            ? fileImporter.preview(output, entry, bseYy)
+                            : fileImporter.apply(output, entry, bseYy, actorEno);
+            return new ProcessedFile(result, deptCode);
         } catch (WorkbookReader.WorkbookOpenException e) {
-            return failed(entry, RequestFormDiagnosticCode.FILE_UNREADABLE, e.getMessage());
+            return new ProcessedFile(
+                    failed(entry, RequestFormDiagnosticCode.FILE_UNREADABLE, e.getMessage()), null);
         } catch (RuntimeException e) {
             // 파일 하나의 예외가 배치를 무너뜨리지 않게 잡는다. 파일명만 남기고 내용은 로그에 남기지 않는다.
             log.warn("편성요청서 반입 실패: fileKey={}", entry.fileKey(), e);
-            return failed(
-                    entry,
-                    RequestFormDiagnosticCode.FILE_UNREADABLE,
-                    "파일을 처리하지 못했습니다. 양식을 확인해 주세요.");
+            return new ProcessedFile(
+                    failed(
+                            entry,
+                            RequestFormDiagnosticCode.FILE_UNREADABLE,
+                            "파일을 처리하지 못했습니다. 양식을 확인해 주세요."),
+                    null);
         } finally {
             closeQuietly(workbook);
         }

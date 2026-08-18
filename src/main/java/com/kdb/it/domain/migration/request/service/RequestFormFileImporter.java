@@ -92,16 +92,18 @@ public class RequestFormFileImporter {
                 projectService.assignDeclaredAmounts(
                         abusMngNo, amounts.totRqmAmt(), amounts.mplAmt(), amounts.dfrAmt());
             }
-            stamp(TABLE_PROJECT, abusMngNo, project.getAbusNm(), actorEno, bseYy);
+            String apfMngNo = stamp(TABLE_PROJECT, abusMngNo, project.getAbusNm(), actorEno, bseYy);
             created.add(
                     new RequestFormDto.CreatedRecord(
-                            TABLE_PROJECT, abusMngNo, project.getAbusNm()));
+                            TABLE_PROJECT, abusMngNo, project.getAbusNm(), apfMngNo));
         }
         for (CostDto.CreateRequest cost : output.costs()) {
             cost.setBseYy(bseYy);
             String costBgNo = costService.createCost(cost, true);
-            stamp(TABLE_COST, costBgNo, cost.getCttNm(), actorEno, bseYy);
-            created.add(new RequestFormDto.CreatedRecord(TABLE_COST, costBgNo, cost.getCttNm()));
+            String apfMngNo = stamp(TABLE_COST, costBgNo, cost.getCttNm(), actorEno, bseYy);
+            created.add(
+                    new RequestFormDto.CreatedRecord(
+                            TABLE_COST, costBgNo, cost.getCttNm(), apfMngNo));
         }
 
         return result(
@@ -130,8 +132,8 @@ public class RequestFormFileImporter {
         return result(entry, status, diagnostics, List.of(), output);
     }
 
-    private void stamp(String table, String key, String label, String actorEno, String bseYy) {
-        approvalStamper.stamp(
+    private String stamp(String table, String key, String label, String actorEno, String bseYy) {
+        return approvalStamper.stamp(
                 table,
                 key,
                 SOURCE_SEQUENCE,
