@@ -131,12 +131,7 @@ public class RequestFormImportService {
             workbook = workbookReader.open(readBytes(file), entry.fileKey());
             Map<FormSheetKind, Sheet> sheets = workbookReader.classify(workbook);
             if (sheets.isEmpty()) {
-                return new ProcessedFile(
-                        failed(
-                                entry,
-                                RequestFormDiagnosticCode.SHEET_NOT_FOUND,
-                                "인식할 수 있는 편성요청서 시트가 없습니다."),
-                        null);
+                return new ProcessedFile(skipped(entry), null);
             }
 
             // 폴더명은 `부서명(부서코드)` 표기이므로 이름이 아니라 병기된 코드를 우선 기준으로 삼는다
@@ -228,6 +223,33 @@ public class RequestFormImportService {
                 List.of(
                         RequestFormDto.FormDiagnostic.of(
                                 null, null, null, code, message, List.of())),
+                List.of(),
+                RequestFormDto.RecordCounts.zero(),
+                null);
+    }
+
+    /**
+     * 반입 대상이 아닌 파일의 결과를 만듭니다.
+     *
+     * <p>{@link #failed}와 달리 실패가 아닙니다 — 열리기는 했고 편성요청서가 아니었을 뿐입니다. 요약의 반영·차단 건수 어디에도 세지 않으므로
+     * {@code summarize()}는 손대지 않습니다.
+     *
+     * @param entry 파일별 부가 정보
+     * @return 상태 {@code SKIPPED}, 진단 1건, 생성 목록·건수는 빈 값
+     */
+    private RequestFormDto.FileResult skipped(RequestFormDto.FileEntry entry) {
+        return new RequestFormDto.FileResult(
+                entry.fileKey(),
+                entry.deptName(),
+                RequestFormDto.FileStatus.SKIPPED,
+                List.of(
+                        RequestFormDto.FormDiagnostic.of(
+                                null,
+                                null,
+                                null,
+                                RequestFormDiagnosticCode.SHEET_NOT_FOUND,
+                                "인식할 수 있는 편성요청서 시트가 없습니다. 반입 대상이 아닌 파일로 보고 건너뜁니다.",
+                                List.of())),
                 List.of(),
                 RequestFormDto.RecordCounts.zero(),
                 null);

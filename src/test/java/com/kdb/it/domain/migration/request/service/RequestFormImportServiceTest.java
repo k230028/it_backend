@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
@@ -235,6 +236,36 @@ class RequestFormImportServiceTest {
                 .contains(RequestFormDiagnosticCode.FILE_UNREADABLE);
         assertThat(response.files().get(1).status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
         assertThat(response.summary().appliedFiles()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("인식할 시트가 없는 파일은 실패가 아니라 SKIPPED로 남긴다")
+    void skipsFileWithoutRecognizableSheet() {
+        RequestFormDto.ImportResponse response =
+                service(50)
+                        .importBatch(
+                                List.of(
+                                        file(
+                                                "참고자료.xls",
+                                                RequestFormFixtures.unrelatedSheetXls())),
+                                manifest("자금운용실(420)/팀1/사업1/참고자료.xls"),
+                                "12345678",
+                                true);
+
+        RequestFormDto.FileResult result = response.files().get(0);
+        assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.SKIPPED);
+        assertThat(result.diagnostics())
+                .singleElement()
+                .satisfies(
+                        diagnostic -> {
+                            assertThat(diagnostic.code())
+                                    .isEqualTo(RequestFormDiagnosticCode.SHEET_NOT_FOUND);
+                            assertThat(diagnostic.severity())
+                                    .isEqualTo(MigrationDto.Severity.WARNING);
+                        });
+        // 건너뛴 파일은 차단도 반영도 아니다
+        assertThat(response.summary().blockedFiles()).isZero();
+        assertThat(response.summary().appliedFiles()).isZero();
     }
 
     @Test

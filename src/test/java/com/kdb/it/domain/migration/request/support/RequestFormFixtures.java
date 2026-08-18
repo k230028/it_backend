@@ -400,6 +400,22 @@ public final class RequestFormFixtures {
         }
     }
 
+    /**
+     * 편성요청서 시트가 하나도 없는 .xls.
+     *
+     * <p>깊은 폴더 구조(`[연도]/[부서명(코드)]/[팀]/[사업]/…`)에서 사업 폴더에 함께 들어 있는 참고 자료를 흉내 냅니다. 반입 대상이 아니므로
+     * 실패가 아니라 건너뜀으로 남아야 합니다.
+     */
+    public static byte[] unrelatedSheetXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet s = wb.createSheet("참고자료");
+            put(s, 0, 0, "사업 추진 일정");
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** 시트 ③을 씁니다. `english=true`면 런던 샘플처럼 라벨·비목명이 영문입니다. */
     private static void writeGeneralExpense(Workbook wb, String name, boolean english) {
         Sheet s = writeGeneralExpenseHeader(wb, name, english);

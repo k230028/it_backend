@@ -84,7 +84,13 @@ class RequestFormOpenApiContractTest {
     @Test
     @DisplayName("파일 상태 enum 값 집합이 고정되어 있다")
     void fileStatusEnumIsFixed() {
-        assertEnum(RequestFormDto.FileResult.class, "status", "APPLIED", "BLOCKED", "FAILED");
+        assertEnum(
+                RequestFormDto.FileResult.class,
+                "status",
+                "APPLIED",
+                "BLOCKED",
+                "FAILED",
+                "SKIPPED");
     }
 
     /**
