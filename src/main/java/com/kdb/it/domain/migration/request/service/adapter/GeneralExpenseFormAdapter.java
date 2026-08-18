@@ -160,8 +160,11 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
     /**
      * 사용자가 지정한 배수를 우선하고, 없으면 제안값을 계산해 확인 경고를 남깁니다.
      *
-     * <p>원화로 확정된 행이 하나도 없으면 <b>경고를 내지 않습니다.</b> 이 배수는 원화 행에만 걸리고 외화 행은 통화 기본 단위 그대로 {@code FC_AMT}로
-     * 가므로, 원화 행이 없는 시트(국외 점포 실측)에서는 어떤 값을 골라도 결과가 같습니다. 고를 이유가 없는 확인을 묻지 않습니다.
+     * <p>전 행의 통화가 확정되었고 그중 원화가 하나도 없으면 <b>경고를 내지 않습니다.</b> 이 배수는 원화 행에만 걸리고 외화 행은 통화 기본 단위 그대로
+     * {@code FC_AMT}로 가므로, 원화 행이 없는 시트(국외 점포 실측)에서는 어떤 값을 골라도 결과가 같습니다. 고를 이유가 없는 확인을 묻지 않습니다.
+     *
+     * <p>반대로 <b>미해석 행이 하나라도 남아 있으면 경고를 냅니다.</b> 그 행은 사람이 통화를 고치면 원화가 될 수 있어 "원화 행 없음"이 성립하지 않습니다. 이
+     * 구분을 빼면 통화 칸이 빈 제출본에서 사전검증에 단위 확인이 뜨지 않고, 보정 후 반영에서 배수가 확인 없이 추정 적용됩니다.
      *
      * @param currencies {@link #resolveCurrencies} 결과. 엑셀 행 번호 → 확정 통화
      * @return 적용할 배수. 원화 행이 없으면 {@code WON}(어느 값이든 결과가 같습니다)
@@ -175,7 +178,10 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         if (specified != null) return specified;
 
         List<BigDecimal> krwAmounts = krwAnnualAmounts(rows, currencies);
-        if (krwAmounts.isEmpty()) return AmountUnit.WON;
+        // 통화가 미해석인 행은 보정 뒤 원화가 될 수 있다. "원화 행이 없다"고 단정할 수 있는 것은
+        // 전 행의 통화가 확정된 때뿐이다. 이 조건을 빼면 통화 칸이 빈 제출본에서 사전검증에 단위
+        // 확인이 뜨지 않고, 사용자가 통화를 KRW로 고쳐 반영하는 순간 배수가 확인 없이 추정 적용된다.
+        if (krwAmounts.isEmpty() && currencies.size() == rows.size()) return AmountUnit.WON;
 
         AmountUnit suggested = AmountUnitResolver.suggestGeneralExpenseUnit(krwAmounts);
         diagnostics.add(
