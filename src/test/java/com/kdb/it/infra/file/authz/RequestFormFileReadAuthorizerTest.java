@@ -122,6 +122,18 @@ class RequestFormFileReadAuthorizerTest {
     }
 
     @Test
+    @DisplayName("연결 원장을 찾지 못하면 읽을 수 없다")
+    void missingMappedProjectLedger_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        Cappla projectMap = map("BPROJM", "ABUS-1");
+        given(applicationMapRepository.findByApfDcmNo("APF-3"))
+                .willReturn(List.of(projectMap));
+        given(projectRepository.findById(new BprojmId("ABUS-1", 1))).willReturn(Optional.empty());
+
+        assertThat(authorizer.canRead(file("APF-3"), user)).isFalse();
+    }
+
+    @Test
     @DisplayName("부모 신청서번호가 비어 있으면 읽을 수 없다")
     void blankParent_cannotRead() {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
