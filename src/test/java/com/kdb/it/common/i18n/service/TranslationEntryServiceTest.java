@@ -224,6 +224,10 @@ class TranslationEntryServiceTest {
                 java.time.LocalDate.now()
                         .minusDays(1)
                         .format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+        // 종료일자가 오늘인 코드는 당일까지 유효해야 하므로(BE-42 경계값), 어제 만료 코드와
+        // 함께 넣어 "미만"과 "이하" 비교의 경계를 이 테스트 하나로 구분한다.
+        String today =
+                java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
         Ccodem expired =
                 Ccodem.builder()
                         .cId("ABUS_PPO")
@@ -233,8 +237,17 @@ class TranslationEntryServiceTest {
                         .cNm("종료된코드")
                         .delYn("N")
                         .build();
+        Ccodem dueToday =
+                Ccodem.builder()
+                        .cId("ABUS_PPO")
+                        .cdva("998")
+                        .sttDt("20200101")
+                        .endDt(today)
+                        .cNm("당일종료코드")
+                        .delYn("N")
+                        .build();
         Ccodem active = code();
-        when(codeRepository.findAllActive()).thenReturn(List.of(expired, active));
+        when(codeRepository.findAllActive()).thenReturn(List.of(expired, dueToday, active));
         when(translationRepository.findActiveByTargetAndKeys(
                         org.mockito.ArgumentMatchers.eq("공통코드"),
                         org.mockito.ArgumentMatchers.anyList()))
@@ -243,8 +256,10 @@ class TranslationEntryServiceTest {
         List<TranslationDto.TranslationEntry> entries =
                 service.findEntries(TranslationTarget.COMMON_CODE);
 
-        assertThat(entries).hasSize(1);
-        assertThat(entries.get(0).source()).containsEntry("cdva", "001");
+        assertThat(entries).hasSize(2);
+        assertThat(entries)
+                .extracting(entry -> entry.source().get("cdva"))
+                .containsExactlyInAnyOrder("001", "998");
     }
 
     @Test

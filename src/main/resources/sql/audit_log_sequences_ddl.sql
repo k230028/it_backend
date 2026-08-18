@@ -6,7 +6,8 @@
 -- 실행 방법: sqlplus ITPAPP@XEPDB1 @audit_log_sequences_ddl.sql
 --
 -- [참조·복구 전용] 이 파일은 스키마를 처음부터 세우거나 시퀀스 유실을 수동 복구할 때 쓰는
--- 참조 DDL이며, 실제 기준(SoT)은 ../it_database/migrations/의 Flyway 마이그레이션이다.
+-- 참조 DDL이며, 실제 기준(SoT)은 it_backend와 형제 저장소인 it_database 리포의
+-- migrations/ 디렉터리(it_database/migrations/)에 있는 Flyway 마이그레이션이다.
 -- 아래 항목은 전부 MAXVALUE를 지정하지 않아 파일 내 일관성은 있지만, 실제 적용된
 -- 마이그레이션은 V20260730_003__NormalizeSequenceMaxValues.sql이 도입한 MAXVALUE
 -- 기준(문자열 채번 zero-padding 폭 등)을 갖고 있어 이 파일과 값이 다르다. 이 파일로
