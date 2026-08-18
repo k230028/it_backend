@@ -167,7 +167,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
      * 구분을 빼면 통화 칸이 빈 제출본에서 사전검증에 단위 확인이 뜨지 않고, 보정 후 반영에서 배수가 확인 없이 추정 적용됩니다.
      *
      * @param currencies {@link #resolveCurrencies} 결과. 엑셀 행 번호 → 확정 통화
-     * @return 적용할 배수. 원화 행이 없으면 {@code WON}(어느 값이든 결과가 같습니다)
+     * @return 적용할 배수. 전 행의 통화가 확정되고 그중 원화 행이 없으면 {@code WON}(어느 값이든 결과가 같습니다)
      */
     private AmountUnit resolveUnit(
             FormAdapterContext context,

@@ -28,7 +28,10 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class ApprovalMailRenderer {
 
-    /** 본문 바이트 예산 — GWE 전문 CONTENTS 필드 폭과 같다. */
+    /**
+     * 페이로드 JSON 바이트 예산 — GWE 전문 CONTENTS 필드 폭과 같다. 본문 HTML이 아니라 {@code {"subject":...,"html":...}}
+     * 직렬화 결과 전체에 적용한다.
+     */
     public static final int CONTENTS_BUDGET_BYTES = 4000;
 
     /** 제목 필드 예산 — GWE 전문 SUBJECT 필드 폭과 같은 UTF-8 200바이트. */

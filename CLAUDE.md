@@ -78,7 +78,8 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 변경 API에 `consumes`를 지정해 본문 형식을 못박습니다. 형식이 맞지 않는 요청은 415로 거부되므로, Content-Type이 없는 요청까지 위 필터가 중복해 막지 않습니다.
 - 비밀값은 환경변수로 주입하고 운영 프로파일에서 개발용 폴백을 사용하지 않습니다.
 - 사용자 HTML은 저장 전에 `HtmlSanitizer.sanitize()`를 적용합니다.
-- 파일 쓰기·삭제는 업로더 또는 관리자만 허용합니다. 파일 읽기는 파일 종류(PK_COL_NM)별 authorizer가 부모 자원 권한을 재사용해 판정합니다(default-deny, 미등록 종류는 관리자만). 공통게시판=게시물 공개 여부, 요구사항정의서=관리자/작성자/주관부서, 협의회 연계(사업계획서·타당성검토표·협의회관련자료)=관리자/정보보안관리자/협의회 위원/관련부서, 가이드문서=인증 사용자 전체.
+- 파일 쓰기·삭제는 업로더 또는 관리자만 허용합니다. 파일 읽기는 파일 종류(PK_COL_NM)별 authorizer가 부모 자원 권한을 재사용해 판정합니다(default-deny, 미등록 종류는 관리자만). 공통게시판=게시물 공개 여부, 요구사항정의서=관리자/작성자/주관부서, 협의회 연계(사업계획서·타당성검토표·협의회관련자료)=관리자/정보보안관리자/협의회 위원/관련부서, 가이드문서=인증 사용자 전체, 편성요청서반입=관리자/연결 원장 주관부서.
+- 신규 첨부 대상 종류는 `FileTargetWriteAuthorizer`로 부모 존재·작성 권한을 등록합니다. 시스템 전용 종류는 `allowsGenericMutation=false`로 generic 파일 API의 연결·수정·삭제를 관리자 포함 전면 차단합니다(읽기는 default-deny, 쓰기는 미등록 레거시 종류의 기존 동작 보존). `FileService.linkExistingFile`은 권한 검증 없는 내부 전용 경로이므로 컨트롤러·사용자 요청 흐름에서 직접 호출하지 않습니다.
 - 클라이언트 IP는 신뢰 프록시에서 온 경우에만 `X-Forwarded-For`를 사용합니다.
 - `it-portal-user`의 사번·역할·부서 값은 변조 가능한 UX 상태로만 취급하고, API 권한과 데이터 범위는 JWT 기반 서버 검증으로 결정합니다.
 - SSO JWT 발급은 외부 토큰 검증 결과를 서버 세션에 저장한 뒤 1회 소비하는 흐름으로 수행합니다. 직접 사번 전달은 운영에서 금지하고, 복귀 Origin은 CORS 허용 목록, 복귀 경로는 같은 사이트 상대 경로로 제한합니다.
@@ -111,6 +112,7 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 인앱 알림 조회는 채널을 가리지 않으므로 `ttl`·`infmMsgCone`에 HTML을 저장하지 않습니다.
 - EAI 전문 문자셋은 `eai.charset`(현행 UTF-8) 하나로 통일합니다. 고정길이 필드의 패딩이 이 문자셋의 바이트 길이 기준이므로 값이 EAI 규격과 다르면 멀티바이트 구간이 깨집니다.
 - 전문 필드는 바이트, 원본 컬럼은 글자 단위입니다. 제목·본문 같은 표시용 텍스트는 `lpadFit`으로 필드 예산에 맞춰 자르고, 수신자·식별자처럼 잘리면 오배송이 되는 필드는 `lpad`로 두어 초과를 조립 실패로 드러냅니다.
+- DB·전문 필드의 예산 판정은 조립 중간 산물(본문 바이트)이 아니라 실제 저장되는 직렬화 결과의 바이트 크기로 잽니다. 예: 결재요청 메일 목록 packer는 후보를 추가할 때마다 `MailPayload` JSON 전체로 재직렬화해 4000바이트 예산을 판정합니다.
 - 외부 JSON 응답은 Jackson 버전 특정 `JsonNode`보다 전용 DTO 또는 `Map<String, Object>`로 받습니다.
 
 상세는 [알림 가이드](docs/guides/integrations/notifications.md), [EAI 가이드](docs/guides/integrations/eai.md), [SSO 가이드](docs/guides/integrations/sso.md)를 따릅니다.
@@ -131,6 +133,9 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 집행 문서 상태는 인접 단계만 전이하고 작성중 상태에서만 수정·삭제합니다.
 - 알림 조회·읽음·삭제는 현재 사용자 소유권을 검증합니다.
 - Tiptap 변수 해석은 잘못된 형식, 데이터 없음, 권한 없음 상태를 구분합니다.
+- 수기 엑셀 이관으로 만든 결재완료 기록은 결재선(`TPRMPP_CDECIM`) 없이 저장되며, 등록자결재요청내용(`RGPR_DCD_REQ_CONE`)의 `MigrationApprovalMarker.NOTE` 고정 문구로만 식별합니다. **문구를 바꾸면 기존 이관 데이터가 일반 신청서로 보이므로 변경 금지**입니다. 상수는 만드는 쪽(`domain.migration`)과 읽는 쪽(`ApplicationDto`)이 함께 쓰므로 `common.approval`에 둡니다(common→domain 역방향 의존 차단). 신청서 조회 응답의 `migrated` 플래그가 이 판정을 노출합니다.
+- 반입 원본 보관(`RequestFormSourceFileArchiver`)은 APPLIED 파일만, 원장 커밋 이후에 수행하며 **예외를 밖으로 던지지 않습니다**(보관 실패가 반입을 실패로 되돌리면 안 됨). 보관 단위는 (원본 최상위 폴더명, 검증된 부서코드) 조합이며 부서 교차 연결을 만들지 않습니다.
+- 반입 진단 원칙: 반입 대상이 아닌 파일(인식 시트 없음)은 실패·차단이 아닌 `SKIPPED`로 분리해 어느 건수에도 세지 않습니다. 제출자가 적어 냈는데 코드표에 없는 값(통화·전결권자)은 빈 값으로 추정 대체하지 않고 BLOCKER + 공통코드 선택 후보(`{code, label}`)를 진단에 실어 화면에서 고르게 합니다. 통화 미해석 행이 남아 있으면 금액 단위 확인을 생략하지 않습니다.
 
 상세는 [사업 집행 가이드](docs/guides/domains/project-execution.md)와 [Tiptap 변수 가이드](docs/guides/domains/tiptap-variables.md)를 참조합니다.
 
@@ -145,6 +150,9 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 일반 사용자 DTO의 필드명은 언어와 무관하게 고정입니다(영어 메뉴명도 `mnuNm`). 코드값·정렬·상위 관계 같은 비표시 필드는 원본 그대로 반환하며, 업무 분기는 번역된 명칭이 아니라 코드값으로만 판단합니다.
 - 관리자 번역 계약은 `{language, columnName, text}` 목록형입니다. 언어나 대상 컬럼이 늘어도 DTO에 `...En` 필드를 추가하지 않습니다. 한국어 원본과 번역은 같은 서비스 트랜잭션에서 저장하고, 빈 번역문은 기존 행의 논리 삭제로 처리합니다.
 - 원본 저장과 번역 저장 모두 영향받는 메뉴·공통코드 캐시의 **모든 언어 엔트리**를 무효화합니다. 영어 응답이 한국어 원본을 fallback으로 포함할 수 있으므로 한국어 원본만 바뀌어도 다른 언어 캐시가 낡습니다.
+- 관리자 번역 현황 조회(`GET /{target}/entries`)는 원본 마스터 전체를 읽어 번역과 병합해 반환합니다(`TranslationEntryService`). 이 서비스는 조회 전용(`readOnly`)이며 번역 행의 생성·변경은 `TranslationCatalogService`만 담당합니다.
+- 번역 완료(`translated`) 판정은 **한국어 원문이 있는 컬럼만** 분모로 셉니다. 원문 없는 컬럼(공통코드 nullable 컬럼 다수)까지 미번역으로 세면 번역할 원문 자체가 없어 영원히 완료가 될 수 없습니다.
+- 번역 입력 길이 제한은 원본 컬럼 길이와 `TC_DES`(2000) 중 작은 값이며, 번역 가능 컬럼의 SoT는 `TranslationTarget.columns()`입니다.
 
 ## 10. 테스트·주석·운영
 
