@@ -9,6 +9,7 @@ import com.kdb.it.common.i18n.dto.TranslationDto;
 import com.kdb.it.common.i18n.model.TranslationColumns;
 import com.kdb.it.common.i18n.model.TranslationTarget;
 import com.kdb.it.common.i18n.service.TranslationCatalogService;
+import com.kdb.it.common.i18n.service.TranslationEntryService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,10 +20,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TranslationAdminControllerTest {
 
     @Mock TranslationCatalogService service;
+    @Mock TranslationEntryService entryService;
 
     @Test
     void 메뉴번역을_조회하고_저장한다() {
-        TranslationAdminController controller = new TranslationAdminController(service);
+        TranslationAdminController controller =
+                new TranslationAdminController(service, entryService);
         var values =
                 List.of(new TranslationDto.Value("en", TranslationColumns.MNU_NM, "Dashboard"));
         when(service.findAll(TranslationTarget.MENU, "M1")).thenReturn(values);
@@ -36,7 +39,8 @@ class TranslationAdminControllerTest {
 
     @Test
     void 공통코드_대상은_대소문자와_공백을_흘려도_같은_대상으로_해석한다() {
-        TranslationAdminController controller = new TranslationAdminController(service);
+        TranslationAdminController controller =
+                new TranslationAdminController(service, entryService);
 
         controller.updateTranslations(
                 " Common-Code ",
@@ -48,7 +52,8 @@ class TranslationAdminControllerTest {
 
     @Test
     void 알수없는_대상은_거부한다() {
-        TranslationAdminController controller = new TranslationAdminController(service);
+        TranslationAdminController controller =
+                new TranslationAdminController(service, entryService);
 
         assertThatThrownBy(() -> controller.getTranslations("project", "P1"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -60,5 +65,39 @@ class TranslationAdminControllerTest {
                                         "M1",
                                         new TranslationAdminController.UpdateRequest(List.of())))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void 번역현황_목록을_대상별로_조회한다() {
+        TranslationAdminController controller =
+                new TranslationAdminController(service, entryService);
+        var entries =
+                List.of(
+                        new TranslationDto.Entry(
+                                "MNU0001001",
+                                java.util.Map.of("mnuId", "MNU0001001"),
+                                "MNU0001001",
+                                List.of(
+                                        new TranslationDto.ColumnValue(
+                                                TranslationColumns.MNU_NM,
+                                                "대시보드",
+                                                100,
+                                                java.util.Map.of("en", "Dashboard"))),
+                                true,
+                                "00000000000001",
+                                java.time.LocalDateTime.of(2026, 8, 18, 9, 0)));
+        when(entryService.findEntries(TranslationTarget.MENU)).thenReturn(entries);
+
+        assertThat(controller.getEntries("menu").getBody()).isEqualTo(entries);
+    }
+
+    @Test
+    void 번역현황_목록도_알수없는_대상을_거부한다() {
+        TranslationAdminController controller =
+                new TranslationAdminController(service, entryService);
+
+        assertThatThrownBy(() -> controller.getEntries("project"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("project");
     }
 }

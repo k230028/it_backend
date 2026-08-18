@@ -3,6 +3,7 @@ package com.kdb.it.common.i18n.controller;
 import com.kdb.it.common.i18n.dto.TranslationDto;
 import com.kdb.it.common.i18n.model.TranslationTarget;
 import com.kdb.it.common.i18n.service.TranslationCatalogService;
+import com.kdb.it.common.i18n.service.TranslationEntryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TranslationAdminController {
 
     private final TranslationCatalogService translationCatalogService;
+    private final TranslationEntryService translationEntryService;
 
     /** 대상 키에 등록된 활성 번역을 조회합니다. */
     @GetMapping("/{target}")
@@ -34,6 +36,14 @@ public class TranslationAdminController {
             @PathVariable(name = "target") String target,
             @RequestParam(name = "targetKey") String targetKey) {
         return ResponseEntity.ok(translationCatalogService.findAll(parseTarget(target), targetKey));
+    }
+
+    /** 대상 구분의 원본 전체와 등록된 번역을 병합해 반환합니다. */
+    @GetMapping("/{target}/entries")
+    @Operation(summary = "대상별 번역 현황 목록")
+    public ResponseEntity<List<TranslationDto.Entry>> getEntries(
+            @PathVariable(name = "target") String target) {
+        return ResponseEntity.ok(translationEntryService.findEntries(parseTarget(target)));
     }
 
     /** 제출된 컬럼의 번역을 생성·수정하거나 빈 문구인 항목을 논리 삭제합니다. */
