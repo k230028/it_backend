@@ -474,4 +474,19 @@ class GeneralExpenseFormAdapterTest {
                                     .isEqualByComparingTo(new BigDecimal("5000000"));
                         });
     }
+
+    @Test
+    @DisplayName("원화 행이 하나도 없으면 금액 단위 확인을 묻지 않는다")
+    void skipsUnitWarningWhenNoKrwRow() {
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), null));
+
+        assertThat(output.costs()).isNotEmpty();
+        assertThat(output.costs())
+                .extracting(CostDto.CreateRequest::getCurC)
+                .containsOnly("GBP");
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
+    }
 }

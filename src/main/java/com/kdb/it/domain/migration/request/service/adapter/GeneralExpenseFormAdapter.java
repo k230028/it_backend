@@ -157,7 +157,15 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         return resolved;
     }
 
-    /** 사용자가 지정한 배수를 우선하고, 없으면 제안값을 계산해 확인 경고를 남깁니다. */
+    /**
+     * 사용자가 지정한 배수를 우선하고, 없으면 제안값을 계산해 확인 경고를 남깁니다.
+     *
+     * <p>원화로 확정된 행이 하나도 없으면 <b>경고를 내지 않습니다.</b> 이 배수는 원화 행에만 걸리고 외화 행은 통화 기본 단위 그대로 {@code FC_AMT}로
+     * 가므로, 원화 행이 없는 시트(국외 점포 실측)에서는 어떤 값을 골라도 결과가 같습니다. 고를 이유가 없는 확인을 묻지 않습니다.
+     *
+     * @param currencies {@link #resolveCurrencies} 결과. 엑셀 행 번호 → 확정 통화
+     * @return 적용할 배수. 원화 행이 없으면 {@code WON}(어느 값이든 결과가 같습니다)
+     */
     private AmountUnit resolveUnit(
             FormAdapterContext context,
             List<GeneralExpenseRow> rows,
@@ -166,8 +174,10 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         AmountUnit specified = context.entry().generalExpenseUnit();
         if (specified != null) return specified;
 
-        AmountUnit suggested =
-                AmountUnitResolver.suggestGeneralExpenseUnit(krwAnnualAmounts(rows, currencies));
+        List<BigDecimal> krwAmounts = krwAnnualAmounts(rows, currencies);
+        if (krwAmounts.isEmpty()) return AmountUnit.WON;
+
+        AmountUnit suggested = AmountUnitResolver.suggestGeneralExpenseUnit(krwAmounts);
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.decide(
                         FormSheetKind.GENERAL_EXPENSE,
