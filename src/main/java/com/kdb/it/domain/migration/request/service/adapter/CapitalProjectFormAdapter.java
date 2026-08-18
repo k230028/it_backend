@@ -116,6 +116,8 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 List.of(
                         new MigrationDto.Candidate("N", "비중복(N)"),
                         new MigrationDto.Candidate("Y", "중복(Y)")));
+        // 전결권자는 이름이 코드표에 없을 때 사람이 고를 수 있어야 한다. 후보가 없으면 그 파일은 영구히 차단된다
+        options.put("edrtTc", catalogReader.edrtCapitalCandidates());
         return new FormCatalogs(
                 catalogReader.exePttCodeByName(),
                 catalogReader.edrtCapitalCodeByName(),

@@ -133,9 +133,34 @@ public class MigrationIoeCatalogReader {
      * @return 후보 목록. 코드값명이 없는 행은 건너뜁니다
      */
     public List<MigrationDto.Candidate> candidates(String cId, boolean storeName) {
+        return candidates(cId, null, storeName);
+    }
+
+    /**
+     * 전결권(`IT_PTL_EDRT_TC`) 자본예산 계열의 선택 후보를 만듭니다.
+     *
+     * <p>물리 컬럼 `IT_PTL_EDRT_TC`가 2자리 코드이므로 후보값은 <b>코드값</b>입니다({@code storeName=false}). 계열을 자본으로
+     * 좁히는 이유는 {@link #edrtCapitalCodeByName()}과 같습니다 — `부문장`처럼 경상 계열에도 있는 이름이 섞이면 화면에서 고른 값이 어느 계열의
+     * 코드인지 알 수 없어집니다.
+     *
+     * @return 예: `[{code:"22", label:"부문장"}, {code:"25", label:"이사회"}]`
+     */
+    public List<MigrationDto.Candidate> edrtCapitalCandidates() {
+        return candidates(CommonCodeGroups.EDRT, EDRT_CAPITAL_CTP, false);
+    }
+
+    /**
+     * 코드타입으로 좁힌 선택 후보를 만듭니다.
+     *
+     * @param cId 공통코드 그룹 id
+     * @param cTp 코드타입. null이면 좁히지 않습니다
+     * @param storeName true면 후보값으로 코드값명을, false면 코드값을 씁니다
+     * @return 후보 목록. 코드값명이 없는 행은 건너뜁니다
+     */
+    private List<MigrationDto.Candidate> candidates(String cId, String cTp, boolean storeName) {
         List<MigrationDto.Candidate> out = new ArrayList<>();
         for (Ccodem code : codeRepository.findByCIdAndDelYn(cId, "N")) {
-            if (code.getCdvaNm() == null) continue;
+            if (code.getCdvaNm() == null || (cTp != null && !cTp.equals(code.getCTp()))) continue;
             String name = code.getCdvaNm().trim();
             out.add(new MigrationDto.Candidate(storeName ? name : code.getCdva().trim(), name));
         }

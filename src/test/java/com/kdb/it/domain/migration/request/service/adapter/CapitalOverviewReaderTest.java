@@ -361,6 +361,41 @@ class CapitalOverviewReaderTest {
     }
 
     @Test
+    @DisplayName("전결권자 코드를 못 찾으면 공통코드 후보를 붙여 고르게 한다")
+    void offersDelegationCandidatesWhenUnresolved() {
+        Sheet sheet =
+                overviewSheet(new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "전결권자", "없는직위")));
+        FormCatalogs catalogs =
+                new FormCatalogs(
+                        Map.of(),
+                        Map.of("전무이사", "21"),
+                        Map.of(),
+                        Map.of(
+                                "edrtTc",
+                                List.of(
+                                        new MigrationDto.Candidate("21", "전무이사"),
+                                        new MigrationDto.Candidate("22", "부문장"))));
+
+        CapitalOverviewReader.Result read = reader.read(sheet, context(Map.of()), catalogs);
+
+        assertThat(read.diagnostics())
+                .filteredOn(diagnostic -> "edrtTc".equals(diagnostic.field()))
+                .singleElement()
+                .satisfies(
+                        diagnostic -> {
+                            assertThat(diagnostic.code())
+                                    .isEqualTo(RequestFormDiagnosticCode.CODE_UNRESOLVED);
+                            assertThat(diagnostic.severity())
+                                    .isEqualTo(MigrationDto.Severity.BLOCKER);
+                            assertThat(diagnostic.decision())
+                                    .isEqualTo(RequestFormDecisionKind.SELECT);
+                            assertThat(diagnostic.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .containsExactly("21", "22");
+                        });
+    }
+
+    @Test
     @DisplayName("요약표가 없으면 대사 기준값을 비워 둔다")
     void leavesDeclaredTotalNullWhenSummaryAbsent() {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업"));

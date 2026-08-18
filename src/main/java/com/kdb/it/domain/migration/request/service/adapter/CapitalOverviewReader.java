@@ -108,7 +108,7 @@ public class CapitalOverviewReader {
         applyOrganization(sheet, context, project);
         applyPeople(sheet, context, project, diagnostics);
         applyPeriod(sheet, project, diagnostics);
-        applyDelegation(sheet, context, project, catalogs.edrtCapitalCodeByName(), diagnostics);
+        applyDelegation(sheet, context, project, catalogs, diagnostics);
 
         return new Result(
                 project,
@@ -402,12 +402,17 @@ public class CapitalOverviewReader {
      * 전결권자 이름을 자본예산 계열 코드로 바꿉니다.
      *
      * <p>보정값을 먼저 봅니다 — 이름이 코드표에 없을 때 사람이 고를 길이 없으면 그 파일은 영구히 차단됩니다.
+     *
+     * <p>미매칭이면 후보를 실어 화면의 결정 열에서 바로 고르게 합니다. 차단(`BLOCKER`)은 유지합니다 — 전결권자를 아예 적지 않은 파일은 진단 없이 통과하지만,
+     * <b>적어 냈는데</b> 코드표에 없는 것은 제출자가 특정 전결권자를 지정했다는 뜻이라 빈 값으로 넘기면 원장에 제출 의사와 다른 값이 남습니다.
+     *
+     * @param catalogs 코드 맵과 선택 후보를 담은 공통코드 묶음
      */
     private void applyDelegation(
             Sheet sheet,
             FormAdapterContext context,
             ProjectDto.CreateRequest project,
-            Map<String, String> edrtCodes,
+            FormCatalogs catalogs,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         Optional<String> override =
                 context.override(FormSheetKind.CAPITAL_OVERVIEW, null, "edrtTc");
@@ -419,7 +424,8 @@ public class CapitalOverviewReader {
         String name = labelReader.value(sheet, "전결권자");
         if (!hasText(name)) return;
         // 부점은 `수석부행장` 같은 통칭을 쓰고 코드표는 직명(`전무이사`)을 쓴다
-        String code = lookup(edrtCodes, FormLexicon.canonicalOptionName(name));
+        String code =
+                lookup(catalogs.edrtCapitalCodeByName(), FormLexicon.canonicalOptionName(name));
         if (code != null) {
             project.setEdrtTc(code);
             return;
@@ -430,8 +436,8 @@ public class CapitalOverviewReader {
                         null,
                         "edrtTc",
                         RequestFormDiagnosticCode.CODE_UNRESOLVED,
-                        "전결권자 `%s`에 해당하는 코드를 찾지 못했습니다.".formatted(name),
-                        List.of()));
+                        "전결권자 `%s`에 해당하는 코드를 찾지 못했습니다. 공통코드에서 골라 주세요.".formatted(name),
+                        catalogs.optionCandidates("edrtTc")));
     }
 
     /**
