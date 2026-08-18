@@ -31,9 +31,6 @@ public class ApprovalMailRenderer {
     /** 본문 바이트 예산 — GWE 전문 CONTENTS 필드 폭과 같다. */
     public static final int CONTENTS_BUDGET_BYTES = 4000;
 
-    /** 잘림 안내와 닫는 태그를 넣을 여유. 예산을 꽉 채우고 나서 안내를 못 붙이는 일을 막는다. */
-    private static final int TAIL_RESERVE_BYTES = 320;
-
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final ObjectMapper objectMapper;
@@ -41,10 +38,14 @@ public class ApprovalMailRenderer {
     /**
      * 메일 페이로드 JSON을 만듭니다.
      *
-     * @param context 렌더링 입력
-     * @return {@code {"subject":...,"html":...}} JSON. 실패하면 {@code null}(호출자는 기존 기본 본문으로 폴백)
+     * @param context 렌더링 입력. {@code null}이면 렌더링을 시도하지 않는다.
+     * @return {@code {"subject":...,"html":...}} JSON. {@code context}가 null이거나 렌더링이 실패하면 {@code
+     *     null}(호출자는 기존 기본 본문으로 폴백)
      */
     public String renderPayloadJson(ApprovalMailContext context) {
+        if (context == null) {
+            return null;
+        }
         try {
             MailPayload payload = new MailPayload(subject(context), html(context));
             return objectMapper.writeValueAsString(payload);
@@ -254,20 +255,26 @@ public class ApprovalMailRenderer {
      * <p>구분별로 표를 따로 두면 머리글이 세 번 반복되어 예산 대부분을 머리글이 먹는다. 구분 열을 가진 표 하나로 합치고 구분 순서(정보화사업 → 전산업무비 →
      * 경상사업), 구분 안에서는 총 예산 내림차순으로 싣는다.
      *
+     * <p>잘림 안내({@link #moreLink})는 {@code context.detailUrl()}을 그대로 담아 호출자가 준 URL 길이에 따라 바이트 수가
+     * 달라지므로, 고정 상수가 아니라 전체 항목이 잘렸다고 가정한 실제 안내 문구 길이로 예산을 미리 뺀다. 항목 수가 가장 클 때 안내 문구도 가장 길므로(자릿수 증가)
+     * 이 값이 실제 필요보다 부족해지는 일은 없다. 닫는 태그는 {@code usedBytes}에 이미 포함된 래퍼({@link #wrap})의 몫이라 별도로 뺄 여유가
+     * 필요하지 않다.
+     *
      * @param context 렌더링 입력 (전체 보기 링크용)
      * @param entries 구분 순서로 이미 정렬된 목록
      * @param usedBytes 지금까지 조립한 본문의 UTF-8 바이트
-     * @return 목록 섹션 HTML. 머리글조차 못 넣을 예산이면 빈 문자열
+     * @return 목록 섹션 HTML. 머리글이나 첫 행조차 못 넣을 예산이면 잘림 안내만 담은 문구
      */
     private String itemList(ApprovalMailContext context, List<ListEntry> entries, int usedBytes) {
         if (entries.isEmpty()) {
             return "";
         }
-        int budget = CONTENTS_BUDGET_BYTES - TAIL_RESERVE_BYTES - usedBytes;
+        int notice = MailHtml.utf8Length(moreLink(entries.size(), context));
+        int budget = CONTENTS_BUDGET_BYTES - notice - usedBytes;
         String shell = MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow());
         int consumed = MailHtml.utf8Length(shell);
         if (consumed > budget) {
-            return "";
+            return moreLink(entries.size(), context);
         }
 
         StringBuilder included = new StringBuilder();
@@ -283,7 +290,7 @@ public class ApprovalMailRenderer {
             taken++;
         }
         if (taken == 0) {
-            return "";
+            return moreLink(entries.size(), context);
         }
         String section =
                 MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow() + included);

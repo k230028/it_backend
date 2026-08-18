@@ -21,10 +21,10 @@ class ApprovalMailRendererTest {
             """
             {
               "projects": [
-                {"abusNm": "차세대 시스템", "odnYn": "N", "totRqmAmt": 3000,
-                 "assetBg": 2000, "costBg": 1000},
                 {"abusNm": "소규모 개선", "odnYn": "N", "totRqmAmt": 1000,
                  "assetBg": 400, "costBg": 600},
+                {"abusNm": "차세대 시스템", "odnYn": "N", "totRqmAmt": 3000,
+                 "assetBg": 2000, "costBg": 1000},
                 {"abusNm": "2026년 경상사업", "odnYn": "Y", "totRqmAmt": 500,
                  "assetBg": 100, "costBg": 400}
               ],
@@ -76,21 +76,36 @@ class ApprovalMailRendererTest {
     void html_containsTotals() throws Exception {
         String html = render(SNAPSHOT).html();
 
-        // 정보화사업 4,000 / 전산업무비 800 / 경상사업 500 / 합계 5,300
+        // 정보화사업 4,000 / 전산업무비 800(자본예산 300, 일반관리비 500) / 경상사업 500 / 합계 5,300
         assertThat(html)
                 .contains("4,000 원")
                 .contains("800 원")
+                .contains("300 원")
                 .contains("500 원")
                 .contains("5,300 원");
         assertThat(html).contains("정보화사업").contains("전산업무비").contains("경상사업").contains("합계");
+        // "500 원"은 경상사업 총액과 전산업무비 일반관리비(800-300)에 동시에 매칭돼 모호하므로,
+        // 전산업무비 합계 행 전체를 그대로 대조해 일반관리비 파생값을 못 박아 검증한다.
+        assertThat(html)
+                .contains(
+                        MailHtml.row(
+                                MailHtml.textCell("전산업무비"),
+                                MailHtml.amountCell("1건"),
+                                MailHtml.amountCell("800 원"),
+                                MailHtml.amountCell("300 원"),
+                                MailHtml.amountCell("500 원")));
     }
 
     @Test
-    @DisplayName("목록은 구분 안에서 총 예산 내림차순으로 정렬한다")
+    @DisplayName("목록은 구분 안에서 총 예산 내림차순으로, 구분 사이에서는 정보화사업→전산업무비→경상사업 순으로 정렬한다")
     void html_listSortedByTotalDesc() throws Exception {
         String html = render(SNAPSHOT).html();
 
         assertThat(html.indexOf("차세대 시스템")).isLessThan(html.indexOf("소규모 개선"));
+        assertThat(html.indexOf("차세대 시스템"))
+                .isLessThan(html.indexOf("유지보수 계약"))
+                .isLessThan(html.indexOf("2026년 경상사업"));
+        assertThat(html.indexOf("유지보수 계약")).isLessThan(html.indexOf("2026년 경상사업"));
     }
 
     @Test
@@ -105,8 +120,8 @@ class ApprovalMailRendererTest {
     }
 
     @Test
-    @DisplayName("항목이 없는 구분은 합계 행과 목록을 생략한다")
-    void html_omitsEmptyCategory() throws Exception {
+    @DisplayName("스냅샷 전체가 비면 총괄표 자체를 생략한다")
+    void html_allEmptySnapshot_omitsSummaryEntirely() throws Exception {
         String html = render("{\"projects\": [], \"costs\": []}").html();
 
         assertThat(html).doesNotContain("정보화사업").doesNotContain("전산업무비").doesNotContain("경상사업");
@@ -114,8 +129,24 @@ class ApprovalMailRendererTest {
     }
 
     @Test
+    @DisplayName("항목이 없는 구분만 총괄표·목록에서 생략한다")
+    void html_omitsEmptyCategory() throws Exception {
+        String html =
+                render(
+                                "{\"projects\": [{\"abusNm\": \"단독 사업\", \"odnYn\": \"N\","
+                                        + " \"totRqmAmt\": 100, \"assetBg\": 50, \"costBg\": 50}],"
+                                        + " \"costs\": []}")
+                        .html();
+
+        assertThat(html).contains("정보화사업").contains("단독 사업");
+        assertThat(html).doesNotContain("전산업무비");
+    }
+
+    @Test
     @DisplayName("본문은 UTF-8 4000바이트를 넘지 않고 잘리면 남은 건수를 알린다")
     void html_staysWithinBudget() throws Exception {
+        // 총액이 인덱스와 함께 오름차순이 되도록 만든다 — 목록에 원본 순서 그대로 실리면(정렬 삭제 회귀)
+        // 총액이 가장 큰 마지막 항목(299번)이 예산 밖으로 밀려 빠지므로, 그 항목의 존재 여부로 정렬을 가른다.
         String manyProjects =
                 IntStream.range(0, 300)
                         .mapToObj(
@@ -123,15 +154,15 @@ class ApprovalMailRendererTest {
                                         ("{\"abusNm\": \"매우 긴 이름을 가진 정보화사업 항목 %d\","
                                                         + " \"odnYn\": \"N\", \"totRqmAmt\": %d,"
                                                         + " \"assetBg\": 1, \"costBg\": 1}")
-                                                .formatted(i, 1000 - i))
+                                                .formatted(i, i + 1))
                         .collect(Collectors.joining(","));
         String html = render("{\"projects\": [" + manyProjects + "], \"costs\": []}").html();
 
         assertThat(html.getBytes(StandardCharsets.UTF_8).length)
                 .isLessThanOrEqualTo(ApprovalMailRenderer.CONTENTS_BUDGET_BYTES);
         assertThat(html).contains("외 ").contains("건");
-        // 예산이 실제로 쓰이는지 확인 — 머리글만 넣고 행을 못 싣는 회귀를 잡는다.
-        assertThat(html).contains("매우 긴 이름을 가진 정보화사업 항목 0");
+        // 총액이 가장 큰 항목(299번, totRqmAmt=300)이 정렬로 맨 앞에 와야 예산 안에 실린다.
+        assertThat(html).contains("매우 긴 이름을 가진 정보화사업 항목 299");
     }
 
     @Test
@@ -169,5 +200,11 @@ class ApprovalMailRendererTest {
 
         assertThat(json).isNotNull();
         assertThat(objectMapper.readValue(json, MailPayload.class).html()).contains("APF-1");
+    }
+
+    @Test
+    @DisplayName("context가 null이면 예외 없이 null을 반환한다")
+    void renderPayloadJson_nullContext_returnsNull() {
+        assertThat(renderer.renderPayloadJson(null)).isNull();
     }
 }

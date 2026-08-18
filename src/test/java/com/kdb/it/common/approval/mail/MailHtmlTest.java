@@ -36,7 +36,7 @@ class MailHtmlTest {
     }
 
     @Test
-    @DisplayName("셀과 행은 인라인 스타일을 붙여 만든다")
+    @DisplayName("머리글 셀만 배경색 인라인 스타일을 가진다")
     void cellsAndRow_carryInlineStyle() {
         String row = MailHtml.row(MailHtml.labelCell("구분"), MailHtml.textCell("정보화사업"));
 
@@ -75,7 +75,7 @@ class MailHtmlTest {
     }
 
     @Test
-    @DisplayName("5열 표 한 행이 200바이트를 넘지 않는다")
+    @DisplayName("3열 표 한 행이 200바이트를 넘지 않는다")
     void row_staysCheap() {
         String row =
                 MailHtml.row(
