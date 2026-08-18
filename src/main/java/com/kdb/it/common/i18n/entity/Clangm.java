@@ -1,6 +1,8 @@
 package com.kdb.it.common.i18n.entity;
 
 import com.kdb.it.domain.entity.BaseEntity;
+import com.kdb.it.domain.log.annotation.LogTarget;
+import com.kdb.it.domain.log.entity.ClangmL;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -13,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /** 메뉴와 공통코드의 다국어 명칭을 저장하는 번역 마스터 엔티티입니다. */
+@LogTarget(entity = ClangmL.class)
 @Entity
 @Table(name = "TPRMPP_CLANGM", comment = "언어별구분코드마스터")
 @Getter
