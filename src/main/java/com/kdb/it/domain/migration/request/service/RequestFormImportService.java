@@ -231,8 +231,8 @@ public class RequestFormImportService {
     /**
      * 반입 대상이 아닌 파일의 결과를 만듭니다.
      *
-     * <p>{@link #failed}와 달리 실패가 아닙니다 — 열리기는 했고 편성요청서가 아니었을 뿐입니다. 요약의 반영·차단 건수 어디에도 세지 않으므로
-     * {@code summarize()}는 손대지 않습니다.
+     * <p>{@link #failed}와 달리 실패가 아닙니다 — 열리기는 했고 편성요청서가 아니었을 뿐입니다. 요약의 반영·차단 건수 어디에도 세지 않으므로 {@code
+     * summarize()}는 손대지 않습니다.
      *
      * @param entry 파일별 부가 정보
      * @return 상태 {@code SKIPPED}, 진단 1건, 생성 목록·건수는 빈 값

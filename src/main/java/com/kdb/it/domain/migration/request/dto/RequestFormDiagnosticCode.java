@@ -16,8 +16,8 @@ public enum RequestFormDiagnosticCode {
     /**
      * 인식 가능한 시트가 하나도 없음 — 반입 대상이 아님.
      *
-     * <p>BLOCKER가 아닙니다. 부점 폴더 아래에 팀·사업 폴더가 더 있는 구조에서는 편성요청서가 아닌 엑셀이 함께 올라오는 것이 정상 케이스이고, 그것은
-     * 관리자가 고칠 수 있는 결함이 아닙니다. 이 코드를 받은 파일은 {@code FileStatus.SKIPPED}로 남습니다.
+     * <p>BLOCKER가 아닙니다. 부점 폴더 아래에 팀·사업 폴더가 더 있는 구조에서는 편성요청서가 아닌 엑셀이 함께 올라오는 것이 정상 케이스이고, 그것은 관리자가
+     * 고칠 수 있는 결함이 아닙니다. 이 코드를 받은 파일은 {@code FileStatus.SKIPPED}로 남습니다.
      */
     SHEET_NOT_FOUND(MigrationDto.Severity.WARNING),
     /** 라벨·헤더 앵커 실패 (양식이 과도하게 개조됨) */

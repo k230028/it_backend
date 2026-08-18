@@ -244,10 +244,7 @@ class RequestFormImportServiceTest {
         RequestFormDto.ImportResponse response =
                 service(50)
                         .importBatch(
-                                List.of(
-                                        file(
-                                                "참고자료.xls",
-                                                RequestFormFixtures.unrelatedSheetXls())),
+                                List.of(file("참고자료.xls", RequestFormFixtures.unrelatedSheetXls())),
                                 manifest("자금운용실(420)/팀1/사업1/참고자료.xls"),
                                 "12345678",
                                 true);
