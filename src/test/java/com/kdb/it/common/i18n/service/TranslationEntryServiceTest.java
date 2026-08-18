@@ -99,6 +99,119 @@ class TranslationEntryServiceTest {
     }
 
     @Test
+    void 공통코드에서_원문있는_컬럼만_모두_번역되면_번역완료로_표시한다() {
+        TranslationEntryService service = service();
+        Ccodem code =
+                Ccodem.builder()
+                        .cId("ABUS_PPO")
+                        .cdva("001")
+                        .sttDt("20260101")
+                        .cNm("사업목적")
+                        .cdvaNm("신규개발")
+                        .cdvaDes(null)
+                        .cdvaDtl(null)
+                        .cTpDes(null)
+                        .delYn("N")
+                        .build();
+        when(codeRepository.findAllActive()).thenReturn(List.of(code));
+        String targetKey = TranslationTargetKey.code("ABUS_PPO", "001", "20260101");
+        when(translationRepository.findActiveByTargetAndKeys("공통코드", List.of(targetKey)))
+                .thenReturn(
+                        List.of(
+                                translation(
+                                        targetKey,
+                                        "en",
+                                        TranslationColumns.CO_C_NM,
+                                        "Business Purpose"),
+                                translation(
+                                        targetKey,
+                                        "en",
+                                        TranslationColumns.CDVA_NM,
+                                        "New Development")));
+
+        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.COMMON_CODE);
+
+        // 원문 없는 CO_CDVA_ABV_NM/CO_CDVA_SPS/CO_C_INTN_CONE도 목록에는 그대로 남는다
+        assertThat(entries.get(0).columns()).hasSize(5);
+        assertThat(entries.get(0).translated()).isTrue();
+    }
+
+    @Test
+    void 원문있는_컬럼_중_하나라도_번역이_비면_미번역으로_표시한다() {
+        TranslationEntryService service = service();
+        Ccodem code =
+                Ccodem.builder()
+                        .cId("ABUS_PPO")
+                        .cdva("001")
+                        .sttDt("20260101")
+                        .cNm("사업목적")
+                        .cdvaNm("신규개발")
+                        .cdvaDes(null)
+                        .cdvaDtl(null)
+                        .cTpDes("사업목적 코드")
+                        .delYn("N")
+                        .build();
+        when(codeRepository.findAllActive()).thenReturn(List.of(code));
+        String targetKey = TranslationTargetKey.code("ABUS_PPO", "001", "20260101");
+        // CO_C_INTN_CONE(cTpDes)에는 원문이 있지만 번역을 등록하지 않는다
+        when(translationRepository.findActiveByTargetAndKeys("공통코드", List.of(targetKey)))
+                .thenReturn(
+                        List.of(
+                                translation(
+                                        targetKey,
+                                        "en",
+                                        TranslationColumns.CO_C_NM,
+                                        "Business Purpose"),
+                                translation(
+                                        targetKey,
+                                        "en",
+                                        TranslationColumns.CDVA_NM,
+                                        "New Development")));
+
+        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.COMMON_CODE);
+
+        assertThat(entries.get(0).translated()).isFalse();
+    }
+
+    @Test
+    void 번역대상_원문이_전부_비어있으면_번역완료로_표시한다() {
+        TranslationEntryService service = service();
+        Ccodem code =
+                Ccodem.builder()
+                        .cId("ABUS_PPO")
+                        .cdva("001")
+                        .sttDt("20260101")
+                        .cNm(null)
+                        .cdvaNm(null)
+                        .cdvaDes(null)
+                        .cdvaDtl(null)
+                        .cTpDes(null)
+                        .delYn("N")
+                        .build();
+        when(codeRepository.findAllActive()).thenReturn(List.of(code));
+        String targetKey = TranslationTargetKey.code("ABUS_PPO", "001", "20260101");
+        when(translationRepository.findActiveByTargetAndKeys("공통코드", List.of(targetKey)))
+                .thenReturn(List.of());
+
+        List<TranslationDto.Entry> entries = service.findEntries(TranslationTarget.COMMON_CODE);
+
+        // 번역할 원문 자체가 없으므로 컬럼 목록은 유지한 채 완료로 취급한다
+        assertThat(entries.get(0).columns()).hasSize(5);
+        assertThat(entries.get(0).translated()).isTrue();
+    }
+
+    @Test
+    void 서비스의_길이_상수_맵이_번역대상_컬럼_전체와_정확히_일치한다() {
+        // TranslationTarget.columns()가 번역 가능 컬럼의 단일 진실 공급원이므로, 서비스 내부
+        // 길이 상수 맵의 키 집합이 그 합집합과 어긋나면(enum에 컬럼 추가·삭제 시) 이 테스트가 실패해야 한다.
+        java.util.Set<String> expectedColumns = new java.util.HashSet<>();
+        expectedColumns.addAll(TranslationTarget.MENU.columns());
+        expectedColumns.addAll(TranslationTarget.COMMON_CODE.columns());
+
+        assertThat(TranslationEntryService.sourceColumnNames()).isEqualTo(expectedColumns);
+    }
+
+    @Test
     void 대상키가_구백개를_넘으면_나눠서_조회한다() {
         TranslationEntryService service = service();
         List<Cmenum> menus =

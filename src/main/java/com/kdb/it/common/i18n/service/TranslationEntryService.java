@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -130,7 +131,10 @@ public class TranslationEntryService {
 
     private TranslationDto.Entry toEntry(Draft draft, List<Clangm> rows) {
         List<TranslationDto.ColumnValue> columns = new ArrayList<>();
-        boolean translated = true;
+        // 번역할 한국어 원문이 있는 컬럼만 완료 판정에 넣는다. 원문이 없는 컬럼(공통코드 nullable
+        // 컬럼 다수)까지 미번역으로 세면, 번역 행을 만들 원문 자체가 없어 영원히 완료가 될 수 없다.
+        boolean hasSourceText = false;
+        boolean sourcedColumnsAllTranslated = true;
         for (Map.Entry<String, String> koText : draft.koTexts().entrySet()) {
             Map<String, String> byLanguage = new LinkedHashMap<>();
             for (Clangm row : rows) {
@@ -140,8 +144,12 @@ public class TranslationEntryService {
                     byLanguage.put(row.getDttLanC(), row.getTcDes());
                 }
             }
-            if (byLanguage.isEmpty()) {
-                translated = false;
+            boolean hasSource = koText.getValue() != null && !koText.getValue().isBlank();
+            if (hasSource) {
+                hasSourceText = true;
+                if (byLanguage.isEmpty()) {
+                    sourcedColumnsAllTranslated = false;
+                }
             }
             columns.add(
                     new TranslationDto.ColumnValue(
@@ -150,6 +158,9 @@ public class TranslationEntryService {
                             maxLengthOf(koText.getKey()),
                             byLanguage));
         }
+        // 번역 대상 컬럼의 원문이 전부 비어 있으면(hasSourceText=false) 번역할 것이 아예 없으므로
+        // 미번역 필터에 남길 이유가 없어 완료로 취급한다.
+        boolean translated = !hasSourceText || sourcedColumnsAllTranslated;
 
         Clangm latest = null;
         for (Clangm row : rows) {
@@ -172,6 +183,16 @@ public class TranslationEntryService {
         return Math.min(
                 TRANSLATION_TEXT_MAX_LENGTH,
                 SOURCE_COLUMN_LENGTHS.getOrDefault(columnName, TRANSLATION_TEXT_MAX_LENGTH));
+    }
+
+    /**
+     * {@link #SOURCE_COLUMN_LENGTHS}에 등록된 컬럼명 집합을 드러냅니다.
+     *
+     * <p>{@code TranslationTarget.columns()}가 번역 가능 컬럼의 단일 진실 공급원이고 이 맵은 그 컬럼들의 길이만 나열합니다. 필드 자체의
+     * 가시성을 넓히는 대신 조회 진입점만 패키지 전용으로 열어, 드리프트 방지 테스트가 두 목록이 정확히 일치하는지 검증할 수 있게 합니다.
+     */
+    static Set<String> sourceColumnNames() {
+        return SOURCE_COLUMN_LENGTHS.keySet();
     }
 
     private static boolean isAfter(LocalDateTime candidate, LocalDateTime current) {
