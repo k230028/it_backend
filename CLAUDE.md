@@ -107,6 +107,8 @@ Oracle/Jackson/URL 인코딩 함정은 [QueryDSL·Oracle 가이드](docs/guides/
 - 알림 발송 상태는 `Cinfmm.DISPATCH_*` 상수를 사용하고, 재시도 주기·배치 크기·최대 횟수는 `notification.retry.*` 설정으로 관리합니다. 서비스나 스케줄러에 별도 값을 중복 하드코딩하지 않습니다.
 - 알림 종류와 채널은 `NotificationEvent.TYPE_*`, `NotificationDispatcherRouter.CHANNEL_*` 상수를 사용합니다.
 - EAI 실패는 `EaiResult`로 표현하고 원 업무를 실패시키지 않으며 민감정보를 평문 로깅하지 않습니다. GWE의 `IF_ID`는 `eai.gwe.if-id`만 사용합니다.
+- 외부 채널 메일 본문은 업무 도메인이 완성해 `NotificationEvent.sdPayload`(→ `SD_DOC_CONE`)에 `MailPayload(subject, html)` JSON으로 싣습니다. 발송 계층에 업무 문구를 하드코딩하지 않고, 페이로드가 없으면 알림의 `ttl`·`infmMsgCone`으로 폴백합니다.
+- 인앱 알림 조회는 채널을 가리지 않으므로 `ttl`·`infmMsgCone`에 HTML을 저장하지 않습니다.
 - EAI 전문 문자셋은 `eai.charset`(현행 UTF-8) 하나로 통일합니다. 고정길이 필드의 패딩이 이 문자셋의 바이트 길이 기준이므로 값이 EAI 규격과 다르면 멀티바이트 구간이 깨집니다.
 - 전문 필드는 바이트, 원본 컬럼은 글자 단위입니다. 제목·본문 같은 표시용 텍스트는 `lpadFit`으로 필드 예산에 맞춰 자르고, 수신자·식별자처럼 잘리면 오배송이 되는 필드는 `lpad`로 두어 초과를 조립 실패로 드러냅니다.
 - 외부 JSON 응답은 Jackson 버전 특정 `JsonNode`보다 전용 DTO 또는 `Map<String, Object>`로 받습니다.
