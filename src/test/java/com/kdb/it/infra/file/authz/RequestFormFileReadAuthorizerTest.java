@@ -128,4 +128,65 @@ class RequestFormFileReadAuthorizerTest {
 
         assertThat(authorizer.canRead(file(null), user)).isFalse();
     }
+
+    @Test
+    @DisplayName("파일 엔티티가 없으면 읽을 수 없다")
+    void nullFile_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+
+        assertThat(authorizer.canRead(null, user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("사용자 부점이 비어 있으면 읽을 수 없다")
+    void blankUserDepartment_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), " ");
+
+        assertThat(authorizer.canRead(file("APF-4"), user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("미지원 원천테이블 매핑은 읽을 수 없다")
+    void unsupportedSource_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        Cappla unsupportedMap = map("UNKNOWN", "KEY-1");
+        given(applicationMapRepository.findByApfDcmNo("APF-5"))
+                .willReturn(List.of(unsupportedMap));
+
+        assertThat(authorizer.canRead(file("APF-5"), user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("원천테이블명이 없는 매핑은 읽을 수 없다")
+    void blankSourceTable_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        Cappla incompleteMap = map(null, "ABUS-1");
+        given(applicationMapRepository.findByApfDcmNo("APF-6"))
+                .willReturn(List.of(incompleteMap));
+
+        assertThat(authorizer.canRead(file("APF-6"), user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("원천키가 없는 매핑은 읽을 수 없다")
+    void blankSourceKey_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        Cappla incompleteMap = map("BPROJM", null);
+        given(applicationMapRepository.findByApfDcmNo("APF-7"))
+                .willReturn(List.of(incompleteMap));
+
+        assertThat(authorizer.canRead(file("APF-7"), user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("원천순번이 없는 매핑은 읽을 수 없다")
+    void missingSourceSerial_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        Cappla incompleteMap = map("BPROJM", "ABUS-1");
+        when(incompleteMap.getFntTbCrySno()).thenReturn(null);
+        given(applicationMapRepository.findByApfDcmNo("APF-8"))
+                .willReturn(List.of(incompleteMap));
+
+        assertThat(authorizer.canRead(file("APF-8"), user)).isFalse();
+    }
 }
