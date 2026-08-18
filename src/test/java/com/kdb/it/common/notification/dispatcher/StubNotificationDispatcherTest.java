@@ -3,6 +3,7 @@ package com.kdb.it.common.notification.dispatcher;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.service.EaiService;
@@ -20,7 +21,8 @@ class StubNotificationDispatcherTest {
             new NotificationDispatcherRouter(
                     mock(EaiService.class),
                     new GweProperties("TEST00000001"),
-                    "https://itp.example");
+                    "https://itp.example",
+                    new ObjectMapper());
 
     @Test
     @DisplayName("dispatch: 인앱 채널은 성공 결과만 반환하고 상태를 변경하지 않는다")
