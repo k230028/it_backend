@@ -3,6 +3,7 @@ package com.kdb.it.common.admin.service;
 import com.kdb.it.common.admin.dto.AdminLogDto;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.log.entity.*;
+import com.kdb.it.domain.log.entity.ClangmL;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
@@ -324,7 +325,8 @@ public class AdminLogService {
                         new LogDefinition("bschdm", "협의회 일정 로그", BschdmL.class),
                         new LogDefinition("btermm", "단말기 상세 로그", BtermmL.class),
                         new LogDefinition("capplm", "전자결재 로그", CapplmL.class),
-                        new LogDefinition("ccodem", "공통코드 로그", CcodemL.class));
+                        new LogDefinition("ccodem", "공통코드 로그", CcodemL.class),
+                        new LogDefinition("clangm", "다국어 번역 로그", ClangmL.class));
         return list.stream()
                 .sorted(Comparator.comparing(value -> value.key()))
                 .collect(
