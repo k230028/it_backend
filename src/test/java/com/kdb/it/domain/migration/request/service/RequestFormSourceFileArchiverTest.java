@@ -225,4 +225,26 @@ class RequestFormSourceFileArchiverTest {
         assertThatCode(() -> archiver.archive(files, manifest(entries), results))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    @DisplayName("원본 저장이 실패하면 다음 신청서번호에 다시 저장하지 않는다")
+    void archive_doesNotRetryUploadAfterStorageFailure() {
+        List<MultipartFile> files = List.of(file("a.xlsx"));
+        List<RequestFormDto.FileEntry> entries = List.of(entry("IT부(D01)/a.xlsx", "IT부(D01)"));
+        List<RequestFormDto.FileResult> results =
+                List.of(
+                        result(
+                                "IT부(D01)/a.xlsx",
+                                "IT부(D01)",
+                                RequestFormDto.FileStatus.APPLIED,
+                                List.of("APF-1", "APF-2")));
+
+        given(fileService.uploadFile(any(), any())).willThrow(new RuntimeException("디스크 오류"));
+
+        assertThatCode(() -> archiver.archive(files, manifest(entries), results))
+                .doesNotThrowAnyException();
+
+        then(fileService).should(times(1)).uploadFile(any(), any());
+        then(fileService).should(never()).linkExistingFile(any(), any());
+    }
 }

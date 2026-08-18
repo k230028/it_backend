@@ -4,6 +4,7 @@ import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -97,14 +98,26 @@ public class RequestFormSourceFileArchiver {
      * <p>첫 신청서번호에만 디스크에 쓰고, 나머지는 그 물리 파일을 공유하는 메타행만 만듭니다.
      */
     private void archiveOne(MultipartFile file, Set<String> apfMngNos, String deptName) {
-        String sourceFlMpnId = null;
-        for (String apfMngNo : apfMngNos) {
+        Iterator<String> applicationNumbers = apfMngNos.iterator();
+        String firstApfMngNo = applicationNumbers.next();
+        String sourceFlMpnId;
+        try {
+            sourceFlMpnId = fileService.uploadFile(file, request(firstApfMngNo));
+        } catch (RuntimeException e) {
+            // 원본 파일을 확보하지 못하면 나머지 신청서번호에는 재연결할 물리 파일도 없다
+            log.error(
+                    "편성요청서 반입 원본 보관 실패: deptName={}, apfMngNo={}, fileName={}",
+                    deptName,
+                    firstApfMngNo,
+                    file.getOriginalFilename(),
+                    e);
+            return;
+        }
+
+        while (applicationNumbers.hasNext()) {
+            String apfMngNo = applicationNumbers.next();
             try {
-                if (sourceFlMpnId == null) {
-                    sourceFlMpnId = fileService.uploadFile(file, request(apfMngNo));
-                } else {
-                    fileService.linkExistingFile(sourceFlMpnId, request(apfMngNo));
-                }
+                fileService.linkExistingFile(sourceFlMpnId, request(apfMngNo));
             } catch (RuntimeException e) {
                 // 보관 실패가 이미 커밋된 원장을 되돌리게 두지 않는다. 해당 건은 파일 0건 상태로 남는다
                 log.error(
