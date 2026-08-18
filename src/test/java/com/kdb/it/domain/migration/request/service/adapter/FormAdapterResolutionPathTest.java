@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
@@ -64,6 +66,19 @@ class FormAdapterResolutionPathTest {
                 new CapitalOverviewReader(scanner, labelReader, new FormCheckboxReader()),
                 resourceTableReader,
                 catalogReader);
+    }
+
+    /** 통화 공통코드(`CUR_C`)를 답하도록 미리 스텁한 시트 ③ 어댑터. */
+    private GeneralExpenseFormAdapter generalExpenseAdapter() {
+        when(catalogReader.candidates(CommonCodeGroups.CURRENCY, false))
+                .thenReturn(
+                        List.of(
+                                new MigrationDto.Candidate("KRW", "원화"),
+                                new MigrationDto.Candidate("USD", "미국 달러"),
+                                new MigrationDto.Candidate("GBP", "영국 파운드"),
+                                new MigrationDto.Candidate("JPY", "일본 엔")));
+        return new GeneralExpenseFormAdapter(
+                scanner, new FormApproverReader(scanner), catalogReader);
     }
 
     private FormAdapterContext contextOf(byte[] bytes, Map<String, String> overrides) {
@@ -184,8 +199,7 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③ 정보보호 표기를 해석하지 못하면 미해석 진단을 낸다")
     void generalExpenseInfoSecUnresolved() {
-        GeneralExpenseFormAdapter adapter =
-                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
+        GeneralExpenseFormAdapter adapter = generalExpenseAdapter();
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(generalExpenseSheet("해당없음", "GBP"), Map.of()));
@@ -199,8 +213,7 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③에 원화 행이 없으면 단위 제안이 원 단위로 떨어진다")
     void generalExpenseWithoutKrwRowSuggestsWon() {
-        GeneralExpenseFormAdapter adapter =
-                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
+        GeneralExpenseFormAdapter adapter = generalExpenseAdapter();
         FormAdapterContext context =
                 new FormAdapterContext(
                         workbookReader.classify(
@@ -225,8 +238,7 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("연간 금액이 비면 금액을 채우지 않는다")
     void generalExpenseWithoutAnnualLeavesAmountNull() {
-        GeneralExpenseFormAdapter adapter =
-                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
+        GeneralExpenseFormAdapter adapter = generalExpenseAdapter();
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(generalExpenseWithoutAnnual(), Map.of()));
@@ -285,8 +297,7 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③ 헤더가 한 행뿐이면 바로 다음 행부터 데이터로 읽는다")
     void generalExpenseWithSingleRowHeader() {
-        GeneralExpenseFormAdapter adapter =
-                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
+        GeneralExpenseFormAdapter adapter = generalExpenseAdapter();
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(generalExpenseSingleRowHeader(), Map.of()));
@@ -298,8 +309,7 @@ class FormAdapterResolutionPathTest {
     @Test
     @DisplayName("시트 ③의 서식만 남은 빈 행은 건너뛴다")
     void generalExpenseSkipsFormattingOnlyRows() {
-        GeneralExpenseFormAdapter adapter =
-                new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
+        GeneralExpenseFormAdapter adapter = generalExpenseAdapter();
 
         FormAdapterOutput output = adapter.adapt(contextOf(generalExpenseWithBlankRow(), Map.of()));
 

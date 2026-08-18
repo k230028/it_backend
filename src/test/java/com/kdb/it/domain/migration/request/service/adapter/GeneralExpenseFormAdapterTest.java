@@ -8,6 +8,7 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
+import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
@@ -15,6 +16,7 @@ import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.service.WorkbookReader;
 import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
+import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +29,22 @@ class GeneralExpenseFormAdapterTest {
 
     private final WorkbookReader reader = new WorkbookReader(10_485_760L, 20, 5000);
     private final SheetAnchorScanner scanner = new SheetAnchorScanner();
+    private final MigrationIoeCatalogReader catalogReader = currencyCatalogReader();
     private final GeneralExpenseFormAdapter adapter =
-            new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner));
+            new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner), catalogReader);
+
+    /** 통화 공통코드(`CUR_C`)만 답하는 카탈로그 리더. 실 DB의 통화 목록을 흉내 냅니다. */
+    private static MigrationIoeCatalogReader currencyCatalogReader() {
+        MigrationIoeCatalogReader mock = Mockito.mock(MigrationIoeCatalogReader.class);
+        Mockito.when(mock.candidates(CommonCodeGroups.CURRENCY, false))
+                .thenReturn(
+                        List.of(
+                                new MigrationDto.Candidate("KRW", "원화"),
+                                new MigrationDto.Candidate("USD", "미국 달러"),
+                                new MigrationDto.Candidate("GBP", "영국 파운드"),
+                                new MigrationDto.Candidate("JPY", "일본 엔")));
+        return mock;
+    }
 
     private FormAdapterContext contextOf(byte[] workbookBytes, AmountUnit unit) {
         return contextOf(workbookBytes, unit, Map.of());
@@ -363,5 +379,99 @@ class GeneralExpenseFormAdapterTest {
                         "12345678");
 
         assertThat(adapter.adapt(context).costs()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("통화 칸이 비면 행 단위로 차단하고 통화 후보를 준다")
+    void blocksRowWithBlankCurrency() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseBadCurrencyXls(),
+                                AmountUnit.WON));
+
+        assertThat(output.diagnostics())
+                .filteredOn(d -> "curC".equals(d.field()))
+                .anySatisfy(
+                        d -> {
+                            assertThat(d.excelRow()).isEqualTo(6);
+                            assertThat(d.subject()).isEqualTo("통화 없는 계약");
+                            assertThat(d.code())
+                                    .isEqualTo(RequestFormDiagnosticCode.CODE_UNRESOLVED);
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
+                            assertThat(d.decision()).isEqualTo(RequestFormDecisionKind.SELECT);
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .contains("KRW", "USD");
+                        });
+    }
+
+    @Test
+    @DisplayName("통화코드가 아닌 표기도 행 단위로 차단한다")
+    void blocksRowWithUnknownCurrencyLabel() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseBadCurrencyXls(),
+                                AmountUnit.WON));
+
+        assertThat(output.diagnostics())
+                .filteredOn(d -> "curC".equals(d.field()))
+                .anySatisfy(
+                        d -> {
+                            assertThat(d.excelRow()).isEqualTo(7);
+                            assertThat(d.message()).contains("원화");
+                        });
+    }
+
+    @Test
+    @DisplayName("통화코드는 대소문자를 가리지 않고 확정한다")
+    void resolvesCurrencyCaseInsensitively() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseBadCurrencyXls(),
+                                AmountUnit.WON));
+
+        assertThat(output.costs())
+                .filteredOn(cost -> "정상 외화 계약".equals(cost.getCttNm()))
+                .singleElement()
+                .satisfies(
+                        cost -> {
+                            assertThat(cost.getCurC()).isEqualTo("USD");
+                            assertThat(cost.getFcAmt())
+                                    .isEqualByComparingTo(new BigDecimal("12000"));
+                            assertThat(cost.getCostTotXpAmt()).isNull();
+                        });
+    }
+
+    @Test
+    @DisplayName("통화 보정값이 있으면 시트값보다 우선하고 진단을 내지 않는다")
+    void currencyOverrideWinsOverSheetValue() {
+        Map<String, String> overrides =
+                Map.of(
+                        FormAdapterContext.overrideKey(FormSheetKind.GENERAL_EXPENSE, 6, "curC"),
+                        "KRW");
+
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseBadCurrencyXls(),
+                                AmountUnit.WON,
+                                overrides));
+
+        assertThat(output.diagnostics())
+                .filteredOn(d -> "curC".equals(d.field()))
+                .extracting(RequestFormDto.FormDiagnostic::excelRow)
+                .doesNotContain(6);
+        assertThat(output.costs())
+                .filteredOn(cost -> "통화 없는 계약".equals(cost.getCttNm()))
+                .singleElement()
+                .satisfies(
+                        cost -> {
+                            assertThat(cost.getCurC()).isEqualTo("KRW");
+                            assertThat(cost.getCostTotXpAmt())
+                                    .isEqualByComparingTo(new BigDecimal("5000000"));
+                        });
     }
 }

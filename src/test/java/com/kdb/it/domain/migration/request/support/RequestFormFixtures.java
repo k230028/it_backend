@@ -403,13 +403,52 @@ public final class RequestFormFixtures {
     /**
      * 편성요청서 시트가 하나도 없는 .xls.
      *
-     * <p>깊은 폴더 구조(`[연도]/[부서명(코드)]/[팀]/[사업]/…`)에서 사업 폴더에 함께 들어 있는 참고 자료를 흉내 냅니다. 반입 대상이 아니므로
-     * 실패가 아니라 건너뜀으로 남아야 합니다.
+     * <p>깊은 폴더 구조(`[연도]/[부서명(코드)]/[팀]/[사업]/…`)에서 사업 폴더에 함께 들어 있는 참고 자료를 흉내 냅니다. 반입 대상이 아니므로 실패가 아니라
+     * 건너뜀으로 남아야 합니다.
      */
     public static byte[] unrelatedSheetXls() {
         try (Workbook wb = new HSSFWorkbook()) {
             Sheet s = wb.createSheet("참고자료");
             put(s, 0, 0, "사업 추진 일정");
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * 시트 ③의 통화 칸이 어긋난 .xls.
+     *
+     * <p>행 구성(0-based 시트 행 → 엑셀 행): 5→6 통화 칸이 빈 행, 6→7 통화코드가 아닌 표기(`원화`), 7→8 정상 `USD` 행.
+     */
+    public static byte[] generalExpenseBadCurrencyXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet s = writeGeneralExpenseHeader(wb, "③ (일반관리비) 전산 일반관리비 편성요청서", false);
+            put(s, 5, 0, "전산 제비");
+            put(s, 5, 1, "회선사용료");
+            put(s, 5, 2, "통화 없는 계약");
+            putNumber(s, 5, 5, 5_000_000d);
+            put(s, 5, 6, "미지정");
+            put(s, 5, 7, "√");
+            put(s, 5, 9, "○");
+
+            put(s, 6, 0, "전산 제비");
+            put(s, 6, 1, "회선사용료");
+            put(s, 6, 2, "통화 표기가 다른 계약");
+            put(s, 6, 3, "원화");
+            putNumber(s, 6, 5, 7_000_000d);
+            put(s, 6, 6, "미지정");
+            put(s, 6, 7, "√");
+            put(s, 6, 9, "○");
+
+            put(s, 7, 0, "전산 제비");
+            put(s, 7, 1, "회선사용료");
+            put(s, 7, 2, "정상 외화 계약");
+            put(s, 7, 3, "usd");
+            putNumber(s, 7, 5, 12_000d);
+            put(s, 7, 6, "Reuters");
+            put(s, 7, 7, "√");
+            put(s, 7, 9, "○");
             return toBytes(wb);
         } catch (IOException e) {
             throw new UncheckedIOException(e);

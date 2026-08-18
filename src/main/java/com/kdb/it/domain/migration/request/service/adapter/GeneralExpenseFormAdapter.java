@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
@@ -12,11 +13,16 @@ import com.kdb.it.domain.migration.request.service.AmountUnitResolver;
 import com.kdb.it.domain.migration.request.service.FormLexicon;
 import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
+import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.springframework.stereotype.Component;
@@ -44,6 +50,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
 
     private final SheetAnchorScanner scanner;
     private final FormApproverReader approverReader;
+    private final MigrationIoeCatalogReader catalogReader;
 
     @Override
     public FormSheetKind trigger() {
@@ -78,7 +85,12 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         if (rows.isEmpty()) return FormAdapterOutput.empty();
 
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
-        AmountUnit unit = resolveUnit(context, rows, diagnostics);
+        // 통화를 먼저 확정한다. 단위 판정이 "원화 행이 있는가"를 근거로 삼으므로 순서를 뒤집을 수 없다
+        List<MigrationDto.Candidate> currencyCandidates =
+                catalogReader.candidates(CommonCodeGroups.CURRENCY, false);
+        Map<Integer, String> currencies =
+                resolveCurrencies(rows, context, currencyCandidates, diagnostics);
+        AmountUnit unit = resolveUnit(context, rows, currencies, diagnostics);
         // 상단 머리말의 작성자가 이 시트의 담당자다. 없으면 비워 둔다
         String author =
                 FormPersonNames.fit(
@@ -89,20 +101,73 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
 
         List<CostDto.CreateRequest> costs = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
-            costs.add(toCreateRequest(row, context, unit, author, diagnostics));
+            costs.add(
+                    toCreateRequest(
+                            row,
+                            context,
+                            currencies.get(row.excelRow()),
+                            unit,
+                            author,
+                            diagnostics));
         }
         return new FormAdapterOutput(List.of(), List.copyOf(costs), List.copyOf(diagnostics), unit);
+    }
+
+    /**
+     * 행마다 통화를 확정합니다.
+     *
+     * <p>보정값 → 시트값 순으로 보고, 공통코드 {@code CUR_C}의 코드값 집합에 없으면(빈칸 포함) 확정하지 않고 BLOCKER 진단을 냅니다. 빈칸을 원화로
+     * 추정하지 않는 이유는 그 추정이 틀리면 금액이 들어가는 컬럼과 단위 경고 여부가 함께 틀리기 때문입니다. 양식에 `통화 구분` 칸이 있으므로 빈칸은 정상 기재가 아니라
+     * 누락입니다.
+     *
+     * @param rows 시트 ③ 데이터 행
+     * @param context 어댑터 실행 맥락 (보정값을 읽습니다)
+     * @param candidates 통화 공통코드 후보. 진단에 그대로 실어 화면에서 고르게 합니다
+     * @param diagnostics 진단 누적 목록. 미해석 행마다 1건씩 더합니다
+     * @return 엑셀 행 번호 → 확정 통화. 확정하지 못한 행은 키가 없습니다
+     */
+    private Map<Integer, String> resolveCurrencies(
+            List<GeneralExpenseRow> rows,
+            FormAdapterContext context,
+            List<MigrationDto.Candidate> candidates,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        Set<String> codes = new LinkedHashSet<>();
+        for (MigrationDto.Candidate candidate : candidates) codes.add(candidate.code());
+
+        Map<Integer, String> resolved = new LinkedHashMap<>();
+        for (GeneralExpenseRow row : rows) {
+            String raw =
+                    context.override(FormSheetKind.GENERAL_EXPENSE, row.excelRow(), "curC")
+                            .orElseGet(row::currency);
+            String normalized = raw == null ? "" : raw.trim().toUpperCase(Locale.ROOT);
+            if (codes.contains(normalized)) {
+                resolved.put(row.excelRow(), normalized);
+                continue;
+            }
+            diagnostics.add(
+                    diagnostic(
+                            row,
+                            "curC",
+                            RequestFormDiagnosticCode.CODE_UNRESOLVED,
+                            normalized.isEmpty()
+                                    ? "통화 구분이 비어 있습니다. 통화를 골라 주세요."
+                                    : "통화 구분 `%s`를 통화코드로 해석하지 못했습니다. 골라 주세요.".formatted(raw.trim()),
+                            candidates));
+        }
+        return resolved;
     }
 
     /** 사용자가 지정한 배수를 우선하고, 없으면 제안값을 계산해 확인 경고를 남깁니다. */
     private AmountUnit resolveUnit(
             FormAdapterContext context,
             List<GeneralExpenseRow> rows,
+            Map<Integer, String> currencies,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         AmountUnit specified = context.entry().generalExpenseUnit();
         if (specified != null) return specified;
 
-        AmountUnit suggested = AmountUnitResolver.suggestGeneralExpenseUnit(krwAnnualAmounts(rows));
+        AmountUnit suggested =
+                AmountUnitResolver.suggestGeneralExpenseUnit(krwAnnualAmounts(rows, currencies));
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.decide(
                         FormSheetKind.GENERAL_EXPENSE,
@@ -119,6 +184,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
     private CostDto.CreateRequest toCreateRequest(
             GeneralExpenseRow row,
             FormAdapterContext context,
+            String currency,
             AmountUnit unit,
             String author,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
@@ -137,7 +203,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         request.setDfrCleC(row.monthly() != null ? CYCLE_MONTHLY : CYCLE_YEARLY);
 
         applyIoe(row, context, request, diagnostics);
-        applyCurrencyAndAmount(row, request, unit);
+        applyCurrencyAndAmount(row, currency, request, unit);
         applyFlags(row, request, diagnostics);
         return request;
     }
@@ -223,20 +289,25 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
      *
      * <p>외화 행은 `FC_AMT`만 채우고 원화금액과 환율은 비워 둡니다. 서버 {@code BudgetAmountCalculator}가 `FC_AMT × Ccodem
      * 환율`로 재계산하므로 여기서 채우면 그 값이 그대로 버려집니다.
+     *
+     * @param currency 확정 통화. null이면 미해석 행이므로 아무것도 채우지 않습니다 (이미 BLOCKER 진단이 나가 파일이 차단됩니다)
      */
     private void applyCurrencyAndAmount(
-            GeneralExpenseRow row, CostDto.CreateRequest request, AmountUnit unit) {
-        String currency = row.currency();
+            GeneralExpenseRow row,
+            String currency,
+            CostDto.CreateRequest request,
+            AmountUnit unit) {
+        if (currency == null) return;
         request.setCurC(currency);
         if (row.annual() == null) return;
 
-        if ("KRW".equalsIgnoreCase(currency)) {
+        if ("KRW".equals(currency)) {
             request.setCostTotXpAmt(unit.toWon(row.annual()));
             request.setFcAmt(null);
             return;
         }
         BigDecimal foreignAmount =
-                "JPY".equalsIgnoreCase(currency)
+                "JPY".equals(currency)
                         ? row.annual().multiply(BigDecimal.valueOf(JPY_MULTIPLIER))
                         : row.annual();
         request.setFcAmt(foreignAmount);
@@ -281,10 +352,11 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                 candidates);
     }
 
-    private static List<BigDecimal> krwAnnualAmounts(List<GeneralExpenseRow> rows) {
+    private static List<BigDecimal> krwAnnualAmounts(
+            List<GeneralExpenseRow> rows, Map<Integer, String> currencies) {
         List<BigDecimal> amounts = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
-            if ("KRW".equalsIgnoreCase(row.currency()) && row.annual() != null) {
+            if ("KRW".equals(currencies.get(row.excelRow())) && row.annual() != null) {
                 amounts.add(row.annual());
             }
         }
