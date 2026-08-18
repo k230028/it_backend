@@ -37,6 +37,7 @@ public class RequestFormImportService {
     private final OrgIdentityResolver orgIdentityResolver;
     private final IoeHierarchyIndex ioeHierarchyIndex;
     private final RequestFormFileImporter fileImporter;
+    private final RequestFormSourceFileArchiver sourceFileArchiver;
     private final List<FormSheetAdapter> adapters;
     private final int maxFilesPerBatch;
 
@@ -45,12 +46,14 @@ public class RequestFormImportService {
             OrgIdentityResolver orgIdentityResolver,
             IoeHierarchyIndex ioeHierarchyIndex,
             RequestFormFileImporter fileImporter,
+            RequestFormSourceFileArchiver sourceFileArchiver,
             List<FormSheetAdapter> adapters,
             @Value("${app.migration.request.max-files-per-batch}") int maxFilesPerBatch) {
         this.workbookReader = workbookReader;
         this.orgIdentityResolver = orgIdentityResolver;
         this.ioeHierarchyIndex = ioeHierarchyIndex;
         this.fileImporter = fileImporter;
+        this.sourceFileArchiver = sourceFileArchiver;
         this.adapters = adapters;
         this.maxFilesPerBatch = maxFilesPerBatch;
     }
@@ -95,6 +98,11 @@ public class RequestFormImportService {
                             overridesByFile.getOrDefault(entry.fileKey(), Map.of()),
                             actorEno,
                             dryRun));
+        }
+        // 원장 반영(파일별 REQUIRES_NEW)이 모두 끝난 뒤에 보관한다. 순서를 뒤집으면 첨부 실패가
+        // 정상 반입을 통째로 되돌린다. 보관은 예외를 던지지 않으므로 여기서 감싸지 않는다.
+        if (!dryRun) {
+            sourceFileArchiver.archive(files, manifest, results);
         }
         return new RequestFormDto.ImportResponse(
                 dryRun, summarize(files.size(), results), List.copyOf(results));

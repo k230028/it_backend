@@ -39,6 +39,7 @@ class RequestFormImportServiceTest {
     @Mock private OrgIdentityResolver.Index orgIndex;
     @Mock private IoeHierarchyIndex ioeHierarchyIndex;
     @Mock private RequestFormFileImporter fileImporter;
+    @Mock private RequestFormSourceFileArchiver sourceFileArchiver;
     @Mock private CapitalProjectFormAdapter capitalAdapter;
     @Mock private RecurringProjectFormAdapter recurringAdapter;
     @Mock private GeneralExpenseFormAdapter generalAdapter;
@@ -68,6 +69,7 @@ class RequestFormImportServiceTest {
                 orgIdentityResolver,
                 ioeHierarchyIndex,
                 fileImporter,
+                sourceFileArchiver,
                 List.of(capitalAdapter, recurringAdapter, generalAdapter),
                 maxFilesPerBatch);
     }
@@ -140,6 +142,38 @@ class RequestFormImportServiceTest {
         assertThat(response.dryRun()).isTrue();
         org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.never())
                 .apply(any(), any(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("dry-run은 원본을 보관하지 않는다")
+    void dryRun_doesNotArchive() {
+        when(fileImporter.preview(any(), any(), anyString())).thenReturn(applied("자금운용실/요청서.xls"));
+
+        service(50)
+                .importBatch(
+                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                        manifest("자금운용실/요청서.xls"),
+                        "12345678",
+                        true);
+
+        org.mockito.Mockito.verify(sourceFileArchiver, org.mockito.Mockito.never())
+                .archive(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("commit은 원본을 보관한다")
+    void commit_archives() {
+        when(fileImporter.apply(any(), any(), anyString(), anyString()))
+                .thenReturn(applied("자금운용실/요청서.xls"));
+
+        service(50)
+                .importBatch(
+                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                        manifest("자금운용실/요청서.xls"),
+                        "12345678",
+                        false);
+
+        org.mockito.Mockito.verify(sourceFileArchiver).archive(any(), any(), any());
     }
 
     @Test
