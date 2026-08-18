@@ -3,7 +3,6 @@ package com.kdb.it.common.admin.service;
 import com.kdb.it.common.admin.dto.AdminLogDto;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.log.entity.*;
-import com.kdb.it.domain.log.entity.ClangmL;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
