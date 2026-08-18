@@ -77,6 +77,22 @@ class ApprovalRequestNotifierTest {
     }
 
     @Test
+    @DisplayName("notifyApprovalRequest: 신청서 제목이 null이면 빈 문자열로 접어 제목·본문을 조립한다")
+    void notifyApprovalRequest_신청서제목null_빈문자열로조립() {
+        Capplm capplm = Capplm.builder().apfMngNo(APF_MNG_NO).dcdReqTtl(null).build();
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("10002", 1, "Y")));
+        given(approvalMailPayloadProvider.render(capplm)).willReturn(null);
+
+        approvalRequestNotifier.notifyApprovalRequest(capplm);
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().ttl()).isEqualTo("결재요청: ");
+        assertThat(captor.getValue().infmMsgCone()).isEmpty();
+    }
+
+    @Test
     @DisplayName("notifyApprovalRequest: 메일 페이로드 생성이 실패해도 sdPayload=null로 알림은 그대로 발행된다")
     void notifyApprovalRequest_메일페이로드생성실패_알림발행유지() {
         Capplm capplm = capplm();
@@ -102,6 +118,19 @@ class ApprovalRequestNotifierTest {
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("   ", 1, "Y")));
 
+        approvalRequestNotifier.notifyApprovalRequest(capplm);
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("notifyApprovalRequest: 다음 결재자 사번이 null이면 isBlank() 호출 없이 알림을 발행하지 않는다")
+    void notifyApprovalRequest_다음결재자사번null_알림생략() {
+        Capplm capplm = capplm();
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover(null, 1, "Y")));
+
+        // dcrEno가 null이면 null 체크에서 단락 평가되어 isBlank() 호출로 인한 NPE 없이 알림이 생략되어야 한다.
         approvalRequestNotifier.notifyApprovalRequest(capplm);
 
         verify(eventPublisher, never()).publishEvent(any());

@@ -40,6 +40,15 @@ class ApprovalMailContextFactoryTest {
     }
 
     @Test
+    @DisplayName("프론트 URL이 null이면 빈 문자열로 대체해 상대 경로만 남긴다")
+    void create_nullFrontendUrl_fallsBackToRelativePath() {
+        ApprovalMailContext context =
+                ApprovalMailContextFactory.create(application(), "홍길동", "IT기획부", null);
+
+        assertThat(context.detailUrl()).isEqualTo("/approval/APF-2026-0001");
+    }
+
+    @Test
     @DisplayName("신청서 값이 그대로 옮겨진다")
     void create_copiesApplicationFields() {
         ApprovalMailContext context =

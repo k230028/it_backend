@@ -74,6 +74,22 @@ class ApprovalMailDataLoaderTest {
     }
 
     @Test
+    @DisplayName("기안자 사번이 null이면 빈 문자열로 조회해 NPE 없이 미매칭으로 처리한다")
+    void loadParties_기안자사번null_빈문자열로조회() {
+        setUp();
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqUsid()).willReturn(null);
+        given(capplm.getDcdReqBbrC()).willReturn("BBR001");
+        given(userRepository.findNameViewByEno("")).willReturn(Optional.empty());
+        given(orgNameResolver.resolveName("BBR001")).willReturn("IT기획부");
+
+        ApprovalMailParties result = loader.loadParties(capplm);
+
+        assertThat(result.requesterName()).isNull();
+        assertThat(result.deptName()).isEqualTo("IT기획부");
+    }
+
+    @Test
     @DisplayName("사용자 조회에서 예외가 나면 삼키지 않고 그대로 전파한다")
     void loadParties_사용자조회예외_예외전파() {
         setUp();
