@@ -56,6 +56,13 @@ class RequestFormFileImporterTest {
         return new FormAdapterOutput(List.of(project), List.of(cost), List.of(), null);
     }
 
+    private static FormAdapterOutput outputWithOneProject() {
+        ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
+        project.setAbusNm("국채전문유통시장 접속인프라 도입");
+        project.setItems(List.of());
+        return new FormAdapterOutput(List.of(project), List.of(), List.of(), null);
+    }
+
     @Test
     @DisplayName("기간 검증을 생략하는 오버로드로 원장을 만든다")
     void createsLedgerWithPeriodValidationSkipped() {
@@ -99,6 +106,23 @@ class RequestFormFileImporterTest {
                         anyString(),
                         eq("12345678"),
                         eq("2026"));
+    }
+
+    @Test
+    @DisplayName("생성된 원장에 반입 받이 신청서번호가 실린다")
+    void apply_carriesApprovalNumber() {
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
+        when(stamper.stamp(any(), any(), any(), any(), any(), any()))
+                .thenReturn("APF-2026-00000007");
+
+        RequestFormDto.FileResult result =
+                importer().apply(outputWithOneProject(), ENTRY, "2026", "12345678");
+
+        assertThat(result.created())
+                .singleElement()
+                .extracting(RequestFormDto.CreatedRecord::apfMngNo)
+                .isEqualTo("APF-2026-00000007");
     }
 
     @Test

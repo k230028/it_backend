@@ -256,17 +256,19 @@ public final class RequestFormDto {
     /**
      * 생성된 원장 1건입니다.
      *
-     * @param table 원천테이블명 (`BPROJM`·`BITEMM`·`BCOSTM`)
-     * @param key 생성된 관리번호
-     * @param label 화면 표시명 (사업명·계약명)
+     * @param table 원천테이블명 (`BPROJM` 또는 `BCOSTM`)
+     * @param key 관리번호
+     * @param label 표시명
+     * @param apfMngNo 이 원장에 붙인 반입 받이 신청서번호. 결재현황에서 반입 원본 파일을 찾는 키입니다
      */
     @Schema(name = "RequestFormCreatedRecord", description = "생성된 원장")
     public record CreatedRecord(
             @Schema(description = "원천테이블명", requiredMode = Schema.RequiredMode.REQUIRED)
                     String table,
             @Schema(description = "관리번호", requiredMode = Schema.RequiredMode.REQUIRED) String key,
-            @Schema(description = "표시명", requiredMode = Schema.RequiredMode.REQUIRED)
-                    String label) {}
+            @Schema(description = "표시명", requiredMode = Schema.RequiredMode.REQUIRED) String label,
+            @Schema(description = "반입 받이 신청서번호", requiredMode = Schema.RequiredMode.REQUIRED)
+                    String apfMngNo) {}
 
     /**
      * 원장 종류별 건수입니다.

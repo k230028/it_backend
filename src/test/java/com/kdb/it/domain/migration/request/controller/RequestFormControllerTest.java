@@ -196,7 +196,10 @@ class RequestFormControllerTest {
                                         ? List.of()
                                         : List.of(
                                                 new RequestFormDto.CreatedRecord(
-                                                        "BCOSTM", "COST-2026-0001", "계약")),
+                                                        "BCOSTM",
+                                                        "COST-2026-0001",
+                                                        "계약",
+                                                        "APF-2026-00000001")),
                                 new RequestFormDto.RecordCounts(0, 0, 1),
                                 AmountUnit.WON)));
     }

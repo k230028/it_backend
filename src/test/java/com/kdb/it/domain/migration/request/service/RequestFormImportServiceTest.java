@@ -97,7 +97,9 @@ class RequestFormImportServiceTest {
                 "자금운용실",
                 RequestFormDto.FileStatus.APPLIED,
                 List.of(),
-                List.of(new RequestFormDto.CreatedRecord("BCOSTM", "COST-2026-0001", "계약")),
+                List.of(
+                        new RequestFormDto.CreatedRecord(
+                                "BCOSTM", "COST-2026-0001", "계약", "APF-2026-00000001")),
                 new RequestFormDto.RecordCounts(0, 0, 1),
                 AmountUnit.WON);
     }
