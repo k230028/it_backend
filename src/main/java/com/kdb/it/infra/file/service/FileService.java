@@ -4,6 +4,7 @@ import com.kdb.it.common.board.service.BoardPostFileCacheService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
@@ -68,6 +69,9 @@ public class FileService {
 
     /** 파일별 업로드를 독립 트랜잭션으로 처리하는 단위 서비스 */
     private final FileUploadUnitService fileUploadUnitService;
+
+    /** 전용 writer 소유 파일 종류의 generic 수정·삭제 차단 정책 */
+    private final FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
 
     /** 공통게시판 게시물의 첨부파일 수 캐시 동기화 서비스 */
     private final BoardPostFileCacheService boardPostFileCacheService;
@@ -394,6 +398,8 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getPkColNm());
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(request.getPkColNm());
         // JPA Dirty Checking으로 자동 UPDATE
         cfilem.updateMeta(request.getPkCone(), request.getPkColNm());
         return flMpnId;
@@ -421,6 +427,7 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getPkColNm());
         // 논리 삭제(DEL_YN = 'Y')
         cfilem.delete();
         syncBoardFileCacheIfNeeded(cfilem.getPkColNm(), cfilem.getPkCone());
@@ -450,6 +457,7 @@ public class FileService {
      */
     @Transactional
     public int deleteFilesByOrc(String pkColNm, String pkCone, CustomUserDetails user) {
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(pkColNm);
         List<Cfilem> files = fileRepository.findAllByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
 
         // 인증 정보가 없으면 대상 목록이 비어 있어도 즉시 거부 — 빈 목록에 기대지 않는 서비스 계약

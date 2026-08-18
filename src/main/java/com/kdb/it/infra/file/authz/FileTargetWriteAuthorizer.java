@@ -10,6 +10,15 @@ public interface FileTargetWriteAuthorizer {
     Set<String> supportedPkColNms();
 
     /**
+     * generic 파일 API가 이 종류의 기존 행을 수정·삭제할 수 있는지 반환합니다.
+     *
+     * @return 기존 종류의 동작을 보존하려면 {@code true}, 전용 writer만 변경할 수 있으면 {@code false}
+     */
+    default boolean allowsGenericMutation() {
+        return true;
+    }
+
+    /**
      * 첨부 대상 부모에 파일을 연결할 수 있는지 판정합니다.
      *
      * @param pkCone 부모 식별자

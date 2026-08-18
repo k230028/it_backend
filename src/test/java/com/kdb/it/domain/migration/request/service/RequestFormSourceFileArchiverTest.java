@@ -54,8 +54,17 @@ class RequestFormSourceFileArchiverTest {
                 null);
     }
 
-    private RequestFormDto.ImportManifest manifest(List<RequestFormDto.FileEntry> entries) {
-        return new RequestFormDto.ImportManifest("2026", List.copyOf(entries), List.of());
+    private void archive(
+            List<MultipartFile> files,
+            List<RequestFormDto.FileEntry> entries,
+            List<RequestFormDto.FileResult> results) {
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan = new ArrayList<>();
+        for (int i = 0; i < files.size(); i++) {
+            plan.add(
+                    new RequestFormSourceFileArchiver.ArchivePlanItem(
+                            files.get(i), entries.get(i).deptName(), results.get(i)));
+        }
+        archiver.archive(plan);
     }
 
     @Test
@@ -79,7 +88,7 @@ class RequestFormSourceFileArchiverTest {
 
         given(fileService.uploadFile(any(), any())).willReturn("FL-00000001", "FL-00000002");
 
-        archiver.archive(files, manifest(entries), results);
+        archive(files, entries, results);
 
         // 파일 2개 × 신청서 2건 = 연결 4개. 디스크 기록은 파일당 1회이므로 upload 2회, link 2회
         then(fileService).should(times(2)).uploadFile(any(), any());
@@ -107,7 +116,7 @@ class RequestFormSourceFileArchiverTest {
 
         given(fileService.uploadFile(any(), any())).willReturn("FL-00000001", "FL-00000002");
 
-        archiver.archive(files, manifest(entries), results);
+        archive(files, entries, results);
 
         ArgumentCaptor<FileDto.UploadRequest> captor =
                 ArgumentCaptor.forClass(FileDto.UploadRequest.class);
@@ -116,6 +125,42 @@ class RequestFormSourceFileArchiverTest {
         assertThat(captor.getAllValues())
                 .extracting(FileDto.UploadRequest::getPkCone)
                 .containsExactlyInAnyOrder("APF-1", "APF-2");
+    }
+
+    @Test
+    @DisplayName("같은 폴더명이 서로 다른 검증 부서코드로 확정되면 파일과 신청서번호를 섞지 않는다")
+    void archive_doesNotCrossEffectiveDepartmentCodes() {
+        MultipartFile firstFile = file("a.xlsx");
+        MultipartFile secondFile = file("b.xlsx");
+        RequestFormDto.FileResult firstResult =
+                result(
+                        "동일폴더/a.xlsx",
+                        "동일폴더",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-D01"));
+        RequestFormDto.FileResult secondResult =
+                result(
+                        "동일폴더/b.xlsx",
+                        "동일폴더",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-D02"));
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
+                List.of(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                firstFile, "D01", firstResult),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                secondFile, "D02", secondResult));
+        given(fileService.uploadFile(any(), any())).willReturn("FL-D01", "FL-D02");
+
+        archiver.archive(plan);
+
+        ArgumentCaptor<FileDto.UploadRequest> requestCaptor =
+                ArgumentCaptor.forClass(FileDto.UploadRequest.class);
+        then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
+        then(fileService).should(never()).linkExistingFile(any(), any());
+        assertThat(requestCaptor.getAllValues())
+                .extracting(FileDto.UploadRequest::getPkCone)
+                .containsExactlyInAnyOrder("APF-D01", "APF-D02");
     }
 
     @Test
@@ -131,7 +176,7 @@ class RequestFormSourceFileArchiverTest {
                                 RequestFormDto.FileStatus.BLOCKED,
                                 List.of()));
 
-        archiver.archive(files, manifest(entries), results);
+        archive(files, entries, results);
 
         then(fileService).should(never()).uploadFile(any(), any());
         then(fileService).should(never()).linkExistingFile(any(), any());
@@ -150,7 +195,7 @@ class RequestFormSourceFileArchiverTest {
                                 RequestFormDto.FileStatus.FAILED,
                                 List.of()));
 
-        archiver.archive(files, manifest(entries), results);
+        archive(files, entries, results);
 
         then(fileService).should(never()).uploadFile(any(), any());
         then(fileService).should(never()).linkExistingFile(any(), any());
@@ -177,7 +222,7 @@ class RequestFormSourceFileArchiverTest {
 
         given(fileService.uploadFile(any(), any())).willReturn("FL-00000001");
 
-        archiver.archive(files, manifest(entries), results);
+        archive(files, entries, results);
 
         then(fileService).should(times(2)).uploadFile(any(), any());
         then(fileService).should(never()).linkExistingFile(any(), any());
@@ -198,7 +243,7 @@ class RequestFormSourceFileArchiverTest {
 
         given(fileService.uploadFile(any(), any())).willReturn("FL-00000001");
 
-        archiver.archive(files, manifest(entries), results);
+        archive(files, entries, results);
 
         ArgumentCaptor<FileDto.UploadRequest> captor =
                 ArgumentCaptor.forClass(FileDto.UploadRequest.class);
@@ -222,8 +267,7 @@ class RequestFormSourceFileArchiverTest {
 
         given(fileService.uploadFile(any(), any())).willThrow(new RuntimeException("디스크 오류"));
 
-        assertThatCode(() -> archiver.archive(files, manifest(entries), results))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> archive(files, entries, results)).doesNotThrowAnyException();
     }
 
     @Test
@@ -241,8 +285,7 @@ class RequestFormSourceFileArchiverTest {
 
         given(fileService.uploadFile(any(), any())).willThrow(new RuntimeException("디스크 오류"));
 
-        assertThatCode(() -> archiver.archive(files, manifest(entries), results))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> archive(files, entries, results)).doesNotThrowAnyException();
 
         then(fileService).should(times(1)).uploadFile(any(), any());
         then(fileService).should(never()).linkExistingFile(any(), any());

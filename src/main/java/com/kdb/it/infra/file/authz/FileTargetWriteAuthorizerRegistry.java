@@ -44,4 +44,17 @@ public class FileTargetWriteAuthorizerRegistry {
             throw new AccessDeniedException("첨부 대상 쓰기 권한이 없습니다.");
         }
     }
+
+    /**
+     * 파일 종류가 generic 수정·삭제를 허용하는지 검증합니다.
+     *
+     * @param pkColNm 현재 또는 변경 후 파일 종류
+     * @throws AccessDeniedException 전용 writer만 관리할 수 있는 종류인 경우
+     */
+    public void verifyGenericMutationAllowed(String pkColNm) {
+        FileTargetWriteAuthorizer authorizer = pkColNm == null ? null : byKind.get(pkColNm);
+        if (authorizer != null && !authorizer.allowsGenericMutation()) {
+            throw new AccessDeniedException("보호된 파일 종류는 generic 파일 API로 변경할 수 없습니다: " + pkColNm);
+        }
+    }
 }

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import com.kdb.it.common.board.service.BoardPostFileCacheService;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
@@ -21,6 +22,8 @@ class FileServiceLinkExistingTest {
     private final FileRepository fileRepository = mock(FileRepository.class);
     private final FileOwnershipChecker fileOwnershipChecker = mock(FileOwnershipChecker.class);
     private final FileUploadUnitService fileUploadUnitService = mock(FileUploadUnitService.class);
+    private final FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry =
+            mock(FileTargetWriteAuthorizerRegistry.class);
     private final BoardPostFileCacheService boardPostFileCacheService =
             mock(BoardPostFileCacheService.class);
 
@@ -29,6 +32,7 @@ class FileServiceLinkExistingTest {
                     fileRepository,
                     fileOwnershipChecker,
                     fileUploadUnitService,
+                    targetWriteAuthorizerRegistry,
                     boardPostFileCacheService);
 
     private FileDto.UploadRequest request() {
