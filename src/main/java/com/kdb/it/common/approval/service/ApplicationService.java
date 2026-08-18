@@ -102,6 +102,16 @@ public class ApplicationService {
     /** 정보화사업관계(TPRMPP_BPROJA) 동기화 서비스: 예산편성 결재 상신(02)/완료(09) 적재용 */
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
+    /** 결재요청 메일 본문 렌더러 */
+    private final com.kdb.it.common.approval.mail.ApprovalMailRenderer approvalMailRenderer;
+
+    /** 조직코드→조직명 해석기: 메일 개요의 작성부서명 표시용 */
+    private final com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
+
+    /** 프론트 기준 URL: 메일의 신청서 상세 링크 조립용 */
+    @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
+    private String frontendUrl;
+
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
 
@@ -242,7 +252,36 @@ public class ApplicationService {
                         // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
                         .infmRcdUrl("/approval/list?tab=pending")
                         .itPtlSdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
+                        .sdPayload(renderApprovalMail(capplm))
                         .build());
+    }
+
+    /**
+     * 결재요청 메일 페이로드를 만듭니다.
+     *
+     * <p>렌더링이나 이름·부서 조회가 실패해도 알림 발행을 막지 않습니다. null을 반환하면 발송 계층이 기존 기본 본문으로 폴백합니다.
+     *
+     * @param capplm 신청서 마스터
+     * @return 메일 페이로드 JSON. 실패 시 null
+     */
+    private String renderApprovalMail(Capplm capplm) {
+        try {
+            String requesterName =
+                    userRepository
+                            .findNameViewByEno(safeText(capplm.getDcdReqUsid()))
+                            .map(user -> user.getUsrNm())
+                            .orElse(null);
+            String deptName = orgNameResolver.resolveName(capplm.getDcdReqBbrC());
+            return approvalMailRenderer.renderPayloadJson(
+                    com.kdb.it.common.approval.mail.ApprovalMailContextFactory.create(
+                            capplm, requesterName, deptName, frontendUrl));
+        } catch (RuntimeException e) {
+            log.warn(
+                    "결재요청 메일 페이로드 생성 실패 — 기본 본문으로 발송합니다: apfMngNo={}, 사유={}",
+                    capplm.getApfMngNo(),
+                    e.toString());
+            return null;
+        }
     }
 
     private static String safeText(String s) {

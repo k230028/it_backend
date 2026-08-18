@@ -201,6 +201,9 @@ class ApplicationServiceTest {
     @Mock private ApprovalLineDelegate approvalLineDelegate;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
+    @Mock private com.kdb.it.common.approval.mail.ApprovalMailRenderer approvalMailRenderer;
+    @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
+
     @InjectMocks private ApplicationService applicationService;
 
     private static final String APF_MNG_NO = "APF_202600000001";
@@ -250,7 +253,9 @@ class ApplicationServiceTest {
                 organizationRepository,
                 eventPublisher,
                 new ApprovalLineDelegate(new ObjectMapper()),
-                bprojaSyncService);
+                bprojaSyncService,
+                approvalMailRenderer,
+                orgNameResolver);
     }
 
     // ───────────────────────────────────────────────────────
