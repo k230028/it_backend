@@ -39,15 +39,24 @@ public class ApprovalMailRenderer {
      * 메일 페이로드 JSON을 만듭니다.
      *
      * @param context 렌더링 입력. {@code null}이면 렌더링을 시도하지 않는다.
-     * @return {@code {"subject":...,"html":...}} JSON. {@code context}가 null이거나 렌더링이 실패하면 {@code
-     *     null}(호출자는 기존 기본 본문으로 폴백)
+     * @return {@code {"subject":...,"html":...}} JSON. {@code context}가 null이거나, 렌더링이 실패하거나, 조립된
+     *     본문이 {@link #CONTENTS_BUDGET_BYTES}를 넘으면 {@code null}(호출자는 기존 기본 본문으로 폴백)
      */
     public String renderPayloadJson(ApprovalMailContext context) {
         if (context == null) {
             return null;
         }
         try {
-            MailPayload payload = new MailPayload(subject(context), html(context));
+            String html = html(context);
+            int bodyBytes = MailHtml.utf8Length(html);
+            if (bodyBytes > CONTENTS_BUDGET_BYTES) {
+                log.warn(
+                        "결재요청 메일 본문이 예산을 초과해 렌더링을 포기합니다: apfMngNo={}, 크기={}바이트",
+                        context.apfMngNo(),
+                        bodyBytes);
+                return null;
+            }
+            MailPayload payload = new MailPayload(subject(context), html);
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException | RuntimeException e) {
             log.warn("결재요청 메일 렌더링 실패: apfMngNo={}, 사유={}", context.apfMngNo(), e.toString());
@@ -263,7 +272,7 @@ public class ApprovalMailRenderer {
      * @param context 렌더링 입력 (전체 보기 링크용)
      * @param entries 구분 순서로 이미 정렬된 목록
      * @param usedBytes 지금까지 조립한 본문의 UTF-8 바이트
-     * @return 목록 섹션 HTML. 머리글이나 첫 행조차 못 넣을 예산이면 잘림 안내만 담은 문구
+     * @return 목록 섹션 HTML. 머리글이나 첫 행조차 못 넣을 예산이면 잘림 안내만 담은 문구, 그 안내조차 못 넣을 예산이면 빈 문자열
      */
     private String itemList(ApprovalMailContext context, List<ListEntry> entries, int usedBytes) {
         if (entries.isEmpty()) {

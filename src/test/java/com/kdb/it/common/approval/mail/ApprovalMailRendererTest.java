@@ -187,6 +187,30 @@ class ApprovalMailRendererTest {
 
         assertThat(html.getBytes(StandardCharsets.UTF_8).length)
                 .isLessThanOrEqualTo(ApprovalMailRenderer.CONTENTS_BUDGET_BYTES);
+        // 예산 초과분이 잘림 안내 자체를 밀어냈는지(가드가 실제로 작동했는지)까지 못박는다.
+        // 이 단언이 없으면 안내가 URL 패딩이 짧아 애초에 트리거되지 않는 경우도 통과해 회귀를 못 잡는다.
+        assertThat(html).doesNotContain("외 ");
+    }
+
+    @Test
+    @DisplayName("제목만으로도 예산을 넘기면 잘림 없이 null을 반환해 폴백을 유도한다")
+    void renderPayloadJson_titleAloneOverflowsBudget_returnsNull() {
+        // 제목 컬럼의 실제 상한은 255자(한글 기준 UTF-8 765바이트)이지만, 실측 결과 개요·총괄표 등 필수 영역은
+        // 약 2.3~3.1KB에 그쳐 255자 제목만으로는 4000바이트를 넘기지 못한다(정상 스냅샷 기준 최대 약 3.1KB).
+        // 애플리케이션 검증을 우회한 값(레거시 데이터 등)이 들어와도 렌더러가 안전해야 하므로, 실제 컬럼 상한을
+        // 크게 웃도는 길이로 가드를 확실히 넘겨 검증한다.
+        String longTitle = "가".repeat(1000);
+        ApprovalMailContext context =
+                new ApprovalMailContext(
+                        "APF-2026-0001",
+                        longTitle,
+                        LocalDate.of(2026, 8, 18),
+                        "홍길동",
+                        "IT기획부",
+                        "https://it.kdb.co.kr/approval/APF-2026-0001",
+                        SNAPSHOT);
+
+        assertThat(renderer.renderPayloadJson(context)).isNull();
     }
 
     @Test
