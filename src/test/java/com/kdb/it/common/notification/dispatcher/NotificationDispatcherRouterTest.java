@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.dto.EaiRequest;
@@ -31,7 +32,8 @@ class NotificationDispatcherRouterTest {
     @DisplayName("itPtlSdTc가 없으면 인앱 성공 결과를 반환하고 EAI를 호출하지 않는다")
     void dispatch_nullChannel_returnsSent() {
         NotificationDispatcherRouter router =
-                new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES, FRONTEND_URL);
+                new NotificationDispatcherRouter(
+                        eaiService, GWE_PROPERTIES, FRONTEND_URL, new ObjectMapper());
         Cinfmm notification = notification(null);
 
         NotificationDispatchResult result = router.dispatch(notification, "{\"id\":1}");
@@ -46,7 +48,8 @@ class NotificationDispatcherRouterTest {
     @DisplayName("외부 EAI 채널이면 GWE 전문 요청으로 EaiService에 위임한다")
     void dispatch_externalChannel_delegatesToEai() {
         NotificationDispatcherRouter router =
-                new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES, FRONTEND_URL);
+                new NotificationDispatcherRouter(
+                        eaiService, GWE_PROPERTIES, FRONTEND_URL, new ObjectMapper());
         Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         when(eaiService.sendEai(any())).thenReturn(EaiResult.success("OK"));
 
@@ -73,7 +76,8 @@ class NotificationDispatcherRouterTest {
     @DisplayName("EAI 실패 결과는 예외를 던지지 않고 원 알림 흐름을 유지한다")
     void dispatch_externalFailure_doesNotThrow() {
         NotificationDispatcherRouter router =
-                new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES, FRONTEND_URL);
+                new NotificationDispatcherRouter(
+                        eaiService, GWE_PROPERTIES, FRONTEND_URL, new ObjectMapper());
         Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         when(eaiService.sendEai(any())).thenReturn(EaiResult.failure("장애"));
 
@@ -90,7 +94,8 @@ class NotificationDispatcherRouterTest {
     @DisplayName("비활성화된 EAI 발송은 성공으로 처리하고 기본 제목과 본문을 사용한다")
     void dispatch_externalSkipped_usesDefaultTextAndReturnsSent() {
         NotificationDispatcherRouter router =
-                new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES, FRONTEND_URL);
+                new NotificationDispatcherRouter(
+                        eaiService, GWE_PROPERTIES, FRONTEND_URL, new ObjectMapper());
         Cinfmm notification =
                 Cinfmm.builder()
                         .infmMsgNo("INF-2026-00000002")
@@ -118,7 +123,8 @@ class NotificationDispatcherRouterTest {
     @DisplayName("지원하지 않는 채널은 인앱 성공으로 처리한다")
     void dispatch_unknownChannel_fallsBackToSent() {
         NotificationDispatcherRouter router =
-                new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES, FRONTEND_URL);
+                new NotificationDispatcherRouter(
+                        eaiService, GWE_PROPERTIES, FRONTEND_URL, new ObjectMapper());
         Cinfmm notification = notification("99");
 
         NotificationDispatchResult result = router.dispatch(notification, "payload");
@@ -131,7 +137,8 @@ class NotificationDispatcherRouterTest {
     @DisplayName("EAI 호출 예외는 실패 결과로 변환한다")
     void dispatch_externalException_returnsFailure() {
         NotificationDispatcherRouter router =
-                new NotificationDispatcherRouter(eaiService, GWE_PROPERTIES, FRONTEND_URL);
+                new NotificationDispatcherRouter(
+                        eaiService, GWE_PROPERTIES, FRONTEND_URL, new ObjectMapper());
         Cinfmm notification = notification(NotificationDispatcherRouter.CHANNEL_EAI_GWE);
         when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("연계 중단"));
 

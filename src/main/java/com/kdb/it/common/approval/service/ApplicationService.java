@@ -8,14 +8,12 @@ import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.event.ApprovalRecalledEvent;
+import com.kdb.it.common.approval.notification.ApprovalRequestNotifier;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
-import com.kdb.it.common.notification.event.NotificationEvent;
-import com.kdb.it.common.notification.util.NotificationMessageFormatter;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -101,6 +99,9 @@ public class ApplicationService {
 
     /** 정보화사업관계(TPRMPP_BPROJA) 동기화 서비스: 예산편성 결재 상신(02)/완료(09) 적재용 */
     private final com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
+
+    /** 결재요청 알림 발행 전담 컴포넌트 — 결재선의 다음 결재자 조회, 메일 페이로드 렌더링, 이벤트 발행을 위임한다. */
+    private final ApprovalRequestNotifier approvalRequestNotifier;
 
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
@@ -195,58 +196,9 @@ public class ApplicationService {
         // 3. 다음 결재 차례인 결재자에게 알림 발행 (결재선의 가장 앞 순번 결재자)
         //    AFTER_COMMIT 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다.
         //    참고: 기안자와 1차 결재자가 동일하더라도 자동 승인하지 않고 명시적 결재를 요구합니다.
-        publishApprovalRequestNotification(capplm);
+        approvalRequestNotifier.notifyApprovalRequest(capplm);
 
         return apfMngNo; // 생성된 신청관리번호 반환
-    }
-
-    /**
-     * 결재선에서 다음 차례인 결재자에게 결재요청 알림을 발행한다.
-     *
-     * <p>{@code IT_PTL_DCD_STS_C = '1'(미결재)}인 결재 항목 중 가장 작은 {@code DCD_SQN}의 결재자가 대상. 발견되지 않으면(=결재선
-     * 모두 처리됨) 알림을 발행하지 않는다.
-     */
-    private void publishApprovalRequestNotification(Capplm capplm) {
-        List<Cdecim> approvers =
-                approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(capplm.getApfMngNo());
-        Cdecim next =
-                approvers.stream()
-                        .filter(a -> DecisionStatus.isPendingCode(a.getItPtlDcdStsC()))
-                        .findFirst()
-                        .orElse(null);
-        if (next == null || next.getDcrEno() == null || next.getDcrEno().isBlank()) {
-            log.info(
-                    "[알림 진단] APPROVAL_REQUEST publishEvent 건너뜀: apfMngNo={}, approvers={}, nextNull={}, nextEnoBlank={}",
-                    capplm.getApfMngNo(),
-                    approvers.size(),
-                    next == null,
-                    next != null && (next.getDcrEno() == null || next.getDcrEno().isBlank()));
-            return;
-        }
-        log.debug(
-                "[알림 진단] APPROVAL_REQUEST publishEvent: apfMngNo={}, recipientEno={}, dcrSqnSno={}",
-                capplm.getApfMngNo(),
-                next.getDcrEno(),
-                next.getDcrSqnSno());
-        eventPublisher.publishEvent(
-                NotificationEvent.builder()
-                        .recipientEno(next.getDcrEno())
-                        .itPtlInfmSvcTc(NotificationEvent.TYPE_APPROVAL_REQUEST)
-                        .ttl(
-                                NotificationMessageFormatter.abbreviate(
-                                        "결재요청: " + safeText(capplm.getDcdReqTtl()), 100))
-                        .infmMsgCone(
-                                NotificationMessageFormatter.abbreviate(
-                                        safeText(capplm.getDcdReqTtl()), 4000))
-                        // 결재 알림은 결재 대기 목록 화면으로 고정 (사용자 정책).
-                        // 상대 path 사용 — Nuxt navigateTo가 내부 라우팅으로 처리하며 운영 호스트와 무관.
-                        .infmRcdUrl("/approval/list?tab=pending")
-                        .itPtlSdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
-                        .build());
-    }
-
-    private static String safeText(String s) {
-        return s == null ? "" : s;
     }
 
     /**
@@ -387,7 +339,7 @@ public class ApplicationService {
             eventPublisher.publishEvent(new ApprovalCompletedEvent(apfMngNo, newApfSts));
         } else if (decision == DecisionStatus.APPROVED) {
             // 중간 승인 → 다음 결재자에게 결재요청 알림 발행
-            publishApprovalRequestNotification(capplm);
+            approvalRequestNotifier.notifyApprovalRequest(capplm);
         }
     }
 

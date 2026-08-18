@@ -1,5 +1,7 @@
 package com.kdb.it.common.notification.dispatcher;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.infra.eai.config.GweProperties;
 import com.kdb.it.infra.eai.dto.EaiRequest;
@@ -32,14 +34,17 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
     private final EaiService eaiService;
     private final GweProperties gweProperties;
     private final String frontendUrl;
+    private final ObjectMapper objectMapper;
 
     public NotificationDispatcherRouter(
             EaiService eaiService,
             GweProperties gweProperties,
-            @Value("${app.frontend-url}") String frontendUrl) {
+            @Value("${app.frontend-url}") String frontendUrl,
+            ObjectMapper objectMapper) {
         this.eaiService = eaiService;
         this.gweProperties = gweProperties;
         this.frontendUrl = frontendUrl;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -52,7 +57,7 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
             return NotificationDispatchResult.sent();
         }
         if (CHANNEL_EAI_GWE.equals(channel)) {
-            return dispatchGwe(notification);
+            return dispatchGwe(notification, sdPayload);
         }
         log.warn(
                 "지원하지 않는 알림 발송 채널입니다. 인앱으로 처리합니다: infmMsgNo={}, itPtlSdTc={}",
@@ -61,7 +66,16 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
         return NotificationDispatchResult.sent();
     }
 
-    private NotificationDispatchResult dispatchGwe(Cinfmm notification) {
+    private NotificationDispatchResult dispatchGwe(Cinfmm notification, String sdPayload) {
+        MailPayload mail = parseMailPayload(notification, sdPayload);
+        String subject =
+                mail != null && StringUtils.hasText(mail.subject())
+                        ? mail.subject()
+                        : defaultText(notification.getTtl(), "IT Portal 알림");
+        String contents =
+                mail != null && StringUtils.hasText(mail.html())
+                        ? mail.html()
+                        : mailContents(defaultText(notification.getInfmMsgCone(), "새 알림이 도착했습니다."));
         try {
             EaiResult result =
                     eaiService.sendEai(
@@ -70,14 +84,8 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
                                     GwePayload.builder()
                                             .msgGubun("3")
                                             .recvIds(normalizeRecipient(notification.getRmsEno()))
-                                            .subject(
-                                                    defaultText(
-                                                            notification.getTtl(), "IT Portal 알림"))
-                                            .contents(
-                                                    mailContents(
-                                                            defaultText(
-                                                                    notification.getInfmMsgCone(),
-                                                                    "새 알림이 도착했습니다.")))
+                                            .subject(subject)
+                                            .contents(contents)
                                             .url("")
                                             .attFlag("0")
                                             .sendId("systemalert")
@@ -90,6 +98,22 @@ public class NotificationDispatcherRouter implements NotificationDispatcher {
         } catch (RuntimeException ex) {
             log.warn("EAI 알림 발송 예외: infmMsgNo={}", notification.getInfmMsgNo(), ex);
             return NotificationDispatchResult.failure(ex.getMessage());
+        }
+    }
+
+    /** 발송 페이로드 해석 — 없거나 깨졌으면 null을 돌려 기본 본문으로 폴백하게 한다. */
+    private MailPayload parseMailPayload(Cinfmm notification, String sdPayload) {
+        if (!StringUtils.hasText(sdPayload)) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(sdPayload, MailPayload.class);
+        } catch (JsonProcessingException e) {
+            log.warn(
+                    "발송 페이로드 해석 실패 — 기본 본문으로 발송합니다: infmMsgNo={}, 사유={}",
+                    notification.getInfmMsgNo(),
+                    e.getOriginalMessage());
+            return null;
         }
     }
 
