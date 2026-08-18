@@ -166,6 +166,30 @@ class ApprovalMailRendererTest {
     }
 
     @Test
+    @DisplayName("잘림 안내조차 예산을 넘기면 안내를 생략하고 4000바이트를 지킨다")
+    void html_noticeItselfOverflowsBudget_omitsNotice() throws Exception {
+        // detailUrl은 개요의 상세보기 버튼과 잘림 안내(moreLink)에 각각 한 번씩, 총 두 번 담긴다.
+        // 900자 이상이면 두 번 담긴 URL만으로도 고정 개요·합계(~2.2KB)를 더해 4000바이트를 넘어선다.
+        String longDetailUrl = "https://it.kdb.co.kr/approval/APF-2026-0001?ref=" + "x".repeat(900);
+        ApprovalMailContext context =
+                new ApprovalMailContext(
+                        "APF-2026-0001",
+                        "전산예산 신청서",
+                        LocalDate.of(2026, 8, 18),
+                        "홍길동",
+                        "IT기획부",
+                        longDetailUrl,
+                        SNAPSHOT);
+
+        String json = renderer.renderPayloadJson(context);
+        assertThat(json).isNotNull();
+        String html = objectMapper.readValue(json, MailPayload.class).html();
+
+        assertThat(html.getBytes(StandardCharsets.UTF_8).length)
+                .isLessThanOrEqualTo(ApprovalMailRenderer.CONTENTS_BUDGET_BYTES);
+    }
+
+    @Test
     @DisplayName("사업명의 HTML 특수문자가 이스케이프된다")
     void html_escapesItemNames() throws Exception {
         String html =

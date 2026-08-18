@@ -274,7 +274,7 @@ public class ApprovalMailRenderer {
         String shell = MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow());
         int consumed = MailHtml.utf8Length(shell);
         if (consumed > budget) {
-            return moreLink(entries.size(), context);
+            return noticeIfFits(notice, usedBytes, entries, context);
         }
 
         StringBuilder included = new StringBuilder();
@@ -290,7 +290,7 @@ public class ApprovalMailRenderer {
             taken++;
         }
         if (taken == 0) {
-            return moreLink(entries.size(), context);
+            return noticeIfFits(notice, usedBytes, entries, context);
         }
         String section =
                 MailHtml.sectionTitle("신청 사업 목록") + MailHtml.table(listHeaderRow() + included);
@@ -298,6 +298,23 @@ public class ApprovalMailRenderer {
             section += moreLink(entries.size() - taken, context);
         }
         return section;
+    }
+
+    /**
+     * 목록 표를 아예 못 실을 때(머리글조차 못 들어가거나 첫 행조차 못 들어감) 잘림 안내라도 넣을지 판단한다.
+     *
+     * <p>안내 문구({@code notice}) 자체도 바이트를 먹는다. {@code usedBytes}(개요·합계 등 필수 본문)만으로 이미 예산을 넘겼다면 안내를
+     * 붙여도 최종 본문이 4000바이트를 넘으므로, 이때는 안내조차 생략하고 빈 문자열을 돌려준다.
+     *
+     * @param notice {@link #moreLink}의 UTF-8 바이트 길이
+     * @param usedBytes 목록 이전까지 조립한 필수 본문의 UTF-8 바이트
+     * @param entries 잘림 안내에 표기할 전체 항목 수의 근거
+     * @param context 잘림 안내의 전체 보기 링크용
+     * @return 안내 문구가 예산 안에 들어오면 그 HTML, 아니면 빈 문자열
+     */
+    private static String noticeIfFits(
+            int notice, int usedBytes, List<ListEntry> entries, ApprovalMailContext context) {
+        return notice + usedBytes <= CONTENTS_BUDGET_BYTES ? moreLink(entries.size(), context) : "";
     }
 
     private static String moreLink(int remaining, ApprovalMailContext context) {
