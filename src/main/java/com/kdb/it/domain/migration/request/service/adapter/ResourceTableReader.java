@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ResourceTableReader {
 
-    /** 시트 1-2의 비목(중분류) 열. `소요예산 | 대분류 | 중분류 | 항목` 배치의 세 번째 열입니다. */
+    /** 구양식 시트 1-2의 비목(중분류) 열. 항목이 D열 이후면 이 C열을 유지합니다. */
     private static final int CAPITAL_RESOURCE_GROUP_COLUMN = 2;
 
     /** 지급주기: 해당없음. 자본예산 품목은 양식에 주기 열이 없어 이 값을 씁니다. */
@@ -42,9 +42,7 @@ public class ResourceTableReader {
     /**
      * 시트 1-2 `소요자원 상세내용`의 표를 읽습니다.
      *
-     * <p>비목(중분류)은 <b>C열 고정</b>입니다. 이 시트는 A열이 블록 라벨(`소요예산`), B열이 대분류(`자본예산`·`일반관리비`), C열이 중분류
-     * (`기계장치(HW)`·`전산제비` 등), D열이 항목명인 고정 배치입니다. 항목 열 기준으로 한 칸 왼쪽을 잡으면 부점이 열을 하나 끼워 넣은 파일에서 대분류나 빈
-     * 열을 비목으로 읽어 조용히 어긋납니다.
+     * <p>구양식은 항목이 D열 이후여도 C열을 비목(중분류)으로 유지합니다. 신양식처럼 항목 자체가 C열이면 바로 왼쪽 B열을 비목으로 읽습니다.
      *
      * @param sheet 1-2 시트
      * @param fromRow 이 행부터 헤더를 찾습니다
@@ -94,8 +92,13 @@ public class ResourceTableReader {
         if (header.isEmpty()) return Optional.empty();
 
         SheetAnchorScanner.HeaderMap map = header.get();
-        // 구분(대분류)·중분류는 헤더 라벨이 `구분` 하나로 병합돼 있어 헤더에서 열을 찾을 수 없다.
-        int groupCol = groupColumn != null ? groupColumn : Math.max(map.column("item") - 1, 0);
+        int itemCol = map.column("item");
+        // 구양식은 중간 보조 열 때문에 C열을 유지해야 하고, 신양식은 항목 자체가 C열이라
+        // 그 바로 왼쪽 B열을 써야 합니다.
+        int groupCol =
+                groupColumn == null || groupColumn >= itemCol
+                        ? Math.max(itemCol - 1, 0)
+                        : groupColumn;
 
         List<ResourceRow> rows = new ArrayList<>();
         String lastGroup = "";

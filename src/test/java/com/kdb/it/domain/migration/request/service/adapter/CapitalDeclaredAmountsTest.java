@@ -70,6 +70,16 @@ class CapitalDeclaredAmountsTest {
     }
 
     @Test
+    @DisplayName("신양식의 계 행도 선언 금액 요약표로 읽는다")
+    void readsSummaryRowLabeledSimpleTotal() {
+        FormAdapterOutput output = adapt(overviewOnly("2,000백만원", 1_265_624_700d, 0d, "계"));
+
+        assertThat(amountWarning(output))
+                .contains("기재 단위를 1-2 품목 합계로 확정하지 못했습니다")
+                .doesNotContain("요약표를 찾지 못했습니다");
+    }
+
+    @Test
     @DisplayName("[조건①] 요약표가 없어도 금액을 적재하지 않고 경고만 낸다")
     void skipsAmountsWhenSummaryAbsent() {
         FormAdapterOutput output = adapt(overviewOnly("2,000백만원", null, null));
@@ -298,11 +308,16 @@ class CapitalDeclaredAmountsTest {
 
     /** 1-1만 담은 시트를 만듭니다. 요약표 값이 null이면 그 칸을 비웁니다. */
     private static Sheet overviewOnly(String wholePeriod, Double yearTotal, Double laterTotal) {
+        return overviewOnly(wholePeriod, yearTotal, laterTotal, "총 계");
+    }
+
+    private static Sheet overviewOnly(
+            String wholePeriod, Double yearTotal, Double laterTotal, String totalLabel) {
         Workbook wb =
                 workbookOf(
                         w -> {
                             Sheet sheet = w.createSheet(OVERVIEW_SHEET_NAME);
-                            writeOverview(sheet, wholePeriod, yearTotal, laterTotal);
+                            writeOverview(sheet, wholePeriod, yearTotal, laterTotal, totalLabel);
                         });
         return wb.getSheetAt(0);
     }
@@ -310,6 +325,15 @@ class CapitalDeclaredAmountsTest {
     /** 1-1 시트에 `총 사업금액(전체기간)`과 요약표(`'26년도 합계`·`'26년도 이후`)를 채웁니다. */
     private static void writeOverview(
             Sheet sheet, String wholePeriod, Double yearTotal, Double laterTotal) {
+        writeOverview(sheet, wholePeriod, yearTotal, laterTotal, "총 계");
+    }
+
+    private static void writeOverview(
+            Sheet sheet,
+            String wholePeriod,
+            Double yearTotal,
+            Double laterTotal,
+            String totalLabel) {
         Row nameRow = sheet.createRow(0);
         cell(nameRow, 2).setCellValue("사업명");
         cell(nameRow, 3).setCellValue("사업");
@@ -321,7 +345,7 @@ class CapitalDeclaredAmountsTest {
             cell(header, 6).setCellValue("'26년도 합계");
             cell(header, 7).setCellValue("'26년도 이후");
             Row totalRow = sheet.createRow(4);
-            cell(totalRow, 0).setCellValue("총 계");
+            cell(totalRow, 0).setCellValue(totalLabel);
             if (yearTotal != null) cell(totalRow, 6).setCellValue(yearTotal);
             if (laterTotal != null) cell(totalRow, 7).setCellValue(laterTotal);
         }
