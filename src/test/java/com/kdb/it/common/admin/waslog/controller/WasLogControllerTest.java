@@ -1,7 +1,9 @@
 package com.kdb.it.common.admin.waslog.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,6 +15,7 @@ import com.kdb.it.common.system.security.JwtUtil;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -75,5 +78,37 @@ class WasLogControllerTest {
                 .andExpect(jsonPath("$[0].id").value("SVR1"))
                 .andExpect(jsonPath("$[0].self").value(true))
                 .andExpect(jsonPath("$[1].id").value("SVR2"));
+    }
+
+    @Test
+    @DisplayName("질의 파라미터를 파싱해 서비스에 그대로 넘긴다")
+    void snapshot_파라미터전달() throws Exception {
+        given(service.snapshot(any(), any()))
+                .willReturn(
+                        new WasLogDto.Snapshot(
+                                "SVR2", "e1", List.of(), 9L, false, List.of(), null));
+
+        mockMvc.perform(
+                        get("/api/admin/was-logs")
+                                .param("instanceId", "SVR2")
+                                .param("afterSeq", "9")
+                                .param("limit", "50")
+                                .param("levels", " ERROR , WARN ,")
+                                .param("logger", "com.kdb.it")
+                                .param("q", "실패"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<String> instanceCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<WasLogDto.Query> queryCaptor =
+                ArgumentCaptor.forClass(WasLogDto.Query.class);
+        verify(service).snapshot(instanceCaptor.capture(), queryCaptor.capture());
+
+        assertThat(instanceCaptor.getValue()).isEqualTo("SVR2");
+        WasLogDto.Query query = queryCaptor.getValue();
+        assertThat(query.afterSeq()).isEqualTo(9L);
+        assertThat(query.limit()).isEqualTo(50);
+        assertThat(query.levels()).containsExactlyInAnyOrder("ERROR", "WARN");
+        assertThat(query.logger()).isEqualTo("com.kdb.it");
+        assertThat(query.keyword()).isEqualTo("실패");
     }
 }
