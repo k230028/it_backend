@@ -2,6 +2,7 @@ package com.kdb.it.domain.migration.request.service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -165,16 +166,23 @@ public final class FormLexicon {
     /**
      * 체크박스 문구를 공통코드 코드값명으로 되돌립니다.
      *
-     * <p>양식은 체크박스 옆에 설명을 덧붙이지만(`부문(본부장) 보고`) 코드표는 짧은 이름(`부문(본부)장`)을 씁니다. 대조표에 없으면 원문을 그대로 넘겨 코드
-     * 조회에서 걸러지게 합니다.
+     * <p>양식은 체크박스 옆에 설명을 덧붙이지만(`부문(본부장) 보고`) 코드표는 짧은 이름(`부문(본부)장`)을 씁니다. 정확 일치를 먼저 보고, 포함된 별칭이 모두
+     * 같은 코드값명으로 수렴할 때만 접습니다. 서로 다른 코드값명이 섞이거나 대조표에 없으면 원문을 그대로 넘겨 코드 조회에서 걸러지게 합니다.
      *
      * @param raw 체크박스 문구
      * @return 공통코드 표기. 대조표에 없으면 원문 그대로. null이면 빈 문자열
      */
     public static String canonicalOptionName(String raw) {
         if (raw == null) return "";
-        String canonical = OPTION_CANONICAL.get(SheetAnchorScanner.normalize(raw));
-        return canonical == null ? raw.trim() : canonical;
+        String normalized = SheetAnchorScanner.normalize(raw);
+        String exact = OPTION_CANONICAL.get(normalized);
+        if (exact != null) return exact;
+
+        Set<String> contained = new LinkedHashSet<>();
+        for (Map.Entry<String, String> alias : OPTION_CANONICAL.entrySet()) {
+            if (normalized.contains(alias.getKey())) contained.add(alias.getValue());
+        }
+        return contained.size() == 1 ? contained.iterator().next() : raw.trim();
     }
 
     private static Map<String, String> optionCanonical() {
@@ -188,6 +196,7 @@ public final class FormLexicon {
         alias(map, "변동가능성 有", "미정(검토중)");
         // 전결권자 (IT_PTL_EDRT_TC). 부점은 직위 통칭을 쓰지만 코드표는 직명을 씁니다
         alias(map, "수석부행장", "전무이사");
+        alias(map, "IDT본부장", "부문(본부)장");
         return Map.copyOf(map);
     }
 
