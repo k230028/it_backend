@@ -5,14 +5,13 @@ import com.kdb.it.domain.banner.service.BannerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,7 +35,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/banners")
 @RequiredArgsConstructor
-@Validated
 @Tag(name = "Banner", description = "/info 홈 배너 API")
 public class BannerController {
 
@@ -96,7 +94,8 @@ public class BannerController {
      * 배너 활성 상태를 변경합니다.
      *
      * @param flMpnId 배너 파일매핑ID
-     * @param request 활성 여부 요청
+     * @param request 활성 여부 요청. {@code active} 누락 시 {@link BannerDto.ActiveRequest}의 Bean
+     *     Validation이 {@code MethodArgumentNotValidException}(400)을 발생시킨다 — 유일한 검증 지점이다.
      * @return 변경된 배너 정보
      * @throws com.kdb.it.exception.CustomGeneralException 해당 배너가 없는 경우
      * @throws org.springframework.security.access.AccessDeniedException 대상이 배너가 아닌 경우
@@ -110,10 +109,7 @@ public class BannerController {
                             + "물리 파일은 어느 쪽에서도 삭제하지 않습니다.")
     public ResponseEntity<BannerDto.Response> setActive(
             @PathVariable("flMpnId") String flMpnId,
-            @RequestBody @NotNull BannerDto.ActiveRequest request) {
-        if (request.getActive() == null) {
-            throw new com.kdb.it.exception.CustomGeneralException("활성 여부(active)는 필수입니다.");
-        }
+            @Valid @RequestBody BannerDto.ActiveRequest request) {
         return ResponseEntity.ok(bannerService.setActive(flMpnId, request.getActive()));
     }
 }

@@ -1,6 +1,7 @@
 package com.kdb.it.domain.banner.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -55,6 +56,7 @@ public class BannerDto {
                 description = "활성 여부. true면 DEL_YN='N', false면 DEL_YN='Y'",
                 example = "false",
                 requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "활성 여부(active)는 필수입니다.")
         private Boolean active;
     }
 }
