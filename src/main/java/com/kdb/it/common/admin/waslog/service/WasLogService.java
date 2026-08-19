@@ -49,6 +49,20 @@ public class WasLogService {
     }
 
     /**
+     * 대상 인스턴스의 스냅샷을 반환한다.
+     *
+     * @param instanceId null이거나 자기 자신이면 로컬 버퍼를 읽는다
+     * @throws IllegalArgumentException 설정에 없는 인스턴스ID인 경우
+     */
+    public WasLogDto.Snapshot snapshot(String instanceId, WasLogDto.Query query) {
+        if (instanceId == null || instanceId.isBlank() || instanceId.equals(selfInstanceId)) {
+            return localSnapshot(query);
+        }
+        // 다른 인스턴스 조회는 Task 4에서 피어 위임으로 구현한다. 그때까지는 알 수 없는 인스턴스와 같이 다룬다.
+        throw new IllegalArgumentException("알 수 없는 인스턴스: " + instanceId);
+    }
+
+    /**
      * 로컬 링버퍼 스냅샷을 조건에 맞춰 반환한다.
      *
      * @throws IllegalArgumentException 허용되지 않은 레벨이 포함된 경우
