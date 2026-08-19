@@ -64,6 +64,9 @@ public class RequestFormImportService {
     /**
      * 배치 1회를 처리합니다.
      *
+     * <p>commit 경로에서는 원장 반영이 끝난 뒤 반입 원본 파일을 공통첨부파일에 보관합니다({@link RequestFormSourceFileArchiver}).
+     * 보관 실패는 반입 결과에 영향을 주지 않습니다.
+     *
      * @param files 업로드 파일. `manifest.entries`와 순서로 짝지어집니다
      * @param manifest 예산연도·파일별 부가 정보·보정값
      * @param actorEno 업로드 사용자 사번

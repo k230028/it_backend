@@ -2,7 +2,9 @@ package com.kdb.it.domain.migration.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,17 @@ import org.junit.jupiter.api.Test;
  * 읽으므로, 컬럼을 추가·삭제할 때 두 파일과 이 테스트를 함께 갱신합니다.
  */
 class MigrationColumnsTest {
+
+    @Test
+    @DisplayName("생성자는 유틸 클래스 인스턴스 생성을 차단한다")
+    void constructor_인스턴스화시_예외발생() throws Exception {
+        var constructor = MigrationColumns.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        assertThat(catchThrowable(constructor::newInstance))
+                .isInstanceOf(InvocationTargetException.class)
+                .hasCauseInstanceOf(UnsupportedOperationException.class);
+    }
 
     @Test
     @DisplayName("전산일반관리비 시트의 정규 컬럼 id 목록을 고정한다")

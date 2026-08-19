@@ -203,6 +203,7 @@ class ApplicationServiceTest {
     @Mock private ApprovalRequestNotifier approvalRequestNotifier;
 
     @InjectMocks private ApplicationService applicationService;
+    @InjectMocks private PendingApproverService pendingApproverService;
 
     private static final String APF_MNG_NO = "APF_202600000001";
 
@@ -1153,7 +1154,7 @@ class ApplicationServiceTest {
         given(userRepository.findById("20002"))
                 .willReturn(Optional.of(CuserI.builder().eno("20002").build()));
 
-        applicationService.changePendingApprover(APF_MNG_NO, 2, "20002", "10001", false);
+        pendingApproverService.changePendingApprover(APF_MNG_NO, 2, "20002", "10001", false);
 
         assertThat(target.getDcrEno()).isEqualTo("20002");
     }
@@ -1166,7 +1167,7 @@ class ApplicationServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                applicationService.changePendingApprover(
+                                pendingApproverService.changePendingApprover(
                                         APF_MNG_NO, 1, "20001", "99999", false))
                 .isInstanceOf(AccessDeniedException.class);
     }
@@ -1180,7 +1181,7 @@ class ApplicationServiceTest {
         given(userRepository.findById("20001"))
                 .willReturn(Optional.of(CuserI.builder().eno("20001").build()));
 
-        applicationService.changePendingApprover(APF_MNG_NO, 1, "20001", "99999", true);
+        pendingApproverService.changePendingApprover(APF_MNG_NO, 1, "20001", "99999", true);
 
         assertThat(target.getDcrEno()).isEqualTo("20001");
     }
@@ -1195,8 +1196,48 @@ class ApplicationServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                applicationService.changePendingApprover(
+                                pendingApproverService.changePendingApprover(
                                         APF_MNG_NO, 1, "20001", "10001", false))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("changePendingApprover: 결재선이 없으면 변경할 수 없다")
+    void changePendingApprover_결재선없음_거부() {
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of());
+
+        assertThatThrownBy(
+                        () ->
+                                pendingApproverService.changePendingApprover(
+                                        APF_MNG_NO, 1, "20001", "10001", true))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("changePendingApprover: 존재하지 않는 결재 순번은 변경할 수 없다")
+    void changePendingApprover_결재순번없음_거부() {
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("10001", 1, "Y")));
+
+        assertThatThrownBy(
+                        () ->
+                                pendingApproverService.changePendingApprover(
+                                        APF_MNG_NO, 2, "20001", "10001", false))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("changePendingApprover: 존재하지 않는 직원으로 변경할 수 없다")
+    void changePendingApprover_직원없음_거부() {
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("10001", 1, "Y")));
+        given(userRepository.findById("20001")).willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                pendingApproverService.changePendingApprover(
+                                        APF_MNG_NO, 1, "20001", "10001", false))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

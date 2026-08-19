@@ -2,6 +2,7 @@ package com.kdb.it.common.approval.controller;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.approval.service.PendingApproverService;
 import com.kdb.it.common.mfa.domain.MfaPurpose;
 import com.kdb.it.common.mfa.security.MfaRequired;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +47,8 @@ public class ApplicationController {
 
     /** 신청서 비즈니스 로직 서비스 */
     private final ApplicationService applicationService;
+
+    private final PendingApproverService pendingApproverService;
 
     /**
      * 전체 신청서 목록 조회
@@ -240,13 +243,13 @@ public class ApplicationController {
     @MfaRequired(purpose = MfaPurpose.APPROVAL)
     @Operation(summary = "미결재 결재자 변경", description = "관리자 또는 해당 결재선 직원이 미결재 결재자를 변경합니다.")
     public ResponseEntity<Void> changePendingApprover(
-            @PathVariable String apfMngNo,
-            @PathVariable int dcdSqn,
+            @PathVariable("apfMngNo") String apfMngNo,
+            @PathVariable("dcdSqn") int dcdSqn,
             @Valid @RequestBody ApplicationDto.ChangeApproverRequest request,
             Authentication auth) {
         boolean isAdmin =
                 auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
-        applicationService.changePendingApprover(
+        pendingApproverService.changePendingApprover(
                 apfMngNo, dcdSqn, request.getNewApproverEno(), auth.getName(), isAdmin);
         return ResponseEntity.noContent().build();
     }

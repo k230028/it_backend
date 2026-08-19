@@ -73,7 +73,7 @@ it_backend/
 ├── src/main/java/com/kdb/it/
 │   ├── config/       Security, JPA, QueryDSL, Swagger 설정
 │   ├── common/       인증, SSO, IAM, 결재, 게시판, 코드, 알림, 관리자 공통 기능
-│   ├── domain/       예산, 사업계획, 협의회, 사업 집행, 메뉴, 감사 도메인
+│   ├── domain/       예산, 사업계획, 협의회, 사업 집행, 메뉴, 이관(편성요청서 반입), 감사 도메인
 │   ├── exception/    전역 예외 처리
 │   └── infra/        파일, AI, EAI 외부 연동
 ├── src/main/resources/
@@ -115,6 +115,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `domain.estimate`, `domain.deliberation`, `domain.contract`, `domain.payment` | 사업 집행의 소요예산·심의·계약·지급 단계               | 정보화사업을 기준으로 단계별 문서와 상태를 관리                      |
 | `domain.menu`                                                                 | 사용자 메뉴 조회와 관리자 메뉴·라우트 관리             | 인증 주체의 권한에 맞는 프론트 메뉴 구성을 제공                      |
 | `domain.log`                                                                  | 업무 엔티티 변경 스냅샷                                | `@LogTarget`이 지정된 엔티티의 생성·수정·논리삭제를 기록             |
+| `domain.migration`                                                            | 수기 엑셀(편성요청서) 반입 — 검증·진단, 원장 생성, 결재완료 표식, 원본 파일 보관 | `budget`의 원장(`BPROJM`·`BCOSTM`), `common.approval` 신청서, `infra.file` 첨부에 연결 |
 | `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동             | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |
 
 ## 사업계획(`bizplan`) 흐름

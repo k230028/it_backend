@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.approval.service.PendingApproverService;
 import com.kdb.it.common.mfa.security.MfaGuardConfiguration;
 import com.kdb.it.common.mfa.service.MfaService;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -58,6 +59,7 @@ class ApplicationControllerTest {
     @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private ApplicationService applicationService;
+    @MockitoBean private PendingApproverService pendingApproverService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
     @MockitoBean private MfaService mfaService;

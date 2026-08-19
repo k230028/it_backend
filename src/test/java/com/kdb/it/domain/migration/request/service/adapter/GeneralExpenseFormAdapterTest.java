@@ -533,4 +533,24 @@ class GeneralExpenseFormAdapterTest {
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .doesNotContain(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
     }
+
+    @Test
+    @DisplayName("통화가 미해석인 행이 남아 있으면 원화 행이 없어도 금액 단위 확인을 묻는다")
+    void asksUnitWhenCurrencyStillUnresolved() {
+        // Arrange: 보정을 주지 않아 통화 칸이 빈 행과 `원화` 표기 행이 미해석으로 남는다.
+        // 해석된 행은 `usd` 하나뿐이라 원화 행은 0건이다.
+        FormAdapterContext context =
+                contextOf(RequestFormFixtures.generalExpenseBadCurrencyXls(), null);
+
+        // Act
+        FormAdapterOutput output = adapter.adapt(context);
+
+        // Assert: 원화 행이 없다는 이유만으로 경고를 생략하면, 사용자가 미해석 행을 KRW로 고쳐
+        // 반영하는 순간 배수가 확인 없이 추정 적용된다. 미해석 행이 남아 있는 동안은 물어야 한다.
+        assertThat(output.costs()).extracting(CostDto.CreateRequest::getCurC).doesNotContain("KRW");
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .contains(RequestFormDiagnosticCode.CODE_UNRESOLVED)
+                .contains(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
+    }
 }
