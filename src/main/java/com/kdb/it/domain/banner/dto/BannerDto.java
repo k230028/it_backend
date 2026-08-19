@@ -37,6 +37,11 @@ public class BannerDto {
         @Schema(description = "이미지 미리보기 URL", example = "/api/files/FL-00000001/preview")
         private String previewUrl;
 
+        @Schema(
+                description = "관리자 전용 미리보기 URL. DEL_YN과 무관하게 서빙하므로 비활성 배너도 렌더링된다.",
+                example = "/api/banners/FL-00000001/preview")
+        private String adminPreviewUrl;
+
         @Schema(description = "최초등록일시")
         private LocalDateTime fstEnrDtm;
 

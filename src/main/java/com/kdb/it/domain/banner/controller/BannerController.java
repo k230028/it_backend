@@ -2,13 +2,18 @@ package com.kdb.it.domain.banner.controller;
 
 import com.kdb.it.domain.banner.dto.BannerDto;
 import com.kdb.it.domain.banner.service.BannerService;
+import com.kdb.it.infra.file.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -111,5 +116,38 @@ public class BannerController {
             @PathVariable("flMpnId") String flMpnId,
             @Valid @RequestBody BannerDto.ActiveRequest request) {
         return ResponseEntity.ok(bannerService.setActive(flMpnId, request.getActive()));
+    }
+
+    /**
+     * 관리자 전용으로 배너 이미지를 미리봅니다. 활성·비활성 여부와 무관하게 서빙합니다.
+     *
+     * <p>일반 {@code /api/files/{id}/preview}는 {@code DEL_YN='N'}만 서빙하므로 비활성화된 배너는 관리 화면에서
+     * 깨진 이미지로 보인다. 관리자가 재활성화 대상을 미리 볼 수 있도록 이 경로에서만 삭제 여부를 무시한다.
+     *
+     * @param flMpnId 배너 파일매핑ID
+     * @return 이미지 리소스와 인라인 표시 헤더
+     * @throws com.kdb.it.exception.CustomGeneralException 해당 배너가 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 대상이 배너가 아닌 경우
+     */
+    @GetMapping("/{flMpnId}/preview")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "배너 미리보기 (관리자)",
+            description =
+                    "DEL_YN과 무관하게 배너 이미지를 인라인으로 표시합니다. 관리 화면에서 비활성 배너 썸네일과 미리보기에 사용합니다.")
+    public ResponseEntity<Resource> adminPreview(@PathVariable("flMpnId") String flMpnId) {
+        FileService.FileDownloadResult result = bannerService.getAdminPreviewImage(flMpnId);
+
+        ContentDisposition contentDisposition =
+                ContentDisposition.inline()
+                        .filename(result.originalFilename(), StandardCharsets.UTF_8)
+                        .build();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentDisposition(contentDisposition);
+
+        MediaType mediaType = MediaType.parseMediaType(result.contentType());
+
+        return ResponseEntity.ok().headers(headers).contentType(mediaType).body(result.resource());
     }
 }

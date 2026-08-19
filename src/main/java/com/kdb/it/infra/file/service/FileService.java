@@ -506,7 +506,21 @@ public class FileService {
                                 () ->
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
+        return downloadFile(cfilem);
+    }
 
+    /**
+     * 이미 조회된 파일 엔티티로 다운로드용 Resource를 반환합니다.
+     *
+     * <p>{@link #downloadFile(String)}의 DB 조회 이후 로직을 재사용하기 위한 오버로드입니다. 호출자가 {@code DEL_YN}과
+     * 무관하게 이미 파일을 조회한 경우(예: 배너 관리자 미리보기)에 사용합니다 — 이 메서드 자체는 삭제 여부를 검사하지 않습니다.
+     *
+     * @param cfilem 이미 조회된 파일 엔티티
+     * @return 파일 Resource (스트림으로 클라이언트에 전송)
+     * @throws CustomGeneralException 필수 메타데이터가 비어 있거나 디스크에서 찾을 수 없는 경우
+     */
+    public FileDownloadResult downloadFile(Cfilem cfilem) {
+        String flMpnId = cfilem.getFlMpnId();
         if (!StringUtils.hasText(cfilem.getFlKpnPth())
                 || !StringUtils.hasText(cfilem.getFlPysNm())) {
             throw new CustomGeneralException("파일 메타데이터가 불완전합니다. 파일매핑ID: " + flMpnId);

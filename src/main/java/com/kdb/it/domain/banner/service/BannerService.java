@@ -7,6 +7,7 @@ import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import com.kdb.it.infra.file.service.FileService;
+import com.kdb.it.infra.file.service.FileService.FileDownloadResult;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -101,6 +102,7 @@ public class BannerService {
                 .apgFlSz(uploaded.getApgFlSz())
                 .active(true)
                 .previewUrl(previewUrl(uploaded.getFlMpnId()))
+                .adminPreviewUrl(adminPreviewUrl(uploaded.getFlMpnId()))
                 .fstEnrDtm(uploaded.getFstEnrDtm())
                 .fstEnrUsid(uploaded.getFstEnrUsid())
                 .build();
@@ -117,16 +119,7 @@ public class BannerService {
      */
     @Transactional
     public BannerDto.Response setActive(String flMpnId, boolean active) {
-        Cfilem file =
-                fileRepository
-                        .findById(flMpnId)
-                        .orElseThrow(
-                                () -> new CustomGeneralException("배너를 찾을 수 없습니다: " + flMpnId));
-
-        // 배너 API로 다른 종류의 삭제된 파일을 되살릴 수 없게 막는다.
-        if (!BannerFileReadAuthorizer.BANNER_KIND.equals(file.getPkColNm())) {
-            throw new AccessDeniedException("배너가 아닌 파일은 배너 API로 변경할 수 없습니다.");
-        }
+        Cfilem file = requireBannerFile(flMpnId);
 
         if (active) {
             file.restore();
@@ -134,6 +127,45 @@ public class BannerService {
             file.delete();
         }
         return toResponse(file, active);
+    }
+
+    /**
+     * 관리자 전용으로 배너 미리보기 이미지를 조회합니다. {@code DEL_YN}과 무관하게 서빙합니다.
+     *
+     * <p>일반 {@code /api/files/{id}/preview}는 {@code DEL_YN='N'}만 서빙하므로 비활성화된 배너는 관리 화면에서
+     * 깨진 이미지로 보인다. 배너 관리자는 재활성화 대상을 미리 봐야 하므로 이 배너 전용 경로에서만 삭제 여부를 무시한다.
+     *
+     * @param flMpnId 배너 파일매핑ID
+     * @return 파일 다운로드 결과 (Resource·원본파일명·MIME 타입)
+     * @throws CustomGeneralException 해당 파일매핑ID가 없는 경우
+     * @throws AccessDeniedException 대상 파일이 배너가 아닌 경우
+     */
+    @Transactional(readOnly = true)
+    public FileDownloadResult getAdminPreviewImage(String flMpnId) {
+        Cfilem file = requireBannerFile(flMpnId);
+        return fileService.downloadFile(file);
+    }
+
+    /**
+     * 파일매핑ID로 배너 파일을 조회합니다. {@code DEL_YN}과 무관하게 조회하며 배너가 아니면 거부합니다.
+     *
+     * @param flMpnId 배너 파일매핑ID
+     * @return 조회된 배너 파일 엔티티
+     * @throws CustomGeneralException 해당 파일매핑ID가 없는 경우
+     * @throws AccessDeniedException 대상 파일이 배너가 아닌 경우
+     */
+    private Cfilem requireBannerFile(String flMpnId) {
+        Cfilem file =
+                fileRepository
+                        .findById(flMpnId)
+                        .orElseThrow(
+                                () -> new CustomGeneralException("배너를 찾을 수 없습니다: " + flMpnId));
+
+        // 배너 API로 다른 종류의 파일을 조회·변경할 수 없게 막는다.
+        if (!BannerFileReadAuthorizer.BANNER_KIND.equals(file.getPkColNm())) {
+            throw new AccessDeniedException("배너가 아닌 파일은 배너 API로 조회·변경할 수 없습니다.");
+        }
+        return file;
     }
 
     /** 확장자가 허용 이미지 목록에 있는지 검증한다. */
@@ -154,6 +186,7 @@ public class BannerService {
                 .apgFlSz(file.getApgFlSz())
                 .active(active)
                 .previewUrl(previewUrl(file.getFlMpnId()))
+                .adminPreviewUrl(adminPreviewUrl(file.getFlMpnId()))
                 .fstEnrDtm(file.getFstEnrDtm())
                 .fstEnrUsid(file.getFstEnrUsid())
                 .build();
@@ -161,5 +194,10 @@ public class BannerService {
 
     private String previewUrl(String flMpnId) {
         return "/api/files/" + flMpnId + "/preview";
+    }
+
+    /** 관리자 전용 배너 미리보기 URL — {@code DEL_YN}과 무관하게 서빙하므로 비활성 배너도 관리 화면에서 렌더링된다. */
+    private String adminPreviewUrl(String flMpnId) {
+        return "/api/banners/" + flMpnId + "/preview";
     }
 }

@@ -174,4 +174,44 @@ class BannerControllerTest {
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(bannerService);
     }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    @DisplayName("GET /api/banners/{id}/preview - 일반 사용자 → 403")
+    void adminPreview_일반사용자_403() throws Exception {
+        mockMvc.perform(get("/api/banners/" + FL_MPN_ID + "/preview"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(bannerService);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("GET /api/banners/{id}/preview - 배너가 아닌 파일매핑ID → 403")
+    void adminPreview_배너아닌파일_403() throws Exception {
+        given(bannerService.getAdminPreviewImage(FL_MPN_ID))
+                .willThrow(
+                        new org.springframework.security.access.AccessDeniedException(
+                                "배너가 아닙니다."));
+
+        mockMvc.perform(get("/api/banners/" + FL_MPN_ID + "/preview"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("GET /api/banners/{id}/preview - 관리자는 비활성 배너 이미지를 서빙받는다")
+    void adminPreview_관리자_200() throws Exception {
+        org.springframework.core.io.Resource resource =
+                new org.springframework.core.io.ByteArrayResource(new byte[] {1, 2, 3});
+        given(bannerService.getAdminPreviewImage(FL_MPN_ID))
+                .willReturn(
+                        new com.kdb.it.infra.file.service.FileService.FileDownloadResult(
+                                resource, "hero.png", "image/png"));
+
+        mockMvc.perform(get("/api/banners/" + FL_MPN_ID + "/preview"))
+                .andExpect(status().isOk())
+                .andExpect(
+                        org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                                .contentType(MediaType.IMAGE_PNG));
+    }
 }

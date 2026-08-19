@@ -15,6 +15,7 @@ import com.kdb.it.domain.migration.request.service.RequestFormSourceFileArchiver
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.FileValidator;
+import com.kdb.it.infra.file.authz.BannerFileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.authz.RequestFormFileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.dto.FileDto;
@@ -80,7 +81,9 @@ class FileServiceTest {
                         fileOwnershipChecker,
                         fileUploadUnitService,
                         new FileTargetWriteAuthorizerRegistry(
-                                List.of(new RequestFormFileTargetWriteAuthorizer())),
+                                List.of(
+                                        new RequestFormFileTargetWriteAuthorizer(),
+                                        new BannerFileTargetWriteAuthorizer())),
                         boardPostFileCacheService);
     }
 
@@ -406,6 +409,21 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName(
+            "deleteFile: 배너 파일은 generic 삭제 경로에서 지울 수 없다 — /api/banners 창구만 배너를 관리한다")
+    void deleteFile_배너파일_AccessDeniedException발생() {
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getPkColNm()).willReturn("배너");
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+
+        assertThatThrownBy(() -> fileService.deleteFile(FL_MNG_NO))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("generic");
+
+        verify(cfilem, never()).delete();
+    }
+
+    @Test
     @DisplayName("deleteFile: 공통게시판 파일 삭제 뒤 활성 파일 수를 다시 세어 부모 캐시를 동기화한다")
     void deleteFile_공통게시판_활성파일수동기화() {
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
@@ -553,6 +571,21 @@ class FileServiceTest {
     }
 
     @Test
+    @DisplayName("deleteFilesByOrc: 관리자로도 배너를 generic 일괄 삭제할 수 없다")
+    void deleteFilesByOrc_관리자배너_AccessDeniedException발생() {
+        Cfilem banner = mockCfilem(FL_MNG_NO);
+        given(banner.getPkColNm()).willReturn("배너");
+        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("배너", "/info", "N"))
+                .willReturn(List.of(banner));
+
+        assertThatThrownBy(() -> fileService.deleteFilesByOrc("배너", "/info", ADMIN))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("generic");
+
+        verify(banner, never()).delete();
+    }
+
+    @Test
     @DisplayName("deleteFilesByOrc: 연관 파일이 없으면 0을 반환한다")
     void deleteFilesByOrc_파일없음_0반환() {
         given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("없는구분", "PRJ-9999-9999", "N"))
@@ -610,6 +643,37 @@ class FileServiceTest {
 
         verify(cfilem, never())
                 .updateMeta("APF-2026-00000001", RequestFormSourceFileArchiver.PK_COL_NM);
+    }
+
+    @Test
+    @DisplayName("updateFileMeta: 배너 파일은 generic 경로로 다른 종류에 재연결할 수 없다")
+    void updateFileMeta_배너파일_AccessDeniedException발생() {
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(cfilem.getPkColNm()).willReturn("배너");
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        FileDto.UpdateRequest request =
+                FileDto.UpdateRequest.builder().pkColNm("정보화사업").pkCone("PRJ-2026-0002").build();
+
+        assertThatThrownBy(() -> fileService.updateFileMeta(FL_MNG_NO, request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("generic");
+
+        verify(cfilem, never()).updateMeta("PRJ-2026-0002", "정보화사업");
+    }
+
+    @Test
+    @DisplayName("updateFileMeta: 일반 파일을 배너 종류로 generic 재연결할 수 없다")
+    void updateFileMeta_배너종류로변경_AccessDeniedException발생() {
+        Cfilem cfilem = mockCfilem(FL_MNG_NO);
+        given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
+        FileDto.UpdateRequest request =
+                FileDto.UpdateRequest.builder().pkColNm("배너").pkCone("/info").build();
+
+        assertThatThrownBy(() -> fileService.updateFileMeta(FL_MNG_NO, request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("generic");
+
+        verify(cfilem, never()).updateMeta("/info", "배너");
     }
 
     @Test

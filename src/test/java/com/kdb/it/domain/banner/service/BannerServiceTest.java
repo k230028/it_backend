@@ -12,8 +12,11 @@ import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import com.kdb.it.infra.file.service.FileService;
+import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -180,6 +183,51 @@ class BannerServiceTest {
         given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
 
         assertThatThrownBy(() -> bannerService.setActive("FL-00000007", true))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getAdminPreviewImage — 관리자 전용 미리보기 (DEL_YN 무관)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("비활성 배너도 관리자 미리보기는 DEL_YN과 무관하게 서빙한다")
+    void getAdminPreviewImage_servesInactiveBanner() {
+        Cfilem file = banner("FL-00000405", "Y");
+        given(fileRepository.findById("FL-00000405")).willReturn(Optional.of(file));
+        Resource resource = new InputStreamResource(new ByteArrayInputStream(new byte[] {1}));
+        FileService.FileDownloadResult expected =
+                new FileService.FileDownloadResult(resource, "FL-00000405.png", "image/png");
+        given(fileService.downloadFile(file)).willReturn(expected);
+
+        FileService.FileDownloadResult result = bannerService.getAdminPreviewImage("FL-00000405");
+
+        assertThat(result).isSameAs(expected);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 배너는 관리자 미리보기를 거부한다")
+    void getAdminPreviewImage_missingFile_throws() {
+        given(fileRepository.findById("FL-99999999")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bannerService.getAdminPreviewImage("FL-99999999"))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("배너를 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("배너가 아닌 파일은 관리자 미리보기를 거부한다")
+    void getAdminPreviewImage_nonBannerFile_throws() {
+        Cfilem other =
+                Cfilem.builder()
+                        .flMpnId("FL-00000007")
+                        .pkColNm("공통게시판")
+                        .pkCone("NAC-1")
+                        .build();
+        other.delete();
+        given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> bannerService.getAdminPreviewImage("FL-00000007"))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 }

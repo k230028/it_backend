@@ -63,6 +63,16 @@ class FileReadAuthorizerRegistryTest {
     }
 
     @Test
+    @DisplayName("배너는 실제 BannerFileReadAuthorizer로 위임되어 인증 사용자 전체에게 공개된다")
+    void bannerKind_delegatesToRealAuthorizer_publicToAuthenticatedUsers() {
+        var registry = new FileReadAuthorizerRegistry(List.of(new BannerFileReadAuthorizer()));
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");
+
+        assertThat(registry.canRead(fileOfKind("배너"), user)).isTrue();
+        assertThat(registry.canRead(fileOfKind("배너"), null)).isFalse();
+    }
+
+    @Test
     @DisplayName("동일 종류를 두 authorizer가 등록하면 기동 시 예외로 막는다")
     void duplicateKind_throws() {
         assertThatThrownBy(
