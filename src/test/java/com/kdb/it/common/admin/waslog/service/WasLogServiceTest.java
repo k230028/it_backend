@@ -111,6 +111,26 @@ class WasLogServiceTest {
         assertThat(snapshot.entries())
                 .extracting(WasLogEntry::seq)
                 .containsExactly(base + 1, base + 2);
+        assertThat(snapshot.lastSeq()).isEqualTo(base + 2);
+    }
+
+    @Test
+    @DisplayName("조회 상한 때문에 오래된 항목을 버리면 dropped를 세운다")
+    void localSnapshot_상한초과_dropped() {
+        WasLogDto.Snapshot snapshot =
+                service.localSnapshot(new WasLogDto.Query(0L, 2, Set.of(), null, null));
+
+        assertThat(snapshot.dropped()).isTrue();
+    }
+
+    @Test
+    @DisplayName("상한에 걸리지 않으면 dropped를 세우지 않는다")
+    void localSnapshot_상한미달_dropped없음() {
+        WasLogDto.Snapshot snapshot =
+                service.localSnapshot(new WasLogDto.Query(0L, 200, Set.of(), null, null));
+
+        assertThat(snapshot.entries()).hasSize(3);
+        assertThat(snapshot.dropped()).isFalse();
     }
 
     @Test

@@ -72,11 +72,16 @@ public class WasLogService {
             if (!matchesKeyword(entry, query.keyword())) continue;
             filtered.add(entry);
         }
-        if (filtered.size() > limit) {
+        boolean truncated = filtered.size() > limit;
+        if (truncated) {
             filtered = new ArrayList<>(filtered.subList(filtered.size() - limit, filtered.size()));
         }
 
-        boolean dropped = query.afterSeq() > 0 && buffer.oldestSeq() > query.afterSeq() + 1;
+        // 커서 이후 항목을 건너뛰는 경로는 둘이다 — ① 버퍼에서 밀려남 ② 조회 상한을 넘겨 최신분만 남김.
+        // ②는 오래된 쪽을 버리므로 커서를 낮춰도 복구되지 않는다. 조용히 넘기면 클라이언트는 연속된
+        // 로그를 본다고 착각하므로, 두 경로 모두 dropped로 알린다.
+        boolean evicted = query.afterSeq() > 0 && buffer.oldestSeq() > query.afterSeq() + 1;
+        boolean dropped = evicted || truncated;
         long lastSeq = Math.max(query.afterSeq(), buffer.lastSeq());
 
         return new WasLogDto.Snapshot(
