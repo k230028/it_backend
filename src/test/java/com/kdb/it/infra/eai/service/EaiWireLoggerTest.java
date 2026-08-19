@@ -177,6 +177,16 @@ class EaiWireLoggerTest {
     }
 
     @Test
+    @DisplayName("본문 없는 204는 비표준이 아니라 정상 수신으로 남긴다")
+    void responseDetail_emptyNoContent_marksSuccess() {
+        // GWE 정상 응답이라 "비표준" 문구로 남기면 성공 건이 매번 이상 징후처럼 보인다.
+        assertThat(wire.responseDetail(204, null, new byte[0]))
+                .contains("[정상]")
+                .contains("204 No Content")
+                .doesNotContain("[비표준]");
+    }
+
+    @Test
     @DisplayName("빈 응답과 없는 요청 전문도 덤프가 깨지지 않는다")
     void detail_handlesEmptyInput() {
         assertThat(wire.responseDetail(200, null, new byte[0])).contains("본문 없음");

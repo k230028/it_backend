@@ -83,7 +83,7 @@ class DevAuthControllerTest {
                         .accessToken("access-token")
                         .refreshToken("refresh-token")
                         .build();
-        given(authService.issueDevSwitchTokens("10001")).willReturn(response);
+        given(authService.issueUserSwitchTokens("10001")).willReturn(response);
         given(cookieUtil.createAccessTokenCookie("access-token"))
                 .willReturn(ResponseCookie.from("access_token", "access-token").path("/").build());
         given(cookieUtil.createRefreshTokenCookie("refresh-token"))
@@ -116,7 +116,7 @@ class DevAuthControllerTest {
                                 .content("{\"eno\":\"\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(authService, never()).issueDevSwitchTokens(anyString());
+        verify(authService, never()).issueUserSwitchTokens(anyString());
     }
 
     // ─── SwitchRequest DTO 단위 테스트 — Spring 컨텍스트 불필요 ────────

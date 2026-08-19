@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -231,6 +232,22 @@ public class ApplicationController {
         boolean isAdmin =
                 auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
         applicationService.recall(apfMngNo, request, currentEno, isAdmin);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 대기 중인 결재 순번의 담당자를 변경합니다. */
+    @PatchMapping("/{apfMngNo}/approvers/{dcdSqn}")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
+    @Operation(summary = "미결재 결재자 변경", description = "관리자 또는 해당 결재선 직원이 미결재 결재자를 변경합니다.")
+    public ResponseEntity<Void> changePendingApprover(
+            @PathVariable String apfMngNo,
+            @PathVariable int dcdSqn,
+            @Valid @RequestBody ApplicationDto.ChangeApproverRequest request,
+            Authentication auth) {
+        boolean isAdmin =
+                auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
+        applicationService.changePendingApprover(
+                apfMngNo, dcdSqn, request.getNewApproverEno(), auth.getName(), isAdmin);
         return ResponseEntity.noContent().build();
     }
 

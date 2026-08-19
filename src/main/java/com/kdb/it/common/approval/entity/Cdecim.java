@@ -97,4 +97,9 @@ public class Cdecim extends BaseEntity {
     public void invalidateByRecall() {
         this.itPtlDcdStsC = DecisionStatus.INVALIDATED.code();
     }
+
+    /** 아직 처리되지 않은 결재 순번의 담당 직원을 변경합니다. */
+    public void changeApprover(String approverEno) {
+        this.dcrEno = approverEno;
+    }
 }

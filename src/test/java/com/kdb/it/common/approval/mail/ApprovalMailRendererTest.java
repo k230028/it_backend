@@ -80,6 +80,21 @@ class ApprovalMailRendererTest {
     }
 
     @Test
+    @DisplayName("상세 보기 버튼은 오른쪽 정렬하고 바로가기 아이콘을 붙인다")
+    void html_linkButtonIsRightAlignedWithIcon() throws Exception {
+        String html = render(SNAPSHOT).html();
+
+        assertThat(html).contains("text-align:right;").contains("신청서 상세 보기 ↗");
+    }
+
+    @Test
+    @DisplayName("표는 셀 상하 여백을 line-height로 넓힌다")
+    void html_tableHasVerticalCellSpacing() throws Exception {
+        // 셀마다 padding 인라인 스타일을 붙이면 4000바이트 예산에서 목록 건수가 크게 줄어든다.
+        assertThat(render(SNAPSHOT).html()).contains("line-height:1.9;");
+    }
+
+    @Test
     @DisplayName("구분별 합계와 총합계가 스냅샷 값과 일치한다")
     void html_containsTotals() throws Exception {
         String html = render(SNAPSHOT).html();

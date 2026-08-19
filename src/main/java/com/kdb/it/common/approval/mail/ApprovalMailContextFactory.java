@@ -5,6 +5,14 @@ import com.kdb.it.common.approval.entity.Capplm;
 /** 신청서 엔티티에서 메일 렌더링 입력을 만든다. */
 public final class ApprovalMailContextFactory {
 
+    /**
+     * 메일 링크 목적지 — 결재 대기 목록.
+     *
+     * <p>신청서 상세({@code /approval/{apfMngNo}})는 그룹웨어 메일에서 곧바로 열리지 않는 URL이라, 결재자가 실제로 처리를 시작할 수 있는 결재
+     * 대기 탭으로 보낸다.
+     */
+    private static final String APPROVAL_PENDING_PATH = "/approval/list?tab=pending";
+
     private ApprovalMailContextFactory() {}
 
     /**
@@ -25,7 +33,7 @@ public final class ApprovalMailContextFactory {
                 application.getDcdReqDtm(),
                 requesterName,
                 deptName,
-                base + "/approval/" + application.getApfMngNo(),
+                base + APPROVAL_PENDING_PATH,
                 application.getDcdReqInf());
     }
 }

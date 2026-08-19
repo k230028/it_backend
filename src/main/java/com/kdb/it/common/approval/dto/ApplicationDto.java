@@ -38,6 +38,13 @@ import lombok.Setter;
  */
 public class ApplicationDto {
 
+    @Getter
+    @Setter
+    @Schema(name = "ApplicationChangeApproverRequest", description = "미결재 결재자 변경 요청")
+    public static class ChangeApproverRequest {
+        @NotBlank private String newApproverEno;
+    }
+
     /**
      * 원본 데이터 연결 항목 DTO
      *

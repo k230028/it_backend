@@ -1,5 +1,9 @@
 # 파일 부모 키 정규화 배포 기록 (SEC-05)
 
+> 이 문서는 특정 마이그레이션의 배포·복구 기록입니다. 반복 개발 규칙은
+> [파일 보안 가이드](../guides/security/file-security.md)와
+> [데이터 접근 범위 가이드](../guides/security/data-scope.md)를 따릅니다.
+
 업무 파일(`TPRMPP_CFILEM`)의 뒤바뀐 레거시 부모 키(`PK_COL_NM` ↔ `PK_CONE`)를 정규화하는
 Flyway migration `V20260719_001__NormalizeCfilemParentKeys.sql`의 배포 기록이다.
 SEC-05 파일 읽기 인가 전환은 `PK_COL_NM`(종류) → authorizer, `PK_CONE`(부모 ID) → 부모 권한

@@ -48,8 +48,10 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
     /** JPY만 양식이 천엔 단위라 엔으로 폅니다. 그 밖의 외화는 통화 기본 단위 그대로입니다. */
     private static final long JPY_MULTIPLIER = 1_000L;
 
+    /** 증감사유 물리 컬럼의 최대 길이. */
+    private static final int INCREASE_REASON_LIMIT = 200;
+
     private final SheetAnchorScanner scanner;
-    private final FormApproverReader approverReader;
     private final MigrationIoeCatalogReader catalogReader;
 
     @Override
@@ -91,24 +93,11 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         Map<Integer, String> currencies =
                 resolveCurrencies(rows, context, currencyCandidates, diagnostics);
         AmountUnit unit = resolveUnit(context, rows, currencies, diagnostics);
-        // 상단 머리말의 작성자가 이 시트의 담당자다. 없으면 비워 둔다
-        String author =
-                FormPersonNames.fit(
-                        approverReader.author(sheet),
-                        "작성자",
-                        FormSheetKind.GENERAL_EXPENSE,
-                        diagnostics);
-
         List<CostDto.CreateRequest> costs = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
             costs.add(
                     toCreateRequest(
-                            row,
-                            context,
-                            currencies.get(row.excelRow()),
-                            unit,
-                            author,
-                            diagnostics));
+                            row, context, currencies.get(row.excelRow()), unit, diagnostics));
         }
         return new FormAdapterOutput(List.of(), List.copyOf(costs), List.copyOf(diagnostics), unit);
     }
@@ -202,16 +191,14 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             FormAdapterContext context,
             String currency,
             AmountUnit unit,
-            String author,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         CostDto.CreateRequest request = new CostDto.CreateRequest();
         request.setBseYy(context.bseYy());
         request.setCttNm(row.contractName());
         request.setCttOppNm(row.counterparty());
-        request.setIndRsn(row.remarks());
-        // 적혀 있지 않으면 비워 둔다 — 업로드 사용자를 담당자로 박으면 원장에 사실이 아닌 이름이 남는다.
-        // 확인자(주관팀장)는 `BCOSTM`에 담을 컬럼이 없어 반입하지 않는다.
-        request.setCgprId(author);
+        applyIncreaseReason(row, request, diagnostics);
+        // 양식에는 이름만 있으므로 사번 컬럼에는 값을 넣지 않는다.
+        request.setCgprId(null);
         request.setCostSvnDpmC(context.resolvedDeptCode());
         request.setBgUntAbusC(context.entry().bgUntAbusC());
         request.setTmnYn("N");
@@ -222,6 +209,31 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         applyCurrencyAndAmount(row, currency, request, unit);
         applyFlags(row, request, diagnostics);
         return request;
+    }
+
+    /** 증감사유의 공백을 제거하고 물리 컬럼 길이에 맞춥니다. */
+    private void applyIncreaseReason(
+            GeneralExpenseRow row,
+            CostDto.CreateRequest request,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        if (row.remarks() == null) {
+            request.setIndRsn(null);
+            return;
+        }
+        String normalized = row.remarks().replaceAll("[\\s\\u00A0\\u3000]+", "");
+        if (normalized.length() <= INCREASE_REASON_LIMIT) {
+            request.setIndRsn(normalized);
+            return;
+        }
+        request.setIndRsn(normalized.substring(0, INCREASE_REASON_LIMIT));
+        diagnostics.add(
+                diagnostic(
+                        row,
+                        "indRsn",
+                        RequestFormDiagnosticCode.SUBSTITUTE_DROPPED,
+                        "비고의 공백을 제거해도 %d자를 넘어 앞 %d자만 반입합니다."
+                                .formatted(normalized.length(), INCREASE_REASON_LIMIT),
+                        List.of()));
     }
 
     private void applyIoe(

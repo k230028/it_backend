@@ -17,10 +17,14 @@ import com.kdb.it.domain.migration.request.service.WorkbookReader;
 import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -31,7 +35,7 @@ class GeneralExpenseFormAdapterTest {
     private final SheetAnchorScanner scanner = new SheetAnchorScanner();
     private final MigrationIoeCatalogReader catalogReader = currencyCatalogReader();
     private final GeneralExpenseFormAdapter adapter =
-            new GeneralExpenseFormAdapter(scanner, new FormApproverReader(scanner), catalogReader);
+            new GeneralExpenseFormAdapter(scanner, catalogReader);
 
     /** 통화 공통코드(`CUR_C`)만 답하는 카탈로그 리더. 실 DB의 통화 목록을 흉내 냅니다. */
     private static MigrationIoeCatalogReader currencyCatalogReader() {
@@ -48,6 +52,18 @@ class GeneralExpenseFormAdapterTest {
 
     private FormAdapterContext contextOf(byte[] workbookBytes, AmountUnit unit) {
         return contextOf(workbookBytes, unit, Map.of());
+    }
+
+    private static byte[] withFirstRemarks(String remarks) {
+        try (var input = new ByteArrayInputStream(RequestFormFixtures.fullFormXls());
+                var workbook = WorkbookFactory.create(input);
+                var output = new ByteArrayOutputStream()) {
+            workbook.getSheetAt(3).getRow(5).getCell(10).setCellValue(remarks);
+            workbook.write(output);
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("테스트 통합문서 생성 실패", e);
+        }
     }
 
     private FormAdapterContext contextOf(
@@ -110,11 +126,41 @@ class GeneralExpenseFormAdapterTest {
         assertThat(first.getBseYy()).isEqualTo("2026");
         assertThat(first.getCostSvnDpmC()).isEqualTo("0210");
         assertThat(first.getBgUntAbusC()).isEqualTo("571");
-        // 담당자는 상단 머리말의 작성자다. 업로드 사용자를 담당자로 박지 않는다.
-        // 픽스처는 `최민호 대리` — 직책은 인사 정보라 담당자 컬럼에 담지 않는다
-        assertThat(first.getCgprId()).isEqualTo("최민호");
+        // 양식에는 담당자 이름만 있으므로 사번 컬럼에는 저장하지 않는다.
+        assertThat(first.getCgprId()).isNull();
         assertThat(first.getXcrBseDt()).isEqualTo("20260101");
         assertThat(first.getTmnYn()).isEqualTo("N");
+    }
+
+    @Test
+    @DisplayName("증감사유는 공백을 제거한 뒤 200자 이내이면 그대로 반입한다")
+    void removesWhitespaceFromIncreaseReason() {
+        String remarks = "가".repeat(100) + " \n\t" + "나".repeat(100);
+
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(withFirstRemarks(remarks), AmountUnit.WON));
+
+        assertThat(output.costs().get(0).getIndRsn()).isEqualTo("가".repeat(100) + "나".repeat(100));
+    }
+
+    @Test
+    @DisplayName("공백을 제거해도 긴 증감사유는 앞 200자만 반입하고 경고한다")
+    void truncatesIncreaseReasonAfterRemovingWhitespace() {
+        String remarks = "가".repeat(120) + " " + "나".repeat(90);
+
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(withFirstRemarks(remarks), AmountUnit.WON));
+
+        assertThat(output.costs().get(0).getIndRsn()).isEqualTo("가".repeat(120) + "나".repeat(80));
+        assertThat(output.diagnostics())
+                .filteredOn(d -> "indRsn".equals(d.field()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code())
+                                    .isEqualTo(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.WARNING);
+                        });
     }
 
     @Test
@@ -482,9 +528,7 @@ class GeneralExpenseFormAdapterTest {
                 adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), null));
 
         assertThat(output.costs()).isNotEmpty();
-        assertThat(output.costs())
-                .extracting(CostDto.CreateRequest::getCurC)
-                .containsOnly("GBP");
+        assertThat(output.costs()).extracting(CostDto.CreateRequest::getCurC).containsOnly("GBP");
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .doesNotContain(RequestFormDiagnosticCode.UNIT_UNCERTAIN);

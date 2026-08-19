@@ -165,7 +165,7 @@ public class ApprovalMailRenderer {
                 + "margin:0 0 14px;\">결재 요청</div>";
     }
 
-    /** 신청서 개요 — 라벨-값 2열 표와 상세 바로가기. */
+    /** 신청서 개요 — 라벨-값 2열 표와 결재 대기 목록 바로가기. */
     private String overview(ApprovalMailContext context) {
         String rows =
                 MailHtml.row(MailHtml.labelCell("신청서 제목"), MailHtml.textCell(text(context.title())))
@@ -188,12 +188,12 @@ public class ApprovalMailRenderer {
     }
 
     private String linkButton(ApprovalMailContext context) {
-        return "<div style=\"margin:0 0 18px;\"><a href=\""
+        return "<div style=\"margin:0 0 18px;text-align:right;\"><a href=\""
                 + MailHtml.escape(context.detailUrl())
                 + "\" style=\"display:inline-block;background:"
                 + MailHtml.PRIMARY
                 + ";color:#fff;text-decoration:none;font-size:13px;font-weight:600;"
-                + "padding:8px 14px;border-radius:4px;\">신청서 상세 보기</a></div>";
+                + "padding:8px 14px;border-radius:4px;\">신청서 상세 보기 ↗</a></div>";
     }
 
     /** 총괄표 합계 — 항목이 없는 구분은 행을 생략한다. */

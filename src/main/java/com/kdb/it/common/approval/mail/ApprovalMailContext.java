@@ -12,7 +12,7 @@ import java.time.LocalDate;
  * @param requestedDate 신청일자. null 허용
  * @param requesterName 기안자 성명. null 허용
  * @param deptName 작성부서명. null 허용
- * @param detailUrl 신청서 상세 화면 절대 URL
+ * @param detailUrl 메일에서 여는 포탈 화면 절대 URL (결재 대기 목록)
  * @param detailJson 신청서 상세 스냅샷 JSON. null·공백·파싱 실패 시 총괄표를 생략한다
  */
 public record ApprovalMailContext(

@@ -14,7 +14,7 @@
 
 ## 사전 준비
 
-- JDK 25를 설치하고 `JAVA_HOME`과 `java -version`이 같은 JDK를 가리키는지 확인합니다. 별도 Gradle 설치는 필요하지 않으며 저장소의 Wrapper를 사용합니다.
+- JDK 25를 설치하고 `JAVA_HOME`과 `java -version`이 같은 JDK를 가리키는지 확인합니다. 별도 Gradle 설치는 필요하지 않으며 저장소의 Wrapper를 사용합니다. PATH에 다른 Gradle 설치본이 있어도 `it_backend`에서 `gradle ...`을 직접 실행하지 않습니다 — standalone Gradle의 `wrapper` 태스크가 `gradle-wrapper.properties`를 자기 버전으로 덮어써 IDE 임포트가 `Can't use Java 25.0.2 and Gradle 8.9`로 깨집니다(원복 절차는 루트 `README.md`의 「IDE 설정(VS Code)」).
 - 로컬 Oracle(`127.0.0.1:11521/XEPDB1`)과 접속 계정 `ITPAPP`을 준비합니다. 객체는 `ITPOWN` 스키마에 있으며 커넥션 생성 시 `CURRENT_SCHEMA=ITPOWN`이 적용됩니다.
 - `it_backend`와 `it_database`를 `C:\it` 아래 형제 디렉터리로 둡니다. 로컬 프로파일의 Flyway는 `../it_database/migrations`를 직접 읽고, Gradle `processResources`도 같은 경로의 `V*.sql`을 빌드 리소스에 포함합니다.
 - 폐쇄망에서는 `C:\maven-repo`에 Gradle 9.2.1 배포본과 필요한 Maven 아티팩트가 반입되어 있어야 합니다. `gradle/wrapper/gradle-wrapper.properties`에서 온라인 `distributionUrl`을 주석 처리하고 안내된 로컬 `file:///c:/maven-repo/gradle-9.2.1-bin.zip` 항목을 활성화합니다.
@@ -303,5 +303,7 @@ Controller 계약은 MockMvc 슬라이스 테스트, 서비스 규칙은 Mockito
 - [필수 백엔드 규칙](CLAUDE.md)
 - [상세 개발 가이드](docs/guides/README.md)
 - [데이터 모델 인덱스](docs/guides/persistence/data-model.md)
+- [DB 마이그레이션 작성 가이드](../it_database/docs/guides/migrations.md)
+- `docs/operations/`: 백엔드 배포·복구 기록
 - [루트 개발 안내](../README.md)
 - [기술부채와 후속 과제](../TASK.md)

@@ -29,6 +29,10 @@ final class MailHtml {
     /**
      * 표 여는 태그 — 테두리와 여백을 <b>표 수준 표현 속성</b>({@code border}/{@code cellpadding})으로 준다.
      *
+     * <p>셀 내부 위·아래 여백은 {@code cellpadding}(4방향 공통)에 더해 상속되는 {@code line-height}로 준다. 좌우는 그대로 두고
+     * 위아래만 넓히려면 셀마다 {@code padding} 인라인 스타일이 필요한데, 셀 하나에 26바이트씩 붙어 필수 영역만으로 900바이트 가까이 먹고 그만큼 목록
+     * 건수가 줄어든다. {@code line-height}는 표당 17바이트 한 번이면 같은 효과를 낸다.
+     *
      * <p>셀마다 인라인 스타일을 반복하면 필수 항목(개요+총괄표)만으로 4000바이트 예산을 넘는다(실측 5007바이트). 표현 속성은 메일 클라이언트 호환성도 인라인
      * 스타일보다 넓다.
      */
@@ -36,7 +40,7 @@ final class MailHtml {
             "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse:collapse;"
                     + "width:100%;margin:0 0 12px;border-color:"
                     + BORDER
-                    + ";font-size:13px;\">";
+                    + ";font-size:13px;line-height:1.9;\">";
 
     private MailHtml() {}
 

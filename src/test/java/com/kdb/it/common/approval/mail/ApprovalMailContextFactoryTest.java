@@ -20,13 +20,13 @@ class ApprovalMailContextFactoryTest {
     }
 
     @Test
-    @DisplayName("상세 URL은 프론트 URL과 신청관리번호로 만든다")
+    @DisplayName("메일 링크는 프론트 URL에 결재 대기 목록 경로를 붙여 만든다")
     void create_buildsDetailUrl() {
         ApprovalMailContext context =
                 ApprovalMailContextFactory.create(
                         application(), "홍길동", "IT기획부", "https://it.kdb.co.kr");
 
-        assertThat(context.detailUrl()).isEqualTo("https://it.kdb.co.kr/approval/APF-2026-0001");
+        assertThat(context.detailUrl()).isEqualTo("https://it.kdb.co.kr/approval/list?tab=pending");
     }
 
     @Test
@@ -36,7 +36,7 @@ class ApprovalMailContextFactoryTest {
                 ApprovalMailContextFactory.create(
                         application(), "홍길동", "IT기획부", "https://it.kdb.co.kr///");
 
-        assertThat(context.detailUrl()).isEqualTo("https://it.kdb.co.kr/approval/APF-2026-0001");
+        assertThat(context.detailUrl()).isEqualTo("https://it.kdb.co.kr/approval/list?tab=pending");
     }
 
     @Test
@@ -45,7 +45,7 @@ class ApprovalMailContextFactoryTest {
         ApprovalMailContext context =
                 ApprovalMailContextFactory.create(application(), "홍길동", "IT기획부", null);
 
-        assertThat(context.detailUrl()).isEqualTo("/approval/APF-2026-0001");
+        assertThat(context.detailUrl()).isEqualTo("/approval/list?tab=pending");
     }
 
     @Test

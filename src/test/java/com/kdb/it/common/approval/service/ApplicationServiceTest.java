@@ -42,6 +42,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 
 /**
  * ApplicationService 단위 테스트
@@ -1140,5 +1141,62 @@ class ApplicationServiceTest {
         ApplicationDto.PendingCountResponse res = applicationService.getPendingCount("   ");
 
         assertThat(res.getTotalCount()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("changePendingApprover: 결재선 직원은 미결재 결재자를 변경할 수 있다")
+    void changePendingApprover_결재선직원_변경성공() {
+        Cdecim requester = pendingApprover("10001", 1, "N");
+        Cdecim target = pendingApprover("10002", 2, "Y");
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(requester, target));
+        given(userRepository.findById("20002"))
+                .willReturn(Optional.of(CuserI.builder().eno("20002").build()));
+
+        applicationService.changePendingApprover(APF_MNG_NO, 2, "20002", "10001", false);
+
+        assertThat(target.getDcrEno()).isEqualTo("20002");
+    }
+
+    @Test
+    @DisplayName("changePendingApprover: 결재선 밖의 일반 사용자는 변경할 수 없다")
+    void changePendingApprover_결재선외직원_권한거부() {
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("10001", 1, "Y")));
+
+        assertThatThrownBy(
+                        () ->
+                                applicationService.changePendingApprover(
+                                        APF_MNG_NO, 1, "20001", "99999", false))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("changePendingApprover: 관리자는 결재선 밖에서도 변경할 수 있다")
+    void changePendingApprover_관리자_변경성공() {
+        Cdecim target = pendingApprover("10001", 1, "Y");
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(target));
+        given(userRepository.findById("20001"))
+                .willReturn(Optional.of(CuserI.builder().eno("20001").build()));
+
+        applicationService.changePendingApprover(APF_MNG_NO, 1, "20001", "99999", true);
+
+        assertThat(target.getDcrEno()).isEqualTo("20001");
+    }
+
+    @Test
+    @DisplayName("changePendingApprover: 처리된 결재선은 변경할 수 없다")
+    void changePendingApprover_승인완료_상태거부() {
+        Cdecim approved = pendingApprover("10001", 1, "Y");
+        approved.approve("승인", com.kdb.it.common.approval.domain.DecisionStatus.APPROVED);
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(approved));
+
+        assertThatThrownBy(
+                        () ->
+                                applicationService.changePendingApprover(
+                                        APF_MNG_NO, 1, "20001", "10001", false))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

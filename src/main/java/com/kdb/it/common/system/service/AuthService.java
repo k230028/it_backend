@@ -412,17 +412,17 @@ public class AuthService {
     /**
      * 개발 편의용 사용자 전환 토큰 발급
      *
-     * <p>비밀번호 검증 없이 지정 사번으로 Access/Refresh 토큰을 재발급합니다. {@code DevAuthController}의 사용자 전환 팝업에서만
-     * 호출되며, 운영 환경에서는 {@code app.dev.user-switch.enabled=false}로 컨트롤러 자체를 비활성화해야 합니다.
+     * <p>비밀번호 검증 없이 지정 사번으로 Access/Refresh 토큰을 재발급합니다. 호출 컨트롤러가 관리자 권한 또는 개발 전용 기능 플래그를 먼저 검증해야
+     * 합니다.
      *
-     * <p>로그인 이력에는 IP/User-Agent를 {@code "DEV-SWITCH"} 값으로 남겨 일반 로그인, SSO 로그인과 구분합니다.
+     * <p>로그인 이력에는 IP/User-Agent를 {@code "USER-SWITCH"} 값으로 남겨 일반 로그인, SSO 로그인과 구분합니다.
      *
      * @param eno 전환 대상 사번
      * @return 쿠키 발급에 사용할 로그인 응답 DTO
      * @throws RuntimeException 사번에 해당하는 사용자가 없는 경우
      */
     @Transactional
-    public AuthDto.LoginResponse issueDevSwitchTokens(String eno) {
+    public AuthDto.LoginResponse issueUserSwitchTokens(String eno) {
         CuserI user =
                 userRepository
                         .findByEno(eno)
@@ -433,7 +433,7 @@ public class AuthService {
         String accessToken = jwtUtil.generateAccessToken(eno, athIds, user.getBbrC());
         String refreshTokenValue = issueNewRefreshFamily(eno);
 
-        recordLoginSuccess(eno, "DEV-SWITCH", "DEV-SWITCH");
+        recordLoginSuccess(eno, "USER-SWITCH", "USER-SWITCH");
 
         return AuthDto.LoginResponse.builder()
                 .accessToken(accessToken)

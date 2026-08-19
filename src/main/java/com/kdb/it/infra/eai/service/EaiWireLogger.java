@@ -111,7 +111,8 @@ final class EaiWireLogger {
     /**
      * 응답의 상세 덤프를 만듭니다.
      *
-     * <p>표준전문이면 공통부를 필드 단위로 펼치고, 표준전문이 아니면 앞부분을 16진수와 텍스트로 미리 보여 프록시 오류 페이지·빈 응답을 구분할 수 있게 합니다.
+     * <p>표준전문이면 공통부를 필드 단위로 펼치고, 표준전문이 아니면 앞부분을 16진수와 텍스트로 미리 보여 프록시 오류 페이지·빈 응답을 구분할 수 있게 합니다. 본문
+     * 없는 204는 게이트웨이 정상 수신이므로 비표준 응답과 구분해 표시합니다.
      *
      * @param status HTTP 상태코드
      * @param headers 응답 헤더. null 허용
@@ -123,6 +124,12 @@ final class EaiWireLogger {
         sb.append(
                 "  [응답] status=%d, len=%d바이트, contentType=%s%n"
                         .formatted(status, body == null ? 0 : body.length, contentType(headers)));
+        if (status == 204 && (body == null || body.length == 0)) {
+            // GWE는 정상 수신을 본문 없는 204로 응답한다. 표준전문 파싱 대상이 아니므로
+            // "비표준" 문구로 남기면 성공 건이 매번 이상 징후처럼 보인다.
+            sb.append("  [정상] 204 No Content — 게이트웨이 수신 완료(응답 전문 없음)");
+            return sb.toString();
+        }
         if (body == null || body.length < EaiStandardLayout.HEADER_LEN) {
             sb.append("  [비표준] 표준전문 헤더(%d바이트)에 못 미침%n".formatted(EaiStandardLayout.HEADER_LEN));
             sb.append(preview(body));

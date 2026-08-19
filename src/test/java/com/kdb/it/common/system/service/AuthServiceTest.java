@@ -744,8 +744,8 @@ class AuthServiceTest {
     // ── 개발 편의용 사용자 전환 테스트 ──────────────────────────────────
 
     @Test
-    @DisplayName("issueDevSwitchTokens - 사용자 존재 시 DEV-SWITCH 이력과 함께 토큰을 발급한다")
-    void issueDevSwitchTokens_사용자존재_토큰발급() {
+    @DisplayName("issueUserSwitchTokens - 사용자 존재 시 USER-SWITCH 이력과 함께 토큰을 발급한다")
+    void issueUserSwitchTokens_사용자존재_토큰발급() {
         CuserI user =
                 CuserI.builder().eno("10001").usrNm("홍길동").bbrC("BBR001").temC("TEM001").build();
         List<String> devAthIds = List.of("ITPZZ002");
@@ -754,7 +754,7 @@ class AuthServiceTest {
         given(jwtUtil.generateAccessToken("10001", devAthIds, "BBR001")).willReturn("access-token");
         given(jwtUtil.generateRefreshToken("10001")).willReturn("refresh-token");
 
-        AuthDto.LoginResponse response = authService.issueDevSwitchTokens("10001");
+        AuthDto.LoginResponse response = authService.issueUserSwitchTokens("10001");
 
         assertThat(response.getEno()).isEqualTo("10001");
         assertThat(response.getEmpNm()).isEqualTo("홍길동");
@@ -765,16 +765,16 @@ class AuthServiceTest {
         // 개발 전환은 일반 로그인과 동일하게 기존 패밀리를 삭제하고 신규 토큰을 저장한다.
         verify(refreshTokenRepository).deleteByEno("10001");
         verify(refreshTokenRepository).save(any(Crtokm.class));
-        // DEV-SWITCH 식별자로 성공 이력을 남겨 일반 로그인·SSO와 구분한다.
+        // USER-SWITCH 식별자로 성공 이력을 남겨 일반 로그인·SSO와 구분한다.
         verify(loginHistoryRepository).save(any(Clognh.class));
     }
 
     @Test
-    @DisplayName("issueDevSwitchTokens - 사용자가 없으면 RuntimeException을 던진다")
-    void issueDevSwitchTokens_사용자없음_예외발생() {
+    @DisplayName("issueUserSwitchTokens - 사용자가 없으면 RuntimeException을 던진다")
+    void issueUserSwitchTokens_사용자없음_예외발생() {
         given(userRepository.findByEno("99999")).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.issueDevSwitchTokens("99999"))
+        assertThatThrownBy(() -> authService.issueUserSwitchTokens("99999"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다");
         verifyNoInteractions(loginHistoryRepository);
