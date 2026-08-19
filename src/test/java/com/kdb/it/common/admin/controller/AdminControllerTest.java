@@ -314,11 +314,33 @@ class AdminControllerTest {
     // =========================================================================
 
     @Test
-    @DisplayName("GET /api/admin/roles - 역할 목록 조회 → 200 + 배열 반환")
+    @DisplayName("GET /api/admin/roles - 역할 목록 조회 → 200 + 페이징 응답")
     @WithMockUser(username = "10001", roles = "ADMIN")
     void getRoles_관리자인증_200반환() throws Exception {
-        given(adminService.getRoles()).willReturn(List.of());
-        mockMvc.perform(get("/api/admin/roles"))
+        given(adminService.getRoles(eq("홍"), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(1, 20), 41));
+        mockMvc.perform(
+                        get("/api/admin/roles")
+                                .param("page", "1")
+                                .param("size", "20")
+                                .param("search", "홍")
+                                .param("sort", "eno,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(41))
+                .andExpect(jsonPath("$.number").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/admin/roles/export - 검색 결과 전체를 반환")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void exportRoles_검색결과전체반환() throws Exception {
+        given(adminService.getRolesForExport(eq("홍"), any(Sort.class))).willReturn(List.of());
+
+        mockMvc.perform(
+                        get("/api/admin/roles/export")
+                                .param("search", "홍")
+                                .param("sort", "eno,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }

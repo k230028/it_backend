@@ -35,7 +35,7 @@ class GeneralExpenseFormAdapterTest {
     private final SheetAnchorScanner scanner = new SheetAnchorScanner();
     private final MigrationIoeCatalogReader catalogReader = currencyCatalogReader();
     private final GeneralExpenseFormAdapter adapter =
-            new GeneralExpenseFormAdapter(scanner, catalogReader);
+            new GeneralExpenseFormAdapter(scanner, catalogReader, new FormApproverReader(scanner));
 
     /** 통화 공통코드(`CUR_C`)만 답하는 카탈로그 리더. 실 DB의 통화 목록을 흉내 냅니다. */
     private static MigrationIoeCatalogReader currencyCatalogReader() {
@@ -59,6 +59,30 @@ class GeneralExpenseFormAdapterTest {
                 var workbook = WorkbookFactory.create(input);
                 var output = new ByteArrayOutputStream()) {
             workbook.getSheetAt(3).getRow(5).getCell(10).setCellValue(remarks);
+            workbook.write(output);
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("테스트 통합문서 생성 실패", e);
+        }
+    }
+
+    private static byte[] withFirstContractName(String contractName) {
+        try (var input = new ByteArrayInputStream(RequestFormFixtures.fullFormXls());
+                var workbook = WorkbookFactory.create(input);
+                var output = new ByteArrayOutputStream()) {
+            workbook.getSheetAt(3).getRow(5).getCell(2).setCellValue(contractName);
+            workbook.write(output);
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("테스트 통합문서 생성 실패", e);
+        }
+    }
+
+    private static byte[] withGeneralExpenseResponsible(String labelAndName) {
+        try (var input = new ByteArrayInputStream(RequestFormFixtures.fullFormXls());
+                var workbook = WorkbookFactory.create(input);
+                var output = new ByteArrayOutputStream()) {
+            workbook.getSheetAt(3).getRow(1).getCell(10).setCellValue(labelAndName);
             workbook.write(output);
             return output.toByteArray();
         } catch (IOException e) {
@@ -126,21 +150,51 @@ class GeneralExpenseFormAdapterTest {
         assertThat(first.getBseYy()).isEqualTo("2026");
         assertThat(first.getCostSvnDpmC()).isEqualTo("0210");
         assertThat(first.getBgUntAbusC()).isEqualTo("571");
-        // 양식에는 담당자 이름만 있으므로 사번 컬럼에는 저장하지 않는다.
-        assertThat(first.getCgprId()).isNull();
+        assertThat(first.getCgprId()).isEqualTo("최민호");
         assertThat(first.getXcrBseDt()).isEqualTo("20260101");
         assertThat(first.getTmnYn()).isEqualTo("N");
     }
 
     @Test
-    @DisplayName("증감사유는 공백을 제거한 뒤 200자 이내이면 그대로 반입한다")
-    void removesWhitespaceFromIncreaseReason() {
-        String remarks = "가".repeat(100) + " \n\t" + "나".repeat(100);
+    @DisplayName("일반관리비의 상단 실무자를 모든 행의 담당자로 담는다")
+    void takesStaffLabelAsEveryCostManager() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(withGeneralExpenseResponsible("실무자: 박실무 대리"), AmountUnit.WON));
+
+        assertThat(output.costs()).extracting(CostDto.CreateRequest::getCgprId).containsOnly("박실무");
+    }
+
+    @Test
+    @DisplayName("계약명의 개행을 공백으로 바꾼다")
+    void replacesContractNameLineBreaksWithSpaces() {
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(withFirstContractName("블룸버그\r\n회선\n사용료"), AmountUnit.WON));
+
+        assertThat(output.costs().get(0).getCttNm()).isEqualTo("블룸버그 회선 사용료");
+    }
+
+    @Test
+    @DisplayName("200자 이하 증감사유는 띄어쓰기와 개행을 유지한다")
+    void preservesWhitespaceInIncreaseReasonWithinLimit() {
+        String remarks = "가".repeat(90) + " \n\t" + "나".repeat(90);
+
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(withFirstRemarks(remarks), AmountUnit.WON));
+
+        assertThat(output.costs().get(0).getIndRsn()).isEqualTo(remarks);
+    }
+
+    @Test
+    @DisplayName("200자를 넘으면 공백을 제거해 제한 이내인 전체 내용을 반입한다")
+    void removesWhitespaceOnlyWhenIncreaseReasonExceedsLimit() {
+        String remarks = "가".repeat(100) + " ".repeat(10) + "\n".repeat(10) + "나".repeat(100);
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(withFirstRemarks(remarks), AmountUnit.WON));
 
         assertThat(output.costs().get(0).getIndRsn()).isEqualTo("가".repeat(100) + "나".repeat(100));
+        assertThat(output.diagnostics()).filteredOn(d -> "indRsn".equals(d.field())).isEmpty();
     }
 
     @Test

@@ -37,7 +37,7 @@ final class MailHtml {
      * 스타일보다 넓다.
      */
     private static final String TABLE_OPEN =
-            "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse:collapse;"
+            "<table border=\"1\" cellpadding=\"10\" cellspacing=\"0\" style=\"border-collapse:collapse;"
                     + "width:100%;margin:0 0 12px;border-color:"
                     + BORDER
                     + ";font-size:13px;line-height:1.9;\">";

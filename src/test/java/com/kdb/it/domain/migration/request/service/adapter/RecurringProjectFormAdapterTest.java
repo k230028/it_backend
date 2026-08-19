@@ -59,7 +59,7 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("폼 4개 항목을 사업 설명 컬럼으로 옮긴다")
+    @DisplayName("추진내용은 사업범위로, 미추진시 문제점은 문제점으로 옮긴다")
     void mapsOverviewFields() {
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), Map.of()))
@@ -68,6 +68,7 @@ class RecurringProjectFormAdapterTest {
 
         assertThat(project.getAbusCone()).isEqualTo("PC, 모니터 구입");
         assertThat(project.getCpnSafCone()).isEqualTo("내용연수 경과");
+        assertThat(project.getAbusNcsCone()).isNull();
         assertThat(project.getAbusRngCone()).isEqualTo("고장기기 교체");
         assertThat(project.getPlmDes()).isEqualTo("업무효율 저하");
     }
@@ -147,6 +148,19 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
+    @DisplayName("비고를 관련근거내용으로 옮긴다")
+    void mapsRemarksToRelatedBasisContent() {
+        ProjectDto.CreateRequest project =
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), Map.of()))
+                        .projects()
+                        .get(0);
+
+        assertThat(project.getItems())
+                .extracting(ProjectDto.BitemmDto::getCncdFdtnCone)
+                .containsExactly("2026년 적용 환율 기준", "라이선스 갱신 근거");
+    }
+
+    @Test
     @DisplayName("계 행은 품목으로 만들지 않는다")
     void skipsTotalRow() {
         ProjectDto.CreateRequest project =
@@ -185,6 +199,22 @@ class RecurringProjectFormAdapterTest {
 
         assertThat(output.projects()).hasSize(1);
         assertThat(output.projects().get(0).getAbusNm()).isEqualTo("2026년 런던지점 IT기기 구입");
+    }
+
+    @Test
+    @DisplayName("보정 사업명의 개행을 공백으로 바꾼다")
+    void replacesOverriddenProjectNameLineBreaksWithSpaces() {
+        Map<String, String> overrides =
+                Map.of(
+                        FormAdapterContext.overrideKey(FormSheetKind.RECURRING, null, "abusNm"),
+                        "런던지점\r\nIT기기\n구입");
+
+        ProjectDto.CreateRequest project =
+                adapter.adapt(contextOf(RequestFormFixtures.englishFormXls(), overrides))
+                        .projects()
+                        .get(0);
+
+        assertThat(project.getAbusNm()).isEqualTo("런던지점 IT기기 구입");
     }
 
     @Test

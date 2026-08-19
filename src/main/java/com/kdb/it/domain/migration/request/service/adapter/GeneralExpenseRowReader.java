@@ -39,7 +39,7 @@ final class GeneralExpenseRowReader {
         String lastMid = "";
         String lastDetail = "";
         for (int rowIndex = firstDataRow; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-            String contractName = cell(rowIndex, "contractName");
+            String contractName = FormText.singleLineName(cell(rowIndex, "contractName"));
             BigDecimal annual = number(rowIndex, "annual");
             if (contractName.isEmpty() && annual == null) continue;
 

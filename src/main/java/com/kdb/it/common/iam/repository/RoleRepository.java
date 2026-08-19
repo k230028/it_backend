@@ -3,7 +3,12 @@ package com.kdb.it.common.iam.repository;
 import com.kdb.it.common.iam.entity.CroleI;
 import com.kdb.it.common.iam.entity.CroleIId;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * 역할관리(TPRMPP_CROLEI) JPA 리포지토리
@@ -11,6 +16,31 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * <p>사용자(ENO)와 자격등급(ATH_ID) 매핑 데이터를 조회합니다. 한 사용자가 여러 자격등급을 가질 수 있으므로 List를 반환합니다.
  */
 public interface RoleRepository extends JpaRepository<CroleI, CroleIId> {
+
+    /** 삭제되지 않은 역할을 역할ID·사번·사용자명으로 검색해 페이지 단위로 조회합니다. */
+    @Query(
+            value =
+                    "SELECT r FROM CroleI r LEFT JOIN CuserI u ON u.eno = r.id.eno "
+                            + "WHERE r.delYn = 'N' AND (:search IS NULL OR "
+                            + "LOWER(r.id.athId) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))) OR "
+                            + "LOWER(r.id.eno) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))) OR "
+                            + "LOWER(u.usrNm) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))))",
+            countQuery =
+                    "SELECT COUNT(r) FROM CroleI r LEFT JOIN CuserI u ON u.eno = r.id.eno "
+                            + "WHERE r.delYn = 'N' AND (:search IS NULL OR "
+                            + "LOWER(r.id.athId) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))) OR "
+                            + "LOWER(r.id.eno) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))) OR "
+                            + "LOWER(u.usrNm) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))))")
+    Page<CroleI> findAdminRolePage(@Param("search") String search, Pageable pageable);
+
+    /** 엑셀 내보내기를 위해 현재 검색 조건의 역할 전체를 조회합니다. */
+    @Query(
+            "SELECT r FROM CroleI r LEFT JOIN CuserI u ON u.eno = r.id.eno "
+                    + "WHERE r.delYn = 'N' AND (:search IS NULL OR "
+                    + "LOWER(r.id.athId) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))) OR "
+                    + "LOWER(r.id.eno) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))) OR "
+                    + "LOWER(u.usrNm) LIKE LOWER(CONCAT('%', CONCAT(:search, '%'))))")
+    List<CroleI> findAdminRolesForExport(@Param("search") String search, Sort sort);
 
     /**
      * 사번으로 유효한 자격등급 전체 조회 (다중 자격등급 지원)

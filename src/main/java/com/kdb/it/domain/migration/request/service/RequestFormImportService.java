@@ -96,6 +96,13 @@ public class RequestFormImportService {
         for (int i = 0; i < files.size(); i++) {
             RequestFormDto.FileEntry entry = manifest.entries().get(i);
             MultipartFile file = files.get(i);
+            if (entry.archiveOnly()) {
+                String deptCode = resolveDepartmentCode(entry, orgIndex);
+                archivePlan.add(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file, entry.deptName(), deptCode, null));
+                continue;
+            }
             ProcessedFile processed =
                     processFile(
                             file,
@@ -109,7 +116,10 @@ public class RequestFormImportService {
             results.add(processed.result());
             archivePlan.add(
                     new RequestFormSourceFileArchiver.ArchivePlanItem(
-                            file, processed.effectiveDeptCode(), processed.result()));
+                            file,
+                            entry.deptName(),
+                            processed.effectiveDeptCode(),
+                            processed.result()));
         }
         // 원장 반영(파일별 REQUIRES_NEW)이 모두 끝난 뒤에 보관한다. 순서를 뒤집으면 첨부 실패가
         // 정상 반입을 통째로 되돌린다. 보관은 예외를 던지지 않으므로 여기서 감싸지 않는다.
@@ -117,7 +127,13 @@ public class RequestFormImportService {
             sourceFileArchiver.archive(archivePlan);
         }
         return new RequestFormDto.ImportResponse(
-                dryRun, summarize(files.size(), results), List.copyOf(results));
+                dryRun, summarize(results.size(), results), List.copyOf(results));
+    }
+
+    private String resolveDepartmentCode(
+            RequestFormDto.FileEntry entry, OrgIdentityResolver.Index orgIndex) {
+        if (entry.deptCodeOverride() != null) return entry.deptCodeOverride();
+        return orgIndex.resolveOrgFolder(entry.deptName()).code();
     }
 
     private ProcessedFile processFile(

@@ -190,8 +190,18 @@ public class AdminController {
      */
     @GetMapping("/roles")
     @Operation(summary = "역할 목록 조회", description = "삭제되지 않은 전체 역할(사용자↔자격등급 매핑)을 반환합니다.")
-    public ResponseEntity<List<AdminDto.RoleResponse>> getRoles() {
-        return ResponseEntity.ok(adminService.getRoles());
+    public ResponseEntity<Page<AdminDto.RoleResponse>> getRoles(
+            @RequestParam(name = "search", required = false) String search,
+            @ParameterObject @PageableDefault(size = 50, sort = "athId") Pageable pageable) {
+        return ResponseEntity.ok(adminService.getRoles(search, pageable));
+    }
+
+    @GetMapping("/roles/export")
+    @Operation(summary = "역할 엑셀 조회", description = "현재 검색·정렬 조건에 맞는 전체 역할을 반환합니다.")
+    public ResponseEntity<List<AdminDto.RoleResponse>> exportRoles(
+            @RequestParam(name = "search", required = false) String search,
+            @ParameterObject @SortDefault(sort = "athId") Sort sort) {
+        return ResponseEntity.ok(adminService.getRolesForExport(search, sort));
     }
 
     /**

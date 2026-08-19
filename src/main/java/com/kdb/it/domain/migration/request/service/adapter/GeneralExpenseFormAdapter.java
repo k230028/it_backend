@@ -53,6 +53,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
 
     private final SheetAnchorScanner scanner;
     private final MigrationIoeCatalogReader catalogReader;
+    private final FormApproverReader approverReader;
 
     @Override
     public FormSheetKind trigger() {
@@ -93,11 +94,22 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         Map<Integer, String> currencies =
                 resolveCurrencies(rows, context, currencyCandidates, diagnostics);
         AmountUnit unit = resolveUnit(context, rows, currencies, diagnostics);
+        String responsible =
+                FormPersonNames.fit(
+                        approverReader.author(sheet),
+                        "담당자",
+                        FormSheetKind.GENERAL_EXPENSE,
+                        diagnostics);
         List<CostDto.CreateRequest> costs = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
             costs.add(
                     toCreateRequest(
-                            row, context, currencies.get(row.excelRow()), unit, diagnostics));
+                            row,
+                            context,
+                            currencies.get(row.excelRow()),
+                            unit,
+                            responsible,
+                            diagnostics));
         }
         return new FormAdapterOutput(List.of(), List.copyOf(costs), List.copyOf(diagnostics), unit);
     }
@@ -191,14 +203,14 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             FormAdapterContext context,
             String currency,
             AmountUnit unit,
+            String responsible,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         CostDto.CreateRequest request = new CostDto.CreateRequest();
         request.setBseYy(context.bseYy());
         request.setCttNm(row.contractName());
         request.setCttOppNm(row.counterparty());
         applyIncreaseReason(row, request, diagnostics);
-        // 양식에는 이름만 있으므로 사번 컬럼에는 값을 넣지 않는다.
-        request.setCgprId(null);
+        request.setCgprId(responsible);
         request.setCostSvnDpmC(context.resolvedDeptCode());
         request.setBgUntAbusC(context.entry().bgUntAbusC());
         request.setTmnYn("N");
@@ -211,13 +223,17 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         return request;
     }
 
-    /** 증감사유의 공백을 제거하고 물리 컬럼 길이에 맞춥니다. */
+    /** 증감사유가 길이 제한을 넘을 때만 공백을 제거하고 물리 컬럼 길이에 맞춥니다. */
     private void applyIncreaseReason(
             GeneralExpenseRow row,
             CostDto.CreateRequest request,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (row.remarks() == null) {
             request.setIndRsn(null);
+            return;
+        }
+        if (row.remarks().length() <= INCREASE_REASON_LIMIT) {
+            request.setIndRsn(row.remarks());
             return;
         }
         String normalized = row.remarks().replaceAll("[\\s\\u00A0\\u3000]+", "");

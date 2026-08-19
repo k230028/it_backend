@@ -61,6 +61,29 @@ class FormApproverReaderTest {
     }
 
     @Test
+    @DisplayName("담당자·실무자·작성자가 모두 있으면 담당자를 우선한다")
+    void prefersManagerOverStaffAndAuthor() {
+        Sheet sheet =
+                sheetOf(
+                        Map.of(
+                                "0,1", "작성자: 김작성 차장",
+                                "1,1", "(실무자)",
+                                "1,2", "박실무 대리",
+                                "2,1", "담당자",
+                                "2,2", "이담당 과장"));
+
+        assertThat(reader.author(sheet)).isEqualTo("이담당 과장");
+    }
+
+    @Test
+    @DisplayName("담당자가 없으면 실무자를 작성자보다 우선한다")
+    void prefersStaffOverAuthor() {
+        Sheet sheet = sheetOf(Map.of("0,1", "(작성자) 김작성 차장", "1,1", "실무자: 박실무 대리"));
+
+        assertThat(reader.author(sheet)).isEqualTo("박실무 대리");
+    }
+
+    @Test
     @DisplayName("적혀 있지 않으면 비워 둔다")
     void returnsNullWhenAbsent() {
         // 다른 사람으로 대신 채우면 원장에 사실이 아닌 담당자가 남는다

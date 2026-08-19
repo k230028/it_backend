@@ -295,6 +295,7 @@ public final class RequestFormFixtures {
         put(s, 8, 6, "GBP");
         putNumber(s, 8, 7, 23346.84);
         put(s, 8, 8, "26년 연중");
+        put(s, 8, 9, "2026년 적용 환율 기준");
 
         put(s, 9, 1, "기타무형자산(SW)");
         put(s, 9, 2, "MS오피스");
@@ -302,6 +303,7 @@ public final class RequestFormFixtures {
         putNumber(s, 9, 5, 537.12);
         put(s, 9, 6, "GBP");
         putNumber(s, 9, 7, 53174.88);
+        put(s, 9, 9, "라이선스 갱신 근거");
 
         put(s, 10, 0, "계");
         s.addMergedRegion(new CellRangeAddress(10, 10, 0, 1));

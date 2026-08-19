@@ -143,6 +143,16 @@ class ResourceTableReaderTest {
         assertThat(gbp.getXcr()).isNull();
     }
 
+    @Test
+    @DisplayName("경상사업 통화코드는 공백과 대소문자를 정규화한다")
+    void normalizesRecurringProjectCurrencyCode() {
+        ProjectDto.BitemmDto gbp = toItem(row(" gbp\u00A0", new BigDecimal("500"), "년"));
+
+        assertThat(gbp.getCurC()).isEqualTo("GBP");
+        assertThat(gbp.getAmt()).isNull();
+        assertThat(gbp.getFcAmt()).isEqualByComparingTo(new BigDecimal("500"));
+    }
+
     private static ProjectDto.BitemmDto toItem(ResourceRow row) {
         return ResourceTableReader.toItem(row, "101", 1, "2026");
     }

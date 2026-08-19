@@ -96,6 +96,34 @@ class RequestFormSourceFileArchiverTest {
     }
 
     @Test
+    @DisplayName("같은 부점 폴더의 PDF도 정상 반입된 신청서에 함께 붙는다")
+    void archive_linksArchiveOnlyFileInAppliedGroup() {
+        MultipartFile excel = file("요청서.xlsx");
+        MultipartFile pdf = file("증빙.pdf");
+        RequestFormDto.FileResult applied =
+                result(
+                        "IT부(D01)/요청서.xlsx",
+                        "IT부(D01)",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-1"));
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
+                List.of(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                excel, "IT부(D01)", "D01", applied),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                pdf, "IT부(D01)", "D01", null));
+        given(fileService.uploadFile(any(), any())).willReturn("FL-EXCEL", "FL-PDF");
+
+        archiver.archive(plan);
+
+        ArgumentCaptor<MultipartFile> fileCaptor = ArgumentCaptor.forClass(MultipartFile.class);
+        then(fileService).should(times(2)).uploadFile(fileCaptor.capture(), any());
+        assertThat(fileCaptor.getAllValues())
+                .extracting(MultipartFile::getOriginalFilename)
+                .containsExactly("요청서.xlsx", "증빙.pdf");
+    }
+
+    @Test
     @DisplayName("다른 부점 폴더의 파일은 서로 섞이지 않는다")
     void archive_doesNotCrossFolders() {
         List<MultipartFile> files = List.of(file("a.xlsx"), file("b.xlsx"));

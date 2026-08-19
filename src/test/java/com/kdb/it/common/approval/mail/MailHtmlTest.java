@@ -71,7 +71,7 @@ class MailHtmlTest {
         assertThat(MailHtml.labelCell("구분")).doesNotContain("border").doesNotContain("padding");
 
         String table = MailHtml.table(MailHtml.row(MailHtml.textCell("값")));
-        assertThat(table).contains("cellpadding=").contains("border=");
+        assertThat(table).contains("cellpadding=\"10\"").contains("border=");
     }
 
     @Test

@@ -42,6 +42,7 @@ public final class RequestFormDto {
      * @param deptCodeOverride 미리보기에서 사용자가 고른 부서코드. 없으면 null
      * @param generalExpenseUnit 시트 ③ 금액 기재 단위. 없으면 서버가 제안값을 씁니다
      * @param bgUntAbusC 시트 ③ 사업코드. 양식에 없어 사용자가 지정합니다. 없으면 null
+     * @param archiveOnly true면 원장 파싱 없이 같은 폴더의 반입 원본으로만 보관합니다
      */
     @Schema(name = "RequestFormFileEntry", description = "업로드 파일 부가 정보")
     public record FileEntry(
@@ -64,7 +65,20 @@ public final class RequestFormDto {
                             description = "시트 ③ 사업코드",
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             nullable = true)
-                    String bgUntAbusC) {}
+                    String bgUntAbusC,
+            @Schema(description = "보관 전용 파일 여부", requiredMode = Schema.RequiredMode.REQUIRED)
+                    boolean archiveOnly) {
+
+        /** 기존 내부 호출은 모두 반입 대상 파일입니다. */
+        public FileEntry(
+                String fileKey,
+                String deptName,
+                String deptCodeOverride,
+                AmountUnit generalExpenseUnit,
+                String bgUntAbusC) {
+            this(fileKey, deptName, deptCodeOverride, generalExpenseUnit, bgUntAbusC, false);
+        }
+    }
 
     /**
      * 미리보기에서 사용자가 고친 셀 값입니다.

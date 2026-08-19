@@ -6,6 +6,7 @@ import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -144,12 +145,13 @@ public class ResourceTableReader {
      */
     public static ProjectDto.BitemmDto toItem(
             ResourceRow row, String ioeCode, int sno, String bseYy) {
+        String currency = normalizeCurrency(row.currency());
         ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
         item.setSno(sno);
         item.setIoeC(ioeCode);
         item.setGclNm(row.itemName());
         item.setQty(row.qty());
-        item.setCurC(row.currency());
+        item.setCurC(currency);
         item.setCncdFdtnCone(row.basis());
         item.setBseYm(toBseYm(row.timing(), bseYy));
         item.setDfrCleC(toPaymentCycle(row.timing()));
@@ -158,16 +160,22 @@ public class ResourceTableReader {
         item.setLstYn("Y");
         item.setXcrBseDt(bseYy + "0101");
 
-        if ("KRW".equalsIgnoreCase(row.currency())) {
+        if ("KRW".equals(currency)) {
             item.setAmt(row.amount());
             item.setFcAmt(null);
         } else {
-            long multiplier = "JPY".equalsIgnoreCase(row.currency()) ? JPY_MULTIPLIER : 1L;
+            long multiplier = "JPY".equals(currency) ? JPY_MULTIPLIER : 1L;
             item.setFcAmt(row.amount().multiply(BigDecimal.valueOf(multiplier)));
             item.setAmt(null);
             item.setXcr(null);
         }
         return item;
+    }
+
+    /** 엑셀 통화 셀의 대소문자와 일반·전각 공백을 공통코드 형식으로 맞춥니다. */
+    private static String normalizeCurrency(String currency) {
+        if (currency == null) return null;
+        return currency.replaceAll("[\\s\\p{Z}]+", "").toUpperCase(Locale.ROOT);
     }
 
     /**

@@ -24,8 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
  * 두 번째 연결부터는 물리 경로를 공유하는 메타행만 추가합니다({@link FileService#linkExistingFile(String,
  * FileDto.UploadRequest)}).
  *
- * <p>APPLIED 파일만 보관합니다. BLOCKED·FAILED 파일은 원장을 만들지 않아 붙일 신청서번호가 없고, 같은 폴더의 정상 건에 얹으면 그 사업과 무관한 실패
- * 파일이 목록에 섞입니다. 반입 실패는 반입 화면의 진단이 다룹니다.
+ * <p>APPLIED 파일이 만든 신청서번호를 기준으로, 같은 폴더·부서코드의 보관 전용 첨부파일까지 함께 연결합니다.
  *
  * <p>이 클래스는 <b>예외를 밖으로 던지지 않습니다</b>. 원장 반영이 이미 커밋된 뒤에 실행되므로, 보관 실패로 반입 전체를 실패로 돌리면 되돌릴 수 없는 원장이 남은
  * 채 사용자에게 실패로 보입니다. 보관에 실패한 건은 파일이 0건인 상태가 되어 화면에서 안내 문구로 흐르며, 원인은 ERROR 로그로 남습니다.
@@ -45,7 +44,16 @@ public class RequestFormSourceFileArchiver {
 
     /** 파일별 처리 결과와 그 처리에 실제 적용한 검증 부서코드를 묶는 내부 보관 계획 항목입니다. */
     record ArchivePlanItem(
-            MultipartFile file, String effectiveDeptCode, RequestFormDto.FileResult result) {}
+            MultipartFile file,
+            String deptName,
+            String effectiveDeptCode,
+            RequestFormDto.FileResult result) {
+
+        ArchivePlanItem(
+                MultipartFile file, String effectiveDeptCode, RequestFormDto.FileResult result) {
+            this(file, result == null ? null : result.deptName(), effectiveDeptCode, result);
+        }
+    }
 
     /** 원본 폴더 단위와 검증된 부서코드를 모두 보존하는 보관 그룹 키입니다. */
     private record ArchiveGroupKey(String deptName, String effectiveDeptCode) {}
@@ -64,15 +72,16 @@ public class RequestFormSourceFileArchiver {
         Map<ArchiveGroupKey, Set<String>> apfMngNosByGroup = new LinkedHashMap<>();
 
         for (ArchivePlanItem item : plan) {
-            RequestFormDto.FileResult result = item.result();
             String deptCode = item.effectiveDeptCode();
-            if (result == null
-                    || result.status() != RequestFormDto.FileStatus.APPLIED
-                    || !StringUtils.hasText(deptCode)) {
+            if (!StringUtils.hasText(item.deptName()) || !StringUtils.hasText(deptCode)) {
                 continue;
             }
-            ArchiveGroupKey groupKey = new ArchiveGroupKey(result.deptName(), deptCode);
+            ArchiveGroupKey groupKey = new ArchiveGroupKey(item.deptName(), deptCode);
             filesByGroup.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(item.file());
+            RequestFormDto.FileResult result = item.result();
+            if (result == null || result.status() != RequestFormDto.FileStatus.APPLIED) {
+                continue;
+            }
             Set<String> apfMngNos =
                     apfMngNosByGroup.computeIfAbsent(groupKey, key -> new LinkedHashSet<>());
             for (RequestFormDto.CreatedRecord created : result.created()) {

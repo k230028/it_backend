@@ -89,6 +89,17 @@ class CapitalOverviewReaderTest {
     }
 
     @Test
+    @DisplayName("사업명의 개행을 공백으로 바꾼다")
+    void replacesProjectNameLineBreaksWithSpaces() {
+        Sheet sheet = overviewSheet(Map.of("사업명", "차세대\r\n정보계\n구축\r사업"));
+
+        ProjectDto.CreateRequest project =
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
+
+        assertThat(project.getAbusNm()).isEqualTo("차세대 정보계 구축 사업");
+    }
+
+    @Test
     @DisplayName("주관부서/팀이 없으면 폴더명으로 확정한 부서를 쓴다")
     void fallsBackToFolderDepartment() {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업"));

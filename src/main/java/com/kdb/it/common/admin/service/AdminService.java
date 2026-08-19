@@ -51,6 +51,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminService {
 
     private static final int MAX_USER_PAGE_SIZE = 200;
+    private static final int MAX_ROLE_PAGE_SIZE = 200;
+    private static final Map<String, String> ROLE_SORT_FIELDS =
+            Map.of(
+                    "athId", "id.athId",
+                    "eno", "id.eno",
+                    "useYn", "useYn",
+                    "fstEnrDtm", "fstEnrDtm",
+                    "lstChgDtm", "lstChgDtm");
     private static final Set<String> USER_SORT_FIELDS =
             Set.of(
                     "eno",
@@ -167,11 +175,58 @@ public class AdminService {
      *
      * @return 역할 응답 DTO 목록
      */
-    public List<AdminDto.RoleResponse> getRoles() {
-        return roleRepository.findAll().stream()
-                .filter(r -> "N".equals(r.getDelYn()))
-                .map(this::toRoleResponse)
-                .toList();
+    public Page<AdminDto.RoleResponse> getRoles(String search, Pageable pageable) {
+        Pageable safePageable = normalizeRolePageable(pageable);
+        Page<CroleI> roles =
+                roleRepository.findAdminRolePage(normalizeSearch(search), safePageable);
+        Map<String, String> userNameMap =
+                loadUserNameMap(
+                        roles.getContent().stream()
+                                .flatMap(
+                                        role ->
+                                                Stream.of(
+                                                        role.getEno(),
+                                                        role.getFstEnrUsid(),
+                                                        role.getLstChgUsid())));
+        return roles.map(role -> toRoleResponse(role, userNameMap));
+    }
+
+    /** 현재 검색·정렬 조건에 맞는 역할 전체를 엑셀 내보내기용으로 반환합니다. */
+    public List<AdminDto.RoleResponse> getRolesForExport(String search, Sort sort) {
+        List<CroleI> roles =
+                roleRepository.findAdminRolesForExport(
+                        normalizeSearch(search), normalizeRoleSort(sort));
+        Map<String, String> userNameMap =
+                loadUserNameMap(
+                        roles.stream()
+                                .flatMap(
+                                        role ->
+                                                Stream.of(
+                                                        role.getEno(),
+                                                        role.getFstEnrUsid(),
+                                                        role.getLstChgUsid())));
+        return roles.stream().map(role -> toRoleResponse(role, userNameMap)).toList();
+    }
+
+    private Pageable normalizeRolePageable(Pageable pageable) {
+        int size = Math.min(Math.max(pageable.getPageSize(), 1), MAX_ROLE_PAGE_SIZE);
+        Sort sort = normalizeRoleSort(pageable.getSort());
+        if (sort.isUnsorted()) {
+            sort = Sort.by("id.athId").ascending().and(Sort.by("id.eno").ascending());
+        }
+        return PageRequest.of(pageable.getPageNumber(), size, sort);
+    }
+
+    private Sort normalizeRoleSort(Sort sort) {
+        return Sort.by(
+                sort.stream()
+                        .map(
+                                order ->
+                                        new Sort.Order(
+                                                order.getDirection(),
+                                                ROLE_SORT_FIELDS.getOrDefault(
+                                                        order.getProperty(), "id.athId")))
+                        .toList());
     }
 
     /**
@@ -242,6 +297,20 @@ public class AdminService {
                 r.getLstChgDtm(),
                 r.getLstChgUsid(),
                 resolveUserName(r.getLstChgUsid()));
+    }
+
+    private AdminDto.RoleResponse toRoleResponse(CroleI r, Map<String, String> userNameMap) {
+        return new AdminDto.RoleResponse(
+                r.getAthId(),
+                r.getEno(),
+                resolveUserName(r.getEno(), userNameMap),
+                r.getUseYn(),
+                r.getFstEnrDtm(),
+                r.getFstEnrUsid(),
+                resolveUserName(r.getFstEnrUsid(), userNameMap),
+                r.getLstChgDtm(),
+                r.getLstChgUsid(),
+                resolveUserName(r.getLstChgUsid(), userNameMap));
     }
 
     // =========================================================================

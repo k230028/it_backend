@@ -106,7 +106,9 @@ class FormAdapterEdgeCaseTest {
     @Test
     @DisplayName("시트 ③의 표 헤더를 못 찾으면 앵커 실패 진단을 낸다")
     void generalExpenseReportsMissingAnchor() {
-        GeneralExpenseFormAdapter adapter = new GeneralExpenseFormAdapter(scanner, catalogReader);
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(
+                        scanner, catalogReader, new FormApproverReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(emptyShellWorkbook()));
 
@@ -123,7 +125,11 @@ class FormAdapterEdgeCaseTest {
         when(catalogReader.exePttCodeByName()).thenReturn(Map.of());
         when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of());
 
-        assertThat(new GeneralExpenseFormAdapter(scanner, catalogReader).adapt(context).costs())
+        assertThat(
+                        new GeneralExpenseFormAdapter(
+                                        scanner, catalogReader, new FormApproverReader(scanner))
+                                .adapt(context)
+                                .costs())
                 .isEmpty();
         assertThat(
                         new RecurringProjectFormAdapter(

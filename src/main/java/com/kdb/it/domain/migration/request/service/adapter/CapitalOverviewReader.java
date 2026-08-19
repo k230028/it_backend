@@ -93,7 +93,7 @@ public class CapitalOverviewReader {
         project.setBseYy(context.bseYy());
         project.setOdnYn("N");
         project.setAbusTc(CodeDefaults.NOT_APPLICABLE);
-        project.setAbusNm(labelReader.value(sheet, "사업명"));
+        project.setAbusNm(FormText.singleLineName(labelReader.value(sheet, "사업명")));
         project.setAbusCone(labelReader.value(sheet, "(개요)"));
         project.setCpnSafCone(labelReader.value(sheet, "(현황)"));
         project.setAbusNcsCone(labelReader.value(sheet, "(필요성)"));

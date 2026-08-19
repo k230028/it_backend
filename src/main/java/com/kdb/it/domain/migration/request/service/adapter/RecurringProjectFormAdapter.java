@@ -90,12 +90,14 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         if (hasResources) {
             int sno = 1;
             for (ResourceRow row : table.get().rows()) {
-                items.add(
+                ProjectDto.BitemmDto item =
                         ResourceTableReader.toItem(
                                 row,
                                 resolveIoe(row, context, diagnostics),
                                 sno++,
-                                context.bseYy()));
+                                context.bseYy());
+                item.setCncdFdtnCone(row.remarks());
+                items.add(item);
             }
         }
         project.setItems(items);
@@ -149,9 +151,11 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
     /** 보정값을 우선하고, 없으면 시트의 사업명을 씁니다. 둘 다 없으면 null. */
     private String resolveProjectName(Sheet sheet, FormAdapterContext context) {
         Optional<String> override = context.override(FormSheetKind.RECURRING, null, "abusNm");
-        if (override.isPresent()) return override.get();
+        if (override.isPresent()) return FormText.singleLineName(override.get());
 
         String fromSheet = labelReader.value(sheet, "사업명");
-        return fromSheet == null || fromSheet.isBlank() ? null : fromSheet;
+        return fromSheet == null || fromSheet.isBlank()
+                ? null
+                : FormText.singleLineName(fromSheet);
     }
 }

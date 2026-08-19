@@ -6,7 +6,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.springframework.stereotype.Component;
 
 /**
- * 시트 상단 머리말의 `(확인자)`·`(작성자)`를 읽습니다.
+ * 시트 상단 머리말의 확인자와 담당자를 읽습니다.
  *
  * <p>경상사업(②)과 일반관리비(③)에는 1-1의 `관련 조직` 블록이 없습니다. 대신 시트 맨 위에 확인자·작성자를 한 번 적으며, 그것이 그 시트의 <b>주관팀장과
  * 담당자</b>입니다.
@@ -42,13 +42,19 @@ public class FormApproverReader {
     }
 
     /**
-     * 작성자 이름을 읽습니다. 그 시트의 담당자입니다.
+     * 담당자 이름을 읽습니다.
+     *
+     * <p>시기별 양식이 `담당자`·`실무자`·`작성자`를 섞어 쓰므로 이 순서로 우선합니다.
      *
      * @param sheet 대상 시트
      * @return 이름. 적혀 있지 않으면 null
      */
     public String author(Sheet sheet) {
-        return nameAfterLabel(sheet, "(작성자)");
+        for (String label : new String[] {"담당자", "실무자", "작성자"}) {
+            String name = nameAfterLabel(sheet, label);
+            if (name != null) return name;
+        }
+        return null;
     }
 
     /**
@@ -63,9 +69,9 @@ public class FormApproverReader {
             for (int colIndex = 0; colIndex < HEADER_SCAN_COLUMNS; colIndex++) {
                 String text = scanner.text(sheet, rowIndex, colIndex);
                 if (text.isEmpty()) continue;
-                if (!SheetAnchorScanner.normalize(text).startsWith(key)) continue;
+                if (!startsWithLabel(text, key)) continue;
 
-                String inline = afterClosingParenthesis(text);
+                String inline = afterLabel(text, label);
                 if (!inline.isEmpty()) return inline;
                 return nameRightOf(sheet, rowIndex, colIndex);
             }
@@ -79,13 +85,31 @@ public class FormApproverReader {
         for (int colIndex = from; colIndex < from + VALUE_SCAN_WIDTH; colIndex++) {
             String value = scanner.text(sheet, rowIndex, colIndex);
             if (value.isEmpty()) continue;
-            return value.startsWith("(") ? null : value;
+            return isPersonLabel(value) ? null : value;
         }
         return null;
     }
 
-    private static String afterClosingParenthesis(String text) {
-        int close = text.indexOf(')');
-        return close < 0 ? "" : text.substring(close + 1).trim();
+    private static boolean startsWithLabel(String text, String normalizedLabel) {
+        String normalized = SheetAnchorScanner.normalize(text);
+        if (normalized.startsWith(normalizedLabel)) return true;
+        return normalized.startsWith("(" + normalizedLabel + ")");
+    }
+
+    private static String afterLabel(String text, String label) {
+        String trimmed = text.trim();
+        int labelIndex = trimmed.indexOf(label);
+        if (labelIndex < 0) return "";
+        String remainder = trimmed.substring(labelIndex + label.length()).trim();
+        if (remainder.startsWith(")")) remainder = remainder.substring(1).trim();
+        if (remainder.startsWith(":")) remainder = remainder.substring(1).trim();
+        return remainder;
+    }
+
+    private static boolean isPersonLabel(String value) {
+        for (String label : new String[] {"확인자", "담당자", "실무자", "작성자"}) {
+            if (startsWithLabel(value, label)) return true;
+        }
+        return false;
     }
 }

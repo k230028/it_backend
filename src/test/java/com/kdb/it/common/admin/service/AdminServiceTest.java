@@ -565,23 +565,65 @@ class AdminServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("getRoles: 삭제되지 않은 역할 목록을 반환한다")
-    void getRoles_삭제되지않은목록반환() {
-        // given: DEL_YN='N'/'Y' 혼합
+    @DisplayName("getRoles: DB 페이징 결과를 반환하고 사용자명은 일괄 조회한다")
+    void getRoles_DB페이징과사용자명일괄조회() {
+        // given
         CroleIId activeId = new CroleIId("ITPAD001", "10001");
-        CroleIId deletedId = new CroleIId("ITPAD001", "99999");
-        CroleI active = CroleI.builder().id(activeId).useYn("Y").delYn("N").build();
-        CroleI deleted = CroleI.builder().id(deletedId).useYn("N").delYn("Y").build();
-        given(roleRepository.findAll()).willReturn(List.of(active, deleted));
-        given(userRepository.findByEno(any())).willReturn(java.util.Optional.empty());
+        CroleI active =
+                CroleI.builder()
+                        .id(activeId)
+                        .useYn("Y")
+                        .delYn("N")
+                        .fstEnrUsid("90001")
+                        .lstChgUsid("90002")
+                        .build();
+        PageRequest pageable = PageRequest.of(1, 20, Sort.by("eno"));
+        given(roleRepository.findAdminRolePage(eq("홍"), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(active), pageable, 41));
+        given(userRepository.findNameViewsByEnoIn(anySet()))
+                .willReturn(
+                        List.of(
+                                new NameView("10001", "홍길동"),
+                                new NameView("90001", "등록자"),
+                                new NameView("90002", "수정자")));
 
         // when
-        List<AdminDto.RoleResponse> result = adminService.getRoles();
+        Page<AdminDto.RoleResponse> result = adminService.getRoles(" 홍 ", pageable);
 
-        // then: DEL_YN='Y' 항목은 제외하고 1건만 반환
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).athId()).isEqualTo("ITPAD001");
-        assertThat(result.get(0).eno()).isEqualTo("10001");
+        // then
+        assertThat(result.getTotalElements()).isEqualTo(41);
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().getFirst().usrNm()).isEqualTo("홍길동");
+        assertThat(result.getContent().getFirst().fstEnrUsNm()).isEqualTo("등록자");
+        assertThat(result.getContent().getFirst().lstChgUsNm()).isEqualTo("수정자");
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(roleRepository).findAdminRolePage(eq("홍"), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getSort().getOrderFor("id.eno")).isNotNull();
+        verify(userRepository, times(1)).findNameViewsByEnoIn(anySet());
+    }
+
+    @Test
+    @DisplayName("getRolesForExport: 검색 결과 전체를 사용자명 일괄 조회로 변환한다")
+    void getRolesForExport_전체검색결과반환() {
+        CroleI role =
+                CroleI.builder()
+                        .id(new CroleIId("ITPAD001", "10001"))
+                        .useYn("Y")
+                        .delYn("N")
+                        .build();
+        given(roleRepository.findAdminRolesForExport(eq("홍"), any(Sort.class)))
+                .willReturn(List.of(role));
+        given(userRepository.findNameViewsByEnoIn(anySet()))
+                .willReturn(List.of(new NameView("10001", "홍길동")));
+
+        List<AdminDto.RoleResponse> result =
+                adminService.getRolesForExport(" 홍 ", Sort.by("eno").ascending());
+
+        assertThat(result)
+                .singleElement()
+                .extracting(AdminDto.RoleResponse::usrNm)
+                .isEqualTo("홍길동");
+        verify(userRepository, times(1)).findNameViewsByEnoIn(anySet());
     }
 
     @Test

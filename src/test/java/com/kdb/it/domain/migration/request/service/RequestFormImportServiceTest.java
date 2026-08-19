@@ -178,6 +178,42 @@ class RequestFormImportServiceTest {
     }
 
     @Test
+    @DisplayName("보관 전용 PDF는 파싱·결과 집계에서 빼고 반입 원본 계획에 포함한다")
+    void commit_keepsArchiveOnlyFileOutOfImportResults() {
+        when(fileImporter.apply(any(), any(), anyString(), anyString()))
+                .thenReturn(applied("자금운용실/요청서.xls"));
+        List<RequestFormDto.FileEntry> entries =
+                List.of(
+                        new RequestFormDto.FileEntry(
+                                "자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571", false),
+                        new RequestFormDto.FileEntry(
+                                "자금운용실/증빙.pdf", "자금운용실", null, null, null, true));
+
+        RequestFormDto.ImportResponse response =
+                service(50)
+                        .importBatch(
+                                List.of(
+                                        file("요청서.xls", RequestFormFixtures.fullFormXls()),
+                                        new MockMultipartFile(
+                                                "files",
+                                                "증빙.pdf",
+                                                "application/pdf",
+                                                "%PDF".getBytes(StandardCharsets.UTF_8))),
+                                new RequestFormDto.ImportManifest("2026", entries, List.of()),
+                                "12345678",
+                                false);
+
+        assertThat(response.files()).singleElement();
+        assertThat(response.summary().totalFiles()).isEqualTo(1);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<RequestFormSourceFileArchiver.ArchivePlanItem>> planCaptor =
+                ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(sourceFileArchiver).archive(planCaptor.capture());
+        assertThat(planCaptor.getValue()).hasSize(2);
+        assertThat(planCaptor.getValue().get(1).result()).isNull();
+    }
+
+    @Test
     @DisplayName("같은 폴더의 상충한 부서 보정값을 검증된 부서코드별 archive plan으로 전달한다")
     void commit_carriesEffectiveDepartmentCodesIntoArchivePlan() {
         List<RequestFormDto.FileEntry> entries =
