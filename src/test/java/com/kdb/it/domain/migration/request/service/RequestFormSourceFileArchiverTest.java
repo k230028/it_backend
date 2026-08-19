@@ -124,6 +124,92 @@ class RequestFormSourceFileArchiverTest {
     }
 
     @Test
+    @DisplayName("같은 부서의 서로 다른 번호 사업 폴더는 원본을 공유하지 않는다")
+    void archive_doesNotCrossArchiveGroupsInSameDepartment() {
+        RequestFormDto.FileResult first =
+                result(
+                        "2026/IT부(D01)/01. 사업A/요청서.xlsx",
+                        "IT부(D01)",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-A"));
+        RequestFormDto.FileResult second =
+                result(
+                        "2026/IT부(D01)/02. 사업B/요청서.xlsx",
+                        "IT부(D01)",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-B"));
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
+                List.of(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("a.xlsx"), "2026/IT부(D01)/01. 사업A", "D01", first),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("b.xlsx"), "2026/IT부(D01)/02. 사업B", "D01", second));
+        assertThat(plan)
+                .extracting(RequestFormSourceFileArchiver.ArchivePlanItem::archiveGroupKey)
+                .containsExactly("2026/IT부(D01)/01. 사업A", "2026/IT부(D01)/02. 사업B");
+        given(fileService.uploadFile(any(), any())).willReturn("FL-A", "FL-B");
+
+        archiver.archive(plan);
+
+        ArgumentCaptor<FileDto.UploadRequest> requestCaptor =
+                ArgumentCaptor.forClass(FileDto.UploadRequest.class);
+        then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
+        then(fileService).should(never()).linkExistingFile(any(), any());
+        assertThat(requestCaptor.getAllValues())
+                .extracting(FileDto.UploadRequest::getPkCone)
+                .containsExactlyInAnyOrder("APF-A", "APF-B");
+    }
+
+    @Test
+    @DisplayName("같은 사업 그룹의 SKIPPED 엑셀과 PDF도 정상 반입 APF에 붙인다")
+    void archive_linksSkippedExcelAndPdfInAppliedArchiveGroup() {
+        String group = "2026/IT부(D01)/01. 사업A";
+        RequestFormDto.FileResult applied =
+                result(
+                        group + "/요청서.xlsx",
+                        "IT부(D01)",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-A"));
+        RequestFormDto.FileResult skipped =
+                result(
+                        group + "/산출근거.xlsx",
+                        "IT부(D01)",
+                        RequestFormDto.FileStatus.SKIPPED,
+                        List.of());
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
+                List.of(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("요청서.xlsx"), group, "D01", applied),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("산출근거.xlsx"), group, "D01", skipped),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("견적.pdf"), group, "D01", null));
+        given(fileService.uploadFile(any(), any())).willReturn("FL-1", "FL-2", "FL-3");
+
+        archiver.archive(plan);
+
+        ArgumentCaptor<MultipartFile> fileCaptor = ArgumentCaptor.forClass(MultipartFile.class);
+        then(fileService).should(times(3)).uploadFile(fileCaptor.capture(), any());
+        assertThat(fileCaptor.getAllValues())
+                .extracting(MultipartFile::getOriginalFilename)
+                .containsExactly("요청서.xlsx", "산출근거.xlsx", "견적.pdf");
+    }
+
+    @Test
+    @DisplayName("결과 없는 단축 보관 계획은 그룹을 만들지 않고 건너뛴다")
+    void archive_skipsConveniencePlanWithoutResult() {
+        RequestFormSourceFileArchiver.ArchivePlanItem item =
+                new RequestFormSourceFileArchiver.ArchivePlanItem(file("근거.pdf"), "D01", null);
+
+        assertThat(item.archiveGroupKey()).isEmpty();
+
+        archiver.archive(List.of(item));
+
+        then(fileService).should(never()).uploadFile(any(), any());
+        then(fileService).should(never()).linkExistingFile(any(), any());
+    }
+
+    @Test
     @DisplayName("다른 부점 폴더의 파일은 서로 섞이지 않는다")
     void archive_doesNotCrossFolders() {
         List<MultipartFile> files = List.of(file("a.xlsx"), file("b.xlsx"));

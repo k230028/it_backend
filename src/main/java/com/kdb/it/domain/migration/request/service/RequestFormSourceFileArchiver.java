@@ -19,8 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 반입한 편성요청서 원본을 공통첨부파일에 보관합니다.
  *
- * <p>보관 단위는 <b>원본 최상위 폴더와 파일 처리에서 확정한 부서코드의 조합</b>입니다. 폴더명이 같아도 검증 코드가 다르거나, 검증 코드가 같아도 폴더명이 다르면
- * 파일과 신청서번호를 섞지 않습니다. 두 값이 모두 같은 폴더의 파일만 그 폴더가 만든 모든 원장에서 함께 보이도록 연결합니다. 다만 디스크 기록은 <b>파일당 1회</b>이고
+ * <p>보관 단위는 <b>사업 보관 그룹과 파일 처리에서 확정한 부서코드의 조합</b>입니다. 사업 폴더가 같아도 검증 코드가 다르거나, 검증 코드가 같아도 사업 폴더가 다르면
+ * 파일과 신청서번호를 섞지 않습니다. 두 값이 모두 같은 그룹의 파일만 그 그룹이 만든 모든 원장에서 함께 보이도록 연결합니다. 다만 디스크 기록은 <b>파일당 1회</b>이고
  * 두 번째 연결부터는 물리 경로를 공유하는 메타행만 추가합니다({@link FileService#linkExistingFile(String,
  * FileDto.UploadRequest)}).
  *
@@ -42,24 +42,28 @@ public class RequestFormSourceFileArchiver {
 
     private final FileService fileService;
 
-    /** 파일별 처리 결과와 그 처리에 실제 적용한 검증 부서코드를 묶는 내부 보관 계획 항목입니다. */
+    /** 파일별 처리 결과와 원본 보관 그룹·실제 검증 부서코드를 묶습니다. */
     record ArchivePlanItem(
             MultipartFile file,
-            String deptName,
+            String archiveGroupKey,
             String effectiveDeptCode,
             RequestFormDto.FileResult result) {
 
         ArchivePlanItem(
                 MultipartFile file, String effectiveDeptCode, RequestFormDto.FileResult result) {
-            this(file, result == null ? null : result.deptName(), effectiveDeptCode, result);
+            this(
+                    file,
+                    result == null ? "" : RequestFormArchiveGroup.keyOf(result.fileKey()),
+                    effectiveDeptCode,
+                    result);
         }
     }
 
-    /** 원본 폴더 단위와 검증된 부서코드를 모두 보존하는 보관 그룹 키입니다. */
-    private record ArchiveGroupKey(String deptName, String effectiveDeptCode) {}
+    /** 사업 폴더와 검증된 부서코드를 모두 보존하는 보관 그룹 키입니다. */
+    private record ArchiveGroupKey(String archiveGroupKey, String effectiveDeptCode) {}
 
     /**
-     * 반입 배치의 원본 파일을 원본 폴더·검증된 부서코드 조합 단위로 보관합니다.
+     * 반입 배치의 원본 파일을 사업 보관 그룹·검증된 부서코드 조합 단위로 보관합니다.
      *
      * <p>호출자는 commit 경로에서만 부릅니다. dry-run은 원장을 만들지 않으므로 보관할 대상도 없습니다. 보관 중 파일 저장이나 재연결이 실패하면 ERROR
      * 로그만 남기고 예외를 전파하지 않습니다.
@@ -67,16 +71,16 @@ public class RequestFormSourceFileArchiver {
      * @param plan 업로드 파일·실제 적용 부서코드·파일별 반영 결과를 묶은 내부 계획
      */
     void archive(List<ArchivePlanItem> plan) {
-        // 원본 폴더·실제 적용 부서코드별로 (파일 목록, 신청서번호 집합)을 모은다
+        // 사업 보관 그룹·실제 적용 부서코드별로 (파일 목록, 신청서번호 집합)을 모은다
         Map<ArchiveGroupKey, List<MultipartFile>> filesByGroup = new LinkedHashMap<>();
         Map<ArchiveGroupKey, Set<String>> apfMngNosByGroup = new LinkedHashMap<>();
 
         for (ArchivePlanItem item : plan) {
             String deptCode = item.effectiveDeptCode();
-            if (!StringUtils.hasText(item.deptName()) || !StringUtils.hasText(deptCode)) {
+            if (!StringUtils.hasText(item.archiveGroupKey()) || !StringUtils.hasText(deptCode)) {
                 continue;
             }
-            ArchiveGroupKey groupKey = new ArchiveGroupKey(item.deptName(), deptCode);
+            ArchiveGroupKey groupKey = new ArchiveGroupKey(item.archiveGroupKey(), deptCode);
             filesByGroup.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(item.file());
             RequestFormDto.FileResult result = item.result();
             if (result == null || result.status() != RequestFormDto.FileStatus.APPLIED) {
@@ -116,8 +120,8 @@ public class RequestFormSourceFileArchiver {
         } catch (RuntimeException e) {
             // 원본 파일을 확보하지 못하면 나머지 신청서번호에는 재연결할 물리 파일도 없다
             log.error(
-                    "편성요청서 반입 원본 보관 실패: deptName={}, deptCode={}, apfMngNo={}, fileName={}",
-                    groupKey.deptName(),
+                    "편성요청서 반입 원본 보관 실패: archiveGroup={}, deptCode={}, apfMngNo={}, fileName={}",
+                    groupKey.archiveGroupKey(),
                     groupKey.effectiveDeptCode(),
                     firstApfMngNo,
                     file.getOriginalFilename(),
@@ -132,8 +136,8 @@ public class RequestFormSourceFileArchiver {
             } catch (RuntimeException e) {
                 // 보관 실패가 이미 커밋된 원장을 되돌리게 두지 않는다. 해당 건은 파일 0건 상태로 남는다
                 log.error(
-                        "편성요청서 반입 원본 보관 실패: deptName={}, deptCode={}, apfMngNo={}, fileName={}",
-                        groupKey.deptName(),
+                        "편성요청서 반입 원본 보관 실패: archiveGroup={}, deptCode={}, apfMngNo={}, fileName={}",
+                        groupKey.archiveGroupKey(),
                         groupKey.effectiveDeptCode(),
                         apfMngNo,
                         file.getOriginalFilename(),

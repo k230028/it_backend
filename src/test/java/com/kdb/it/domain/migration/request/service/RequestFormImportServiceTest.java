@@ -204,13 +204,53 @@ class RequestFormImportServiceTest {
                                 false);
 
         assertThat(response.files()).singleElement();
-        assertThat(response.summary().totalFiles()).isEqualTo(1);
+        assertThat(response.summary().totalFiles()).isEqualTo(2);
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<RequestFormSourceFileArchiver.ArchivePlanItem>> planCaptor =
                 ArgumentCaptor.forClass(List.class);
         org.mockito.Mockito.verify(sourceFileArchiver).archive(planCaptor.capture());
         assertThat(planCaptor.getValue()).hasSize(2);
+        assertThat(planCaptor.getValue())
+                .extracting(RequestFormSourceFileArchiver.ArchivePlanItem::archiveGroupKey)
+                .containsExactly("자금운용실", "자금운용실");
         assertThat(planCaptor.getValue().get(1).result()).isNull();
+    }
+
+    @Test
+    @DisplayName("SKIPPED 엑셀도 그룹 키와 해석된 부서코드로 보관 계획에 남긴다")
+    void commit_keepsSkippedExcelInArchivePlan() {
+        RequestFormDto.FileEntry entry =
+                new RequestFormDto.FileEntry(
+                        "2026/자금운용실(420)/팀1/사업1/참고자료.xls",
+                        "자금운용실(420)",
+                        null,
+                        AmountUnit.WON,
+                        "571");
+
+        RequestFormDto.ImportResponse response =
+                service(50)
+                        .importBatch(
+                                List.of(file("참고자료.xls", RequestFormFixtures.unrelatedSheetXls())),
+                                new RequestFormDto.ImportManifest(
+                                        "2026", List.of(entry), List.of()),
+                                "12345678",
+                                false);
+
+        assertThat(response.files())
+                .singleElement()
+                .extracting(RequestFormDto.FileResult::status)
+                .isEqualTo(RequestFormDto.FileStatus.SKIPPED);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<RequestFormSourceFileArchiver.ArchivePlanItem>> planCaptor =
+                ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(sourceFileArchiver).archive(planCaptor.capture());
+        assertThat(planCaptor.getValue())
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.archiveGroupKey()).isEqualTo("2026/자금운용실(420)/팀1");
+                            assertThat(item.effectiveDeptCode()).isEqualTo("0210");
+                        });
     }
 
     @Test

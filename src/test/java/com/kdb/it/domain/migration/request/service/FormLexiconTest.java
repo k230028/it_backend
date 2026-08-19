@@ -107,6 +107,11 @@ class FormLexiconTest {
         assertThat(FormLexicon.canonicalOptionName("부문(본부장) 보고")).isEqualTo("부문(본부)장");
         assertThat(FormLexicon.canonicalOptionName("확정(변동가능성 無)")).isEqualTo("확정");
         assertThat(FormLexicon.canonicalOptionName("수석부행장")).isEqualTo("전무이사");
+        assertThat(FormLexicon.canonicalOptionName("IDT본부장")).isEqualTo("부문(본부)장");
+        assertThat(FormLexicon.canonicalOptionName("추진계획 검토중 (유관부서검토 여부 : ) (변동가능성 有), N"))
+                .isEqualTo("미정(검토중)");
+        assertThat(FormLexicon.canonicalOptionName("부서장 보고 / 추진계획 검토중"))
+                .isEqualTo("부서장 보고 / 추진계획 검토중");
         // 대조표에 없으면 원문 그대로 넘겨 코드 조회에서 걸러지게 한다
         assertThat(FormLexicon.canonicalOptionName("이사회")).isEqualTo("이사회");
         assertThat(FormLexicon.canonicalOptionName(null)).isEmpty();

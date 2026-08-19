@@ -92,10 +92,7 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
             for (ResourceRow row : table.get().rows()) {
                 ProjectDto.BitemmDto item =
                         ResourceTableReader.toItem(
-                                row,
-                                resolveIoe(row, context, diagnostics),
-                                sno++,
-                                context.bseYy());
+                                row, resolveIoe(row, context, diagnostics), sno++, context.bseYy());
                 item.setCncdFdtnCone(row.remarks());
                 items.add(item);
             }
@@ -154,8 +151,6 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         if (override.isPresent()) return FormText.singleLineName(override.get());
 
         String fromSheet = labelReader.value(sheet, "사업명");
-        return fromSheet == null || fromSheet.isBlank()
-                ? null
-                : FormText.singleLineName(fromSheet);
+        return fromSheet == null || fromSheet.isBlank() ? null : FormText.singleLineName(fromSheet);
     }
 }

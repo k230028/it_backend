@@ -449,7 +449,8 @@ public class CapitalOverviewReader {
      * @return 선언 금액. 어느 값도 못 읽으면 필드가 모두 비어 있습니다
      */
     private DeclaredAmounts declaredAmounts(Sheet sheet) {
-        Optional<Integer> totalRow = scanner.findLabelRow(sheet, new int[] {0, 2}, "총 계", "총계");
+        Optional<Integer> totalRow =
+                scanner.findLabelRow(sheet, new int[] {0, 2}, "총 계", "총계", "계");
         BigDecimal yearTotal =
                 totalRow.map(row -> summaryColumn(sheet, row, YEAR_TOTAL_SUFFIX)).orElse(null);
         BigDecimal laterTotal =

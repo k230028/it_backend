@@ -96,11 +96,12 @@ public class RequestFormImportService {
         for (int i = 0; i < files.size(); i++) {
             RequestFormDto.FileEntry entry = manifest.entries().get(i);
             MultipartFile file = files.get(i);
+            String archiveGroupKey = RequestFormArchiveGroup.keyOf(entry.fileKey());
             if (entry.archiveOnly()) {
                 String deptCode = resolveDepartmentCode(entry, orgIndex);
                 archivePlan.add(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file, entry.deptName(), deptCode, null));
+                                file, archiveGroupKey, deptCode, null));
                 continue;
             }
             ProcessedFile processed =
@@ -117,7 +118,7 @@ public class RequestFormImportService {
             archivePlan.add(
                     new RequestFormSourceFileArchiver.ArchivePlanItem(
                             file,
-                            entry.deptName(),
+                            archiveGroupKey,
                             processed.effectiveDeptCode(),
                             processed.result()));
         }
@@ -127,7 +128,7 @@ public class RequestFormImportService {
             sourceFileArchiver.archive(archivePlan);
         }
         return new RequestFormDto.ImportResponse(
-                dryRun, summarize(results.size(), results), List.copyOf(results));
+                dryRun, summarize(files.size(), results), List.copyOf(results));
     }
 
     private String resolveDepartmentCode(
@@ -150,7 +151,7 @@ public class RequestFormImportService {
             workbook = workbookReader.open(readBytes(file), entry.fileKey());
             Map<FormSheetKind, Sheet> sheets = workbookReader.classify(workbook);
             if (sheets.isEmpty()) {
-                return new ProcessedFile(skipped(entry), null);
+                return new ProcessedFile(skipped(entry), resolveDepartmentCode(entry, orgIndex));
             }
 
             // 폴더명은 `부서명(부서코드)` 표기이므로 이름이 아니라 병기된 코드를 우선 기준으로 삼는다
