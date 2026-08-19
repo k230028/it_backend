@@ -196,6 +196,20 @@ class RequestFormSourceFileArchiverTest {
     }
 
     @Test
+    @DisplayName("결과 없는 단축 보관 계획은 그룹을 만들지 않고 건너뛴다")
+    void archive_skipsConveniencePlanWithoutResult() {
+        RequestFormSourceFileArchiver.ArchivePlanItem item =
+                new RequestFormSourceFileArchiver.ArchivePlanItem(file("근거.pdf"), "D01", null);
+
+        assertThat(item.archiveGroupKey()).isEmpty();
+
+        archiver.archive(List.of(item));
+
+        then(fileService).should(never()).uploadFile(any(), any());
+        then(fileService).should(never()).linkExistingFile(any(), any());
+    }
+
+    @Test
     @DisplayName("다른 부점 폴더의 파일은 서로 섞이지 않는다")
     void archive_doesNotCrossFolders() {
         List<MultipartFile> files = List.of(file("a.xlsx"), file("b.xlsx"));
