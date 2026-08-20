@@ -13,6 +13,9 @@ public class DefaultWasLogPeerClient implements WasLogPeerClient {
 
     private static final String TOKEN_HEADER = "X-Internal-Token";
 
+    /** 불일치 메시지에 심을 피어 {@code instanceId}의 최대 길이. 정상 인스턴스ID보다 넉넉히 크다. */
+    private static final int MAX_ECHOED_INSTANCE_ID_LENGTH = 64;
+
     private final RestClient restClient;
     private final WasLogProperties properties;
 
@@ -50,9 +53,30 @@ public class DefaultWasLogPeerClient implements WasLogPeerClient {
         // 막힌다 — 등호 비교라 주입 문자가 있으면 그대로 불일치로 걸린다.
         if (!instanceId.equals(body.instanceId())) {
             throw new WasLogPeerException(
-                    instanceId + " 인스턴스에 요청했으나 " + body.instanceId() + " 응답을 받았습니다.", null);
+                    instanceId
+                            + " 인스턴스에 요청했으나 "
+                            + sanitizeEchoedInstanceId(body.instanceId())
+                            + " 응답을 받았습니다.",
+                    null);
         }
         return body;
+    }
+
+    /**
+     * 불일치 메시지에 넣기 전 피어 응답의 {@code instanceId}를 정화한다.
+     *
+     * <p>이 값은 이 메서드가 검증하기 이전의 피어 원본 문자열이다. 메시지는 {@code WasLogController.handlePeerFailure}를 거쳐 관리자
+     * 브라우저(다운로드 502 응답)와 애플리케이션 로그 파일 양쪽에 도달하므로, 컴프로마이즈되었거나 오동작하는 피어가 임의 문자열(개행, HTML, 제어 문자, 매우 긴
+     * 문자열)을 그대로 밀어넣을 수 없도록 안전한 문자집합으로 제한하고 길이를 자른다. 파일명에 쓰이는 {@code WasLogController}의 화이트리스트 정화와
+     * 같은 위협 모델이다.
+     */
+    private String sanitizeEchoedInstanceId(String rawInstanceId) {
+        if (rawInstanceId == null) return "null";
+        String truncated =
+                rawInstanceId.length() > MAX_ECHOED_INSTANCE_ID_LENGTH
+                        ? rawInstanceId.substring(0, MAX_ECHOED_INSTANCE_ID_LENGTH)
+                        : rawInstanceId;
+        return truncated.replaceAll("[^A-Za-z0-9_-]", "_");
     }
 
     @Override

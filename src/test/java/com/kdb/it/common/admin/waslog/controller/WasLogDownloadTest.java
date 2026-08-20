@@ -134,6 +134,10 @@ class WasLogDownloadTest {
 
         mockMvc.perform(get("/api/admin/was-logs/download").param("instanceId", "SVR2"))
                 .andExpect(status().isBadGateway())
+                // window.open()으로 트리거되는 다운로드는 최상위 탐색이라 Accept가 text/html을
+                // 선호한다. Content-Type을 명시하지 않으면 피어가 통제하는 이 본문이 API 원본에서
+                // HTML로 렌더링될 수 있으므로, 절대 text/html로 협상되지 않는지 검증한다.
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
                 .andExpect(
                         content().string(org.hamcrest.Matchers.containsString("SVR2 인스턴스 조회 실패")));
 

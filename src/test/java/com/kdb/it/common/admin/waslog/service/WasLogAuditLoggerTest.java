@@ -128,4 +128,67 @@ class WasLogAuditLoggerTest {
 
         assertThat(appender.list.getFirst().getFormattedMessage()).doesNotContain("\n");
     }
+
+    @Test
+    @DisplayName("같은 원격주소의 연속된 내부 스냅샷 조회 성공은 한 번만 기록한다")
+    void logInternalSnapshotAccess_스로틀() {
+        auditLogger.logInternalSnapshotAccess("10.0.0.1");
+        auditLogger.logInternalSnapshotAccess("10.0.0.1");
+        auditLogger.logInternalSnapshotAccess("10.0.0.1");
+
+        assertThat(appender.list).hasSize(1);
+        assertThat(appender.list.getFirst().getFormattedMessage()).contains("remote=10.0.0.1");
+    }
+
+    @Test
+    @DisplayName("내부 스냅샷 조회는 원격주소별로 따로 기록한다")
+    void logInternalSnapshotAccess_원격주소별() {
+        auditLogger.logInternalSnapshotAccess("10.0.0.1");
+        auditLogger.logInternalSnapshotAccess("10.0.0.2");
+
+        assertThat(appender.list).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("같은 원격주소의 연속된 내부 레벨변경 성공은 한 번만 기록한다")
+    void logInternalLevelChange_스로틀() {
+        WasLogDto.LevelRequest request =
+                new WasLogDto.LevelRequest("SVR2", "com.kdb.it", "DEBUG", 30);
+
+        auditLogger.logInternalLevelChange("10.0.0.1", request);
+        auditLogger.logInternalLevelChange("10.0.0.1", request);
+
+        assertThat(appender.list).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("같은 원격주소의 연속된 토큰 거부는 한 번만 기록하되 최초 1건은 반드시 남긴다")
+    void logInternalTokenRejected_스로틀() {
+        auditLogger.logInternalTokenRejected("snapshot", "10.0.0.9");
+        auditLogger.logInternalTokenRejected("snapshot", "10.0.0.9");
+        auditLogger.logInternalTokenRejected("snapshot", "10.0.0.9");
+
+        assertThat(appender.list).hasSize(1);
+        assertThat(appender.list.getFirst().getFormattedMessage())
+                .contains("endpoint=snapshot")
+                .contains("remote=10.0.0.9");
+    }
+
+    @Test
+    @DisplayName("토큰 거부는 엔드포인트별로 따로 기록한다")
+    void logInternalTokenRejected_엔드포인트별() {
+        auditLogger.logInternalTokenRejected("snapshot", "10.0.0.9");
+        auditLogger.logInternalTokenRejected("level", "10.0.0.9");
+
+        assertThat(appender.list).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("토큰 거부 스로틀은 같은 원격주소의 성공 감사를 억제하지 않는다 — 네임스페이스가 분리된다")
+    void logInternalTokenRejected_성공감사와분리() {
+        auditLogger.logInternalTokenRejected("snapshot", "10.0.0.9");
+        auditLogger.logInternalSnapshotAccess("10.0.0.9");
+
+        assertThat(appender.list).hasSize(2);
+    }
 }

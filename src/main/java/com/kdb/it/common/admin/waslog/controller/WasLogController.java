@@ -179,10 +179,18 @@ public class WasLogController {
      *
      * <p>{@code GlobalExceptionHandler}의 포괄 {@code RuntimeException} 핸들러(400)에 맡기면 "SVR2 다운"과 "로거명
      * 오타" 같은 클라이언트 입력 오류가 같은 상태코드로 뒤섞인다. 이 컨트롤러에서만 발생하는 피어 호출 실패이므로 여기서 502로 구분한다.
+     *
+     * <p>본문({@code e.getMessage()})은 피어가 통제하는 문자열을 포함할 수 있다({@code RestClientException} 메시지에 피어 응답
+     * 본문 일부가 실리고, {@code DefaultWasLogPeerClient}는 피어의 원본 {@code instanceId}를 불일치 메시지에 그대로 넣는다).
+     * 프론트엔드는 다운로드를 {@code window.open(url, '_blank')}로 트리거하는 최상위 탐색이라 {@code Accept}가 {@code
+     * text/html}을 선호하고, Content-Type을 지정하지 않으면 콘텐츠 협상이 이 본문을 HTML로 렌더링해 API 원본에서 악성 피어가 만든 마크업이 실행될
+     * 수 있다. {@code text/plain}을 명시해 그 경로를 구조적으로 막는다.
      */
     @ExceptionHandler(WasLogPeerException.class)
     public ResponseEntity<String> handlePeerFailure(WasLogPeerException e) {
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
+                .body(e.getMessage());
     }
 
     private Set<String> splitLevels(String csv) {

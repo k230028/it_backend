@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -245,6 +246,9 @@ class WasLogControllerTest {
                                         {"instanceId":"SVR2","logger":"com.kdb.it",
                                          "level":"DEBUG","ttlMinutes":30}
                                         """))
-                .andExpect(status().isBadGateway());
+                .andExpect(status().isBadGateway())
+                // 피어가 통제하는 예외 메시지가 브라우저에서 HTML로 렌더링되지 않도록 502 응답은
+                // 항상 text/plain이어야 한다(handlePeerFailure).
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN));
     }
 }

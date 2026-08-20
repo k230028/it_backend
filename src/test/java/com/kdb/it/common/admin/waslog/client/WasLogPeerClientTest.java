@@ -96,6 +96,41 @@ class WasLogPeerClientTest {
     }
 
     @Test
+    @DisplayName("피어가 위조한 instanceId는 불일치 메시지에 심기 전 정화·절단된다")
+    void fetchSnapshot_인스턴스ID불일치_위조값정화() {
+        // 이 메시지는 WasLogController.handlePeerFailure를 거쳐 502 본문(브라우저)과 애플리케이션
+        // 로그 파일 양쪽에 도달한다. 컴프로마이즈된 피어가 개행·따옴표·매우 긴 문자열을 instanceId에
+        // 심어도 안전한 문자집합(A-Za-z0-9_-)과 64자 상한으로 걸러지는지 검증한다.
+        String maliciousInstanceId = "S\"VR<script>\n".repeat(10);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(PEER_URL + "/internal/was-logs/snapshot"))
+                .andRespond(
+                        withSuccess(
+                                """
+                                {"instanceId":"%s","bufferEpoch":"e1","entries":[],
+                                 "lastSeq":5,"dropped":false,"levelOverrides":[],"peerError":null}
+                                """
+                                        .formatted(
+                                                maliciousInstanceId
+                                                        .replace("\"", "\\\"")
+                                                        .replace("\n", "\\n")),
+                                MediaType.APPLICATION_JSON));
+
+        WasLogPeerClient client = new DefaultWasLogPeerClient(builder.build(), properties);
+
+        assertThatThrownBy(() -> client.fetchSnapshot(PEER_URL, "SVR2", query))
+                .isInstanceOf(WasLogPeerException.class)
+                .hasMessageNotContaining("\n")
+                .hasMessageNotContaining("\"")
+                .hasMessageNotContaining("<script>")
+                .satisfies(
+                        e ->
+                                assertThat(e.getMessage().length())
+                                        .isLessThan(maliciousInstanceId.length()));
+    }
+
+    @Test
     @DisplayName("2xx인데 본문이 비면 WasLogPeerException을 던진다")
     void fetchSnapshot_빈본문() {
         RestClient.Builder builder = RestClient.builder();
