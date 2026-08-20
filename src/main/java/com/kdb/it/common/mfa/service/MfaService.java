@@ -256,9 +256,8 @@ public class MfaService {
     }
 
     /**
-     * 활성 거래를 조회한다. 없으면 저장소에 사유(만료 vs 그 밖)를 물어 정확한 에러 코드를 던진다.
-     * 만료 정리 배치가 이미 물리 삭제한 오래된 거래는 저장소도 사유를 알 수 없어 MFA_REQUIRED로
-     * 폴백한다(만료 직후 유예 창 안에서만 정확한 구분이 보장됨 — SEC-13 §7.2와 동일한 한계).
+     * 활성 거래를 조회한다. 없으면 저장소에 사유(만료 vs 그 밖)를 물어 정확한 에러 코드를 던진다. 만료 정리 배치가 이미 물리 삭제한 오래된 거래는 저장소도 사유를
+     * 알 수 없어 MFA_REQUIRED로 폴백한다(만료 직후 유예 창 안에서만 정확한 구분이 보장됨 — SEC-13 §7.2와 동일한 한계).
      */
     private MfaTransaction findActiveTransaction(String tokenHash, Instant now) {
         return transactionStore

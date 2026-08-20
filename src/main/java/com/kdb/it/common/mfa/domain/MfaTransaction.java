@@ -213,8 +213,8 @@ public final class MfaTransaction {
     /**
      * 영속 계층에 저장된 상태를 그대로 복원한다.
      *
-     * <p>JPA 저장소의 엔티티→도메인 매핑 전용이다. 업무 흐름은 이 메서드가 아니라 {@link #pending}과
-     * {@link #verify}·{@link #fail}·{@link #bindProofHash} 등 전이 메서드를 사용해야 한다.
+     * <p>JPA 저장소의 엔티티→도메인 매핑 전용이다. 업무 흐름은 이 메서드가 아니라 {@link #pending}과 {@link #verify}·{@link
+     * #fail}·{@link #bindProofHash} 등 전이 메서드를 사용해야 한다.
      *
      * @param tokenHash 거래 토큰 해시
      * @param eno 사원번호

@@ -24,16 +24,17 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * 만료 후 10분 유예 경계에서 정리 배치가 올바른 행만 지우는지 실 Oracle로 검증한다.
  *
- * <p>{@code @DataJpaTest} 슬라이스는 JPA Auditing 설정을 포함하지 않으므로 {@link JpaAuditConfig}를 명시적으로 가져온다({@code
- * JpaMfaTransactionStoreIT}와 같은 이유). {@code JpaAuditConfig} 없이는 {@code MfaTransactionEntity.create}가 채우지
- * 않는 {@code BaseEntity}의 {@code @CreatedDate}/{@code @LastModifiedDate}(FST_ENR_DTM/LST_CHG_DTM, 물리 NOT
- * NULL)가 채워지지 않아 저장이 실패한다.
+ * <p>{@code @DataJpaTest} 슬라이스는 JPA Auditing 설정을 포함하지 않으므로 {@link JpaAuditConfig}를 명시적으로
+ * 가져온다({@code JpaMfaTransactionStoreIT}와 같은 이유). {@code JpaAuditConfig} 없이는 {@code
+ * MfaTransactionEntity.create}가 채우지 않는 {@code BaseEntity}의
+ * {@code @CreatedDate}/{@code @LastModifiedDate}(FST_ENR_DTM/LST_CHG_DTM, 물리 NOT NULL)가 채워지지 않아 저장이
+ * 실패한다.
  *
  * <p>{@code scheduler}는 {@code new}로 직접 만든 평범한 객체라 {@code cleanup()}의 {@code @Transactional}이 AOP로
- * 적용되지 않는다. 클래스 트랜잭션을 {@link Propagation#NOT_SUPPORTED}로 두어 테스트 메서드의 앰비언트 트랜잭션을 없애고,
- * {@link TransactionTemplate}으로 {@code cleanup()} 호출만 별도 트랜잭션에 감싼다. 이렇게 커밋된 삭제 결과를, 이후
- * {@code findById}가 여는 새 트랜잭션(신규 영속성 컨텍스트)에서 다시 조회해야 1차 캐시에 남은 예전 관리 인스턴스가 삭제 여부를 가리는 것을
- * 피할 수 있다({@code save} 시점에 이미 영속화된 엔티티가 벌크 DELETE 이후에도 캐시에 남는 JPA 벌크 연산의 특성 때문).
+ * 적용되지 않는다. 클래스 트랜잭션을 {@link Propagation#NOT_SUPPORTED}로 두어 테스트 메서드의 앰비언트 트랜잭션을 없애고, {@link
+ * TransactionTemplate}으로 {@code cleanup()} 호출만 별도 트랜잭션에 감싼다. 이렇게 커밋된 삭제 결과를, 이후 {@code findById}가
+ * 여는 새 트랜잭션(신규 영속성 컨텍스트)에서 다시 조회해야 1차 캐시에 남은 예전 관리 인스턴스가 삭제 여부를 가리는 것을 피할 수 있다({@code save} 시점에 이미
+ * 영속화된 엔티티가 벌크 DELETE 이후에도 캐시에 남는 JPA 벌크 연산의 특성 때문).
  */
 @Import(JpaAuditConfig.class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -62,14 +63,25 @@ class MfaTransactionCleanupSchedulerIT extends AbstractOracleRepositoryTest {
         String pastGrace = "it-cleanup-past-" + UUID.randomUUID();
         transactionRepository.save(
                 MfaTransactionEntity.create(
-                        withinGrace, "ITEST01", "10", "20",
-                        toLocalDateTime(NOW.minusSeconds(9 * 60)), null, null));
+                        withinGrace,
+                        "ITEST01",
+                        "10",
+                        "20",
+                        toLocalDateTime(NOW.minusSeconds(9 * 60)),
+                        null,
+                        null));
         transactionRepository.save(
                 MfaTransactionEntity.create(
-                        pastGrace, "ITEST01", "10", "20",
-                        toLocalDateTime(NOW.minusSeconds(11 * 60)), null, null));
+                        pastGrace,
+                        "ITEST01",
+                        "10",
+                        "20",
+                        toLocalDateTime(NOW.minusSeconds(11 * 60)),
+                        null,
+                        null));
 
-        new TransactionTemplate(transactionManager).executeWithoutResult(status -> scheduler.cleanup());
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> scheduler.cleanup());
 
         assertThat(transactionRepository.findById(withinGrace)).isPresent();
         assertThat(transactionRepository.findById(pastGrace)).isEmpty();

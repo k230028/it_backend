@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
@@ -452,7 +453,8 @@ class MfaServiceTest {
                     @Override
                     public MfaChallengeData start(
                             com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                        return new MfaChallengeData("provider-id", null, null, context.expiresAt(), null);
+                        return new MfaChallengeData(
+                                "provider-id", null, null, context.expiresAt(), null);
                     }
 
                     @Override
@@ -506,6 +508,81 @@ class MfaServiceTest {
     }
 
     @Test
+    void FIDO_시작한_인스턴스와_다른_인스턴스도_같은_svcTrId를_컨텍스트로_전달받는다() {
+        String svcTrId = "12345678901234567890";
+        AtomicReference<String> capturedProviderTransactionId = new AtomicReference<>();
+        MfaProvider instanceAProvider =
+                new MfaProvider() {
+                    @Override
+                    public MfaChallengeData start(
+                            com.kdb.it.common.mfa.provider.MfaStartContext context) {
+                        return new MfaChallengeData(
+                                "provider-id", null, null, context.expiresAt(), svcTrId);
+                    }
+
+                    @Override
+                    public MfaVerificationResult verify(
+                            com.kdb.it.common.mfa.provider.MfaVerifyContext context) {
+                        throw new UnsupportedOperationException("이 시나리오에서는 시작 인스턴스가 검증하지 않는다");
+                    }
+                };
+        InMemoryMfaTransactionStore sharedStore = new InMemoryMfaTransactionStore();
+        MfaService instanceAService =
+                service(
+                        sharedStore,
+                        new InMemoryLoginPendingTransactionStore(),
+                        instanceAProvider,
+                        CLOCK);
+        CustomUserDetails user = new CustomUserDetails("E10001", List.of(), "D001");
+        MfaDto.MfaChallengeResponse response =
+                instanceAService.startChallenge(
+                        new MfaDto.MfaStartRequest(MfaPurpose.APPROVAL, MfaMethod.FIDO),
+                        Optional.of(user),
+                        null);
+
+        // 인스턴스 B: 시작을 전혀 모르는 새 FidoMfaProvider/MfaService 조합. 저장소만 공유한다.
+        MfaProvider instanceBProvider =
+                new MfaProvider() {
+                    @Override
+                    public MfaChallengeData start(
+                            com.kdb.it.common.mfa.provider.MfaStartContext context) {
+                        throw new UnsupportedOperationException("이 시나리오에서는 검증 인스턴스가 시작하지 않는다");
+                    }
+
+                    @Override
+                    public MfaVerificationResult verify(
+                            com.kdb.it.common.mfa.provider.MfaVerifyContext context) {
+                        capturedProviderTransactionId.set(context.providerTransactionId());
+                        return MfaVerificationResult.undecided();
+                    }
+                };
+        MfaService instanceBService =
+                service(
+                        sharedStore,
+                        new InMemoryLoginPendingTransactionStore(),
+                        instanceBProvider,
+                        CLOCK);
+
+        MfaService.VerifiedChallenge polled =
+                instanceBService.verifyChallenge(
+                        response.challengeId(),
+                        new MfaDto.MfaVerifyRequest("provider-id", ""),
+                        Optional.of(user),
+                        null);
+
+        // 인스턴스 B는 로컬 상태가 전혀 없었는데도 저장소를 통해 svcTrId를 정확히 받는다 —
+        // 이것이 SEC-16이 고치는 다중 인스턴스 FIDO 폴링 잠김 버그의 실제 회귀 가드다.
+        assertThat(capturedProviderTransactionId.get()).isEqualTo(svcTrId);
+        assertThat(polled.response().verified()).isFalse();
+        assertThat(
+                        sharedStore
+                                .findByTokenHash(hash(response.challengeId().toString()), NOW)
+                                .orElseThrow()
+                                .failureCount())
+                .isZero();
+    }
+
+    @Test
     void 미결정응답뒤의실제실패는여전히실패로집계한다() {
         AtomicInteger calls = new AtomicInteger();
         MfaProvider provider =
@@ -513,7 +590,8 @@ class MfaServiceTest {
                     @Override
                     public MfaChallengeData start(
                             com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                        return new MfaChallengeData("provider-id", null, null, context.expiresAt(), null);
+                        return new MfaChallengeData(
+                                "provider-id", null, null, context.expiresAt(), null);
                     }
 
                     @Override
@@ -885,7 +963,8 @@ class MfaServiceTest {
                     @Override
                     public MfaChallengeData start(
                             com.kdb.it.common.mfa.provider.MfaStartContext context) {
-                        return new MfaChallengeData("provider-id", null, null, context.expiresAt(), null);
+                        return new MfaChallengeData(
+                                "provider-id", null, null, context.expiresAt(), null);
                     }
 
                     @Override

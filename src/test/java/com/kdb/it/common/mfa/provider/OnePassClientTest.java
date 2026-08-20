@@ -59,7 +59,8 @@ class OnePassClientTest {
 
         assertMotpStartRequest(requests.getFirst());
         assertThat(challenge)
-                .isEqualTo(new MfaChallengeData("motp-tr", "qr", null, context().expiresAt(), null));
+                .isEqualTo(
+                        new MfaChallengeData("motp-tr", "qr", null, context().expiresAt(), null));
     }
 
     @Test
@@ -128,7 +129,11 @@ class OnePassClientTest {
         assertThat(challenge)
                 .isEqualTo(
                         new MfaChallengeData(
-                                "fido-tr", "qr", null, context().expiresAt(), challenge.providerTransactionId()));
+                                "fido-tr",
+                                "qr",
+                                null,
+                                context().expiresAt(),
+                                challenge.providerTransactionId()));
         assertThat(challenge.providerTransactionId()).isEqualTo(requests.getFirst().get("svcTrId"));
         assertThat(result.verified()).isTrue();
     }
@@ -253,9 +258,12 @@ class OnePassClientTest {
         assertThat(challenge)
                 .isEqualTo(
                         new MfaChallengeData(
-                                "fido-tr", "qr", null, context().expiresAt(), challenge.providerTransactionId()));
-        assertThat(challenge.providerTransactionId())
-                .isEqualTo(requests.getFirst().get("svcTrId"));
+                                "fido-tr",
+                                "qr",
+                                null,
+                                context().expiresAt(),
+                                challenge.providerTransactionId()));
+        assertThat(challenge.providerTransactionId()).isEqualTo(requests.getFirst().get("svcTrId"));
     }
 
     @Test
@@ -318,6 +326,17 @@ class OnePassClientTest {
                                 challenge.providerTransactionId()));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
+    }
+
+    @Test
+    void fidoProvider_treatsMissingProviderTransactionIdAsUndecided() throws Exception {
+        startServer(exchange -> respond(exchange, 200, "{\"resultCode\":\"100000\"}"));
+        FidoMfaProvider provider = new FidoMfaProvider(client());
+
+        MfaVerificationResult result =
+                provider.verify(new MfaVerifyContext(context(), "challenge-1", "", null));
+
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.UNDECIDED);
     }
 
     @Test

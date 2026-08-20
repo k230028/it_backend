@@ -122,7 +122,8 @@ public final class OnePassClient {
         if (qrData != null && qrData.length() > MAX_QR_LENGTH) {
             throw new IllegalArgumentException("OnePass QR 데이터가 허용 길이를 초과했습니다.");
         }
-        return new MfaChallengeData(challengeId, qrData, null, context.expiresAt(), providerTransactionId);
+        return new MfaChallengeData(
+                challengeId, qrData, null, context.expiresAt(), providerTransactionId);
     }
 
     private Map<String, Object> request(Map<String, Object> request) {

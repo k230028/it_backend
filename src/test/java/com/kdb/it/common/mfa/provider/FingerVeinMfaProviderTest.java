@@ -172,8 +172,7 @@ class FingerVeinMfaProviderTest {
         String hash = expectedHash("20260811", ENO, challenge.randomKey(), "SUCC");
 
         MfaVerificationResult result =
-                provider.verify(
-                        new MfaVerifyContext(expired, challenge.challengeId(), hash, null));
+                provider.verify(new MfaVerifyContext(expired, challenge.challengeId(), hash, null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -187,8 +186,7 @@ class FingerVeinMfaProviderTest {
         provider.start(context("tx-second"));
 
         MfaVerificationResult result =
-                provider.verify(
-                        new MfaVerifyContext(context("tx-first"), "tx-first", hash, null));
+                provider.verify(new MfaVerifyContext(context("tx-first"), "tx-first", hash, null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }

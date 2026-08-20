@@ -108,7 +108,8 @@ class MfaValueObjectsTest {
                         () ->
                                 registry.verify(
                                         MfaMethod.FIDO,
-                                        new MfaVerifyContext(startContext(), "challenge-1", "", null)))
+                                        new MfaVerifyContext(
+                                                startContext(), "challenge-1", "", null)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

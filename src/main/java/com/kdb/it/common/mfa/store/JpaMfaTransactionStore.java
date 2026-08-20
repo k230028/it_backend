@@ -19,7 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 조회해 도메인 객체로 매핑한다.
  */
 @Component
-@ConditionalOnProperty(prefix = "app.mfa", name = "store", havingValue = "jpa", matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "app.mfa",
+        name = "store",
+        havingValue = "jpa",
+        matchIfMissing = true)
 public class JpaMfaTransactionStore implements MfaTransactionStore {
 
     private static final ZoneId ZONE = ZoneId.systemDefault();
