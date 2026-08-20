@@ -93,20 +93,12 @@ public class FormApproverReader {
         if (value == null) return null;
         String trimmed = value.trim();
         String normalizedSource = SheetAnchorScanner.normalize(trimmed);
-        if (isHeadquartersRoleSource(normalizedSource)) return "지역본부장";
+        if (normalizedSource.contains("본부장")) return "지역본부장";
         if (trimmed.indexOf(' ') < 0 && trimmed.indexOf('\t') < 0) {
             String normalizedRole = normalizeApproverRole(trimmed);
             if (normalizedRole.equals("부장") || normalizedRole.equals("팀장")) return normalizedRole;
         }
         return value;
-    }
-
-    /** 권역을 나타내는 본부장 역할만 사람 이름과 구분합니다. */
-    private static boolean isHeadquartersRoleSource(String normalized) {
-        int roleStart = normalized.indexOf("본부장");
-        if (roleStart < 0) return false;
-        String prefix = normalized.substring(0, roleStart);
-        return prefix.isEmpty() || prefix.equals("지역") || prefix.endsWith("권");
     }
 
     /** 라벨 칸의 병합 영역을 건너뛴 다음 열부터 이름을 찾습니다. 다음 라벨을 만나면 이름이 없는 것으로 봅니다. */

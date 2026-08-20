@@ -69,12 +69,13 @@ class FormApproverReaderTest {
         assertThat(reader.confirmer(sheet)).isEqualTo("지역본부장");
     }
 
-    @Test
-    @DisplayName("사람 이름에 붙은 본부장 직책은 역할로 오인하지 않는다")
-    void preservesPersonNameWithHeadquartersTitle() {
-        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "홍길동 본부장"));
+    @ParameterizedTest(name = "{0} → {1}")
+    @CsvSource({"경영본부장, 지역본부장", "'동남권 본부장', 지역본부장", "지역본부장, 지역본부장"})
+    @DisplayName("시트에서 읽은 본부장 포함 역할은 접두사와 무관하게 지역본부장으로 정규화한다")
+    void normalizesAllHeadquartersRolesWhenReadFromSheet(String source, String expected) {
+        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", source));
 
-        assertThat(reader.confirmer(sheet)).isEqualTo("홍길동 본부장");
+        assertThat(reader.confirmer(sheet)).isEqualTo(expected);
     }
 
     @Test
