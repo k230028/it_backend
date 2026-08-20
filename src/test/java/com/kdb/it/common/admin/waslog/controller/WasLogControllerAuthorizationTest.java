@@ -3,6 +3,7 @@ package com.kdb.it.common.admin.waslog.controller;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kdb.it.common.admin.waslog.service.WasLogAuditLogger;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
@@ -36,6 +37,8 @@ class WasLogControllerAuthorizationTest {
     @Autowired private MockMvc mvc;
 
     @MockitoBean private WasLogService service;
+
+    @MockitoBean private WasLogAuditLogger auditLogger;
 
     @MockitoBean private JwtUtil jwtUtil;
 

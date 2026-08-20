@@ -13,6 +13,7 @@ import com.kdb.it.common.admin.waslog.controller.WasLogController;
 import com.kdb.it.common.admin.waslog.controller.WasLogInternalController;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.service.LevelOverrideService;
+import com.kdb.it.common.admin.waslog.service.WasLogAuditLogger;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import com.kdb.it.common.system.security.JwtUtil;
@@ -48,6 +49,7 @@ class WasLogSecurityBoundaryTest {
 
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private WasLogService service;
+    @MockitoBean private WasLogAuditLogger auditLogger;
 
     // WasLogInternalController가 Task 5부터 LevelOverrideService를 생성자로 주입받는다.
     // @WebMvcTest 슬라이스는 @Service 빈을 자동 스캔하지 않으므로 목으로 채워야 컨텍스트가 뜬다.

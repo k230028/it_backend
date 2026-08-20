@@ -2,15 +2,24 @@ package com.kdb.it.common.admin.waslog.controller;
 
 import com.kdb.it.common.admin.waslog.client.WasLogPeerException;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
+import com.kdb.it.common.admin.waslog.dto.WasLogEntry;
+import com.kdb.it.common.admin.waslog.service.WasLogAuditLogger;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class WasLogController {
 
     private final WasLogService service;
+    private final WasLogAuditLogger auditLogger;
 
     /**
      * 대상 인스턴스의 로그 스냅샷을 반환한다.
@@ -54,6 +64,7 @@ public class WasLogController {
             @RequestParam(name = "levels", required = false) String levels,
             @RequestParam(name = "logger", required = false) String logger,
             @RequestParam(name = "q", required = false) String q) {
+        if (afterSeq == 0) auditLogger.logSnapshotAccess(instanceId);
         return service.snapshot(
                 instanceId, new WasLogDto.Query(afterSeq, limit, splitLevels(levels), logger, q));
     }
@@ -73,7 +84,66 @@ public class WasLogController {
     @PostMapping("/level")
     @Operation(summary = "런타임 로그레벨 변경", description = "TTL이 지나면 자동으로 원래 레벨로 복원됩니다.")
     public WasLogDto.LevelOverride applyLevel(@RequestBody WasLogDto.LevelRequest request) {
+        auditLogger.logLevelChange(request);
         return service.applyLevel(request);
+    }
+
+    /**
+     * 현재 필터가 적용된 버퍼 내용을 텍스트 파일로 내려받는다.
+     *
+     * <p>본문 형식은 파일 로그와 같은 도구로 열 수 있도록 {@code yyyy-MM-dd HH:mm:ss.SSS LEVEL [thread] logger -
+     * message} 형태로 맞춘다.
+     */
+    @GetMapping("/download")
+    @Operation(summary = "WAS 로그 다운로드", description = "현재 필터 범위를 text/plain 첨부로 반환합니다.")
+    public ResponseEntity<String> download(
+            @RequestParam(name = "instanceId", required = false) String instanceId,
+            @RequestParam(name = "levels", required = false) String levels,
+            @RequestParam(name = "logger", required = false) String logger,
+            @RequestParam(name = "q", required = false) String q) {
+        WasLogDto.Snapshot snapshot =
+                service.snapshot(
+                        instanceId,
+                        new WasLogDto.Query(
+                                0L, WasLogService.MAX_LIMIT, splitLevels(levels), logger, q));
+
+        StringBuilder body = new StringBuilder();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+        for (WasLogEntry entry : snapshot.entries()) {
+            body.append(
+                            formatter.format(
+                                    LocalDateTime.ofInstant(
+                                            Instant.ofEpochMilli(entry.timestamp()),
+                                            ZoneId.systemDefault())))
+                    .append(' ')
+                    .append(entry.level())
+                    .append(" [")
+                    .append(entry.thread())
+                    .append("] ")
+                    .append(entry.logger())
+                    .append(" - ")
+                    .append(entry.message())
+                    .append('\n');
+            if (entry.throwable() != null) {
+                body.append(entry.throwable()).append('\n');
+            }
+        }
+
+        String resolvedInstance = snapshot.instanceId() == null ? "unknown" : snapshot.instanceId();
+        String fileName =
+                "was-log_"
+                        + resolvedInstance
+                        + "_"
+                        + DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+                        + ".log";
+        auditLogger.logDownload(resolvedInstance, snapshot.entries().size());
+
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + fileName + "\"")
+                .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
+                .body(body.toString());
     }
 
     /**

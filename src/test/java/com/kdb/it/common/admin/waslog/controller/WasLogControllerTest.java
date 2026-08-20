@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.kdb.it.common.admin.waslog.client.WasLogPeerException;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.dto.WasLogEntry;
+import com.kdb.it.common.admin.waslog.service.WasLogAuditLogger;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.config.TestSecurityConfig;
@@ -37,6 +38,7 @@ class WasLogControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private WasLogService service;
+    @MockitoBean private WasLogAuditLogger auditLogger;
 
     // WasLogController가 @PreAuthorize를 갖고 있어 @WebMvcTest 슬라이스가 Filter 빈으로
     // JwtAuthenticationFilter를 자동 포함시킨다. 해당 필터의 생성자 의존성을 채우기 위한 목이며
