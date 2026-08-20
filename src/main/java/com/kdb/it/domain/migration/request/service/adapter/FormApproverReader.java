@@ -57,15 +57,6 @@ public class FormApproverReader {
         return null;
     }
 
-    /** 양식에 적힌 전결권자 직책을 공통 표기로 맞춥니다. */
-    static String normalizeApproverRole(String raw) {
-        String normalized = SheetAnchorScanner.normalize(raw);
-        if (normalized.contains("본부장")) return "지역본부장";
-        if (normalized.contains("부장")) return "부장";
-        if (normalized.contains("팀장")) return "팀장";
-        return normalized;
-    }
-
     /**
      * 라벨 뒤의 이름을 찾습니다.
      *
@@ -81,24 +72,11 @@ public class FormApproverReader {
                 if (!startsWithLabel(text, key)) continue;
 
                 String inline = afterLabel(text, label);
-                if (!inline.isEmpty()) return normalizeReadValue(inline);
-                return normalizeReadValue(nameRightOf(sheet, rowIndex, colIndex));
+                if (!inline.isEmpty()) return inline;
+                return nameRightOf(sheet, rowIndex, colIndex);
             }
         }
         return null;
-    }
-
-    /** 사람 이름은 그대로 두고, 공백 없이 적힌 역할 값만 공통 표기로 맞춥니다. */
-    private static String normalizeReadValue(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        String normalizedSource = SheetAnchorScanner.normalize(trimmed);
-        if (normalizedSource.contains("본부장")) return "지역본부장";
-        if (trimmed.indexOf(' ') < 0 && trimmed.indexOf('\t') < 0) {
-            String normalizedRole = normalizeApproverRole(trimmed);
-            if (normalizedRole.equals("부장") || normalizedRole.equals("팀장")) return normalizedRole;
-        }
-        return value;
     }
 
     /** 라벨 칸의 병합 영역을 건너뛴 다음 열부터 이름을 찾습니다. 다음 라벨을 만나면 이름이 없는 것으로 봅니다. */

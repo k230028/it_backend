@@ -107,6 +107,33 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
+    @DisplayName("본부장이 포함된 확인자·작성자 이름을 전결권자 역할로 바꾸지 않는다")
+    void preservesPersonNamesContainingHeadquartersTextInUserFields() {
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls"));
+        Sheet recurring = sheets.get(FormSheetKind.RECURRING);
+        recurring.getRow(1).getCell(7).setCellValue("홍길동 본부장");
+        recurring.getRow(1).getCell(9).setCellValue("김영희 본부장");
+        FormAdapterContext context =
+                new FormAdapterContext(
+                        sheets,
+                        "2026",
+                        new RequestFormDto.FileEntry(
+                                "런던지점(920)/붙임.xls", "런던지점(920)", null, null, null),
+                        "920",
+                        "런던지점",
+                        null,
+                        TestIoeIndex.snapshot(),
+                        Map.of(),
+                        "12345678");
+
+        ProjectDto.CreateRequest project = adapter.adapt(context).projects().get(0);
+
+        assertThat(project.getTlrUsid()).isEqualTo("홍길동");
+        assertThat(project.getUsid()).isEqualTo("김영희");
+    }
+
+    @Test
     @DisplayName("HW·SW 구분과 부서코드로 품목 비목을 정한다")
     void resolvesItemIoeByGroupAndDeptCode() {
         // 부서코드 `920`은 국외 점포다. 국내·국외는 통화가 아니라 부점 소속으로 갈린다

@@ -10,8 +10,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * 시트 상단 머리말의 확인자·작성자 읽기를 고정합니다.
@@ -39,43 +37,20 @@ class FormApproverReaderTest {
         return sheet;
     }
 
-    @ParameterizedTest(name = "{0} → {1}")
-    @CsvSource({"지역본부장, 지역본부장", "동남권본부장, 지역본부장", "'  동남권 본부장  ', 지역본부장"})
-    @DisplayName("본부장 계열 전결권자 역할은 지역본부장으로 정규화한다")
-    void normalizesHeadquartersApproverRole(String source, String expected) {
-        assertThat(FormApproverReader.normalizeApproverRole(source)).isEqualTo(expected);
-    }
+    @Test
+    @DisplayName("확인자 이름에 본부장이 포함되어도 사람 이름을 보존한다")
+    void preservesConfirmerNameContainingHeadquartersTitle() {
+        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "홍길동 본부장"));
 
-    @ParameterizedTest(name = "{0} → {1}")
-    @CsvSource({"부장, 부장", "팀장, 팀장", "전무이사, 전무이사"})
-    @DisplayName("기존 전결권자 역할과 비대상 역할은 보존한다")
-    void preservesExistingApproverRoles(String source, String expected) {
-        assertThat(FormApproverReader.normalizeApproverRole(source)).isEqualTo(expected);
+        assertThat(reader.confirmer(sheet)).isEqualTo("홍길동 본부장");
     }
 
     @Test
-    @DisplayName("시트에서 읽은 본부장 역할을 지역본부장으로 정규화한다")
-    void normalizesHeadquartersRoleWhenReadFromSheet() {
-        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "동남권본부장"));
+    @DisplayName("작성자 이름에 본부장이 포함되어도 사람 이름을 보존한다")
+    void preservesAuthorNameContainingHeadquartersText() {
+        Sheet sheet = sheetOf(Map.of("1,8", "(작성자)", "1,9", "김영희 본부장"));
 
-        assertThat(reader.confirmer(sheet)).isEqualTo("지역본부장");
-    }
-
-    @Test
-    @DisplayName("시트에서 읽은 내부 공백 본부장 역할도 지역본부장으로 정규화한다")
-    void normalizesWhitespaceHeadquartersRoleWhenReadFromSheet() {
-        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "  동남권 본부장  "));
-
-        assertThat(reader.confirmer(sheet)).isEqualTo("지역본부장");
-    }
-
-    @ParameterizedTest(name = "{0} → {1}")
-    @CsvSource({"경영본부장, 지역본부장", "'동남권 본부장', 지역본부장", "지역본부장, 지역본부장"})
-    @DisplayName("시트에서 읽은 본부장 포함 역할은 접두사와 무관하게 지역본부장으로 정규화한다")
-    void normalizesAllHeadquartersRolesWhenReadFromSheet(String source, String expected) {
-        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", source));
-
-        assertThat(reader.confirmer(sheet)).isEqualTo(expected);
+        assertThat(reader.author(sheet)).isEqualTo("김영희 본부장");
     }
 
     @Test

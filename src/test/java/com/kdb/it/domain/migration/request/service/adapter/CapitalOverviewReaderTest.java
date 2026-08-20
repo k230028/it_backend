@@ -27,6 +27,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -343,6 +345,25 @@ class CapitalOverviewReaderTest {
 
         assertThat(project.getExePttYn()).isEqualTo("1");
         assertThat(project.getEdrtTc()).isEqualTo("21");
+    }
+
+    @ParameterizedTest(name = "{0} → 지역본부장(23)")
+    @ValueSource(strings = {"지역본부장", "동남권본부장", "동남권 본부장", "홍길동 본부장"})
+    @DisplayName("전결권자 값에 본부장이 포함되면 지역본부장 자본예산 코드로 해석한다")
+    void mapsAnyHeadquartersDelegationToRegionalHeadCode(String source) {
+        Sheet sheet =
+                overviewSheet(new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "전결권자", source)));
+
+        CapitalOverviewReader.Result result =
+                reader.read(
+                        sheet,
+                        context(Map.of()),
+                        new FormCatalogs(Map.of(), Map.of("지역본부장", "23"), Map.of(), Map.of()));
+
+        assertThat(result.project().getEdrtTc()).isEqualTo("23");
+        assertThat(result.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_UNRESOLVED);
     }
 
     @Test
