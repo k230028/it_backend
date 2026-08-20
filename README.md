@@ -191,6 +191,8 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `app.mfa.challenge-ttl`  | `90s`    | MFA 거래 유효 시간                                                |
 | `app.mfa.max-failures`   | `5`      | 한 거래의 허용 실패 횟수. 초과 시 `MFA_LOCKED`                    |
 | `app.mfa.mock-enabled`   | `false`  | 모의 공급자 사용 여부. **`local-ext`에서만 `true`를 허용**        |
+| `app.mfa.store`          | `jpa`    | `jpa`(기본)는 MFA·로그인대기 거래를 Oracle(`TPRMPP_CMFATM`/`TPRMPP_CMFADM`)에 저장해 다중 인스턴스를 지원합니다. `memory`는 인스턴스 내부에만 보관하며 단일 인스턴스 전용이고 재시작 시 유실됩니다. `spring.jpa.hibernate.ddl-auto=none`이라 기동 시 스키마를 검증하지 않으므로, `app.mfa.store=jpa`(기본값)로 기동하기 전에 반드시 마이그레이션 `V20260820_002__CreateMfaTransactionTables.sql`을 적용해야 합니다. 적용하지 않으면 기동은 정상적으로 끝나고 최초 로그인 시도에서야 Oracle "table or view does not exist" 오류로 실패합니다 |
+| `app.mfa.cleanup.fixed-delay-ms` | `300000` | 만료 후 10분 유예가 지난 MFA·로그인대기 행을 Oracle에서 물리 삭제하는 배치 주기(ms). 순수한 용량 관리 설정이며 정합성에는 영향이 없습니다(모든 조회·쓰기 경로가 만료 행을 이미 자체적으로 제외합니다) |
 
 프로파일별 동작:
 

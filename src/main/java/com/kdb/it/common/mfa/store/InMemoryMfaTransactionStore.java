@@ -20,6 +20,7 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
     private final ConcurrentHashMap<String, MfaTransaction> proofTransactions =
             new ConcurrentHashMap<>();
 
+    // 인터페이스 계약보다 관대하게, 주어진 거래를 상태와 무관하게 그대로 저장한다.
     @Override
     public void save(MfaTransaction transaction) {
         transactions.put(transaction.tokenHash(), transaction);

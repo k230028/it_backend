@@ -83,6 +83,7 @@ public class EnvironmentValidator {
      *   <li>{@code app.frontend-url} 비공백
      *   <li>{@code springdoc.api-docs.enabled}/{@code springdoc.swagger-ui.enabled} 운영 false 고정
      *   <li>{@code server.servlet.session.cookie}의 Secure·HttpOnly=true, SameSite=Lax 고정
+     *   <li>{@code app.mfa.store} 운영 {@code memory} 금지(SEC-13)
      * </ul>
      */
     private void validateProdKeys() {

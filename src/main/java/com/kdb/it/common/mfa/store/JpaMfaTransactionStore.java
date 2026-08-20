@@ -30,6 +30,9 @@ public class JpaMfaTransactionStore implements MfaTransactionStore {
         this.repository = repository;
     }
 
+    // 인터페이스 계약(MfaTransactionStore#save)대로 PENDING 신규 거래만 지원한다. status/proofHash/verifiedAt/
+    // failureCount는 반영하지 않고 MfaTransactionEntity.create(...)가 status=PENDING, failureCount=0으로
+    // 고정한다. 이미 전이된 거래를 넘기면 PENDING/0으로 초기화되어 저장되므로 호출하지 말 것.
     @Override
     @Transactional
     public void save(MfaTransaction transaction) {

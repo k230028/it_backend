@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 하는 창이며, 이 정리는 순수한 용량 관리다. 다중 인스턴스에서 여러 인스턴스가 동시에 실행해도 DELETE는
  * 멱등이라 잠금이 필요 없다.
  */
+@ConditionalOnProperty(prefix = "app.mfa", name = "store", havingValue = "jpa", matchIfMissing = true)
 @Component
 @RequiredArgsConstructor
 @Slf4j
