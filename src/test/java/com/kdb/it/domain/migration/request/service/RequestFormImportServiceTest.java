@@ -12,7 +12,9 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.CapitalProjectFormAdapter;
+import com.kdb.it.domain.migration.request.service.adapter.FormAdapterContext;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
+import com.kdb.it.domain.migration.request.service.adapter.FormSheetAdapter;
 import com.kdb.it.domain.migration.request.service.adapter.GeneralExpenseFormAdapter;
 import com.kdb.it.domain.migration.request.service.adapter.RecurringProjectFormAdapter;
 import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
@@ -66,8 +68,12 @@ class RequestFormImportServiceTest {
     }
 
     private RequestFormImportService service(int maxFilesPerBatch) {
+        return service(new WorkbookReader(10_485_760L, 20, 5000), maxFilesPerBatch);
+    }
+
+    private RequestFormImportService service(WorkbookReader workbookReader, int maxFilesPerBatch) {
         return new RequestFormImportService(
-                new WorkbookReader(10_485_760L, 20, 5000),
+                workbookReader,
                 orgIdentityResolver,
                 ioeHierarchyIndex,
                 fileImporter,
@@ -222,11 +228,145 @@ class RequestFormImportServiceTest {
     }
 
     @Test
+    @DisplayName("dry-run은 조작된 manifest의 비요청서 엑셀을 파싱 결과에서 제외한다")
+    void dryRun_ignoresNonTargetWorkbookWithManipulatedManifest() {
+        WorkbookReader workbookReader =
+                org.mockito.Mockito.spy(new WorkbookReader(10_485_760L, 20, 5000));
+        byte[] targetBytes = RequestFormFixtures.fullFormXls();
+        byte[] nonTargetBytes = RequestFormFixtures.capitalOnlyXlsx();
+        when(fileImporter.preview(any(), any(), anyString())).thenReturn(applied("자금운용실/요청서.xls"));
+        List<RequestFormDto.FileEntry> entries =
+                List.of(
+                        new RequestFormDto.FileEntry(
+                                "자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571", false),
+                        new RequestFormDto.FileEntry(
+                                "자금운용실/견적서.xlsx", "자금운용실", null, null, null, false));
+
+        RequestFormDto.ImportResponse response =
+                service(workbookReader, 50)
+                        .importBatch(
+                                List.of(
+                                        file("요청서.xls", targetBytes),
+                                        file("견적서.xlsx", nonTargetBytes)),
+                                new RequestFormDto.ImportManifest("2026", entries, List.of()),
+                                "12345678",
+                                true);
+
+        OpenedWorkbook openedWorkbook = openedWorkbook(workbookReader);
+        assertThat(openedWorkbook.bytes()).isEqualTo(targetBytes);
+        assertThat(openedWorkbook.filename()).isEqualTo("자금운용실/요청서.xls");
+        assertThat(previewedEntry())
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(capitalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(recurringAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(generalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(response.files())
+                .extracting(RequestFormDto.FileResult::fileKey)
+                .containsExactly("자금운용실/요청서.xls");
+        org.mockito.Mockito.verify(sourceFileArchiver, org.mockito.Mockito.never()).archive(any());
+    }
+
+    @Test
+    @DisplayName("commit은 조작된 manifest의 비요청서 엑셀을 열지 않고 원본 보관 계획에 넣는다")
+    void commit_archivesNonTargetWorkbookWithManipulatedManifestWithoutParsingIt() {
+        WorkbookReader workbookReader =
+                org.mockito.Mockito.spy(new WorkbookReader(10_485_760L, 20, 5000));
+        byte[] targetBytes = RequestFormFixtures.fullFormXls();
+        byte[] nonTargetBytes = RequestFormFixtures.capitalOnlyXlsx();
+        when(fileImporter.apply(any(), any(), anyString(), anyString()))
+                .thenReturn(applied("자금운용실/요청서.xls"));
+        List<RequestFormDto.FileEntry> entries =
+                List.of(
+                        new RequestFormDto.FileEntry(
+                                "자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571", false),
+                        new RequestFormDto.FileEntry(
+                                "자금운용실/견적서.xlsx", "자금운용실", null, null, null, false));
+
+        RequestFormDto.ImportResponse response =
+                service(workbookReader, 50)
+                        .importBatch(
+                                List.of(
+                                        file("요청서.xls", targetBytes),
+                                        file("견적서.xlsx", nonTargetBytes)),
+                                new RequestFormDto.ImportManifest("2026", entries, List.of()),
+                                "12345678",
+                                false);
+
+        OpenedWorkbook openedWorkbook = openedWorkbook(workbookReader);
+        assertThat(openedWorkbook.bytes()).isEqualTo(targetBytes);
+        assertThat(openedWorkbook.filename()).isEqualTo("자금운용실/요청서.xls");
+        assertThat(appliedEntry())
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(capitalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(recurringAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(generalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(response.files())
+                .extracting(RequestFormDto.FileResult::fileKey)
+                .containsExactly("자금운용실/요청서.xls");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<RequestFormSourceFileArchiver.ArchivePlanItem>> planCaptor =
+                ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(sourceFileArchiver).archive(planCaptor.capture());
+        assertThat(planCaptor.getValue())
+                .extracting(RequestFormSourceFileArchiver.ArchivePlanItem::fileKey)
+                .containsExactly("자금운용실/요청서.xls", "자금운용실/견적서.xlsx");
+        assertThat(planCaptor.getValue().get(1).result()).isNull();
+    }
+
+    private OpenedWorkbook openedWorkbook(WorkbookReader workbookReader) {
+        ArgumentCaptor<byte[]> bytesCaptor = ArgumentCaptor.forClass(byte[].class);
+        ArgumentCaptor<String> filenameCaptor = ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(workbookReader, org.mockito.Mockito.times(1))
+                .open(bytesCaptor.capture(), filenameCaptor.capture());
+        return new OpenedWorkbook(bytesCaptor.getValue(), filenameCaptor.getValue());
+    }
+
+    private RequestFormDto.FileEntry previewedEntry() {
+        ArgumentCaptor<RequestFormDto.FileEntry> entryCaptor =
+                ArgumentCaptor.forClass(RequestFormDto.FileEntry.class);
+        org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.times(1))
+                .preview(any(), entryCaptor.capture(), anyString());
+        return entryCaptor.getValue();
+    }
+
+    private RequestFormDto.FileEntry appliedEntry() {
+        ArgumentCaptor<RequestFormDto.FileEntry> entryCaptor =
+                ArgumentCaptor.forClass(RequestFormDto.FileEntry.class);
+        org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.times(1))
+                .apply(any(), entryCaptor.capture(), anyString(), anyString());
+        return entryCaptor.getValue();
+    }
+
+    private RequestFormDto.FileEntry adaptedEntry(FormSheetAdapter adapter) {
+        ArgumentCaptor<FormAdapterContext> contextCaptor =
+                ArgumentCaptor.forClass(FormAdapterContext.class);
+        org.mockito.Mockito.verify(adapter, org.mockito.Mockito.times(1))
+                .adapt(contextCaptor.capture());
+        return contextCaptor.getValue().entry();
+    }
+
+    private record OpenedWorkbook(byte[] bytes, String filename) {}
+
+    @Test
     @DisplayName("SKIPPED 엑셀도 그룹 키와 해석된 부서코드로 보관 계획에 남긴다")
     void commit_keepsSkippedExcelInArchivePlan() {
         RequestFormDto.FileEntry entry =
                 new RequestFormDto.FileEntry(
-                        "2026/자금운용실(420)/팀1/사업1/참고자료.xls",
+                        "2026/자금운용실(420)/팀1/사업1/요청서_참고자료.xls",
                         "자금운용실(420)",
                         null,
                         AmountUnit.WON,
@@ -235,7 +375,10 @@ class RequestFormImportServiceTest {
         RequestFormDto.ImportResponse response =
                 service(50)
                         .importBatch(
-                                List.of(file("참고자료.xls", RequestFormFixtures.unrelatedSheetXls())),
+                                List.of(
+                                        file(
+                                                "요청서_참고자료.xls",
+                                                RequestFormFixtures.unrelatedSheetXls())),
                                 new RequestFormDto.ImportManifest(
                                         "2026", List.of(entry), List.of()),
                                 "12345678",
@@ -264,9 +407,9 @@ class RequestFormImportServiceTest {
         List<RequestFormDto.FileEntry> entries =
                 List.of(
                         new RequestFormDto.FileEntry(
-                                "동일폴더/a.xls", "동일폴더", "D01", AmountUnit.WON, "571"),
+                                "동일폴더/요청서-a.xls", "동일폴더", "D01", AmountUnit.WON, "571"),
                         new RequestFormDto.FileEntry(
-                                "동일폴더/b.xls", "동일폴더", "D02", AmountUnit.WON, "571"));
+                                "동일폴더/요청서-b.xls", "동일폴더", "D02", AmountUnit.WON, "571"));
         RequestFormDto.ImportManifest manifest =
                 new RequestFormDto.ImportManifest("2026", entries, List.of());
         when(fileImporter.apply(any(), any(), anyString(), anyString()))
@@ -279,8 +422,8 @@ class RequestFormImportServiceTest {
         service(50)
                 .importBatch(
                         List.of(
-                                file("a.xls", RequestFormFixtures.fullFormXls()),
-                                file("b.xls", RequestFormFixtures.fullFormXls())),
+                                file("요청서-a.xls", RequestFormFixtures.fullFormXls()),
+                                file("요청서-b.xls", RequestFormFixtures.fullFormXls())),
                         manifest,
                         "12345678",
                         false);
@@ -304,9 +447,11 @@ class RequestFormImportServiceTest {
                 service(50)
                         .importBatch(
                                 List.of(
-                                        file("깨진.xlsx", "엑셀 아님".getBytes(StandardCharsets.UTF_8)),
+                                        file(
+                                                "요청서_깨진.xlsx",
+                                                "엑셀 아님".getBytes(StandardCharsets.UTF_8)),
                                         file("요청서.xls", RequestFormFixtures.fullFormXls())),
-                                manifest("자금운용실/깨진.xlsx", "런던지점/요청서.xls"),
+                                manifest("자금운용실/요청서_깨진.xlsx", "런던지점/요청서.xls"),
                                 "12345678",
                                 false);
 
@@ -325,8 +470,11 @@ class RequestFormImportServiceTest {
         RequestFormDto.ImportResponse response =
                 service(50)
                         .importBatch(
-                                List.of(file("참고자료.xls", RequestFormFixtures.unrelatedSheetXls())),
-                                manifest("자금운용실(420)/팀1/사업1/참고자료.xls"),
+                                List.of(
+                                        file(
+                                                "요청서_참고자료.xls",
+                                                RequestFormFixtures.unrelatedSheetXls())),
+                                manifest("자금운용실(420)/팀1/사업1/요청서_참고자료.xls"),
                                 "12345678",
                                 true);
 

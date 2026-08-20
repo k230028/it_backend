@@ -38,6 +38,22 @@ class FormApproverReaderTest {
     }
 
     @Test
+    @DisplayName("확인자 이름에 본부장이 포함되어도 사람 이름을 보존한다")
+    void preservesConfirmerNameContainingHeadquartersTitle() {
+        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "홍길동 본부장"));
+
+        assertThat(reader.confirmer(sheet)).isEqualTo("홍길동 본부장");
+    }
+
+    @Test
+    @DisplayName("작성자 이름에 본부장이 포함되어도 사람 이름을 보존한다")
+    void preservesAuthorNameContainingHeadquartersText() {
+        Sheet sheet = sheetOf(Map.of("1,8", "(작성자)", "1,9", "김영희 본부장"));
+
+        assertThat(reader.author(sheet)).isEqualTo("김영희 본부장");
+    }
+
+    @Test
     @DisplayName("라벨 오른쪽 칸의 이름을 읽는다")
     void readsNameFromCellToTheRight() {
         Sheet sheet =

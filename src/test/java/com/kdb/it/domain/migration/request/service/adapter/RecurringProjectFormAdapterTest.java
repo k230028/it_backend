@@ -59,6 +59,24 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
+    @DisplayName("경상사업 한 건의 여러 소요자원 행을 모두 품목으로 만든다")
+    void buildsSingleRecurringProjectFromMultipleResourceRows() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(RequestFormFixtures.singleRecurringMultiItemXls(), Map.of()));
+
+        assertThat(output.projects()).singleElement();
+        assertThat(output.projects().get(0).getAbusNm()).isEqualTo("단일 서버 교체");
+        assertThat(output.projects().get(0).getItems())
+                .hasSize(2)
+                .extracting(ProjectDto.BitemmDto::getQty)
+                .containsExactly(new BigDecimal("3"), new BigDecimal("2"));
+        assertThat(output.projects().get(0).getItems())
+                .extracting(ProjectDto.BitemmDto::getIoeC)
+                .containsExactly("102", "102");
+    }
+
+    @Test
     @DisplayName("추진내용은 사업범위로, 미추진시 문제점은 문제점으로 옮긴다")
     void mapsOverviewFields() {
         ProjectDto.CreateRequest project =
@@ -86,6 +104,33 @@ class RecurringProjectFormAdapterTest {
         assertThat(project.getTlrUsid()).isEqualTo("신원석");
         // 영문 성명은 직책을 떼고도 컬럼(14자)을 넘어 잘린다
         assertThat(project.getUsid()).isEqualTo("Luke Buckingha");
+    }
+
+    @Test
+    @DisplayName("본부장이 포함된 확인자·작성자 이름을 전결권자 역할로 바꾸지 않는다")
+    void preservesPersonNamesContainingHeadquartersTextInUserFields() {
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls"));
+        Sheet recurring = sheets.get(FormSheetKind.RECURRING);
+        recurring.getRow(1).getCell(7).setCellValue("홍길동 본부장");
+        recurring.getRow(1).getCell(9).setCellValue("김영희 본부장");
+        FormAdapterContext context =
+                new FormAdapterContext(
+                        sheets,
+                        "2026",
+                        new RequestFormDto.FileEntry(
+                                "런던지점(920)/붙임.xls", "런던지점(920)", null, null, null),
+                        "920",
+                        "런던지점",
+                        null,
+                        TestIoeIndex.snapshot(),
+                        Map.of(),
+                        "12345678");
+
+        ProjectDto.CreateRequest project = adapter.adapt(context).projects().get(0);
+
+        assertThat(project.getTlrUsid()).isEqualTo("홍길동");
+        assertThat(project.getUsid()).isEqualTo("김영희");
     }
 
     @Test
