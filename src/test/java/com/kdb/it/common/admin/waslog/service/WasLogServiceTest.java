@@ -34,7 +34,7 @@ class WasLogServiceTest {
         WasLogBuffer.shared().resize(10);
         WasLogProperties properties =
                 new WasLogProperties(10, Map.of("SVR1", "http://svr1:28080"), "", 1000, 3000);
-        service = new WasLogService(properties, "SVR1", null, null);
+        service = new WasLogService(properties, "SVR1", null, null, null);
 
         WasLogBuffer.shared().add(1L, "INFO", "main", "com.kdb.it.A", "정상 처리", null);
         WasLogBuffer.shared().add(2L, "ERROR", "main", "com.kdb.it.B", "저장 실패", "stack");
@@ -173,7 +173,7 @@ class WasLogServiceTest {
                         throw new WasLogPeerException("미사용", null);
                     }
                 };
-        WasLogService routing = new WasLogService(properties, "SVR1", failing, null);
+        WasLogService routing = new WasLogService(properties, "SVR1", failing, null, null);
 
         WasLogDto.Snapshot snapshot =
                 routing.snapshot("SVR2", new WasLogDto.Query(0L, 200, Set.of(), null, null));

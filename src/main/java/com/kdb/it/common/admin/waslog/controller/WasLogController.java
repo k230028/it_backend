@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -57,6 +59,17 @@ public class WasLogController {
     @Operation(summary = "인스턴스 목록", description = "설정에 등록된 WAS 인스턴스를 반환합니다.")
     public List<WasLogDto.InstanceInfo> instances() {
         return service.instances();
+    }
+
+    /**
+     * 런타임 로그레벨을 한시적으로 변경한다.
+     *
+     * @param request 대상 인스턴스·로거·레벨·TTL(1~120분)
+     */
+    @PostMapping("/level")
+    @Operation(summary = "런타임 로그레벨 변경", description = "TTL이 지나면 자동으로 원래 레벨로 복원됩니다.")
+    public WasLogDto.LevelOverride applyLevel(@RequestBody WasLogDto.LevelRequest request) {
+        return service.applyLevel(request);
     }
 
     private Set<String> splitLevels(String csv) {

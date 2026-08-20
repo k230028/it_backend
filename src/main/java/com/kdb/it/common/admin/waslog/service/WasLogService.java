@@ -32,16 +32,19 @@ public class WasLogService {
     private final String selfInstanceId;
     private final WasLogPeerClient peerClient;
     private final LevelOverrideRegistry overrideRegistry;
+    private final LevelOverrideService levelOverrideService;
 
     public WasLogService(
             WasLogProperties properties,
             @Value("${app.server.instance-id:SVR1}") String selfInstanceId,
             WasLogPeerClient peerClient,
-            LevelOverrideRegistry overrideRegistry) {
+            LevelOverrideRegistry overrideRegistry,
+            LevelOverrideService levelOverrideService) {
         this.properties = properties;
         this.selfInstanceId = selfInstanceId;
         this.peerClient = peerClient;
         this.overrideRegistry = overrideRegistry;
+        this.levelOverrideService = levelOverrideService;
     }
 
     /** 이 인스턴스의 ID. */
@@ -122,6 +125,25 @@ public class WasLogService {
                 dropped,
                 overrideRegistry == null ? List.of() : overrideRegistry.list(),
                 null);
+    }
+
+    /**
+     * 대상 인스턴스에 런타임 레벨 변경을 적용한다.
+     *
+     * @throws IllegalArgumentException 알 수 없는 인스턴스이거나 로거·레벨·TTL 규칙 위반
+     * @throws WasLogPeerException 피어 호출 실패
+     */
+    public WasLogDto.LevelOverride applyLevel(WasLogDto.LevelRequest request) {
+        String instanceId = request.instanceId();
+        if (instanceId == null || instanceId.isBlank() || instanceId.equals(selfInstanceId)) {
+            return levelOverrideService.apply(
+                    request.logger(), request.level(), request.ttlMinutes());
+        }
+        String peerUrl = properties.peers().get(instanceId);
+        if (peerUrl == null || peerUrl.isBlank()) {
+            throw new IllegalArgumentException("알 수 없는 인스턴스: " + instanceId);
+        }
+        return peerClient.applyLevel(peerUrl, request);
     }
 
     /** 설정에 등록된 인스턴스 목록. */

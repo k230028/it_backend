@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -110,5 +113,48 @@ class WasLogControllerTest {
         assertThat(query.levels()).containsExactlyInAnyOrder("ERROR", "WARN");
         assertThat(query.logger()).isEqualTo("com.kdb.it");
         assertThat(query.keyword()).isEqualTo("실패");
+    }
+
+    @Test
+    @DisplayName("레벨 변경은 적용 결과를 반환한다")
+    void applyLevel_정상응답() throws Exception {
+        given(service.applyLevel(any()))
+                .willReturn(
+                        new WasLogDto.LevelOverride(
+                                "com.kdb.it.domain",
+                                "DEBUG",
+                                "INFO",
+                                java.time.LocalDateTime.of(2026, 8, 20, 11, 0)));
+
+        mockMvc.perform(
+                        post("/api/admin/was-logs/level")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"instanceId":"SVR1","logger":"com.kdb.it.domain",
+                                         "level":"DEBUG","ttlMinutes":30}
+                                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.logger").value("com.kdb.it.domain"))
+                .andExpect(jsonPath("$.previousLevel").value("INFO"));
+    }
+
+    @Test
+    @DisplayName("TTL 범위 위반은 400")
+    void applyLevel_TTL위반_400() throws Exception {
+        given(service.applyLevel(any()))
+                .willThrow(new IllegalArgumentException("TTL은 1~120분이어야 합니다: 999"));
+
+        mockMvc.perform(
+                        post("/api/admin/was-logs/level")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"instanceId":"SVR1","logger":"com.kdb.it.domain",
+                                         "level":"DEBUG","ttlMinutes":999}
+                                        """))
+                .andExpect(status().isBadRequest());
     }
 }

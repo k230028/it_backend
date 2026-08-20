@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
+import com.kdb.it.common.admin.waslog.service.LevelOverrideService;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.config.TestSecurityConfig;
@@ -52,6 +53,10 @@ class WasLogInternalControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private WasLogService service;
+
+    // WasLogInternalController가 Task 5부터 LevelOverrideService를 생성자로 주입받는다.
+    // @WebMvcTest 슬라이스는 @Service 빈을 자동 스캔하지 않으므로 목으로 채워야 컨텍스트가 뜬다.
+    @MockitoBean private LevelOverrideService levelOverrideService;
 
     // WasLogController와 마찬가지로 @WebMvcTest 슬라이스가 시큐리티 필터 체인을 함께 로드하며
     // JwtAuthenticationFilter 생성자 의존성을 채우기 위해 필요하다. 이 컨트롤러는 X-Internal-Token으로

@@ -2,6 +2,7 @@ package com.kdb.it.common.admin.waslog.controller;
 
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
+import com.kdb.it.common.admin.waslog.service.LevelOverrideService;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -29,6 +30,7 @@ public class WasLogInternalController {
 
     private final WasLogService service;
     private final WasLogProperties properties;
+    private final LevelOverrideService levelOverrideService;
 
     /** 로컬 버퍼 스냅샷. 라우팅하지 않는다(무한 위임 방지). */
     @PostMapping("/snapshot")
@@ -37,6 +39,17 @@ public class WasLogInternalController {
             @RequestBody WasLogDto.Query query) {
         if (!matches(token)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         return ResponseEntity.ok(service.localSnapshot(query));
+    }
+
+    /** 로컬 인스턴스에 레벨을 적용한다. 라우팅하지 않는다. */
+    @PostMapping("/level")
+    public ResponseEntity<WasLogDto.LevelOverride> applyLevel(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestBody WasLogDto.LevelRequest request) {
+        if (!matches(token)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return ResponseEntity.ok(
+                levelOverrideService.apply(
+                        request.logger(), request.level(), request.ttlMinutes()));
     }
 
     private boolean matches(String token) {

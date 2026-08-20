@@ -109,4 +109,21 @@ class WasLogPeerClientTest {
         assertThat(override.logger()).isEqualTo("com.kdb.it");
         assertThat(override.previousLevel()).isEqualTo("INFO");
     }
+
+    @Test
+    @DisplayName("레벨 변경이 2xx인데 본문이 비면 WasLogPeerException을 던진다")
+    void applyLevel_빈본문() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(PEER_URL + "/internal/was-logs/level"))
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        WasLogPeerClient client = new DefaultWasLogPeerClient(builder.build(), properties);
+        WasLogDto.LevelRequest request =
+                new WasLogDto.LevelRequest("SVR2", "com.kdb.it", "DEBUG", 30);
+
+        assertThatThrownBy(() -> client.applyLevel(PEER_URL, request))
+                .isInstanceOf(WasLogPeerException.class)
+                .hasMessageContaining("본문");
+    }
 }
