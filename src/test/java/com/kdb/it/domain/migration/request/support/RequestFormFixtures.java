@@ -57,8 +57,8 @@ public final class RequestFormFixtures {
         }
     }
 
-    /** 경상사업 시트와 소요자원 한 행만 담은 비식별 .xls. */
-    public static byte[] singleRecurringRowXls() {
+    /** 경상사업 한 건과 같은 비목의 소요자원 여러 행을 담은 비식별 .xls. */
+    public static byte[] singleRecurringMultiItemXls() {
         try (Workbook wb = new HSSFWorkbook()) {
             Sheet s = wb.createSheet("② (경상사업) 2. 경상적인 사업");
             put(s, 0, 0, "2. 경상적인 사업");
@@ -85,8 +85,16 @@ public final class RequestFormFixtures {
             put(s, 8, 8, "2월");
             put(s, 8, 9, "내부 교체 기준");
 
-            put(s, 9, 0, "계");
-            s.addMergedRegion(new CellRangeAddress(9, 9, 0, 1));
+            put(s, 9, 2, "백업 서버");
+            putNumber(s, 9, 4, 2);
+            putNumber(s, 9, 5, 200);
+            put(s, 9, 6, "KRW");
+            putNumber(s, 9, 7, 400);
+            put(s, 9, 8, "3월");
+            put(s, 9, 9, "이중화 기준");
+
+            put(s, 10, 0, "계");
+            s.addMergedRegion(new CellRangeAddress(10, 10, 0, 1));
             return toBytes(wb);
         } catch (IOException e) {
             throw new UncheckedIOException(e);

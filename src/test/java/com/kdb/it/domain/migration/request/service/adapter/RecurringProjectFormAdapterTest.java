@@ -59,21 +59,18 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("경상사업 시트에 소요자원 한 행만 있어도 사업과 품목을 만든다")
-    void buildsSingleRecurringProjectFromOneResourceRow() {
+    @DisplayName("경상사업 한 건의 여러 소요자원 행을 모두 품목으로 만든다")
+    void buildsSingleRecurringProjectFromMultipleResourceRows() {
         FormAdapterOutput output =
-                adapter.adapt(contextOf(RequestFormFixtures.singleRecurringRowXls(), Map.of()));
+                adapter.adapt(
+                        contextOf(RequestFormFixtures.singleRecurringMultiItemXls(), Map.of()));
 
         assertThat(output.projects()).singleElement();
         assertThat(output.projects().get(0).getAbusNm()).isEqualTo("단일 서버 교체");
         assertThat(output.projects().get(0).getItems())
-                .singleElement()
-                .satisfies(
-                        item -> {
-                            assertThat(item.getGclNm()).isEqualTo("테스트 서버");
-                            assertThat(item.getQty()).isEqualByComparingTo(new BigDecimal("3"));
-                            assertThat(item.getIoeC()).isEqualTo("102");
-                        });
+                .hasSize(2)
+                .extracting(ProjectDto.BitemmDto::getQty)
+                .containsExactly(new BigDecimal("3"), new BigDecimal("2"));
     }
 
     @Test
