@@ -42,34 +42,51 @@ class MfaValueObjectsTest {
     void verifyContext_시작거래와_challenge식별자는_필수다() {
         MfaStartContext start = startContext();
 
-        assertThatThrownBy(() -> new MfaVerifyContext(null, "challenge-1", ""))
+        assertThatThrownBy(() -> new MfaVerifyContext(null, "challenge-1", "", null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new MfaVerifyContext(start, null, ""))
+        assertThatThrownBy(() -> new MfaVerifyContext(start, null, "", null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new MfaVerifyContext(start, " ", ""))
+        assertThatThrownBy(() -> new MfaVerifyContext(start, " ", "", null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void verifyContext_검증값이_null이면_빈_문자열로_접는다() {
-        MfaVerifyContext context = new MfaVerifyContext(startContext(), "challenge-1", null);
+        MfaVerifyContext context = new MfaVerifyContext(startContext(), "challenge-1", null, null);
 
         assertThat(context.verificationValue()).isEmpty();
     }
 
     @Test
+    void verifyContext_공급자거래식별자를_그대로_보관한다() {
+        MfaVerifyContext context =
+                new MfaVerifyContext(startContext(), "challenge-1", "", "svc-tr-id");
+
+        assertThat(context.providerTransactionId()).isEqualTo("svc-tr-id");
+    }
+
+    @Test
     void challengeData_식별자와_만료시각을_검증한다() {
-        assertThatThrownBy(() -> new MfaChallengeData(null, "qr", null, EXPIRES_AT))
+        assertThatThrownBy(() -> new MfaChallengeData(null, "qr", null, EXPIRES_AT, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new MfaChallengeData(" ", "qr", null, EXPIRES_AT))
+        assertThatThrownBy(() -> new MfaChallengeData(" ", "qr", null, EXPIRES_AT, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new MfaChallengeData("challenge-1", "qr", null, null))
+        assertThatThrownBy(() -> new MfaChallengeData("challenge-1", "qr", null, null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void challengeData_QR이_없어도_생성된다() {
-        assertThat(new MfaChallengeData("challenge-1", null, null, EXPIRES_AT).qrData()).isNull();
+        assertThat(new MfaChallengeData("challenge-1", null, null, EXPIRES_AT, null).qrData())
+                .isNull();
+    }
+
+    @Test
+    void challengeData_공급자거래식별자를_그대로_보관한다() {
+        assertThat(
+                        new MfaChallengeData("challenge-1", null, null, EXPIRES_AT, "svc-tr-id")
+                                .providerTransactionId())
+                .isEqualTo("svc-tr-id");
     }
 
     @Test
@@ -91,7 +108,8 @@ class MfaValueObjectsTest {
                         () ->
                                 registry.verify(
                                         MfaMethod.FIDO,
-                                        new MfaVerifyContext(startContext(), "challenge-1", "")))
+                                        new MfaVerifyContext(
+                                                startContext(), "challenge-1", "", null)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -113,7 +131,8 @@ class MfaValueObjectsTest {
         MfaChallengeData challenge = registry.start(MfaMethod.MOTP, context);
         MfaVerificationResult result =
                 registry.verify(
-                        MfaMethod.MOTP, new MfaVerifyContext(context, challenge.challengeId(), ""));
+                        MfaMethod.MOTP,
+                        new MfaVerifyContext(context, challenge.challengeId(), "", null));
 
         assertThat(challenge.challengeId()).isEqualTo(context.transactionId());
         assertThat(result.verified()).isTrue();

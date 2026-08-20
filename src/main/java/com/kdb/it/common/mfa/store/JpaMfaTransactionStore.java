@@ -19,7 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 조회해 도메인 객체로 매핑한다.
  */
 @Component
-@ConditionalOnProperty(prefix = "app.mfa", name = "store", havingValue = "jpa", matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "app.mfa",
+        name = "store",
+        havingValue = "jpa",
+        matchIfMissing = true)
 public class JpaMfaTransactionStore implements MfaTransactionStore {
 
     private static final ZoneId ZONE = ZoneId.systemDefault();
@@ -43,7 +47,8 @@ public class JpaMfaTransactionStore implements MfaTransactionStore {
                         purposeCode(transaction.purpose()),
                         methodCode(transaction.method()),
                         toLocalDateTime(transaction.expiresAt()),
-                        transaction.providerChallengeHash()));
+                        transaction.providerChallengeHash(),
+                        transaction.svcTrId()));
     }
 
     @Override
@@ -112,10 +117,20 @@ public class JpaMfaTransactionStore implements MfaTransactionStore {
                 method(entity.getMethodCode()),
                 toInstant(entity.getEndDtm()),
                 entity.getTryTokenHash(),
+                entity.getSvcTrNo(),
                 entity.getProofTokenHash(),
                 status(entity.getStatusCode()),
                 entity.getVrfDtm() == null ? null : toInstant(entity.getVrfDtm()),
                 entity.getFailureCount());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isExpired(String tokenHash, Instant now) {
+        return repository
+                .findById(tokenHash)
+                .map(entity -> !toLocalDateTime(now).isBefore(entity.getEndDtm()))
+                .orElse(false);
     }
 
     private static String purposeCode(MfaPurpose purpose) {

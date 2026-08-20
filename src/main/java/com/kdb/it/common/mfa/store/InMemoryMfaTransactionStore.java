@@ -19,11 +19,13 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
             new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, MfaTransaction> proofTransactions =
             new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> expiryByTokenHash = new ConcurrentHashMap<>();
 
     // 인터페이스 계약보다 관대하게, 주어진 거래를 상태와 무관하게 그대로 저장한다.
     @Override
     public void save(MfaTransaction transaction) {
         transactions.put(transaction.tokenHash(), transaction);
+        expiryByTokenHash.put(transaction.tokenHash(), transaction.expiresAt());
     }
 
     @Override
@@ -129,5 +131,16 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
                     return null;
                 });
         return result.get();
+    }
+
+    /**
+     * 인스턴스 로컬 보조 맵으로 만료 여부를 판정한다. 단일 인스턴스 dev 전용 저장소라 인스턴스 간 정확도 손실이 없다. {@code save()} 시 채우며,
+     * {@code findByTokenHash}의 읽기 시 축출(evict-on-read) 동작과는 독립적으로 유지한다 — 그 축출 순서에 기존 테스트 여러 개가 의존하고
+     * 있어 건드리지 않는다.
+     */
+    @Override
+    public boolean isExpired(String tokenHash, Instant now) {
+        Instant expiresAt = expiryByTokenHash.get(tokenHash);
+        return expiresAt != null && !now.isBefore(expiresAt);
     }
 }

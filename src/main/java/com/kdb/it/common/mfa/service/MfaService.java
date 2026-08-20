@@ -28,7 +28,6 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 
 /** MFA 거래 생성, 소유권 검증, 외부 인증 및 1회용 증표 소비를 조정한다. */
@@ -43,10 +42,6 @@ public class MfaService {
     private final MfaProviderRegistry providerRegistry;
     private final MfaProperties properties;
     private final Clock clock;
-    private final ConcurrentHashMap<String, Instant> knownExpiryByTokenHash =
-            new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Instant> cancelledExpiryByTokenHash =
-            new ConcurrentHashMap<>();
 
     public MfaService(
             MfaTransactionStore transactionStore,
@@ -73,7 +68,6 @@ public class MfaService {
             throw new IllegalArgumentException("로그인 대기 거래의 사원번호는 필수입니다.");
         }
         Instant now = Instant.now(clock);
-        removeExpiredTracking(now);
         Instant expiresAt = now.plus(properties.challengeTtl());
         UUID pendingId = UUID.randomUUID();
         loginPendingTransactionStore.save(
@@ -95,7 +89,6 @@ public class MfaService {
             Optional<CustomUserDetails> currentUser,
             String pendingCookie) {
         Instant now = Instant.now(clock);
-        removeExpiredTracking(now);
         String eno = resolveOwnerForStart(request.purpose(), currentUser, pendingCookie, now);
         Instant expiresAt = now.plus(properties.challengeTtl());
         UUID challengeId = UUID.randomUUID();
@@ -120,8 +113,8 @@ public class MfaService {
                         request.purpose(),
                         request.method(),
                         expiresAt,
-                        hash(challenge.challengeId())));
-        knownExpiryByTokenHash.put(tokenHash, expiresAt);
+                        hash(challenge.challengeId()),
+                        challenge.providerTransactionId()));
         return new MfaDto.MfaChallengeResponse(
                 challengeId,
                 challenge.challengeId(),
@@ -168,7 +161,8 @@ public class MfaService {
                                             transaction.purpose(),
                                             transaction.expiresAt()),
                                     request.providerChallengeId(),
-                                    request.verificationValue()));
+                                    request.verificationValue(),
+                                    transaction.svcTrId()));
         } catch (RuntimeException exception) {
             throw new MfaException(MfaErrorCode.MFA_UNAVAILABLE);
         }
@@ -211,7 +205,6 @@ public class MfaService {
         MfaTransaction transaction = findActiveTransaction(tokenHash, now);
         assertTransactionOwner(transaction, currentUser, pendingCookie, now);
         transactionStore.delete(tokenHash, now);
-        cancelledExpiryByTokenHash.put(tokenHash, transaction.expiresAt());
     }
 
     /**
@@ -262,20 +255,19 @@ public class MfaService {
         return findLoginPending(pendingCookie, now).eno();
     }
 
+    /**
+     * 활성 거래를 조회한다. 없으면 저장소에 사유(만료 vs 그 밖)를 물어 정확한 에러 코드를 던진다. 만료 정리 배치가 이미 물리 삭제한 오래된 거래는 저장소도 사유를
+     * 알 수 없어 MFA_REQUIRED로 폴백한다(만료 직후 유예 창 안에서만 정확한 구분이 보장됨 — SEC-13 §7.2와 동일한 한계).
+     */
     private MfaTransaction findActiveTransaction(String tokenHash, Instant now) {
         return transactionStore
                 .findByTokenHash(tokenHash, now)
                 .orElseThrow(
-                        () -> {
-                            Instant expiresAt = knownExpiryByTokenHash.remove(tokenHash);
-                            if (expiresAt != null && !now.isBefore(expiresAt)) {
-                                throw new MfaException(MfaErrorCode.MFA_EXPIRED);
-                            }
-                            if (cancelledExpiryByTokenHash.containsKey(tokenHash)) {
-                                throw new MfaException(MfaErrorCode.MFA_REQUIRED);
-                            }
-                            throw new MfaException(MfaErrorCode.MFA_REQUIRED);
-                        });
+                        () ->
+                                new MfaException(
+                                        transactionStore.isExpired(tokenHash, now)
+                                                ? MfaErrorCode.MFA_EXPIRED
+                                                : MfaErrorCode.MFA_REQUIRED));
     }
 
     private void assertTransactionOwner(
@@ -327,11 +319,6 @@ public class MfaService {
         return Math.max(0, (milliseconds + 999) / 1_000);
     }
 
-    private void removeExpiredTracking(Instant now) {
-        knownExpiryByTokenHash.entrySet().removeIf(entry -> !now.isBefore(entry.getValue()));
-        cancelledExpiryByTokenHash.entrySet().removeIf(entry -> !now.isBefore(entry.getValue()));
-    }
-
     private boolean isExpectedProviderChallenge(
             MfaTransaction transaction, String providerChallengeId) {
         if (transaction.providerChallengeHash() == null || providerChallengeId == null) {
@@ -366,8 +353,6 @@ public class MfaService {
         if (consumption != ProofConsumption.CONSUMED) {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
         }
-        knownExpiryByTokenHash.remove(tokenHash);
-        cancelledExpiryByTokenHash.remove(tokenHash);
     }
 
     private static String hash(String value) {
