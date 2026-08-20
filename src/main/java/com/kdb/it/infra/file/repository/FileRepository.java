@@ -96,8 +96,8 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
     /**
      * 주식별자컬럼명 + 주식별자내용으로 삭제 여부와 무관하게 파일 목록을 조회합니다.
      *
-     * <p>배너 관리 화면처럼 활성(DEL_YN='N')과 비활성(DEL_YN='Y')을 함께 보여줘야 하는
-     * 경우에만 사용합니다. 일반 조회는 반드시 delYn 조건이 있는 메서드를 씁니다.
+     * <p>배너 관리 화면처럼 활성(DEL_YN='N')과 비활성(DEL_YN='Y')을 함께 보여줘야 하는 경우에만 사용합니다. 일반 조회는 반드시 delYn 조건이 있는
+     * 메서드를 씁니다.
      *
      * @param pkColNm 주식별자컬럼명
      * @param pkCone 주식별자내용

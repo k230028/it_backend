@@ -15,8 +15,6 @@ import com.kdb.it.infra.file.service.FileService;
 import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +22,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.mock.web.MockMultipartFile;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,7 +61,8 @@ class BannerServiceTest {
 
         List<BannerDto.Response> result = bannerService.getActiveBanners();
 
-        assertThat(result).extracting(BannerDto.Response::getFlMpnId)
+        assertThat(result)
+                .extracting(BannerDto.Response::getFlMpnId)
                 .containsExactly("FL-00000001", "FL-00000003");
         assertThat(result).allMatch(BannerDto.Response::isActive);
         assertThat(result.get(0).getPreviewUrl()).isEqualTo("/api/files/FL-00000001/preview");
@@ -174,11 +175,7 @@ class BannerServiceTest {
     @DisplayName("배너가 아닌 파일은 토글을 거부한다 — 배너 API로 다른 파일을 복원할 수 없다")
     void setActive_nonBannerFile_throws() {
         Cfilem other =
-                Cfilem.builder()
-                        .flMpnId("FL-00000007")
-                        .pkColNm("공통게시판")
-                        .pkCone("NAC-1")
-                        .build();
+                Cfilem.builder().flMpnId("FL-00000007").pkColNm("공통게시판").pkCone("NAC-1").build();
         other.delete();
         given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
 
@@ -219,11 +216,7 @@ class BannerServiceTest {
     @DisplayName("배너가 아닌 파일은 관리자 미리보기를 거부한다")
     void getAdminPreviewImage_nonBannerFile_throws() {
         Cfilem other =
-                Cfilem.builder()
-                        .flMpnId("FL-00000007")
-                        .pkColNm("공통게시판")
-                        .pkCone("NAC-1")
-                        .build();
+                Cfilem.builder().flMpnId("FL-00000007").pkColNm("공통게시판").pkCone("NAC-1").build();
         other.delete();
         given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
 

@@ -21,12 +21,10 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * /info 홈 배너 서비스
  *
- * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용한다. 이 서비스가
- * {@code PK_COL_NM='배너'}·{@code PK_CONE='/info'}·{@code FL_TP_CONE='이미지'} 규약을 강제하므로
- * 클라이언트가 임의 값을 보낼 수 없다.
+ * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용한다. 이 서비스가 {@code PK_COL_NM='배너'}·{@code
+ * PK_CONE='/info'}·{@code FL_TP_CONE='이미지'} 규약을 강제하므로 클라이언트가 임의 값을 보낼 수 없다.
  *
- * <p>활성·비활성은 {@code DEL_YN}으로 표현한다. {@code 'N'}이 활성, {@code 'Y'}가 비활성이며
- * 물리 파일은 어느 쪽에서도 지우지 않는다.
+ * <p>활성·비활성은 {@code DEL_YN}으로 표현한다. {@code 'N'}이 활성, {@code 'Y'}가 비활성이며 물리 파일은 어느 쪽에서도 지우지 않는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -39,8 +37,7 @@ public class BannerService {
     private static final String ACTIVE = "N";
 
     /** 배너로 허용하는 이미지 확장자. FileValidator는 pdf·hwp도 통과시키므로 여기서 좁힌다. */
-    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS =
-            Set.of("jpg", "jpeg", "png", "gif");
+    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif");
 
     private final FileService fileService;
     private final FileRepository fileRepository;
@@ -132,8 +129,8 @@ public class BannerService {
     /**
      * 관리자 전용으로 배너 미리보기 이미지를 조회합니다. {@code DEL_YN}과 무관하게 서빙합니다.
      *
-     * <p>일반 {@code /api/files/{id}/preview}는 {@code DEL_YN='N'}만 서빙하므로 비활성화된 배너는 관리 화면에서
-     * 깨진 이미지로 보인다. 배너 관리자는 재활성화 대상을 미리 봐야 하므로 이 배너 전용 경로에서만 삭제 여부를 무시한다.
+     * <p>일반 {@code /api/files/{id}/preview}는 {@code DEL_YN='N'}만 서빙하므로 비활성화된 배너는 관리 화면에서 깨진 이미지로
+     * 보인다. 배너 관리자는 재활성화 대상을 미리 봐야 하므로 이 배너 전용 경로에서만 삭제 여부를 무시한다.
      *
      * @param flMpnId 배너 파일매핑ID
      * @return 파일 다운로드 결과 (Resource·원본파일명·MIME 타입)
@@ -158,8 +155,7 @@ public class BannerService {
         Cfilem file =
                 fileRepository
                         .findById(flMpnId)
-                        .orElseThrow(
-                                () -> new CustomGeneralException("배너를 찾을 수 없습니다: " + flMpnId));
+                        .orElseThrow(() -> new CustomGeneralException("배너를 찾을 수 없습니다: " + flMpnId));
 
         // 배너 API로 다른 종류의 파일을 조회·변경할 수 없게 막는다.
         if (!BannerFileReadAuthorizer.BANNER_KIND.equals(file.getPkColNm())) {
@@ -174,8 +170,7 @@ public class BannerService {
         String extension =
                 dot < 0 ? "" : originalFilename.substring(dot + 1).toLowerCase(Locale.ROOT);
         if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
-            throw new CustomGeneralException(
-                    "배너는 이미지 파일만 등록할 수 있습니다. 허용 확장자: jpg, jpeg, png, gif");
+            throw new CustomGeneralException("배너는 이미지 파일만 등록할 수 있습니다. 허용 확장자: jpg, jpeg, png, gif");
         }
     }
 

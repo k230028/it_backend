@@ -83,7 +83,8 @@ class BannerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].flMpnId").value(FL_MPN_ID))
                 .andExpect(jsonPath("$[0].active").value(true))
-                .andExpect(jsonPath("$[0].previewUrl").value("/api/files/" + FL_MPN_ID + "/preview"));
+                .andExpect(
+                        jsonPath("$[0].previewUrl").value("/api/files/" + FL_MPN_ID + "/preview"));
     }
 
     @Test
@@ -190,8 +191,7 @@ class BannerControllerTest {
     void adminPreview_배너아닌파일_403() throws Exception {
         given(bannerService.getAdminPreviewImage(FL_MPN_ID))
                 .willThrow(
-                        new org.springframework.security.access.AccessDeniedException(
-                                "배너가 아닙니다."));
+                        new org.springframework.security.access.AccessDeniedException("배너가 아닙니다."));
 
         mockMvc.perform(get("/api/banners/" + FL_MPN_ID + "/preview"))
                 .andExpect(status().isForbidden());

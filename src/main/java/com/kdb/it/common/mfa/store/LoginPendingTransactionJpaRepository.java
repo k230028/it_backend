@@ -11,7 +11,8 @@ import org.springframework.data.repository.query.Param;
 public interface LoginPendingTransactionJpaRepository
         extends JpaRepository<LoginPendingTransactionEntity, String> {
 
-    @Query("SELECT e FROM LoginPendingTransactionEntity e WHERE e.tokenHash = :tokenHash AND e.endDtm > :now")
+    @Query(
+            "SELECT e FROM LoginPendingTransactionEntity e WHERE e.tokenHash = :tokenHash AND e.endDtm > :now")
     Optional<LoginPendingTransactionEntity> findActiveByTokenHash(
             @Param("tokenHash") String tokenHash, @Param("now") LocalDateTime now);
 
@@ -21,7 +22,9 @@ public interface LoginPendingTransactionJpaRepository
             "DELETE FROM LoginPendingTransactionEntity e "
                     + "WHERE e.tokenHash = :tokenHash AND e.eno = :eno AND e.endDtm > :now")
     int consumeOnce(
-            @Param("tokenHash") String tokenHash, @Param("eno") String eno, @Param("now") LocalDateTime now);
+            @Param("tokenHash") String tokenHash,
+            @Param("eno") String eno,
+            @Param("now") LocalDateTime now);
 
     /** 만료 후 유예 시간이 지난 행을 물리 삭제한다(용량 관리 전용). */
     @Modifying

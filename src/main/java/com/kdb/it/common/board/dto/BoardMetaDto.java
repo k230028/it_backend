@@ -37,7 +37,9 @@ public class BoardMetaDto {
         @Schema(description = "게시판명")
         private String blbNm;
 
-        @Schema(description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실, 003=일정)", example = "001")
+        @Schema(
+                description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실, 003=일정)",
+                example = "001")
         private String itPtlBlbTc;
 
         @Schema(

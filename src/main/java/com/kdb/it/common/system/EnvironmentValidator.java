@@ -21,9 +21,9 @@ import org.springframework.stereotype.Component;
  *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}
  *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code
  *       cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code
- *       app.mfa.store}(운영 memory 금지 — SEC-13)/{@code
- *       app.frontend-url}/{@code springdoc.api-docs.enabled}(false 고정)/{@code
- *       springdoc.swagger-ui.enabled}(false 고정)/세션 쿠키 Secure·HttpOnly·SameSite=Lax
+ *       app.mfa.store}(운영 memory 금지 — SEC-13)/{@code app.frontend-url}/{@code
+ *       springdoc.api-docs.enabled}(false 고정)/{@code springdoc.swagger-ui.enabled}(false 고정)/세션 쿠키
+ *       Secure·HttpOnly·SameSite=Lax
  * </ul>
  */
 @Component

@@ -12,7 +12,8 @@ class BannerFileTargetWriteAuthorizerTest {
     private static final String ADMIN_ATH = "ITPAD001"; // CustomUserDetails.ATH_ADMIN
     private static final String USER_ATH = "ITPZZ001"; // CustomUserDetails.ATH_USER
 
-    private final BannerFileTargetWriteAuthorizer authorizer = new BannerFileTargetWriteAuthorizer();
+    private final BannerFileTargetWriteAuthorizer authorizer =
+            new BannerFileTargetWriteAuthorizer();
 
     @Test
     @DisplayName("배너 종류를 담당한다")

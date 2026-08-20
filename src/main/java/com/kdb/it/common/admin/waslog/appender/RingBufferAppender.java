@@ -21,6 +21,14 @@ public class RingBufferAppender extends AppenderBase<ILoggingEvent> {
 
     private int capacity = WasLogBuffer.DEFAULT_CAPACITY;
 
+    /**
+     * 적재 대상 버퍼. {@link #start()}에서 한 번만 해석한다.
+     *
+     * <p>매 이벤트마다 다시 찾으면 로깅 경로에서 logback Context 잠금을 잡게 된다. 초기값은 공용 저장소에 붙지 않은 빈 버퍼다 — 생성 시점에 {@code
+     * LoggerFactory}를 건드리면 SLF4J 초기화에 재진입한다.
+     */
+    private WasLogBuffer buffer = new WasLogBuffer(WasLogBuffer.DEFAULT_CAPACITY);
+
     /** logback XML의 {@code <capacity>} 주입용 setter. */
     public void setCapacity(int capacity) {
         this.capacity = capacity;
@@ -28,20 +36,22 @@ public class RingBufferAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     public void start() {
-        WasLogBuffer.shared().resize(capacity);
+        // 자신의 Context를 넘긴다 — 이 시점은 SLF4J 초기화 도중이라 LoggerFactory로는 진짜
+        // LoggerContext를 얻을 수 없고, 그러면 조회 측과 다른 저장소에 쌓게 된다.
+        buffer = WasLogBuffer.attachedTo(getContext());
+        buffer.resize(capacity);
         super.start();
     }
 
     @Override
     protected void append(ILoggingEvent event) {
-        WasLogBuffer.shared()
-                .add(
-                        event.getTimeStamp(),
-                        event.getLevel().toString(),
-                        event.getThreadName(),
-                        event.getLoggerName(),
-                        truncate(event.getFormattedMessage(), MAX_MESSAGE_CHARS),
-                        throwableText(event));
+        buffer.add(
+                event.getTimeStamp(),
+                event.getLevel().toString(),
+                event.getThreadName(),
+                event.getLoggerName(),
+                truncate(event.getFormattedMessage(), MAX_MESSAGE_CHARS),
+                throwableText(event));
     }
 
     private String throwableText(ILoggingEvent event) {

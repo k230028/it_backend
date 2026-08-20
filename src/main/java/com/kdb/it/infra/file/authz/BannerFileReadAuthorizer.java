@@ -8,8 +8,7 @@ import org.springframework.stereotype.Component;
 /**
  * 배너 이미지 읽기 판정기 — 전사 공개(인증 사용자 전체).
  *
- * <p>배너는 /info 홈 캐러셀에 모든 사용자에게 노출되는 이미지이므로 인증된 사용자에게 읽기를 허용한다.
- * (default-deny의 명시적 예외)
+ * <p>배너는 /info 홈 캐러셀에 모든 사용자에게 노출되는 이미지이므로 인증된 사용자에게 읽기를 허용한다. (default-deny의 명시적 예외)
  */
 @Component
 public class BannerFileReadAuthorizer implements FileReadAuthorizer {

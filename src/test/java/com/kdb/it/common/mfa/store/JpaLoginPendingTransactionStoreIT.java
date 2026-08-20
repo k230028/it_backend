@@ -20,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  * JpaLoginPendingTransactionStore의 조건부 삭제 기반 1회 소비를 실 Oracle로 검증한다.
  *
  * <p>{@code @DataJpaTest} 슬라이스는 {@code @Component}와 JPA Auditing 설정을 포함하지 않으므로 검증 대상 저장소 빈과 {@link
- * JpaAuditConfig}를 명시적으로 가져온다. {@code JpaAuditConfig} 없이는 {@code BaseEntity}의 {@code
- * @CreatedDate}/{@code @LastModifiedDate}(FST_ENR_DTM/LST_CHG_DTM, 물리 NOT NULL)가 채워지지 않아 저장이
+ * JpaAuditConfig}를 명시적으로 가져온다. {@code JpaAuditConfig} 없이는 {@code BaseEntity}의
+ * {@code @CreatedDate}/{@code @LastModifiedDate}(FST_ENR_DTM/LST_CHG_DTM, 물리 NOT NULL)가 채워지지 않아 저장이
  * 실패한다.
  */
 @Import({JpaLoginPendingTransactionStore.class, JpaAuditConfig.class})

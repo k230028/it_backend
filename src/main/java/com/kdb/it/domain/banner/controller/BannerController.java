@@ -32,8 +32,8 @@ import org.springframework.web.multipart.MultipartFile;
  *
  * <p>기본 URL: {@code /api/banners}
  *
- * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용하며,
- * {@code PK_COL_NM='배너'}·{@code PK_CONE='/info'} 규약은 {@link BannerService}가 강제한다.
+ * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용하며, {@code PK_COL_NM='배너'}·{@code PK_CONE='/info'}
+ * 규약은 {@link BannerService}가 강제한다.
  *
  * <p>보안: 활성 배너 조회는 인증 사용자 전체, 나머지는 관리자 전용이다.
  */
@@ -65,9 +65,7 @@ public class BannerController {
      */
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "전체 배너 목록 조회 (관리자)",
-            description = "비활성(DEL_YN='Y') 배너를 포함해 전체를 조회합니다.")
+    @Operation(summary = "전체 배너 목록 조회 (관리자)", description = "비활성(DEL_YN='Y') 배너를 포함해 전체를 조회합니다.")
     public ResponseEntity<List<BannerDto.Response>> getAllBanners() {
         return ResponseEntity.ok(bannerService.getAllBanners());
     }
@@ -121,8 +119,8 @@ public class BannerController {
     /**
      * 관리자 전용으로 배너 이미지를 미리봅니다. 활성·비활성 여부와 무관하게 서빙합니다.
      *
-     * <p>일반 {@code /api/files/{id}/preview}는 {@code DEL_YN='N'}만 서빙하므로 비활성화된 배너는 관리 화면에서
-     * 깨진 이미지로 보인다. 관리자가 재활성화 대상을 미리 볼 수 있도록 이 경로에서만 삭제 여부를 무시한다.
+     * <p>일반 {@code /api/files/{id}/preview}는 {@code DEL_YN='N'}만 서빙하므로 비활성화된 배너는 관리 화면에서 깨진 이미지로
+     * 보인다. 관리자가 재활성화 대상을 미리 볼 수 있도록 이 경로에서만 삭제 여부를 무시한다.
      *
      * @param flMpnId 배너 파일매핑ID
      * @return 이미지 리소스와 인라인 표시 헤더
@@ -133,8 +131,7 @@ public class BannerController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "배너 미리보기 (관리자)",
-            description =
-                    "DEL_YN과 무관하게 배너 이미지를 인라인으로 표시합니다. 관리 화면에서 비활성 배너 썸네일과 미리보기에 사용합니다.")
+            description = "DEL_YN과 무관하게 배너 이미지를 인라인으로 표시합니다. 관리 화면에서 비활성 배너 썸네일과 미리보기에 사용합니다.")
     public ResponseEntity<Resource> adminPreview(@PathVariable("flMpnId") String flMpnId) {
         FileService.FileDownloadResult result = bannerService.getAdminPreviewImage(flMpnId);
 
