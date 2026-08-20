@@ -97,7 +97,10 @@ public class RequestFormImportService {
             RequestFormDto.FileEntry entry = manifest.entries().get(i);
             MultipartFile file = files.get(i);
             String archiveGroupKey = RequestFormArchiveGroup.keyOf(entry.fileKey());
-            if (entry.archiveOnly()) {
+            boolean effectiveArchiveOnly =
+                    entry.archiveOnly()
+                            || !RequestFormParseTarget.isTarget(file.getOriginalFilename());
+            if (effectiveArchiveOnly) {
                 String deptCode = resolveDepartmentCode(entry, orgIndex);
                 archivePlan.add(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
