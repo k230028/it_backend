@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.kdb.it.common.admin.waslog.appender.WasLogBuffer;
+import com.kdb.it.common.admin.waslog.client.WasLogPeerClient;
+import com.kdb.it.common.admin.waslog.client.WasLogPeerException;
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.dto.WasLogEntry;
@@ -150,5 +152,34 @@ class WasLogServiceTest {
 
         assertThat(instances).extracting(WasLogDto.InstanceInfo::id).containsExactly("SVR1");
         assertThat(instances.getFirst().self()).isTrue();
+    }
+
+    @Test
+    @DisplayName("피어 호출이 실패하면 예외 대신 peerError로 표면화한다")
+    void snapshot_피어실패_표면화() {
+        WasLogProperties properties =
+                new WasLogProperties(10, Map.of("SVR2", "http://svr2:28080"), "s", 1000, 3000);
+        WasLogPeerClient failing =
+                new WasLogPeerClient() {
+                    @Override
+                    public WasLogDto.Snapshot fetchSnapshot(
+                            String baseUrl, String instanceId, WasLogDto.Query query) {
+                        throw new WasLogPeerException("SVR2 인스턴스 조회 실패: timeout", null);
+                    }
+
+                    @Override
+                    public WasLogDto.LevelOverride applyLevel(
+                            String baseUrl, WasLogDto.LevelRequest request) {
+                        throw new WasLogPeerException("미사용", null);
+                    }
+                };
+        WasLogService routing = new WasLogService(properties, "SVR1", failing, null);
+
+        WasLogDto.Snapshot snapshot =
+                routing.snapshot("SVR2", new WasLogDto.Query(0L, 200, Set.of(), null, null));
+
+        assertThat(snapshot.peerError()).contains("timeout");
+        assertThat(snapshot.entries()).isEmpty();
+        assertThat(snapshot.instanceId()).isEqualTo("SVR2");
     }
 }

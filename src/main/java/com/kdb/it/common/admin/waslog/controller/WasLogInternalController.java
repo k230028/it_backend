@@ -1,0 +1,48 @@
+package com.kdb.it.common.admin.waslog.controller;
+
+import com.kdb.it.common.admin.waslog.config.WasLogProperties;
+import com.kdb.it.common.admin.waslog.dto.WasLogDto;
+import com.kdb.it.common.admin.waslog.service.WasLogService;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 피어 인스턴스 전용 내부 API.
+ *
+ * <p>사용자 JWT가 아니라 공유 비밀 헤더 {@code X-Internal-Token}으로만 인증한다. 그래서 비밀값이 비어 있으면 빈 자체를 등록하지 않는다 — 설정
+ * 실수로 인증 없는 로그 엔드포인트가 열리는 경로를 구조적으로 없앤다.
+ */
+@RestController
+@RequestMapping("/internal/was-logs")
+@RequiredArgsConstructor
+@ConditionalOnExpression("!'${app.was-log.internal-secret:}'.isEmpty()")
+public class WasLogInternalController {
+
+    private final WasLogService service;
+    private final WasLogProperties properties;
+
+    /** 로컬 버퍼 스냅샷. 라우팅하지 않는다(무한 위임 방지). */
+    @PostMapping("/snapshot")
+    public ResponseEntity<WasLogDto.Snapshot> snapshot(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestBody WasLogDto.Query query) {
+        if (!matches(token)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return ResponseEntity.ok(service.localSnapshot(query));
+    }
+
+    private boolean matches(String token) {
+        if (token == null) return false;
+        return MessageDigest.isEqual(
+                token.getBytes(StandardCharsets.UTF_8),
+                properties.internalSecret().getBytes(StandardCharsets.UTF_8));
+    }
+}

@@ -2,6 +2,7 @@ package com.kdb.it.common.admin.waslog.service;
 
 import com.kdb.it.common.admin.waslog.appender.WasLogBuffer;
 import com.kdb.it.common.admin.waslog.client.WasLogPeerClient;
+import com.kdb.it.common.admin.waslog.client.WasLogPeerException;
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.dto.WasLogEntry;
@@ -58,8 +59,23 @@ public class WasLogService {
         if (instanceId == null || instanceId.isBlank() || instanceId.equals(selfInstanceId)) {
             return localSnapshot(query);
         }
-        // 다른 인스턴스 조회는 Task 4에서 피어 위임으로 구현한다. 그때까지는 알 수 없는 인스턴스와 같이 다룬다.
-        throw new IllegalArgumentException("알 수 없는 인스턴스: " + instanceId);
+        String peerUrl = properties.peers().get(instanceId);
+        if (peerUrl == null || peerUrl.isBlank()) {
+            throw new IllegalArgumentException("알 수 없는 인스턴스: " + instanceId);
+        }
+        try {
+            return peerClient.fetchSnapshot(peerUrl, instanceId, query);
+        } catch (WasLogPeerException e) {
+            // 실패를 빈 목록으로 위장하지 않는다 — 화면이 "로그 없음"으로 오해하지 않도록 사유를 싣는다.
+            return new WasLogDto.Snapshot(
+                    instanceId,
+                    null,
+                    List.of(),
+                    query.afterSeq(),
+                    false,
+                    List.of(),
+                    e.getMessage());
+        }
     }
 
     /**
