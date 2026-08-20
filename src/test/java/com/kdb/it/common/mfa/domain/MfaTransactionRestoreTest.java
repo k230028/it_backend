@@ -21,6 +21,7 @@ class MfaTransactionRestoreTest {
                         MfaMethod.FIDO,
                         EXPIRES_AT,
                         "try-hash",
+                        "12345678901234567890",
                         "proof-hash",
                         MfaTransactionStatus.CONSUMED,
                         VERIFIED_AT,
@@ -32,6 +33,7 @@ class MfaTransactionRestoreTest {
         assertThat(restored.method()).isEqualTo(MfaMethod.FIDO);
         assertThat(restored.expiresAt()).isEqualTo(EXPIRES_AT);
         assertThat(restored.providerChallengeHash()).isEqualTo("try-hash");
+        assertThat(restored.svcTrId()).isEqualTo("12345678901234567890");
         assertThat(restored.proofHash()).isEqualTo("proof-hash");
         assertThat(restored.status()).isEqualTo(MfaTransactionStatus.CONSUMED);
         assertThat(restored.verifiedAt()).isEqualTo(VERIFIED_AT);
@@ -49,11 +51,13 @@ class MfaTransactionRestoreTest {
                         EXPIRES_AT,
                         null,
                         null,
+                        null,
                         MfaTransactionStatus.CANCELLED,
                         null,
                         0);
 
         assertThat(restored.status()).isEqualTo(MfaTransactionStatus.CANCELLED);
         assertThat(restored.verifiedAt()).isNull();
+        assertThat(restored.svcTrId()).isNull();
     }
 }

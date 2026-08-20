@@ -72,6 +72,39 @@ class JpaMfaTransactionStoreIT extends AbstractOracleRepositoryTest {
     }
 
     @Test
+    @DisplayName("저장한 svcTrId는 조회 시 그대로 돌아온다")
+    void save_svcTrId_roundTrips() {
+        Instant now = Instant.now();
+        tokenHash = newToken();
+        store.save(
+                MfaTransaction.pending(
+                        tokenHash,
+                        "ITEST01",
+                        MfaPurpose.LOGIN,
+                        MfaMethod.FIDO,
+                        now.plusSeconds(90),
+                        "try-hash",
+                        "12345678901234567890"));
+
+        assertThat(store.findByTokenHash(tokenHash, now))
+                .get()
+                .extracting(MfaTransaction::svcTrId)
+                .isEqualTo("12345678901234567890");
+    }
+
+    @Test
+    @DisplayName("isExpired는 만료 전에는 false, 만료 후에는 true다")
+    void isExpired_reflectsEndDtm() {
+        Instant now = Instant.now();
+        tokenHash = newToken();
+        store.save(pending(tokenHash, now.plusSeconds(1)));
+
+        assertThat(store.isExpired(tokenHash, now)).isFalse();
+        assertThat(store.isExpired(tokenHash, now.plusSeconds(2))).isTrue();
+        assertThat(store.isExpired("absent-token", now)).isFalse();
+    }
+
+    @Test
     @DisplayName("취소된 거래는 삭제되지 않고 CANCELLED 상태로 계속 조회된다")
     void delete_pendingTransaction_becomesCancelledButStillFound() {
         Instant now = Instant.now();

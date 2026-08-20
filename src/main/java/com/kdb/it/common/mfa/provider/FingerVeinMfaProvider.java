@@ -71,7 +71,7 @@ public final class FingerVeinMfaProvider implements MfaProvider {
         PendingScan scan = new PendingScan(newRandomKey(), context.eno(), context.expiresAt());
         activeScans.put(context.transactionId(), scan);
         return new MfaChallengeData(
-                context.transactionId(), null, scan.randomKey(), context.expiresAt());
+                context.transactionId(), null, scan.randomKey(), context.expiresAt(), null);
     }
 
     @Override

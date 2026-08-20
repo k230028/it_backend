@@ -46,12 +46,12 @@ public final class OnePassClient {
         request.put("loginId", context.eno());
         request.put("crossDomain", true);
         request.put("authType", OTP_AUTH_TYPE);
-        return challenge(request(request), context);
+        return challenge(request(request), context, null);
     }
 
-    /** FIDO challenge를 시작한다. */
+    /** FIDO challenge를 시작한다. svcTrId를 challenge의 providerTransactionId에 실어 반환한다. */
     public MfaChallengeData requestFidoChallenge(MfaStartContext context) {
-        return startFido(context).challenge();
+        return startFido(context);
     }
 
     /** 명시적으로 제출된 mOTP만 OnePass에 검증 요청한다. */
@@ -68,8 +68,8 @@ public final class OnePassClient {
                 : MfaVerificationResult.failure();
     }
 
-    /** FIDO 시작 요청에 사용한 OnePass 서비스 거래 식별자를 보존한 내부 결과이다. */
-    FidoStart startFido(MfaStartContext context) {
+    /** FIDO challenge를 시작하고 발급한 서비스 거래 식별자를 challenge의 providerTransactionId에 담아 반환한다. */
+    MfaChallengeData startFido(MfaStartContext context) {
         String svcTrId = newServiceTransactionId();
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("command", "requestServiceAuth");
@@ -79,7 +79,7 @@ public final class OnePassClient {
         request.put("loginId", context.eno());
         request.put("bizAlarmType", "1");
         request.put("crossDomain", true);
-        return new FidoStart(challenge(request(request), context), svcTrId);
+        return challenge(request(request), context, svcTrId);
     }
 
     /**
@@ -107,7 +107,8 @@ public final class OnePassClient {
                 : MfaVerificationResult.undecided();
     }
 
-    private MfaChallengeData challenge(Map<String, Object> response, MfaStartContext context) {
+    private MfaChallengeData challenge(
+            Map<String, Object> response, MfaStartContext context, String providerTransactionId) {
         if (!success(response)) {
             throw new OnePassProviderException(
                     text(response, "resultCode"), text(response, "resultMsg"));
@@ -121,7 +122,7 @@ public final class OnePassClient {
         if (qrData != null && qrData.length() > MAX_QR_LENGTH) {
             throw new IllegalArgumentException("OnePass QR 데이터가 허용 길이를 초과했습니다.");
         }
-        return new MfaChallengeData(challengeId, qrData, null, context.expiresAt());
+        return new MfaChallengeData(challengeId, qrData, null, context.expiresAt(), providerTransactionId);
     }
 
     private Map<String, Object> request(Map<String, Object> request) {
@@ -170,6 +171,4 @@ public final class OnePassClient {
         Object value = response.get(key);
         return value == null ? null : value.toString();
     }
-
-    record FidoStart(MfaChallengeData challenge, String svcTrId) {}
 }

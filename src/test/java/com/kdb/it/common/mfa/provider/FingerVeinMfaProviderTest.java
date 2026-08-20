@@ -79,7 +79,8 @@ class FingerVeinMfaProviderTest {
 
         MfaVerificationResult result =
                 provider.verify(
-                        new MfaVerifyContext(context("tx-hash"), challenge.challengeId(), hash));
+                        new MfaVerifyContext(
+                                context("tx-hash"), challenge.challengeId(), hash, null));
 
         assertThat(result.verified()).isTrue();
     }
@@ -93,7 +94,8 @@ class FingerVeinMfaProviderTest {
 
         MfaVerificationResult result =
                 provider.verify(
-                        new MfaVerifyContext(context("tx-hash"), challenge.challengeId(), hash));
+                        new MfaVerifyContext(
+                                context("tx-hash"), challenge.challengeId(), hash, null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -106,7 +108,8 @@ class FingerVeinMfaProviderTest {
 
         MfaVerificationResult result =
                 provider.verify(
-                        new MfaVerifyContext(context("tx-hash"), challenge.challengeId(), "FE00"));
+                        new MfaVerifyContext(
+                                context("tx-hash"), challenge.challengeId(), "FE00", null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -122,7 +125,7 @@ class FingerVeinMfaProviderTest {
         MfaVerificationResult result =
                 provider.verify(
                         new MfaVerifyContext(
-                                context("tx-target"), target.challengeId(), foreignHash));
+                                context("tx-target"), target.challengeId(), foreignHash, null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -136,7 +139,8 @@ class FingerVeinMfaProviderTest {
                                 new MfaVerifyContext(
                                         context("tx-hash"),
                                         "tx-hash",
-                                        expectedHash("20260811", ENO, "123456", "SUCC")));
+                                        expectedHash("20260811", ENO, "123456", "SUCC"),
+                                        null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -147,11 +151,13 @@ class FingerVeinMfaProviderTest {
         FingerVeinMfaProvider provider = provider();
         MfaChallengeData challenge = provider.start(context("tx-hash"));
         String hash = expectedHash("20260811", ENO, challenge.randomKey(), "SUCC");
-        provider.verify(new MfaVerifyContext(context("tx-hash"), challenge.challengeId(), hash));
+        provider.verify(
+                new MfaVerifyContext(context("tx-hash"), challenge.challengeId(), hash, null));
 
         MfaVerificationResult replayed =
                 provider.verify(
-                        new MfaVerifyContext(context("tx-hash"), challenge.challengeId(), hash));
+                        new MfaVerifyContext(
+                                context("tx-hash"), challenge.challengeId(), hash, null));
 
         assertThat(replayed.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -166,7 +172,8 @@ class FingerVeinMfaProviderTest {
         String hash = expectedHash("20260811", ENO, challenge.randomKey(), "SUCC");
 
         MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(expired, challenge.challengeId(), hash));
+                provider.verify(
+                        new MfaVerifyContext(expired, challenge.challengeId(), hash, null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -180,7 +187,8 @@ class FingerVeinMfaProviderTest {
         provider.start(context("tx-second"));
 
         MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(context("tx-first"), "tx-first", hash));
+                provider.verify(
+                        new MfaVerifyContext(context("tx-first"), "tx-first", hash, null));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }

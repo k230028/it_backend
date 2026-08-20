@@ -63,11 +63,11 @@ class MfaTransactionCleanupSchedulerIT extends AbstractOracleRepositoryTest {
         transactionRepository.save(
                 MfaTransactionEntity.create(
                         withinGrace, "ITEST01", "10", "20",
-                        toLocalDateTime(NOW.minusSeconds(9 * 60)), null));
+                        toLocalDateTime(NOW.minusSeconds(9 * 60)), null, null));
         transactionRepository.save(
                 MfaTransactionEntity.create(
                         pastGrace, "ITEST01", "10", "20",
-                        toLocalDateTime(NOW.minusSeconds(11 * 60)), null));
+                        toLocalDateTime(NOW.minusSeconds(11 * 60)), null, null));
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> scheduler.cleanup());
 

@@ -10,9 +10,14 @@ import java.util.Objects;
  * @param qrData 표시용 QR 데이터. 없으면 null
  * @param randomKey 지정맥이 BioAgent에 전달할 6자리 랜덤키. 다른 수단은 null
  * @param expiresAt 서버 기준 만료 시각
+ * @param providerTransactionId OnePass 서비스 거래 식별자(svcTrId). FIDO만 값이 있고 다른 수단은 null이다.
  */
 public record MfaChallengeData(
-        String challengeId, String qrData, String randomKey, Instant expiresAt) {
+        String challengeId,
+        String qrData,
+        String randomKey,
+        Instant expiresAt,
+        String providerTransactionId) {
 
     public MfaChallengeData {
         if (challengeId == null || challengeId.isBlank()) {

@@ -43,7 +43,8 @@ public class JpaMfaTransactionStore implements MfaTransactionStore {
                         purposeCode(transaction.purpose()),
                         methodCode(transaction.method()),
                         toLocalDateTime(transaction.expiresAt()),
-                        transaction.providerChallengeHash()));
+                        transaction.providerChallengeHash(),
+                        transaction.svcTrId()));
     }
 
     @Override
@@ -112,10 +113,20 @@ public class JpaMfaTransactionStore implements MfaTransactionStore {
                 method(entity.getMethodCode()),
                 toInstant(entity.getEndDtm()),
                 entity.getTryTokenHash(),
+                entity.getSvcTrNo(),
                 entity.getProofTokenHash(),
                 status(entity.getStatusCode()),
                 entity.getVrfDtm() == null ? null : toInstant(entity.getVrfDtm()),
                 entity.getFailureCount());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isExpired(String tokenHash, Instant now) {
+        return repository
+                .findById(tokenHash)
+                .map(entity -> !toLocalDateTime(now).isBefore(entity.getEndDtm()))
+                .orElse(false);
     }
 
     private static String purposeCode(MfaPurpose purpose) {

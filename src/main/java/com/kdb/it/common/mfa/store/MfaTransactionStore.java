@@ -21,6 +21,12 @@ public interface MfaTransactionStore {
 
     Optional<MfaTransaction> findByTokenHash(String tokenHash, Instant now);
 
+    /**
+     * findByTokenHash가 이 tokenHash에 대해 방금 빈 값을 반환했을 때, 그 이유가 "존재했으나 만료됨"인지
+     * 확인한다. 사유 판정 전용이며 업무 흐름에서 호출하지 않는다.
+     */
+    boolean isExpired(String tokenHash, Instant now);
+
     Optional<MfaTransaction> verifyAndBindProof(String tokenHash, String proofHash, Instant now);
 
     Optional<MfaTransaction> fail(String tokenHash, Instant now, int maxFailures);

@@ -210,6 +210,18 @@ class InMemoryMfaTransactionStoreTest {
                 .isEqualTo(MfaTransactionStore.ProofConsumption.MISSING);
     }
 
+    @Test
+    @DisplayName("isExpired는 저장된 거래가 만료된 경우에만 true다")
+    void isExpired_reflectsSavedExpiry() {
+        MfaTransactionStore store = new InMemoryMfaTransactionStore();
+        store.save(pending("token-not-expired", now().plusSeconds(60)));
+        store.save(pending("token-expired", now()));
+
+        assertThat(store.isExpired("token-not-expired", now())).isFalse();
+        assertThat(store.isExpired("token-expired", now())).isTrue();
+        assertThat(store.isExpired("token-absent", now())).isFalse();
+    }
+
     private MfaTransactionStore verifiedStore(String tokenHash) {
         MfaTransactionStore store = new InMemoryMfaTransactionStore();
         store.save(pending(tokenHash, now().plus(Duration.ofMinutes(1))).verify(now()));

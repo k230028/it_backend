@@ -12,6 +12,7 @@ public final class MfaTransaction {
     private final MfaMethod method;
     private final Instant expiresAt;
     private final String providerChallengeHash;
+    private final String svcTrId;
     private final String proofHash;
     private final MfaTransactionStatus status;
     private final Instant verifiedAt;
@@ -24,6 +25,7 @@ public final class MfaTransaction {
             MfaMethod method,
             Instant expiresAt,
             String providerChallengeHash,
+            String svcTrId,
             String proofHash,
             MfaTransactionStatus status,
             Instant verifiedAt,
@@ -50,6 +52,7 @@ public final class MfaTransaction {
         this.method = method;
         this.expiresAt = expiresAt;
         this.providerChallengeHash = providerChallengeHash;
+        this.svcTrId = svcTrId;
         this.proofHash = proofHash;
         this.status = status;
         this.verifiedAt = verifiedAt;
@@ -67,19 +70,25 @@ public final class MfaTransaction {
                 expiresAt,
                 null,
                 null,
+                null,
                 MfaTransactionStatus.PENDING,
                 null,
                 0);
     }
 
-    /** 공급자 challenge 해시를 결속한 대기 상태 MFA 거래를 생성한다. */
+    /**
+     * 공급자 challenge 해시와 서비스 거래 식별자를 결속한 대기 상태 MFA 거래를 생성한다.
+     *
+     * @param svcTrId OnePass 서비스 거래 식별자(svcTrId). FIDO만 값이 있고 다른 수단은 null이다.
+     */
     public static MfaTransaction pending(
             String tokenHash,
             String eno,
             MfaPurpose purpose,
             MfaMethod method,
             Instant expiresAt,
-            String providerChallengeHash) {
+            String providerChallengeHash,
+            String svcTrId) {
         Objects.requireNonNull(providerChallengeHash, "공급자 challenge 해시는 필수입니다.");
         return new MfaTransaction(
                 tokenHash,
@@ -88,6 +97,7 @@ public final class MfaTransaction {
                 method,
                 expiresAt,
                 providerChallengeHash,
+                svcTrId,
                 null,
                 MfaTransactionStatus.PENDING,
                 null,
@@ -138,6 +148,7 @@ public final class MfaTransaction {
                 method,
                 expiresAt,
                 providerChallengeHash,
+                svcTrId,
                 proofHash,
                 nextStatus,
                 nextVerifiedAt,
@@ -169,6 +180,11 @@ public final class MfaTransaction {
         return providerChallengeHash;
     }
 
+    /** OnePass 서비스 거래 식별자(svcTrId) 원문이다. FIDO만 값이 있고 다른 수단은 null이다. */
+    public String svcTrId() {
+        return svcTrId;
+    }
+
     /** 검증 후 발급한 1회용 증표의 SHA-256 해시이며 원문은 저장하지 않는다. */
     public String proofHash() {
         return proofHash;
@@ -187,6 +203,7 @@ public final class MfaTransaction {
                 method,
                 expiresAt,
                 providerChallengeHash,
+                svcTrId,
                 nextProofHash,
                 status,
                 verifiedAt,
@@ -205,6 +222,7 @@ public final class MfaTransaction {
      * @param method MFA 수단
      * @param expiresAt 만료 시각
      * @param providerChallengeHash 공급자 challenge 해시. 없으면 null
+     * @param svcTrId OnePass 서비스 거래 식별자 원문. FIDO가 아니면 null
      * @param proofHash 증표 해시. 없으면 null
      * @param status 저장된 상태
      * @param verifiedAt 검증 시각. 없으면 null
@@ -218,6 +236,7 @@ public final class MfaTransaction {
             MfaMethod method,
             Instant expiresAt,
             String providerChallengeHash,
+            String svcTrId,
             String proofHash,
             MfaTransactionStatus status,
             Instant verifiedAt,
@@ -229,6 +248,7 @@ public final class MfaTransaction {
                 method,
                 expiresAt,
                 providerChallengeHash,
+                svcTrId,
                 proofHash,
                 status,
                 verifiedAt,

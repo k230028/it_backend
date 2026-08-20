@@ -27,7 +27,7 @@ class MfaProviderRegistryTest {
         assertThat(
                         registry.verify(
                                         MfaMethod.FINGER_VEIN,
-                                        new MfaVerifyContext(context, "transaction-1", ""))
+                                        new MfaVerifyContext(context, "transaction-1", "", null))
                                 .verified())
                 .isTrue();
     }

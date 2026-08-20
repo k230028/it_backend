@@ -59,7 +59,7 @@ class OnePassClientTest {
 
         assertMotpStartRequest(requests.getFirst());
         assertThat(challenge)
-                .isEqualTo(new MfaChallengeData("motp-tr", "qr", null, context().expiresAt()));
+                .isEqualTo(new MfaChallengeData("motp-tr", "qr", null, context().expiresAt(), null));
     }
 
     @Test
@@ -108,7 +108,12 @@ class OnePassClientTest {
 
         MfaChallengeData challenge = provider.start(context());
         MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(context(), challenge.challengeId(), ""));
+                provider.verify(
+                        new MfaVerifyContext(
+                                context(),
+                                challenge.challengeId(),
+                                "",
+                                challenge.providerTransactionId()));
 
         assertFidoStartRequest(requests.getFirst());
         assertThat(requests.get(1))
@@ -121,85 +126,11 @@ class OnePassClientTest {
                                 "crossDomain",
                                 true));
         assertThat(challenge)
-                .isEqualTo(new MfaChallengeData("fido-tr", "qr", null, context().expiresAt()));
+                .isEqualTo(
+                        new MfaChallengeData(
+                                "fido-tr", "qr", null, context().expiresAt(), challenge.providerTransactionId()));
+        assertThat(challenge.providerTransactionId()).isEqualTo(requests.getFirst().get("svcTrId"));
         assertThat(result.verified()).isTrue();
-    }
-
-    @Test
-    void fidoProvider_startTwiceForSameTransaction_reusesFirstChallenge() throws Exception {
-        AtomicInteger startCount = new AtomicInteger();
-        startServer(
-                exchange -> {
-                    requestBody(exchange);
-                    respond(
-                            exchange,
-                            200,
-                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr-"
-                                    + startCount.incrementAndGet()
-                                    + "\",\"qrImage\":\"qr\"}}");
-                });
-        FidoMfaProvider provider = new FidoMfaProvider(client());
-
-        MfaChallengeData first = provider.start(context());
-        MfaChallengeData second = provider.start(context());
-
-        // 같은 거래를 다시 시작해도 최초 challenge를 유지해야 확인 요청이 어긋나지 않는다.
-        assertThat(second).isEqualTo(first);
-    }
-
-    @Test
-    void fidoProvider_dropsOldestPendingTransactionAtCapacity() throws Exception {
-        startServer(
-                exchange -> {
-                    requestBody(exchange);
-                    respond(
-                            exchange,
-                            200,
-                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
-                });
-        FidoMfaProvider provider = new FidoMfaProvider(client(), 1);
-
-        MfaChallengeData first = provider.start(context("transaction-1"));
-        provider.start(context("transaction-2"));
-
-        // 용량을 넘기면 오래된 거래가 밀려나 확인할 수 없어야 한다.
-        MfaVerificationResult evicted =
-                provider.verify(
-                        new MfaVerifyContext(context("transaction-1"), first.challengeId(), ""));
-        assertThat(evicted.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
-    }
-
-    @Test
-    void fidoProvider_rejectsCapacityBelowOne() throws Exception {
-        startServer(exchange -> respond(exchange, 200, "{\"resultCode\":\"100000\"}"));
-
-        assertThatThrownBy(() -> new FidoMfaProvider(client(), 0))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void fidoProvider_removesExpiredPendingTransactionsBeforeConfirming() throws Exception {
-        startServer(
-                exchange -> {
-                    requestBody(exchange);
-                    respond(
-                            exchange,
-                            200,
-                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
-                });
-        FidoMfaProvider provider = new FidoMfaProvider(client());
-        MfaStartContext expiredContext =
-                new MfaStartContext(
-                        "transaction-expired",
-                        "10000001",
-                        MfaPurpose.LOGIN,
-                        Instant.parse("2000-01-01T00:00:00Z"));
-        MfaChallengeData challenge = provider.start(expiredContext);
-
-        MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(expiredContext, challenge.challengeId(), ""));
-
-        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
 
     @Test
@@ -222,7 +153,8 @@ class OnePassClientTest {
 
         MfaChallengeData challenge = provider.start(context());
         MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(context(), challenge.challengeId(), "123456"));
+                provider.verify(
+                        new MfaVerifyContext(context(), challenge.challengeId(), "123456", null));
 
         assertThat(challenge.challengeId()).isEqualTo("motp-tr");
         assertThat(result.verified()).isTrue();
@@ -306,9 +238,10 @@ class OnePassClientTest {
 
     @Test
     void fidoStart_exposesChallengeThroughClientFacade() throws Exception {
+        List<Map<String, Object>> requests = new java.util.ArrayList<>();
         startServer(
                 exchange -> {
-                    requestBody(exchange);
+                    requests.add(requestBody(exchange));
                     respond(
                             exchange,
                             200,
@@ -318,7 +251,11 @@ class OnePassClientTest {
         MfaChallengeData challenge = client().requestFidoChallenge(context());
 
         assertThat(challenge)
-                .isEqualTo(new MfaChallengeData("fido-tr", "qr", null, context().expiresAt()));
+                .isEqualTo(
+                        new MfaChallengeData(
+                                "fido-tr", "qr", null, context().expiresAt(), challenge.providerTransactionId()));
+        assertThat(challenge.providerTransactionId())
+                .isEqualTo(requests.getFirst().get("svcTrId"));
     }
 
     @Test
@@ -343,7 +280,12 @@ class OnePassClientTest {
         MfaChallengeData challenge = provider.start(context());
 
         MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(context(), challenge.challengeId(), ""));
+                provider.verify(
+                        new MfaVerifyContext(
+                                context(),
+                                challenge.challengeId(),
+                                "",
+                                challenge.providerTransactionId()));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.UNDECIDED);
         assertThat(result.verified()).isFalse();
@@ -368,33 +310,18 @@ class OnePassClientTest {
         MfaChallengeData challenge = provider.start(context());
 
         MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(context(), challenge.challengeId(), ""));
+                provider.verify(
+                        new MfaVerifyContext(
+                                context(),
+                                challenge.challengeId(),
+                                "",
+                                challenge.providerTransactionId()));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
 
     @Test
-    void fidoProvider_treatsUnknownChallengeAsFailureNotUndecided() throws Exception {
-        startServer(
-                exchange -> {
-                    requestBody(exchange);
-                    respond(
-                            exchange,
-                            200,
-                            "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
-                });
-        FidoMfaProvider provider = new FidoMfaProvider(client());
-        provider.start(context());
-
-        MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(context(), "other-challenge", ""));
-
-        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
-    }
-
-    @Test
-    void fidoProvider_confirmsDifferentChallengesConcurrentlyAndConsumesEachOnSuccess()
-            throws Exception {
+    void fidoProvider_confirmsDifferentChallengesConcurrently() throws Exception {
         AtomicInteger startCount = new AtomicInteger();
         CountDownLatch confirmationsEntered = new CountDownLatch(2);
         CountDownLatch releaseConfirmations = new CountDownLatch(1);
@@ -436,7 +363,8 @@ class OnePassClientTest {
                                             new MfaVerifyContext(
                                                     firstContext,
                                                     firstChallenge.challengeId(),
-                                                    "")));
+                                                    "",
+                                                    firstChallenge.providerTransactionId())));
             Future<MfaVerificationResult> secondResult =
                     verifierExecutor.submit(
                             () ->
@@ -444,19 +372,14 @@ class OnePassClientTest {
                                             new MfaVerifyContext(
                                                     secondContext,
                                                     secondChallenge.challengeId(),
-                                                    "")));
+                                                    "",
+                                                    secondChallenge.providerTransactionId())));
 
             assertThat(confirmationsEntered.await(500, TimeUnit.MILLISECONDS)).isTrue();
             releaseConfirmations.countDown();
 
             assertThat(firstResult.get(2, TimeUnit.SECONDS).verified()).isTrue();
             assertThat(secondResult.get(2, TimeUnit.SECONDS).verified()).isTrue();
-            assertThat(
-                            provider.verify(
-                                            new MfaVerifyContext(
-                                                    firstContext, firstChallenge.challengeId(), ""))
-                                    .verified())
-                    .isFalse();
         } finally {
             releaseConfirmations.countDown();
             verifierExecutor.shutdownNow();
