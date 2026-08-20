@@ -23,6 +23,7 @@
 | IAM         | `CuserI`, `CorgnI`, `CauthI`, `CroleI`, `Clognh`, `Crtokm`                               |
 | 게시판      | `Cblbmm`, `Cblbcm`, `Ccmmtm`                                                             |
 | 공통·인프라 | `Ccodem`, `Cfilem`, `Cinfmm`, `Cmenum`, `Cmenua`, `Cmenud`                               |
+| 추가인증(MFA) | `MfaTransactionEntity/TPRMPP_CMFATM`, `LoginPendingTransactionEntity/TPRMPP_CMFADM`     |
 
 정확한 물리 테이블명·컬럼·제약은 엔티티와 최신 마이그레이션을 함께 확인합니다.
 
