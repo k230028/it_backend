@@ -8,6 +8,7 @@ import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.TestSecurityConfig;
+import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,10 @@ class WasLogControllerAuthorizationTest {
     @MockitoBean private WasLogService service;
 
     @MockitoBean private WasLogAuditLogger auditLogger;
+
+    // WasLogController 생성자의 Clock 의존성을 채운다. 이 클래스의 테스트는 모두 @PreAuthorize에서
+    // 403으로 막히므로 실제로 호출되지 않는다.
+    @MockitoBean private Clock clock;
 
     @MockitoBean private JwtUtil jwtUtil;
 

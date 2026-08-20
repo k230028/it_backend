@@ -20,6 +20,7 @@ import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.SecurityConfig;
+import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,10 @@ class WasLogSecurityBoundaryTest {
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private WasLogService service;
     @MockitoBean private WasLogAuditLogger auditLogger;
+
+    // WasLogController 생성자의 Clock 의존성을 채운다. 이 클래스의 테스트는 download()를 호출하지
+    // 않으므로 별도 스텁 없이 빈 목으로 충분하다.
+    @MockitoBean private Clock clock;
 
     // WasLogInternalController가 Task 5부터 LevelOverrideService를 생성자로 주입받는다.
     // @WebMvcTest 슬라이스는 @Service 빈을 자동 스캔하지 않으므로 목으로 채워야 컨텍스트가 뜬다.

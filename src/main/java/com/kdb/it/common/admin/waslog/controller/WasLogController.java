@@ -8,6 +8,7 @@ import com.kdb.it.common.admin.waslog.service.WasLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -44,6 +45,7 @@ public class WasLogController {
 
     private final WasLogService service;
     private final WasLogAuditLogger auditLogger;
+    private final Clock clock;
 
     /**
      * 대상 인스턴스의 로그 스냅샷을 반환한다.
@@ -64,9 +66,16 @@ public class WasLogController {
             @RequestParam(name = "levels", required = false) String levels,
             @RequestParam(name = "logger", required = false) String logger,
             @RequestParam(name = "q", required = false) String q) {
-        if (afterSeq == 0) auditLogger.logSnapshotAccess(instanceId);
+        // 폭주 억제는 WasLogAuditLogger가 행위자+인스턴스별 스로틀로 서버 측에서 처리한다. 클라이언트가
+        // 보낸 커서(afterSeq==0)로 최초 호출을 판정하면, 항상 0이 아닌 값을 보내는 호출자가 감사를 통째로
+        // 회피할 수 있어 조건 없이 부른다.
+        auditLogger.logSnapshotAccess(instanceId);
+        // 서비스 상한이 다운로드를 위해 버퍼 용량까지 올라갔으므로, 폴링 경로는 여기서 다시 조여야
+        // 화면이 한 번에 버퍼 전체(최대 24MB)를 받는 것을 막는다.
+        int cappedLimit = Math.min(limit, WasLogService.MAX_LIMIT);
         return service.snapshot(
-                instanceId, new WasLogDto.Query(afterSeq, limit, splitLevels(levels), logger, q));
+                instanceId,
+                new WasLogDto.Query(afterSeq, cappedLimit, splitLevels(levels), logger, q));
     }
 
     /** 조회 가능한 인스턴스 목록. */
@@ -101,13 +110,19 @@ public class WasLogController {
             @RequestParam(name = "levels", required = false) String levels,
             @RequestParam(name = "logger", required = false) String logger,
             @RequestParam(name = "q", required = false) String q) {
+        // 설계 §5.6은 "버퍼 전체"를 요구한다. 폴링용 상한(MAX_LIMIT=200)을 그대로 쓰면 2000건 버퍼에서
+        // 최신 200건만 담긴 파일이 아무 표시 없이 내려가 관리자가 완전한 로그로 오해한다.
         WasLogDto.Snapshot snapshot =
                 service.snapshot(
                         instanceId,
                         new WasLogDto.Query(
-                                0L, WasLogService.MAX_LIMIT, splitLevels(levels), logger, q));
+                                0L, service.exportLimit(), splitLevels(levels), logger, q));
 
         StringBuilder body = new StringBuilder();
+        // 그래도 잘렸다면(버퍼 용량보다 필터 결과가 많을 수는 없으나 방어적으로) 파일에 사실을 적는다.
+        if (snapshot.dropped()) {
+            body.append("# 일부 로그가 생략되었습니다 — 버퍼에서 밀려났거나 조회 상한에 걸렸습니다.\n");
+        }
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
         for (WasLogEntry entry : snapshot.entries()) {
             body.append(
@@ -134,7 +149,8 @@ public class WasLogController {
                 "was-log_"
                         + resolvedInstance
                         + "_"
-                        + DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+                        + DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+                                .format(LocalDateTime.now(clock))
                         + ".log";
         auditLogger.logDownload(resolvedInstance, snapshot.entries().size());
 

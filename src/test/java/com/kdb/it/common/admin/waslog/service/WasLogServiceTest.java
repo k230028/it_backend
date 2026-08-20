@@ -139,6 +139,28 @@ class WasLogServiceTest {
     }
 
     @Test
+    @DisplayName("exportLimit은 현재 링버퍼 용량을 반환한다")
+    void exportLimit_버퍼용량반환() {
+        assertThat(service.exportLimit()).isEqualTo(WasLogBuffer.shared().capacity());
+    }
+
+    @Test
+    @DisplayName("exportLimit을 상한으로 쓰면 폴링 상한 200을 넘는 항목도 모두 돌려준다")
+    void localSnapshot_내보내기상한_버퍼전체() {
+        WasLogBuffer.shared().resize(300);
+        for (int i = 0; i < 250; i++) {
+            WasLogBuffer.shared().add(i + 1, "INFO", "main", "com.kdb.it.A", "메시지" + i, null);
+        }
+
+        WasLogDto.Snapshot snapshot =
+                service.localSnapshot(
+                        new WasLogDto.Query(0L, service.exportLimit(), Set.of(), null, null));
+
+        assertThat(snapshot.entries()).hasSize(250);
+        assertThat(snapshot.dropped()).isFalse();
+    }
+
+    @Test
     @DisplayName("허용되지 않은 레벨이면 IllegalArgumentException을 던진다")
     void localSnapshot_잘못된레벨() {
         WasLogDto.Query query = new WasLogDto.Query(0L, 200, Set.of("FATAL"), null, null);

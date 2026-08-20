@@ -16,6 +16,7 @@ import com.kdb.it.common.admin.waslog.service.WasLogAuditLogger;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.config.TestSecurityConfig;
+import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,11 @@ class WasLogControllerTest {
 
     @MockitoBean private WasLogService service;
     @MockitoBean private WasLogAuditLogger auditLogger;
+
+    // WasLogController가 파일명 시각에 주입된 Clock을 쓴다. @WebMvcTest는 ClockConfig를 스캔하지
+    // 않으므로 컨텍스트 기동을 위해 목으로 채운다. 이 클래스의 테스트는 download()를 호출하지
+    // 않으므로 별도 스텁 없이 빈 목으로 충분하다.
+    @MockitoBean private Clock clock;
 
     // WasLogController가 @PreAuthorize를 갖고 있어 @WebMvcTest 슬라이스가 Filter 빈으로
     // JwtAuthenticationFilter를 자동 포함시킨다. 해당 필터의 생성자 의존성을 채우기 위한 목이며
@@ -120,6 +126,38 @@ class WasLogControllerTest {
         assertThat(query.levels()).containsExactlyInAnyOrder("ERROR", "WARN");
         assertThat(query.logger()).isEqualTo("com.kdb.it");
         assertThat(query.keyword()).isEqualTo("실패");
+    }
+
+    @Test
+    @DisplayName("조회는 커서 값과 무관하게 감사기를 호출한다 — 폭주 억제는 감사기가 한다")
+    void snapshot_감사호출() throws Exception {
+        given(service.snapshot(any(), any()))
+                .willReturn(
+                        new WasLogDto.Snapshot(
+                                "SVR1", "e1", List.of(), 0L, false, List.of(), null));
+
+        mockMvc.perform(get("/api/admin/was-logs").param("afterSeq", "42"))
+                .andExpect(status().isOk());
+
+        verify(auditLogger).logSnapshotAccess(null);
+    }
+
+    @Test
+    @DisplayName("폴링 조회는 큰 limit도 200으로 조인다 — 서비스 상한이 버퍼 용량까지 올라간 것과 무관하게")
+    void snapshot_limit상한조임() throws Exception {
+        given(service.snapshot(any(), any()))
+                .willReturn(
+                        new WasLogDto.Snapshot(
+                                "SVR1", "e1", List.of(), 0L, false, List.of(), null));
+
+        mockMvc.perform(get("/api/admin/was-logs").param("limit", "5000"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<WasLogDto.Query> queryCaptor =
+                ArgumentCaptor.forClass(WasLogDto.Query.class);
+        verify(service).snapshot(any(), queryCaptor.capture());
+
+        assertThat(queryCaptor.getValue().limit()).isEqualTo(WasLogService.MAX_LIMIT);
     }
 
     @Test

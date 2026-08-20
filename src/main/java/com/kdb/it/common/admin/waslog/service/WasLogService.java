@@ -53,6 +53,16 @@ public class WasLogService {
     }
 
     /**
+     * 다운로드(내보내기) 조회 상한.
+     *
+     * <p>폴링 상한({@link #MAX_LIMIT})과 달리 설계 §5.6이 요구하는 "현재 필터가 적용된 버퍼 전체"를 담아야 하므로 링버퍼의 실제 용량을 그대로
+     * 반환한다. 폴링 경로는 컨트롤러가 여전히 {@code MAX_LIMIT}로 조이므로 이 값이 커져도 화면 트래픽에는 영향이 없다.
+     */
+    public int exportLimit() {
+        return WasLogBuffer.shared().capacity();
+    }
+
+    /**
      * 대상 인스턴스의 스냅샷을 반환한다.
      *
      * @param instanceId null이거나 자기 자신이면 로컬 버퍼를 읽는다
@@ -94,7 +104,9 @@ public class WasLogService {
             }
         }
 
-        int limit = query.limit() <= 0 ? MAX_LIMIT : Math.min(query.limit(), MAX_LIMIT);
+        // 서비스 상한은 다운로드가 버퍼 전체를 받을 수 있도록 exportLimit()(버퍼 용량)까지 허용한다.
+        // 폴링 API가 큰 값을 받지 않도록 조이는 책임은 컨트롤러(WasLogController.snapshot)에 있다.
+        int limit = query.limit() <= 0 ? MAX_LIMIT : Math.min(query.limit(), exportLimit());
         WasLogBuffer.BufferSnapshot buffer = WasLogBuffer.shared().snapshot();
 
         List<WasLogEntry> filtered = new ArrayList<>();
