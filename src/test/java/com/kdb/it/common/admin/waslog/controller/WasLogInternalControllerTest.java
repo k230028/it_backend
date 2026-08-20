@@ -1,7 +1,11 @@
 package com.kdb.it.common.admin.waslog.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,9 +14,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.service.LevelOverrideService;
+import com.kdb.it.common.admin.waslog.service.WasLogAuditLogger;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.config.TestSecurityConfig;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -59,6 +65,9 @@ class WasLogInternalControllerTest {
     // @WebMvcTest 슬라이스는 @Service 빈을 자동 스캔하지 않으므로 목으로 채워야 컨텍스트가 뜬다.
     @MockitoBean private LevelOverrideService levelOverrideService;
 
+    // 최종 리뷰 수정: 내부 API 호출(성공·거부)을 감사 로그로 남기도록 WasLogAuditLogger를 주입받는다.
+    @MockitoBean private WasLogAuditLogger auditLogger;
+
     // WasLogController와 마찬가지로 @WebMvcTest 슬라이스가 시큐리티 필터 체인을 함께 로드하며
     // JwtAuthenticationFilter 생성자 의존성을 채우기 위해 필요하다. 이 컨트롤러는 X-Internal-Token으로
     // 직접 인증하므로 실제 JWT 검증 로직은 이 테스트에서 쓰이지 않는다.
@@ -95,6 +104,8 @@ class WasLogInternalControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(BODY))
                 .andExpect(status().isUnauthorized());
+
+        verify(auditLogger).logInternalTokenRejected(eq("snapshot"), anyString());
     }
 
     @Test
@@ -105,6 +116,26 @@ class WasLogInternalControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(BODY))
                 .andExpect(status().isUnauthorized());
+
+        verify(auditLogger).logInternalTokenRejected(eq("snapshot"), anyString());
+    }
+
+    @Test
+    @DisplayName("토큰이 일치하면 내부 조회 감사를 남긴다")
+    void snapshot_토큰일치_감사기록() throws Exception {
+        given(service.localSnapshot(any()))
+                .willReturn(
+                        new WasLogDto.Snapshot(
+                                "SVR2", "e2", List.of(), 0L, false, List.of(), null));
+
+        mockMvc.perform(
+                        post("/internal/was-logs/snapshot")
+                                .header("X-Internal-Token", "s3cret")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(BODY))
+                .andExpect(status().isOk());
+
+        verify(auditLogger).logInternalSnapshotAccess(anyString());
     }
 
     private static final String LEVEL_BODY =
@@ -122,6 +153,7 @@ class WasLogInternalControllerTest {
                 .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(levelOverrideService);
+        verify(auditLogger).logInternalTokenRejected(eq("level"), anyString());
     }
 
     @Test
@@ -135,5 +167,24 @@ class WasLogInternalControllerTest {
                 .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(levelOverrideService);
+        verify(auditLogger).logInternalTokenRejected(eq("level"), anyString());
+    }
+
+    @Test
+    @DisplayName("레벨 변경은 토큰이 일치하면 내부 감사를 남긴다")
+    void level_토큰일치_감사기록() throws Exception {
+        given(levelOverrideService.apply(any(), any(), anyInt()))
+                .willReturn(
+                        new WasLogDto.LevelOverride(
+                                "com.kdb.it", "DEBUG", "INFO", LocalDateTime.now()));
+
+        mockMvc.perform(
+                        post("/internal/was-logs/level")
+                                .header("X-Internal-Token", "s3cret")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(LEVEL_BODY))
+                .andExpect(status().isOk());
+
+        verify(auditLogger).logInternalLevelChange(anyString(), any());
     }
 }

@@ -72,6 +72,37 @@ public class WasLogAuditLogger {
                 lineCount);
     }
 
+    /**
+     * 피어 인스턴스가 내부 API(공유 비밀 인증)로 로컬 스냅샷을 조회했다. 스로틀 없이 매번 남긴다.
+     *
+     * <p>{@code /internal/was-logs/**}는 사용자 JWT가 없어 {@link #actor()}가 의미 있는 값을 주지 못한다. 대신 호출자의 원격
+     * 주소를 남겨 어느 피어(또는 위조 호출자)가 접근했는지 추적한다.
+     */
+    public void logInternalSnapshotAccess(String remoteAddr) {
+        log.warn("[WAS로그감사] 내부조회 remote={}", sanitize(remoteAddr));
+    }
+
+    /** 피어 인스턴스가 내부 API로 로컬 로그레벨을 변경했다. 스로틀 없이 매번 남긴다. */
+    public void logInternalLevelChange(String remoteAddr, WasLogDto.LevelRequest request) {
+        log.warn(
+                "[WAS로그감사] 내부레벨변경 remote={} logger={} level={} ttl={}분",
+                sanitize(remoteAddr),
+                sanitize(request.logger()),
+                sanitize(request.level()),
+                request.ttlMinutes());
+    }
+
+    /**
+     * 내부 API 공유 비밀 불일치로 요청이 거부됐다.
+     *
+     * <p>{@code /internal/was-logs/**}는 SecurityConfig에서 permitAll이고 컨트롤러가 직접 401을 만들어 반환하므로,
+     * Spring Security의 인증 실패 엔트리포인트가 절대 개입하지 않는다 — 이 호출이 실패한 공유 비밀 시도의 유일한 기록이다.
+     */
+    public void logInternalTokenRejected(String endpoint, String remoteAddr) {
+        log.warn(
+                "[WAS로그감사] 내부호출거부 endpoint={} remote={}", sanitize(endpoint), sanitize(remoteAddr));
+    }
+
     /** 행위자+인스턴스별 스로틀 판정. 창을 벗어났으면 기록 시각을 갱신하고 true. */
     private boolean shouldLogAccess(String actor, String instanceId) {
         LocalDateTime now = LocalDateTime.now(clock);

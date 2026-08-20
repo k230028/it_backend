@@ -3,7 +3,9 @@ package com.kdb.it.common.admin.waslog.controller;
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.service.LevelOverrideService;
+import com.kdb.it.common.admin.waslog.service.WasLogAuditLogger;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import lombok.RequiredArgsConstructor;
@@ -31,22 +33,39 @@ public class WasLogInternalController {
     private final WasLogService service;
     private final WasLogProperties properties;
     private final LevelOverrideService levelOverrideService;
+    private final WasLogAuditLogger auditLogger;
 
-    /** 로컬 버퍼 스냅샷. 라우팅하지 않는다(무한 위임 방지). */
+    /**
+     * 로컬 버퍼 스냅샷. 라우팅하지 않는다(무한 위임 방지).
+     *
+     * <p>설계상 감사 로그가 로그 내용 비마스킹을 상쇄하는 보상 통제 중 하나다. 성공·실패(공유 비밀 불일치) 모두 원격 주소를 남긴다 — 이 경로는
+     * permitAll이고 컨트롤러가 직접 401을 반환해 Spring Security 엔트리포인트가 실패를 기록하지 않으므로, 여기서 남기지 않으면 실패한 시도는 아무
+     * 흔적도 남지 않는다.
+     */
     @PostMapping("/snapshot")
     public ResponseEntity<WasLogDto.Snapshot> snapshot(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
-            @RequestBody WasLogDto.Query query) {
-        if (!matches(token)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            @RequestBody WasLogDto.Query query,
+            HttpServletRequest httpRequest) {
+        if (!matches(token)) {
+            auditLogger.logInternalTokenRejected("snapshot", httpRequest.getRemoteAddr());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        auditLogger.logInternalSnapshotAccess(httpRequest.getRemoteAddr());
         return ResponseEntity.ok(service.localSnapshot(query));
     }
 
-    /** 로컬 인스턴스에 레벨을 적용한다. 라우팅하지 않는다. */
+    /** 로컬 인스턴스에 레벨을 적용한다. 라우팅하지 않는다. 감사 이유는 {@link #snapshot}과 같다. */
     @PostMapping("/level")
     public ResponseEntity<WasLogDto.LevelOverride> applyLevel(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
-            @RequestBody WasLogDto.LevelRequest request) {
-        if (!matches(token)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            @RequestBody WasLogDto.LevelRequest request,
+            HttpServletRequest httpRequest) {
+        if (!matches(token)) {
+            auditLogger.logInternalTokenRejected("level", httpRequest.getRemoteAddr());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        auditLogger.logInternalLevelChange(httpRequest.getRemoteAddr(), request);
         return ResponseEntity.ok(
                 levelOverrideService.apply(
                         request.logger(), request.level(), request.ttlMinutes()));

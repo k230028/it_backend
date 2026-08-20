@@ -118,6 +118,14 @@ public class WasLogController {
                         new WasLogDto.Query(
                                 0L, service.exportLimit(), splitLevels(levels), logger, q));
 
+        // service.snapshot()은 폴링을 위해 피어 실패를 peerError가 채워진 200 스냅샷으로 위장한다.
+        // 다운로드에서 이를 그대로 흘리면 0바이트 파일이 정상 파일명으로 내려가고, 아래
+        // auditLogger.logDownload가 "0줄 성공"을 기록해 감사 기록조차 실패를 성공으로 증언한다.
+        // handlePeerFailure와 같은 502 경로를 타도록 예외로 승격하고, 감사 줄을 남기지 않은 채 반환한다.
+        if (snapshot.peerError() != null) {
+            throw new WasLogPeerException(snapshot.peerError(), null);
+        }
+
         StringBuilder body = new StringBuilder();
         // 그래도 잘렸다면(버퍼 용량보다 필터 결과가 많을 수는 없으나 방어적으로) 파일에 사실을 적는다.
         if (snapshot.dropped()) {
@@ -145,9 +153,13 @@ public class WasLogController {
         }
 
         String resolvedInstance = snapshot.instanceId() == null ? "unknown" : snapshot.instanceId();
+        // 피어가 응답한 instanceId는 검증됐다 하더라도(DefaultWasLogPeerClient) 방어적으로 한 번 더
+        // 화이트리스트 정화한다 — 파일명 컴포넌트에 그대로 꽂히므로 "가 섞이면 Content-Disposition에
+        // 파라미터를 주입할 수 있다.
+        String safeInstance = resolvedInstance.replaceAll("[^A-Za-z0-9_-]", "_");
         String fileName =
                 "was-log_"
-                        + resolvedInstance
+                        + safeInstance
                         + "_"
                         + DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
                                 .format(LocalDateTime.now(clock))

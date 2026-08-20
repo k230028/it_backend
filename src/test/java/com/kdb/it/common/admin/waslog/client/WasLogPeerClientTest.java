@@ -70,6 +70,32 @@ class WasLogPeerClientTest {
     }
 
     @Test
+    @DisplayName("피어가 요청과 다른 instanceId로 응답하면 WasLogPeerException을 던진다")
+    void fetchSnapshot_인스턴스ID불일치() {
+        // app.server.instance-id 기본값이 SVR1이라, SVR2로 설정해야 할 피어가 설정 실수로 SVR1인 채
+        // 기동되면 "SVR2를 호출했는데 SVR1이 응답"하는 상황이 조용히 통과한다. 응답 본문의 "가
+        // 들어간 instanceId로 Content-Disposition 헤더 주입을 시도하는 컴프로마이즈된 피어도 이
+        // 등호 비교로 걸러진다.
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(PEER_URL + "/internal/was-logs/snapshot"))
+                .andRespond(
+                        withSuccess(
+                                """
+                                {"instanceId":"SVR1","bufferEpoch":"e1","entries":[],
+                                 "lastSeq":5,"dropped":false,"levelOverrides":[],"peerError":null}
+                                """,
+                                MediaType.APPLICATION_JSON));
+
+        WasLogPeerClient client = new DefaultWasLogPeerClient(builder.build(), properties);
+
+        assertThatThrownBy(() -> client.fetchSnapshot(PEER_URL, "SVR2", query))
+                .isInstanceOf(WasLogPeerException.class)
+                .hasMessageContaining("SVR2")
+                .hasMessageContaining("SVR1");
+    }
+
+    @Test
     @DisplayName("2xx인데 본문이 비면 WasLogPeerException을 던진다")
     void fetchSnapshot_빈본문() {
         RestClient.Builder builder = RestClient.builder();

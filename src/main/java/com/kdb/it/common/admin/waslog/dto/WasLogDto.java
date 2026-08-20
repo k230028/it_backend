@@ -28,7 +28,8 @@ public final class WasLogDto {
      * @param bufferEpoch 버퍼 세대 식별자. 바뀌면 클라이언트는 커서를 버린다
      * @param entries seq 오름차순 로그
      * @param lastSeq 다음 요청에 쓸 커서
-     * @param dropped 커서 이후 일부가 버퍼에서 밀려났으면 true
+     * @param dropped 커서 이후 로그가 버퍼에서 밀려났거나(eviction) 조회 상한을 넘겨 잘렸으면(truncation) true — 둘 중 하나만 해당해도
+     *     true다
      * @param levelOverrides 해당 인스턴스에 적용 중인 런타임 레벨 변경
      * @param peerError 피어 위임 실패 사유. 성공이면 null
      */

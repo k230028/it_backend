@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -117,5 +118,25 @@ class WasLogDownloadTest {
         mockMvc.perform(get("/api/admin/was-logs/download"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("일부 로그가 생략")));
+    }
+
+    @Test
+    @DisplayName("피어 위임이 실패하면 502를 반환하고 성공 감사를 남기지 않는다")
+    void download_피어실패_502_감사없음() throws Exception {
+        // service.snapshot()은 피어 실패를 예외로 던지지 않고 peerError가 채워진 200 스냅샷으로
+        // 위장한다(폴링 경로를 위한 설계). 다운로드가 이를 그대로 흘리면 0바이트 파일이 정상
+        // 파일명으로 내려가고 auditLogger.logDownload(instanceId, 0)이 "성공"을 기록한다.
+        given(service.exportLimit()).willReturn(2000);
+        given(service.snapshot(any(), any()))
+                .willReturn(
+                        new WasLogDto.Snapshot(
+                                "SVR2", null, List.of(), 0L, false, List.of(), "SVR2 인스턴스 조회 실패"));
+
+        mockMvc.perform(get("/api/admin/was-logs/download").param("instanceId", "SVR2"))
+                .andExpect(status().isBadGateway())
+                .andExpect(
+                        content().string(org.hamcrest.Matchers.containsString("SVR2 인스턴스 조회 실패")));
+
+        verifyNoInteractions(auditLogger);
     }
 }

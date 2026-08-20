@@ -44,6 +44,14 @@ public class DefaultWasLogPeerClient implements WasLogPeerClient {
         if (body == null) {
             throw new WasLogPeerException(instanceId + " 인스턴스 응답 본문이 비어 있습니다.", null);
         }
+        // 피어가 요청받은 것과 다른 instanceId로 응답할 수 있다 — app.server.instance-id 기본값이
+        // SVR1이라, 설정 실수로 SVR2가 SVR1로 기동되면 SVR2 요청에 SVR1 버퍼가 SVR1 라벨로 조용히
+        // 돌아온다. 컴프로마이즈된 피어가 "를 심어 다운로드 응답 헤더에 값을 주입하는 경로도 여기서
+        // 막힌다 — 등호 비교라 주입 문자가 있으면 그대로 불일치로 걸린다.
+        if (!instanceId.equals(body.instanceId())) {
+            throw new WasLogPeerException(
+                    instanceId + " 인스턴스에 요청했으나 " + body.instanceId() + " 응답을 받았습니다.", null);
+        }
         return body;
     }
 
