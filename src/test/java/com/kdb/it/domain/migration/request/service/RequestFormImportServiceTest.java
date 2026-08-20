@@ -12,7 +12,9 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.CapitalProjectFormAdapter;
+import com.kdb.it.domain.migration.request.service.adapter.FormAdapterContext;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
+import com.kdb.it.domain.migration.request.service.adapter.FormSheetAdapter;
 import com.kdb.it.domain.migration.request.service.adapter.GeneralExpenseFormAdapter;
 import com.kdb.it.domain.migration.request.service.adapter.RecurringProjectFormAdapter;
 import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
@@ -230,6 +232,8 @@ class RequestFormImportServiceTest {
     void dryRun_ignoresNonTargetWorkbookWithManipulatedManifest() {
         WorkbookReader workbookReader =
                 org.mockito.Mockito.spy(new WorkbookReader(10_485_760L, 20, 5000));
+        byte[] targetBytes = RequestFormFixtures.fullFormXls();
+        byte[] nonTargetBytes = RequestFormFixtures.capitalOnlyXlsx();
         when(fileImporter.preview(any(), any(), anyString())).thenReturn(applied("자금운용실/요청서.xls"));
         List<RequestFormDto.FileEntry> entries =
                 List.of(
@@ -242,20 +246,30 @@ class RequestFormImportServiceTest {
                 service(workbookReader, 50)
                         .importBatch(
                                 List.of(
-                                        file("요청서.xls", RequestFormFixtures.fullFormXls()),
-                                        file("견적서.xlsx", RequestFormFixtures.fullFormXls())),
+                                        file("요청서.xls", targetBytes),
+                                        file("견적서.xlsx", nonTargetBytes)),
                                 new RequestFormDto.ImportManifest("2026", entries, List.of()),
                                 "12345678",
                                 true);
 
+        OpenedWorkbook openedWorkbook = openedWorkbook(workbookReader);
+        assertThat(openedWorkbook.bytes()).isEqualTo(targetBytes);
+        assertThat(openedWorkbook.filename()).isEqualTo("자금운용실/요청서.xls");
+        assertThat(previewedEntry())
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(capitalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(recurringAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(generalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
         assertThat(response.files())
                 .extracting(RequestFormDto.FileResult::fileKey)
                 .containsExactly("자금운용실/요청서.xls");
-        org.mockito.Mockito.verify(workbookReader).open(any(), anyString());
-        org.mockito.Mockito.verify(fileImporter).preview(any(), any(), anyString());
-        org.mockito.Mockito.verify(capitalAdapter).adapt(any());
-        org.mockito.Mockito.verify(recurringAdapter).adapt(any());
-        org.mockito.Mockito.verify(generalAdapter).adapt(any());
         org.mockito.Mockito.verify(sourceFileArchiver, org.mockito.Mockito.never()).archive(any());
     }
 
@@ -264,6 +278,8 @@ class RequestFormImportServiceTest {
     void commit_archivesNonTargetWorkbookWithManipulatedManifestWithoutParsingIt() {
         WorkbookReader workbookReader =
                 org.mockito.Mockito.spy(new WorkbookReader(10_485_760L, 20, 5000));
+        byte[] targetBytes = RequestFormFixtures.fullFormXls();
+        byte[] nonTargetBytes = RequestFormFixtures.capitalOnlyXlsx();
         when(fileImporter.apply(any(), any(), anyString(), anyString()))
                 .thenReturn(applied("자금운용실/요청서.xls"));
         List<RequestFormDto.FileEntry> entries =
@@ -277,20 +293,30 @@ class RequestFormImportServiceTest {
                 service(workbookReader, 50)
                         .importBatch(
                                 List.of(
-                                        file("요청서.xls", RequestFormFixtures.fullFormXls()),
-                                        file("견적서.xlsx", RequestFormFixtures.fullFormXls())),
+                                        file("요청서.xls", targetBytes),
+                                        file("견적서.xlsx", nonTargetBytes)),
                                 new RequestFormDto.ImportManifest("2026", entries, List.of()),
                                 "12345678",
                                 false);
 
+        OpenedWorkbook openedWorkbook = openedWorkbook(workbookReader);
+        assertThat(openedWorkbook.bytes()).isEqualTo(targetBytes);
+        assertThat(openedWorkbook.filename()).isEqualTo("자금운용실/요청서.xls");
+        assertThat(appliedEntry())
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(capitalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(recurringAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
+        assertThat(adaptedEntry(generalAdapter))
+                .extracting(RequestFormDto.FileEntry::fileKey)
+                .isEqualTo("자금운용실/요청서.xls");
         assertThat(response.files())
                 .extracting(RequestFormDto.FileResult::fileKey)
                 .containsExactly("자금운용실/요청서.xls");
-        org.mockito.Mockito.verify(workbookReader).open(any(), anyString());
-        org.mockito.Mockito.verify(fileImporter).apply(any(), any(), anyString(), anyString());
-        org.mockito.Mockito.verify(capitalAdapter).adapt(any());
-        org.mockito.Mockito.verify(recurringAdapter).adapt(any());
-        org.mockito.Mockito.verify(generalAdapter).adapt(any());
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<RequestFormSourceFileArchiver.ArchivePlanItem>> planCaptor =
                 ArgumentCaptor.forClass(List.class);
@@ -300,6 +326,40 @@ class RequestFormImportServiceTest {
                 .containsExactly("자금운용실/요청서.xls", "자금운용실/견적서.xlsx");
         assertThat(planCaptor.getValue().get(1).result()).isNull();
     }
+
+    private OpenedWorkbook openedWorkbook(WorkbookReader workbookReader) {
+        ArgumentCaptor<byte[]> bytesCaptor = ArgumentCaptor.forClass(byte[].class);
+        ArgumentCaptor<String> filenameCaptor = ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(workbookReader, org.mockito.Mockito.times(1))
+                .open(bytesCaptor.capture(), filenameCaptor.capture());
+        return new OpenedWorkbook(bytesCaptor.getValue(), filenameCaptor.getValue());
+    }
+
+    private RequestFormDto.FileEntry previewedEntry() {
+        ArgumentCaptor<RequestFormDto.FileEntry> entryCaptor =
+                ArgumentCaptor.forClass(RequestFormDto.FileEntry.class);
+        org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.times(1))
+                .preview(any(), entryCaptor.capture(), anyString());
+        return entryCaptor.getValue();
+    }
+
+    private RequestFormDto.FileEntry appliedEntry() {
+        ArgumentCaptor<RequestFormDto.FileEntry> entryCaptor =
+                ArgumentCaptor.forClass(RequestFormDto.FileEntry.class);
+        org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.times(1))
+                .apply(any(), entryCaptor.capture(), anyString(), anyString());
+        return entryCaptor.getValue();
+    }
+
+    private RequestFormDto.FileEntry adaptedEntry(FormSheetAdapter adapter) {
+        ArgumentCaptor<FormAdapterContext> contextCaptor =
+                ArgumentCaptor.forClass(FormAdapterContext.class);
+        org.mockito.Mockito.verify(adapter, org.mockito.Mockito.times(1))
+                .adapt(contextCaptor.capture());
+        return contextCaptor.getValue().entry();
+    }
+
+    private record OpenedWorkbook(byte[] bytes, String filename) {}
 
     @Test
     @DisplayName("SKIPPED 엑셀도 그룹 키와 해석된 부서코드로 보관 계획에 남긴다")
