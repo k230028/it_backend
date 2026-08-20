@@ -14,10 +14,10 @@ import com.kdb.it.infra.file.service.FileService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -57,7 +57,7 @@ class FileControllerOpenApiContractTest {
         assertThat(schema.path("format").asText()).isEqualTo("binary");
     }
 
-    @SpringBootConfiguration
+    @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration
     @Import({FileController.class, SwaggerConfig.class})
     static class OpenApiTestApp {}
