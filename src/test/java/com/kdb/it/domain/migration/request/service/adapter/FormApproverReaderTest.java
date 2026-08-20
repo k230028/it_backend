@@ -62,6 +62,22 @@ class FormApproverReaderTest {
     }
 
     @Test
+    @DisplayName("시트에서 읽은 내부 공백 본부장 역할도 지역본부장으로 정규화한다")
+    void normalizesWhitespaceHeadquartersRoleWhenReadFromSheet() {
+        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "  동남권 본부장  "));
+
+        assertThat(reader.confirmer(sheet)).isEqualTo("지역본부장");
+    }
+
+    @Test
+    @DisplayName("사람 이름에 붙은 본부장 직책은 역할로 오인하지 않는다")
+    void preservesPersonNameWithHeadquartersTitle() {
+        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "홍길동 본부장"));
+
+        assertThat(reader.confirmer(sheet)).isEqualTo("홍길동 본부장");
+    }
+
+    @Test
     @DisplayName("라벨 오른쪽 칸의 이름을 읽는다")
     void readsNameFromCellToTheRight() {
         Sheet sheet =
