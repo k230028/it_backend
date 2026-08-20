@@ -499,6 +499,17 @@ class EnvironmentValidatorTest {
     }
 
     @Test
+    @DisplayName("운영 프로파일에서 app.mfa.store=memory는 기동을 차단한다")
+    void 운영에서_mfa_store가_memory면_기동을_차단한다() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.mfa.store", "memory");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.mfa.store");
+    }
+
+    @Test
     @DisplayName("비운영 프로파일(local-ext)에서는 운영 전용 키가 비어도 통과")
     void validate_nonProdProfile_skipsProdKeys() {
         MockEnvironment env = new MockEnvironment();

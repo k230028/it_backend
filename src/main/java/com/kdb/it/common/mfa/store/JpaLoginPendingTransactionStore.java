@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * (동시 요청이 같은 행을 봐도 DELETE는 한 트랜잭션만 성공한다).
  */
 @Component
+@ConditionalOnProperty(prefix = "app.mfa", name = "store", havingValue = "jpa", matchIfMissing = true)
 public class JpaLoginPendingTransactionStore implements LoginPendingTransactionStore {
 
     private static final ZoneId ZONE = ZoneId.systemDefault();

@@ -5,10 +5,12 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** 지연 만료 정리를 수행하는 메모리 로그인 대기 거래 저장소다. */
 @Component
+@ConditionalOnProperty(prefix = "app.mfa", name = "store", havingValue = "memory")
 public class InMemoryLoginPendingTransactionStore implements LoginPendingTransactionStore {
 
     private final ConcurrentHashMap<String, LoginPendingTransaction> transactions =

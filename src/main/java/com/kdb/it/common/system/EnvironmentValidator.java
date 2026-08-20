@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
  *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}
  *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code
  *       cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code
+ *       app.mfa.store}(운영 memory 금지 — SEC-13)/{@code
  *       app.frontend-url}/{@code springdoc.api-docs.enabled}(false 고정)/{@code
  *       springdoc.swagger-ui.enabled}(false 고정)/세션 쿠키 Secure·HttpOnly·SameSite=Lax
  * </ul>
@@ -119,6 +120,11 @@ public class EnvironmentValidator {
         if (frontendUrl == null || frontendUrl.isBlank()) {
             throw new IllegalStateException(
                     "운영 필수 키 미설정: app.frontend-url — SSO 완료 리다이렉트 대상이 필요합니다.");
+        }
+
+        String mfaStore = environment.getProperty("app.mfa.store", "jpa");
+        if ("memory".equalsIgnoreCase(mfaStore)) {
+            throw securityViolation("app.mfa.store");
         }
     }
 

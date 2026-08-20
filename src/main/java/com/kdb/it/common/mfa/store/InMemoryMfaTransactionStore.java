@@ -7,10 +7,12 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** 원자적 소비와 지연 만료 정리를 제공하는 메모리 MFA 거래 저장소다. */
 @Component
+@ConditionalOnProperty(prefix = "app.mfa", name = "store", havingValue = "memory")
 public class InMemoryMfaTransactionStore implements MfaTransactionStore {
 
     private final ConcurrentHashMap<String, MfaTransaction> transactions =
