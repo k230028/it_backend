@@ -23,6 +23,11 @@ public class LevelOverrideRegistry {
         overrides.put(override.logger(), override);
     }
 
+    /** 로거의 현재 오버라이드. 없으면 null. */
+    public WasLogDto.LevelOverride find(String logger) {
+        return overrides.get(logger);
+    }
+
     /** 로거명 오름차순 목록. */
     public List<WasLogDto.LevelOverride> list() {
         List<WasLogDto.LevelOverride> result = new ArrayList<>(overrides.values());
@@ -30,12 +35,17 @@ public class LevelOverrideRegistry {
         return result;
     }
 
-    /** 만료된 항목을 꺼내며 제거한다. */
+    /**
+     * 만료된 항목을 꺼내며 제거한다.
+     *
+     * <p>스캔 시점에 읽은 값과 같을 때만 제거한다({@code remove(key, value)}). 무조건 {@code remove(key)}를 쓰면, 스캔과 제거
+     * 사이에 사용자가 같은 로거를 재적용해 새 오버라이드가 들어온 경우 그 새 오버라이드까지 지워버린다.
+     */
     public List<WasLogDto.LevelOverride> removeExpired(LocalDateTime now) {
         List<WasLogDto.LevelOverride> expired = new ArrayList<>();
         for (WasLogDto.LevelOverride override : list()) {
-            if (!override.expiresAt().isAfter(now)) {
-                overrides.remove(override.logger());
+            if (!override.expiresAt().isAfter(now)
+                    && overrides.remove(override.logger(), override)) {
                 expired.add(override);
             }
         }

@@ -2,6 +2,7 @@ package com.kdb.it.common.admin.waslog.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -104,5 +105,35 @@ class WasLogInternalControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(BODY))
                 .andExpect(status().isUnauthorized());
+    }
+
+    private static final String LEVEL_BODY =
+            """
+            {"instanceId":"SVR2","logger":"com.kdb.it","level":"DEBUG","ttlMinutes":30}
+            """;
+
+    @Test
+    @DisplayName("레벨 변경은 토큰이 없으면 401이고 아무것도 적용하지 않는다")
+    void level_토큰없음_401() throws Exception {
+        mockMvc.perform(
+                        post("/internal/was-logs/level")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(LEVEL_BODY))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(levelOverrideService);
+    }
+
+    @Test
+    @DisplayName("레벨 변경은 토큰이 틀리면 401이고 아무것도 적용하지 않는다")
+    void level_토큰불일치_401() throws Exception {
+        mockMvc.perform(
+                        post("/internal/was-logs/level")
+                                .header("X-Internal-Token", "wrong")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(LEVEL_BODY))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(levelOverrideService);
     }
 }

@@ -1,5 +1,6 @@
 package com.kdb.it.common.admin.waslog.controller;
 
+import com.kdb.it.common.admin.waslog.client.WasLogPeerException;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,7 +10,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -70,6 +74,17 @@ public class WasLogController {
     @Operation(summary = "런타임 로그레벨 변경", description = "TTL이 지나면 자동으로 원래 레벨로 복원됩니다.")
     public WasLogDto.LevelOverride applyLevel(@RequestBody WasLogDto.LevelRequest request) {
         return service.applyLevel(request);
+    }
+
+    /**
+     * 피어 위임 실패를 502로 매핑한다.
+     *
+     * <p>{@code GlobalExceptionHandler}의 포괄 {@code RuntimeException} 핸들러(400)에 맡기면 "SVR2 다운"과 "로거명
+     * 오타" 같은 클라이언트 입력 오류가 같은 상태코드로 뒤섞인다. 이 컨트롤러에서만 발생하는 피어 호출 실패이므로 여기서 502로 구분한다.
+     */
+    @ExceptionHandler(WasLogPeerException.class)
+    public ResponseEntity<String> handlePeerFailure(WasLogPeerException e) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(e.getMessage());
     }
 
     private Set<String> splitLevels(String csv) {

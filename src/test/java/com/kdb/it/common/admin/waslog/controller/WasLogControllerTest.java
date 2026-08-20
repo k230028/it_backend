@@ -4,28 +4,33 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kdb.it.common.admin.waslog.client.WasLogPeerException;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.dto.WasLogEntry;
 import com.kdb.it.common.admin.waslog.service.WasLogService;
 import com.kdb.it.common.system.security.JwtUtil;
+import com.kdb.it.config.TestSecurityConfig;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+// TestSecurityConfig를 함께 로드해 CSRF를 끈다 — 운영 SecurityConfig도 CSRF를 비활성화하므로, 슬라이스에서만
+// CSRF를 켠 채 요청에 토큰을 실어 통과시키면 운영에는 없는 조건에서만 초록인 테스트가 된다.
 @WebMvcTest(WasLogController.class)
+@Import(TestSecurityConfig.class)
 @WithMockUser(roles = "ADMIN")
 class WasLogControllerTest {
 
@@ -128,7 +133,6 @@ class WasLogControllerTest {
 
         mockMvc.perform(
                         post("/api/admin/was-logs/level")
-                                .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -148,7 +152,6 @@ class WasLogControllerTest {
 
         mockMvc.perform(
                         post("/api/admin/was-logs/level")
-                                .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -156,5 +159,22 @@ class WasLogControllerTest {
                                          "level":"DEBUG","ttlMinutes":999}
                                         """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("피어 레벨 변경 실패는 502로 구분한다")
+    void applyLevel_피어실패_502() throws Exception {
+        given(service.applyLevel(any()))
+                .willThrow(new WasLogPeerException("SVR2 인스턴스 레벨 변경 실패: timeout", null));
+
+        mockMvc.perform(
+                        post("/api/admin/was-logs/level")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"instanceId":"SVR2","logger":"com.kdb.it",
+                                         "level":"DEBUG","ttlMinutes":30}
+                                        """))
+                .andExpect(status().isBadGateway());
     }
 }

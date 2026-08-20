@@ -2,8 +2,10 @@ package com.kdb.it.common.admin.waslog.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
@@ -52,27 +54,75 @@ class LevelOverrideServiceTest {
     }
 
     @Test
-    @DisplayName("화이트리스트 밖 로거는 거부한다")
+    @DisplayName("같은 로거에 다시 적용해도 최초 레벨을 previousLevel로 유지한다")
+    void apply_재적용_최초레벨보존() {
+        given(loggingSystem.getLoggerConfiguration("com.kdb.it.domain"))
+                .willReturn(
+                        new LoggerConfiguration("com.kdb.it.domain", LogLevel.INFO, LogLevel.INFO));
+        service.apply("com.kdb.it.domain", "DEBUG", 30);
+
+        // 두 번째 호출 시점의 "현재 설정 레벨"은 이미 첫 번째가 써 넣은 DEBUG다.
+        given(loggingSystem.getLoggerConfiguration("com.kdb.it.domain"))
+                .willReturn(
+                        new LoggerConfiguration(
+                                "com.kdb.it.domain", LogLevel.DEBUG, LogLevel.DEBUG));
+        WasLogDto.LevelOverride second = service.apply("com.kdb.it.domain", "TRACE", 30);
+
+        assertThat(second.previousLevel()).isEqualTo("INFO");
+    }
+
+    @Test
+    @DisplayName("화이트리스트 밖 로거는 거부하고 레벨을 건드리지 않는다")
     void apply_허용되지않은로거() {
         assertThatThrownBy(() -> service.apply("com.evil.Thing", "DEBUG", 30))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("com.evil.Thing");
+        verify(loggingSystem, never()).setLogLevel(any(), any());
     }
 
     @Test
-    @DisplayName("TTL이 범위를 벗어나면 거부한다")
+    @DisplayName("접두사만 같고 패키지 경계를 넘는 이름은 거부한다")
+    void apply_접두사경계() {
+        assertThatThrownBy(() -> service.apply("com.kdb.itX", "DEBUG", 30))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.apply("", "DEBUG", 30))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(loggingSystem, never()).setLogLevel(any(), any());
+    }
+
+    @Test
+    @DisplayName("TTL이 범위를 벗어나면 거부하고 레벨을 건드리지 않는다")
     void apply_TTL범위밖() {
         assertThatThrownBy(() -> service.apply("com.kdb.it.domain", "DEBUG", 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.apply("com.kdb.it.domain", "DEBUG", 121))
                 .isInstanceOf(IllegalArgumentException.class);
+        // 검증이 setLogLevel보다 먼저여야 한다 — 레벨만 바뀌고 만료 등록에 실패하면 영구 오버라이드가 된다.
+        verify(loggingSystem, never()).setLogLevel(any(), any());
     }
 
     @Test
-    @DisplayName("허용되지 않은 레벨은 거부한다")
+    @DisplayName("허용되지 않은 레벨은 거부하고 레벨을 건드리지 않는다")
     void apply_잘못된레벨() {
         assertThatThrownBy(() -> service.apply("com.kdb.it.domain", "FATAL", 30))
                 .isInstanceOf(IllegalArgumentException.class);
+        verify(loggingSystem, never()).setLogLevel(any(), any());
+    }
+
+    @Test
+    @DisplayName("원래 설정이 없던 로거는 null로 되돌려 상위 상속으로 복원한다")
+    void restoreExpired_설정없음_null복원() {
+        given(loggingSystem.getLoggerConfiguration("com.kdb.it.c")).willReturn(null);
+        service.apply("com.kdb.it.c", "DEBUG", 1);
+
+        LevelOverrideService later =
+                new LevelOverrideService(
+                        loggingSystem,
+                        registry,
+                        Clock.fixed(NOW.plusSeconds(120), ZoneId.of("Asia/Seoul")));
+        later.restoreExpired();
+
+        verify(loggingSystem).setLogLevel("com.kdb.it.c", null);
     }
 
     @Test

@@ -2,6 +2,8 @@ package com.kdb.it.common.admin.waslog.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.admin.waslog.appender.WasLogBuffer;
 import com.kdb.it.common.admin.waslog.client.WasLogPeerClient;
@@ -9,6 +11,7 @@ import com.kdb.it.common.admin.waslog.client.WasLogPeerException;
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
 import com.kdb.it.common.admin.waslog.dto.WasLogDto;
 import com.kdb.it.common.admin.waslog.dto.WasLogEntry;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -181,5 +184,67 @@ class WasLogServiceTest {
         assertThat(snapshot.peerError()).contains("timeout");
         assertThat(snapshot.entries()).isEmpty();
         assertThat(snapshot.instanceId()).isEqualTo("SVR2");
+    }
+
+    @Test
+    @DisplayName("자기 인스턴스면 로컬 레벨 서비스에 적용한다")
+    void applyLevel_로컬적용() {
+        LevelOverrideService levelService = mock(LevelOverrideService.class);
+        WasLogDto.LevelOverride expected =
+                new WasLogDto.LevelOverride(
+                        "com.kdb.it", "DEBUG", "INFO", LocalDateTime.of(2026, 8, 20, 11, 0));
+        given(levelService.apply("com.kdb.it", "DEBUG", 30)).willReturn(expected);
+        WasLogProperties properties = new WasLogProperties(10, Map.of(), "", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", null, null, levelService);
+
+        WasLogDto.LevelOverride actual =
+                routing.applyLevel(new WasLogDto.LevelRequest("SVR1", "com.kdb.it", "DEBUG", 30));
+
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("설정에 없는 인스턴스면 IllegalArgumentException")
+    void applyLevel_알수없는인스턴스() {
+        WasLogProperties properties = new WasLogProperties(10, Map.of(), "", 1000, 3000);
+        WasLogService routing =
+                new WasLogService(properties, "SVR1", null, null, mock(LevelOverrideService.class));
+        WasLogDto.LevelRequest request =
+                new WasLogDto.LevelRequest("SVR9", "com.kdb.it", "DEBUG", 30);
+
+        assertThatThrownBy(() -> routing.applyLevel(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("SVR9");
+    }
+
+    @Test
+    @DisplayName("피어 레벨 변경 실패는 삼키지 않고 그대로 전파한다")
+    void applyLevel_피어실패_전파() {
+        WasLogProperties properties =
+                new WasLogProperties(10, Map.of("SVR2", "http://svr2:28080"), "s", 1000, 3000);
+        WasLogPeerClient failing =
+                new WasLogPeerClient() {
+                    @Override
+                    public WasLogDto.Snapshot fetchSnapshot(
+                            String baseUrl, String instanceId, WasLogDto.Query query) {
+                        throw new WasLogPeerException("미사용", null);
+                    }
+
+                    @Override
+                    public WasLogDto.LevelOverride applyLevel(
+                            String baseUrl, WasLogDto.LevelRequest request) {
+                        throw new WasLogPeerException("SVR2 인스턴스 레벨 변경 실패: timeout", null);
+                    }
+                };
+        WasLogService routing =
+                new WasLogService(
+                        properties, "SVR1", failing, null, mock(LevelOverrideService.class));
+        WasLogDto.LevelRequest request =
+                new WasLogDto.LevelRequest("SVR2", "com.kdb.it", "DEBUG", 30);
+
+        // 조회와 달리 여기서 예외를 삼키면 관리자에게 "적용됨"으로 보인다.
+        assertThatThrownBy(() -> routing.applyLevel(request))
+                .isInstanceOf(WasLogPeerException.class)
+                .hasMessageContaining("timeout");
     }
 }
