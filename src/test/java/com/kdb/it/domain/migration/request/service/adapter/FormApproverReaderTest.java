@@ -10,6 +10,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * 시트 상단 머리말의 확인자·작성자 읽기를 고정합니다.
@@ -35,6 +37,20 @@ class FormApproverReaderTest {
                     row.createCell(colIndex).setCellValue(value);
                 });
         return sheet;
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @CsvSource({"지역본부장, 지역본부장", "동남권본부장, 지역본부장", "'  동남권 본부장  ', 지역본부장"})
+    @DisplayName("본부장 계열 전결권자 역할은 지역본부장으로 정규화한다")
+    void normalizesHeadquartersApproverRole(String source, String expected) {
+        assertThat(FormApproverReader.normalizeApproverRole(source)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @CsvSource({"부장, 부장", "팀장, 팀장", "전무이사, 전무이사"})
+    @DisplayName("기존 전결권자 역할과 비대상 역할은 보존한다")
+    void preservesExistingApproverRoles(String source, String expected) {
+        assertThat(FormApproverReader.normalizeApproverRole(source)).isEqualTo(expected);
     }
 
     @Test

@@ -57,6 +57,15 @@ public class FormApproverReader {
         return null;
     }
 
+    /** 양식에 적힌 전결권자 직책을 공통 표기로 맞춥니다. */
+    static String normalizeApproverRole(String raw) {
+        String normalized = SheetAnchorScanner.normalize(raw);
+        if (normalized.contains("본부장")) return "지역본부장";
+        if (normalized.contains("부장")) return "부장";
+        if (normalized.contains("팀장")) return "팀장";
+        return normalized;
+    }
+
     /**
      * 라벨 뒤의 이름을 찾습니다.
      *
