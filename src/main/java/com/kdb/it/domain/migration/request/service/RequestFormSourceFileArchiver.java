@@ -45,19 +45,10 @@ public class RequestFormSourceFileArchiver {
     /** 파일별 처리 결과와 원본 보관 그룹·실제 검증 부서코드를 묶습니다. */
     record ArchivePlanItem(
             MultipartFile file,
+            String fileKey,
             String archiveGroupKey,
             String effectiveDeptCode,
-            RequestFormDto.FileResult result) {
-
-        ArchivePlanItem(
-                MultipartFile file, String effectiveDeptCode, RequestFormDto.FileResult result) {
-            this(
-                    file,
-                    result == null ? "" : RequestFormArchiveGroup.keyOf(result.fileKey()),
-                    effectiveDeptCode,
-                    result);
-        }
-    }
+            RequestFormDto.FileResult result) {}
 
     /** 사업 폴더와 검증된 부서코드를 모두 보존하는 보관 그룹 키입니다. */
     private record ArchiveGroupKey(String archiveGroupKey, String effectiveDeptCode) {}
@@ -72,7 +63,7 @@ public class RequestFormSourceFileArchiver {
      */
     void archive(List<ArchivePlanItem> plan) {
         // 사업 보관 그룹·실제 적용 부서코드별로 (파일 목록, 신청서번호 집합)을 모은다
-        Map<ArchiveGroupKey, List<MultipartFile>> filesByGroup = new LinkedHashMap<>();
+        Map<ArchiveGroupKey, List<ArchivePlanItem>> filesByGroup = new LinkedHashMap<>();
         Map<ArchiveGroupKey, Set<String>> apfMngNosByGroup = new LinkedHashMap<>();
 
         for (ArchivePlanItem item : plan) {
@@ -81,7 +72,7 @@ public class RequestFormSourceFileArchiver {
                 continue;
             }
             ArchiveGroupKey groupKey = new ArchiveGroupKey(item.archiveGroupKey(), deptCode);
-            filesByGroup.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(item.file());
+            filesByGroup.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(item);
             RequestFormDto.FileResult result = item.result();
             if (result == null || result.status() != RequestFormDto.FileStatus.APPLIED) {
                 continue;
@@ -95,13 +86,13 @@ public class RequestFormSourceFileArchiver {
             }
         }
 
-        for (Map.Entry<ArchiveGroupKey, List<MultipartFile>> group : filesByGroup.entrySet()) {
+        for (Map.Entry<ArchiveGroupKey, List<ArchivePlanItem>> group : filesByGroup.entrySet()) {
             Set<String> apfMngNos = apfMngNosByGroup.getOrDefault(group.getKey(), Set.of());
             if (apfMngNos.isEmpty()) {
                 continue;
             }
-            for (MultipartFile file : group.getValue()) {
-                archiveOne(file, apfMngNos, group.getKey());
+            for (ArchivePlanItem item : group.getValue()) {
+                archiveOne(item, apfMngNos, group.getKey());
             }
         }
     }
@@ -111,12 +102,13 @@ public class RequestFormSourceFileArchiver {
      *
      * <p>첫 신청서번호에만 디스크에 쓰고, 나머지는 그 물리 파일을 공유하는 메타행만 만듭니다.
      */
-    private void archiveOne(MultipartFile file, Set<String> apfMngNos, ArchiveGroupKey groupKey) {
+    private void archiveOne(ArchivePlanItem item, Set<String> apfMngNos, ArchiveGroupKey groupKey) {
+        MultipartFile file = item.file();
         Iterator<String> applicationNumbers = apfMngNos.iterator();
         String firstApfMngNo = applicationNumbers.next();
         String sourceFlMpnId;
         try {
-            sourceFlMpnId = fileService.uploadFile(file, request(firstApfMngNo));
+            sourceFlMpnId = fileService.uploadFile(file, request(firstApfMngNo, item));
         } catch (RuntimeException e) {
             // 원본 파일을 확보하지 못하면 나머지 신청서번호에는 재연결할 물리 파일도 없다
             log.error(
@@ -132,7 +124,7 @@ public class RequestFormSourceFileArchiver {
         while (applicationNumbers.hasNext()) {
             String apfMngNo = applicationNumbers.next();
             try {
-                fileService.linkExistingFile(sourceFlMpnId, request(apfMngNo));
+                fileService.linkExistingFile(sourceFlMpnId, request(apfMngNo).build());
             } catch (RuntimeException e) {
                 // 보관 실패가 이미 커밋된 원장을 되돌리게 두지 않는다. 해당 건은 파일 0건 상태로 남는다
                 log.error(
@@ -146,11 +138,18 @@ public class RequestFormSourceFileArchiver {
         }
     }
 
-    private FileDto.UploadRequest request(String apfMngNo) {
+    private FileDto.UploadRequest request(String apfMngNo, ArchivePlanItem item) {
+        return request(apfMngNo)
+                .relativePath(
+                        RequestFormRelativePath.normalize(
+                                item.fileKey(), item.file().getOriginalFilename()))
+                .build();
+    }
+
+    private FileDto.UploadRequest.UploadRequestBuilder request(String apfMngNo) {
         return FileDto.UploadRequest.builder()
                 .flTpCone(FL_TP_CONE)
                 .pkColNm(PK_COL_NM)
-                .pkCone(apfMngNo)
-                .build();
+                .pkCone(apfMngNo);
     }
 }

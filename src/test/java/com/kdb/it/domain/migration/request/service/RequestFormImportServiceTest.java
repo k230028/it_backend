@@ -213,7 +213,12 @@ class RequestFormImportServiceTest {
         assertThat(planCaptor.getValue())
                 .extracting(RequestFormSourceFileArchiver.ArchivePlanItem::archiveGroupKey)
                 .containsExactly("자금운용실", "자금운용실");
-        assertThat(planCaptor.getValue().get(1).result()).isNull();
+        assertThat(planCaptor.getValue().get(1))
+                .satisfies(
+                        item -> {
+                            assertThat(item.fileKey()).isEqualTo("자금운용실/증빙.pdf");
+                            assertThat(item.result()).isNull();
+                        });
     }
 
     @Test

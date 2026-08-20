@@ -15,6 +15,7 @@ import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceFileArchiver;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
@@ -46,6 +47,7 @@ class RequestFormFileControllerProtectionTest {
 
     @MockitoBean private FileService fileService;
     @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
+    @MockitoBean private RequestFormSourceArchiveService requestFormSourceArchiveService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 

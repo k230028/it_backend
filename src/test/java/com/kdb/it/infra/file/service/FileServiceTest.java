@@ -123,6 +123,7 @@ class FileServiceTest {
     @DisplayName("getFile: 존재하는 파일관리번호이면 응답 DTO를 반환한다")
     void getFile_존재하는파일_DTO반환() {
         Cfilem file = mockCfilem(FL_MNG_NO);
+        given(file.getApgFlPth()).willReturn("2026/IT부(D01)/01. 사업/근거.pdf");
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(file));
 
         FileDto.Response result = fileService.getFile(FL_MNG_NO);
@@ -130,6 +131,7 @@ class FileServiceTest {
         assertThat(result.getFlMpnId()).isEqualTo(FL_MNG_NO);
         assertThat(result.getFlNm()).isEqualTo("테스트파일.pdf");
         assertThat(result.getApgFlSz()).isEqualTo(1234L);
+        assertThat(result.getRelativePath()).isEqualTo("2026/IT부(D01)/01. 사업/근거.pdf");
         assertThat(result.getDownloadUrl()).isEqualTo("/api/files/" + FL_MNG_NO + "/download");
     }
 
@@ -409,8 +411,7 @@ class FileServiceTest {
     }
 
     @Test
-    @DisplayName(
-            "deleteFile: 배너 파일은 generic 삭제 경로에서 지울 수 없다 — /api/banners 창구만 배너를 관리한다")
+    @DisplayName("deleteFile: 배너 파일은 generic 삭제 경로에서 지울 수 없다 — /api/banners 창구만 배너를 관리한다")
     void deleteFile_배너파일_AccessDeniedException발생() {
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
         given(cfilem.getPkColNm()).willReturn("배너");

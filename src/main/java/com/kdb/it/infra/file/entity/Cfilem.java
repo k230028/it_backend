@@ -69,6 +69,10 @@ public class Cfilem extends BaseEntity {
     @Column(name = "APG_FL_SZ", precision = 10, comment = "첨부파일크기")
     private Long apgFlSz;
 
+    /** 첨부파일경로: 반입 원본 폴더 구조를 보존하는 선택 상대경로입니다. */
+    @Column(name = "APG_FL_PTH", length = 255, comment = "첨부파일경로")
+    private String apgFlPth;
+
     /** 주식별자컬럼명: 파일이 연결된 도메인 종류 (예: 요구사항정의서, 정보화사업, 전산관리비) */
     @Column(name = "PK_COL_NM", length = 4000, comment = "주식별자컬럼명")
     private String pkColNm;

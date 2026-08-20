@@ -98,6 +98,7 @@ public class FileService {
                 .flKpnPth(cfilem.getFlKpnPth())
                 .flTpCone(cfilem.getFlTpCone())
                 .apgFlSz(cfilem.getApgFlSz())
+                .relativePath(cfilem.getApgFlPth())
                 .pkCone(cfilem.getPkCone())
                 .pkColNm(cfilem.getPkColNm())
                 .fstEnrDtm(cfilem.getFstEnrDtm())
@@ -512,8 +513,8 @@ public class FileService {
     /**
      * 이미 조회된 파일 엔티티로 다운로드용 Resource를 반환합니다.
      *
-     * <p>{@link #downloadFile(String)}의 DB 조회 이후 로직을 재사용하기 위한 오버로드입니다. 호출자가 {@code DEL_YN}과
-     * 무관하게 이미 파일을 조회한 경우(예: 배너 관리자 미리보기)에 사용합니다 — 이 메서드 자체는 삭제 여부를 검사하지 않습니다.
+     * <p>{@link #downloadFile(String)}의 DB 조회 이후 로직을 재사용하기 위한 오버로드입니다. 호출자가 {@code DEL_YN}과 무관하게 이미
+     * 파일을 조회한 경우(예: 배너 관리자 미리보기)에 사용합니다 — 이 메서드 자체는 삭제 여부를 검사하지 않습니다.
      *
      * @param cfilem 이미 조회된 파일 엔티티
      * @return 파일 Resource (스트림으로 클라이언트에 전송)
