@@ -55,8 +55,14 @@
         </rollingPolicy>
     </appender>
 
+    <!-- 관리자 화면 조회용 인메모리 링버퍼 (재기동 시 소실, 파일 로그와 별개) -->
+    <appender name="RINGBUFFER" class="com.kdb.it.common.admin.waslog.appender.RingBufferAppender">
+        <capacity>2000</capacity>
+    </appender>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
+        <appender-ref ref="RINGBUFFER"/>
     </root>
 </configuration>

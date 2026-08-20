@@ -183,6 +183,10 @@ public class SecurityConfig {
                                 auth.requestMatchers(OPEN_API_PATHS).permitAll();
                             }
                             auth
+                                    // 피어 인스턴스 전용 경로. 컨트롤러가 X-Internal-Token으로 직접 인증하고,
+                                    // 비밀값이 비면 컨트롤러 자체가 등록되지 않아 404가 된다.
+                                    .requestMatchers("/internal/was-logs/**")
+                                    .permitAll()
                                     // 관리자 전용 엔드포인트 (ITPAD001만 접근 가능)
                                     .requestMatchers("/api/admin/**")
                                     .hasRole("ADMIN")
