@@ -57,6 +57,42 @@ public final class RequestFormFixtures {
         }
     }
 
+    /** 경상사업 시트와 소요자원 한 행만 담은 비식별 .xls. */
+    public static byte[] singleRecurringRowXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet s = wb.createSheet("② (경상사업) 2. 경상적인 사업");
+            put(s, 0, 0, "2. 경상적인 사업");
+            put(s, 2, 0, "사업명");
+            s.addMergedRegion(new CellRangeAddress(2, 2, 0, 1));
+            put(s, 2, 2, "단일 서버 교체");
+
+            put(s, 7, 0, "구분");
+            put(s, 7, 2, "항목");
+            put(s, 7, 4, "수량");
+            put(s, 7, 5, "단가");
+            put(s, 7, 6, "통화");
+            put(s, 7, 7, "소요예산 (부가세포함)");
+            put(s, 7, 8, "도입시기");
+            put(s, 7, 9, "비고(적용 환율 등)");
+
+            put(s, 8, 0, "소요 자원");
+            put(s, 8, 1, "기계장치(HW)");
+            put(s, 8, 2, "테스트 서버");
+            putNumber(s, 8, 4, 3);
+            putNumber(s, 8, 5, 100);
+            put(s, 8, 6, "KRW");
+            putNumber(s, 8, 7, 300);
+            put(s, 8, 8, "2월");
+            put(s, 8, 9, "내부 교체 기준");
+
+            put(s, 9, 0, "계");
+            s.addMergedRegion(new CellRangeAddress(9, 9, 0, 1));
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /**
      * 1-1 개요 시트를 씁니다.
      *

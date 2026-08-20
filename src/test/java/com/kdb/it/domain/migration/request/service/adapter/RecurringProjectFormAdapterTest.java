@@ -59,6 +59,24 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
+    @DisplayName("경상사업 시트에 소요자원 한 행만 있어도 사업과 품목을 만든다")
+    void buildsSingleRecurringProjectFromOneResourceRow() {
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.singleRecurringRowXls(), Map.of()));
+
+        assertThat(output.projects()).singleElement();
+        assertThat(output.projects().get(0).getAbusNm()).isEqualTo("단일 서버 교체");
+        assertThat(output.projects().get(0).getItems())
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.getGclNm()).isEqualTo("테스트 서버");
+                            assertThat(item.getQty()).isEqualByComparingTo(new BigDecimal("3"));
+                            assertThat(item.getIoeC()).isEqualTo("102");
+                        });
+    }
+
+    @Test
     @DisplayName("추진내용은 사업범위로, 미추진시 문제점은 문제점으로 옮긴다")
     void mapsOverviewFields() {
         ProjectDto.CreateRequest project =
