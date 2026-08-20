@@ -44,6 +44,21 @@ class RequestFormRelativePathTest {
     }
 
     @Test
+    @DisplayName("중첩 manifest 세그먼트와 실제 파일명의 드라이브 접두어를 거부한다")
+    void normalize_rejectsNestedDrivePrefixes() {
+        assertThatThrownBy(
+                        () ->
+                                RequestFormRelativePath.normalize(
+                                        "safe/C:/manifest.pdf", "actual.pdf"))
+                .isInstanceOf(CustomGeneralException.class);
+        assertThatThrownBy(
+                        () ->
+                                RequestFormRelativePath.normalize(
+                                        "safe/manifest.pdf", "C:actual.pdf"))
+                .isInstanceOf(CustomGeneralException.class);
+    }
+
+    @Test
     @DisplayName("제어문자와 잘못된 실제 파일명을 거부한다")
     void normalize_rejectsControlCharactersAndUnsafeOriginalFilenames() {
         assertThatThrownBy(() -> RequestFormRelativePath.normalize("2026/\u0000secret.pdf", "secret.pdf"))

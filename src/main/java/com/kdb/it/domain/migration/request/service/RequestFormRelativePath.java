@@ -40,6 +40,9 @@ public final class RequestFormRelativePath {
             if (segment.equals("..")) {
                 throw invalidPath();
             }
+            if (hasWindowsDrivePrefix(segment)) {
+                throw invalidPath();
+            }
             segments.add(segment);
         }
         if (!segments.isEmpty()) {
@@ -59,6 +62,7 @@ public final class RequestFormRelativePath {
                 || fileName.indexOf('/') >= 0
                 || fileName.indexOf('\\') >= 0
                 || fileName.contains("..")
+                || hasWindowsDrivePrefix(fileName)
                 || containsControlCharacter(fileName)) {
             throw invalidPath();
         }
