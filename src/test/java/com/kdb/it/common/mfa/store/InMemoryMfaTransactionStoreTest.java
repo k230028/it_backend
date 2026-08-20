@@ -141,33 +141,6 @@ class InMemoryMfaTransactionStoreTest {
     }
 
     @Test
-    @DisplayName("verify는 없는 토큰과 만료 거래를 빈 값으로 돌려주고 정리한다")
-    void verify_missingOrExpiredTransaction_isEmpty() {
-        MfaTransactionStore store = new InMemoryMfaTransactionStore();
-        store.save(pending("token-expired", now()));
-
-        assertThat(store.verify("token-absent", now())).isEmpty();
-        assertThat(store.verify("token-expired", now())).isEmpty();
-        assertThat(store.findByTokenHash("token-expired", now())).isEmpty();
-    }
-
-    @Test
-    @DisplayName("verify는 저장된 대기 거래를 VERIFIED로 바꿔 보관한다")
-    void verify_storedPendingTransaction_isPersistedAsVerified() {
-        MfaTransactionStore store = new InMemoryMfaTransactionStore();
-        store.save(pending("token-verify", now().plusSeconds(60)));
-
-        assertThat(store.verify("token-verify", now()))
-                .get()
-                .extracting(MfaTransaction::status)
-                .isEqualTo(MfaTransactionStatus.VERIFIED);
-        assertThat(store.findByTokenHash("token-verify", now()))
-                .get()
-                .extracting(MfaTransaction::status)
-                .isEqualTo(MfaTransactionStatus.VERIFIED);
-    }
-
-    @Test
     @DisplayName("verifyAndBindProof는 없는 토큰과 만료 거래에 증표를 묶지 않는다")
     void verifyAndBindProof_missingOrExpiredTransaction_isEmpty() {
         MfaTransactionStore store = new InMemoryMfaTransactionStore();

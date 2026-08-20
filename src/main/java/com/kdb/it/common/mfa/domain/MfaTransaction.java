@@ -193,6 +193,48 @@ public final class MfaTransaction {
                 failureCount);
     }
 
+    /**
+     * 영속 계층에 저장된 상태를 그대로 복원한다.
+     *
+     * <p>JPA 저장소의 엔티티→도메인 매핑 전용이다. 업무 흐름은 이 메서드가 아니라 {@link #pending}과
+     * {@link #verify}·{@link #fail}·{@link #bindProofHash} 등 전이 메서드를 사용해야 한다.
+     *
+     * @param tokenHash 거래 토큰 해시
+     * @param eno 사원번호
+     * @param purpose MFA 목적
+     * @param method MFA 수단
+     * @param expiresAt 만료 시각
+     * @param providerChallengeHash 공급자 challenge 해시. 없으면 null
+     * @param proofHash 증표 해시. 없으면 null
+     * @param status 저장된 상태
+     * @param verifiedAt 검증 시각. 없으면 null
+     * @param failureCount 실패 횟수
+     * @return 저장된 필드를 그대로 담은 거래
+     */
+    public static MfaTransaction restore(
+            String tokenHash,
+            String eno,
+            MfaPurpose purpose,
+            MfaMethod method,
+            Instant expiresAt,
+            String providerChallengeHash,
+            String proofHash,
+            MfaTransactionStatus status,
+            Instant verifiedAt,
+            int failureCount) {
+        return new MfaTransaction(
+                tokenHash,
+                eno,
+                purpose,
+                method,
+                expiresAt,
+                providerChallengeHash,
+                proofHash,
+                status,
+                verifiedAt,
+                failureCount);
+    }
+
     public MfaTransactionStatus status() {
         return status;
     }

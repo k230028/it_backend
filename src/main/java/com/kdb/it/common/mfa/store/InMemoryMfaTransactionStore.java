@@ -39,22 +39,6 @@ public class InMemoryMfaTransactionStore implements MfaTransactionStore {
     }
 
     @Override
-    public Optional<MfaTransaction> verify(String tokenHash, Instant now) {
-        AtomicReference<MfaTransaction> verified = new AtomicReference<>();
-        transactions.compute(
-                tokenHash,
-                (ignored, transaction) -> {
-                    if (transaction == null || transaction.isExpiredAt(now)) {
-                        return null;
-                    }
-                    MfaTransaction nextTransaction = transaction.verify(now);
-                    verified.set(nextTransaction);
-                    return nextTransaction;
-                });
-        return Optional.ofNullable(verified.get());
-    }
-
-    @Override
     public synchronized Optional<MfaTransaction> verifyAndBindProof(
             String tokenHash, String proofHash, Instant now) {
         MfaTransaction transaction = transactions.get(tokenHash);
