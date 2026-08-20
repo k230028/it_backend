@@ -101,7 +101,7 @@ public class RequestFormImportService {
                 String deptCode = resolveDepartmentCode(entry, orgIndex);
                 archivePlan.add(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file, archiveGroupKey, deptCode, null));
+                                file, entry.fileKey(), archiveGroupKey, deptCode, null));
                 continue;
             }
             ProcessedFile processed =
@@ -118,6 +118,7 @@ public class RequestFormImportService {
             archivePlan.add(
                     new RequestFormSourceFileArchiver.ArchivePlanItem(
                             file,
+                            entry.fileKey(),
                             archiveGroupKey,
                             processed.effectiveDeptCode(),
                             processed.result()));

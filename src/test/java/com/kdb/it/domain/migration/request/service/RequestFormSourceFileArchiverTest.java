@@ -62,7 +62,11 @@ class RequestFormSourceFileArchiverTest {
         for (int i = 0; i < files.size(); i++) {
             plan.add(
                     new RequestFormSourceFileArchiver.ArchivePlanItem(
-                            files.get(i), entries.get(i).deptName(), results.get(i)));
+                            files.get(i),
+                            entries.get(i).fileKey(),
+                            RequestFormArchiveGroup.keyOf(entries.get(i).fileKey()),
+                            entries.get(i).deptName(),
+                            results.get(i)));
         }
         archiver.archive(plan);
     }
@@ -109,9 +113,17 @@ class RequestFormSourceFileArchiverTest {
         List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
                 List.of(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                excel, "IT부(D01)", "D01", applied),
+                                excel,
+                                "2026/IT부(D01)/01. 사업/요청서.xlsx",
+                                "IT부(D01)",
+                                "D01",
+                                applied),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                pdf, "IT부(D01)", "D01", null));
+                                pdf,
+                                "2026\\IT부(D01)\\01. 사업\\근거.pdf",
+                                "IT부(D01)",
+                                "D01",
+                                null));
         given(fileService.uploadFile(any(), any())).willReturn("FL-EXCEL", "FL-PDF");
 
         archiver.archive(plan);
@@ -121,6 +133,14 @@ class RequestFormSourceFileArchiverTest {
         assertThat(fileCaptor.getAllValues())
                 .extracting(MultipartFile::getOriginalFilename)
                 .containsExactly("요청서.xlsx", "증빙.pdf");
+        ArgumentCaptor<FileDto.UploadRequest> requestCaptor =
+                ArgumentCaptor.forClass(FileDto.UploadRequest.class);
+        then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
+        assertThat(requestCaptor.getAllValues())
+                .extracting(FileDto.UploadRequest::getRelativePath)
+                .containsExactly(
+                        "2026/IT부(D01)/01. 사업/요청서.xlsx",
+                        "2026/IT부(D01)/01. 사업/증빙.pdf");
     }
 
     @Test
@@ -141,9 +161,17 @@ class RequestFormSourceFileArchiverTest {
         List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
                 List.of(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file("a.xlsx"), "2026/IT부(D01)/01. 사업A", "D01", first),
+                                file("a.xlsx"),
+                                first.fileKey(),
+                                "2026/IT부(D01)/01. 사업A",
+                                "D01",
+                                first),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file("b.xlsx"), "2026/IT부(D01)/02. 사업B", "D01", second));
+                                file("b.xlsx"),
+                                second.fileKey(),
+                                "2026/IT부(D01)/02. 사업B",
+                                "D01",
+                                second));
         assertThat(plan)
                 .extracting(RequestFormSourceFileArchiver.ArchivePlanItem::archiveGroupKey)
                 .containsExactly("2026/IT부(D01)/01. 사업A", "2026/IT부(D01)/02. 사업B");
@@ -179,11 +207,15 @@ class RequestFormSourceFileArchiverTest {
         List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
                 List.of(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file("요청서.xlsx"), group, "D01", applied),
+                                file("요청서.xlsx"), group + "/요청서.xlsx", group, "D01", applied),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file("산출근거.xlsx"), group, "D01", skipped),
+                                file("산출근거.xlsx"),
+                                group + "/산출근거.xlsx",
+                                group,
+                                "D01",
+                                skipped),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file("견적.pdf"), group, "D01", null));
+                                file("견적.pdf"), group + "/견적.pdf", group, "D01", null));
         given(fileService.uploadFile(any(), any())).willReturn("FL-1", "FL-2", "FL-3");
 
         archiver.archive(plan);
@@ -196,12 +228,11 @@ class RequestFormSourceFileArchiverTest {
     }
 
     @Test
-    @DisplayName("결과 없는 단축 보관 계획은 그룹을 만들지 않고 건너뛴다")
-    void archive_skipsConveniencePlanWithoutResult() {
+    @DisplayName("원장이 없는 보관 전용 파일은 저장하지 않는다")
+    void archive_skipsArchiveOnlyPlanWithoutAppliedRecord() {
         RequestFormSourceFileArchiver.ArchivePlanItem item =
-                new RequestFormSourceFileArchiver.ArchivePlanItem(file("근거.pdf"), "D01", null);
-
-        assertThat(item.archiveGroupKey()).isEmpty();
+                new RequestFormSourceFileArchiver.ArchivePlanItem(
+                        file("근거.pdf"), "IT부(D01)/근거.pdf", "IT부(D01)", "D01", null);
 
         archiver.archive(List.of(item));
 
@@ -261,9 +292,9 @@ class RequestFormSourceFileArchiverTest {
         List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
                 List.of(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                firstFile, "D01", firstResult),
+                                firstFile, firstResult.fileKey(), "첫폴더", "D01", firstResult),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                secondFile, "D01", secondResult));
+                                secondFile, secondResult.fileKey(), "둘째폴더", "D01", secondResult));
         given(fileService.uploadFile(any(), any())).willReturn("FL-FIRST", "FL-SECOND");
 
         archiver.archive(plan);
@@ -297,9 +328,9 @@ class RequestFormSourceFileArchiverTest {
         List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
                 List.of(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                firstFile, "D01", firstResult),
+                                firstFile, firstResult.fileKey(), "동일폴더", "D01", firstResult),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                secondFile, "D02", secondResult));
+                                secondFile, secondResult.fileKey(), "동일폴더", "D02", secondResult));
         given(fileService.uploadFile(any(), any())).willReturn("FL-D01", "FL-D02");
 
         archiver.archive(plan);
