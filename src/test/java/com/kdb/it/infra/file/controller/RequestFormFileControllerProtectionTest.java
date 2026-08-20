@@ -15,13 +15,14 @@ import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceFileArchiver;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.authz.RequestFormFileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
-import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,8 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 @WebMvcTest(FileController.class)
 @Import({
@@ -46,6 +49,7 @@ class RequestFormFileControllerProtectionTest {
 
     @MockitoBean private FileService fileService;
     @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
+    @MockitoBean private RequestFormSourceArchiveService requestFormSourceArchiveService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 

@@ -1,18 +1,21 @@
 package com.kdb.it.infra.file.controller;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.migration.request.dto.RequestFormSourceArchiveRequest;
+import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
+
+import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -25,11 +28,18 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 공통첨부파일기본 REST 컨트롤러
@@ -49,6 +59,7 @@ public class FileController {
     private final FileService fileService;
     private final FileOwnershipChecker fileOwnershipChecker;
     private final FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
+    private final RequestFormSourceArchiveService requestFormSourceArchiveService;
 
     // ─────────────────────────────────────────
     // 조회
@@ -94,6 +105,43 @@ public class FileController {
             @RequestParam("pkCone") List<String> pkCones,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(fileService.getFilesBatch(pkColNm, pkCones, userDetails));
+    }
+
+    /**
+     * 접근 가능한 편성요청서 반입 원본 전체 또는 선택 파일을 ZIP으로 다운로드합니다.
+     *
+     * @param request 신청번호와 선택 파일 ID
+     * @param userDetails 인증 사용자
+     * @return 폴더 구조를 유지한 ZIP 스트리밍 응답
+     */
+    @PostMapping(
+            value = "/request-form-source/archive",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = "application/zip")
+    @Operation(
+            summary = "편성요청서 반입 원본 ZIP 다운로드",
+            description = "읽기 권한이 있는 편성요청서 반입 원본 전체 또는 선택 파일을 폴더 구조대로 압축합니다.")
+    public ResponseEntity<StreamingResponseBody> downloadRequestFormSourceArchive(
+            @Valid @RequestBody RequestFormSourceArchiveRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ContentDisposition disposition =
+                ContentDisposition.attachment()
+                        .filename(
+                                "편성요청서_" + safeFileNamePart(request.apfMngNo()) + "_원본.zip",
+                                StandardCharsets.UTF_8)
+                        .build();
+        StreamingResponseBody body =
+                output ->
+                        requestFormSourceArchiveService.writeArchive(request, userDetails, output);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .body(body);
+    }
+
+    private String safeFileNamePart(String value) {
+        return value.replaceAll("[^\\p{L}\\p{N}._-]", "_");
     }
 
     /**

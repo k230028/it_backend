@@ -10,13 +10,17 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,11 +30,12 @@ import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
-import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -38,11 +43,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.List;
 
 /**
  * FileController @WebMvcTest
@@ -59,10 +68,72 @@ class FileControllerTest {
     @MockitoBean private FileService fileService;
     @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
     @MockitoBean private FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
+    @MockitoBean private RequestFormSourceArchiveService requestFormSourceArchiveService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     private static final String FL_MNG_NO = "FL_00000001";
+
+    @Test
+    @DisplayName("POST /api/files/request-form-source/archive - 선택 원본 ZIP을 비동기로 스트리밍한다")
+    void downloadRequestFormSourceArchive_validRequest_streamsZip() throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/files/request-form-source/archive")
+                                        .with(csrf())
+                                        .with(user(userDetails))
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"apfMngNo\":\"APF-1\",\"fileIds\":[\"FL-1\"]}"))
+                        .andExpect(request().asyncStarted())
+                        .andExpect(status().isOk())
+                        .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/zip"))
+                        .andExpect(
+                                header().string(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                containsString("APF-1")))
+                        .andReturn();
+
+        mockMvc.perform(asyncDispatch(result)).andExpect(status().isOk());
+        verify(requestFormSourceArchiveService)
+                .writeArchive(any(), org.mockito.ArgumentMatchers.same(userDetails), any());
+    }
+
+    @Test
+    @DisplayName("POST /api/files/request-form-source/archive - 공백 신청번호는 400")
+    void downloadRequestFormSourceArchive_blankApplicationNumber_badRequest() throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+
+        mockMvc.perform(
+                        post("/api/files/request-form-source/archive")
+                                .with(csrf())
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"apfMngNo\":\" \",\"fileIds\":[\"FL-1\"]}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(requestFormSourceArchiveService);
+    }
+
+    @Test
+    @DisplayName("POST /api/files/request-form-source/archive - 빈 선택 목록은 400")
+    void downloadRequestFormSourceArchive_emptySelection_badRequest() throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+
+        mockMvc.perform(
+                        post("/api/files/request-form-source/archive")
+                                .with(csrf())
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"apfMngNo\":\"APF-1\",\"fileIds\":[]}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(requestFormSourceArchiveService);
+    }
 
     @Test
     @DisplayName("GET /api/files - 비인증 → 401")
@@ -575,8 +646,9 @@ class FileControllerTest {
     @DisplayName("DELETE /api/files/{id} - 배너 파일은 범용 API로 삭제할 수 없다 → 403")
     void deleteFile_배너파일_403() throws Exception {
         doNothing().when(fileOwnershipChecker).verifyWriteAccess(anyString(), any());
-        doThrow(new org.springframework.security.access.AccessDeniedException(
-                        "보호된 파일 종류는 generic 파일 API로 변경할 수 없습니다: 배너"))
+        doThrow(
+                        new org.springframework.security.access.AccessDeniedException(
+                                "보호된 파일 종류는 generic 파일 API로 변경할 수 없습니다: 배너"))
                 .when(fileService)
                 .deleteFile(anyString());
 
