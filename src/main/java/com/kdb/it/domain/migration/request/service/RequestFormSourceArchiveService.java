@@ -6,11 +6,11 @@ import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
 
-import lombok.RequiredArgsConstructor;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -19,17 +19,30 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /** 권한이 확인된 편성요청서 반입 원본을 폴더 구조를 유지한 ZIP으로 내보냅니다. */
 @Service
-@RequiredArgsConstructor
 public class RequestFormSourceArchiveService {
 
     private static final String REQUEST_FORM_SOURCE_KIND = "편성요청서반입";
 
     private final FileService fileService;
+    private final Function<OutputStream, ZipOutputStream> zipOutputStreamFactory;
+
+    @Autowired
+    public RequestFormSourceArchiveService(FileService fileService) {
+        this(fileService, ZipOutputStream::new);
+    }
+
+    RequestFormSourceArchiveService(
+            FileService fileService,
+            Function<OutputStream, ZipOutputStream> zipOutputStreamFactory) {
+        this.fileService = fileService;
+        this.zipOutputStreamFactory = zipOutputStreamFactory;
+    }
 
     /**
      * 접근 가능한 편성요청서 반입 원본 전체 또는 선택 파일을 ZIP으로 씁니다.
@@ -137,8 +150,8 @@ public class RequestFormSourceArchiveService {
     }
 
     private void writeZip(List<ArchiveFile> archiveFiles, OutputStream output) {
-        ZipOutputStream zip = new ZipOutputStream(output);
-        try {
+        try (ZipOutputStream zip =
+                zipOutputStreamFactory.apply(new NonClosingOutputStream(output))) {
             for (ArchiveFile archiveFile : archiveFiles) {
                 FileService.FileDownloadResult download =
                         fileService.downloadFile(archiveFile.fileId());
@@ -149,12 +162,22 @@ public class RequestFormSourceArchiveService {
                     zip.closeEntry();
                 }
             }
-            zip.finish();
-            zip.flush();
         } catch (IOException e) {
             throw new CustomGeneralException("편성요청서 원본 ZIP 생성에 실패했습니다.", e);
         }
     }
 
     private record ArchiveFile(String fileId, String entryName) {}
+
+    private static final class NonClosingOutputStream extends FilterOutputStream {
+
+        private NonClosingOutputStream(OutputStream output) {
+            super(output);
+        }
+
+        @Override
+        public void close() throws IOException {
+            flush();
+        }
+    }
 }

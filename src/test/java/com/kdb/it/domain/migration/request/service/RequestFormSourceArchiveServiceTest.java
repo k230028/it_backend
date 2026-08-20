@@ -28,11 +28,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 @ExtendWith(MockitoExtension.class)
 class RequestFormSourceArchiveServiceTest {
@@ -287,6 +290,62 @@ class RequestFormSourceArchiveServiceTest {
                         new ZipContent("첫째.txt", "FIRST"), new ZipContent("둘째.txt", "SECOND"));
     }
 
+    @Test
+    @DisplayName("정상 완료 시 ZIP 래퍼를 닫아 압축 자원을 해제하고 호출자 출력은 열어 둔다")
+    void writeArchive_success_closesZipWrapperButLeavesCallerOutputOpen() throws Exception {
+        given(fileService.getFiles(any(), any()))
+                .willReturn(List.of(file("FL-1", "원본.txt", "원본.txt")));
+        given(fileService.downloadFile("FL-1")).willReturn(download("SOURCE", "원본.txt"));
+        CloseTrackingOutputStream output = new CloseTrackingOutputStream();
+        AtomicReference<TrackingZipOutputStream> zipReference = new AtomicReference<>();
+        service =
+                new RequestFormSourceArchiveService(
+                        fileService,
+                        target -> {
+                            TrackingZipOutputStream zip = new TrackingZipOutputStream(target);
+                            zipReference.set(zip);
+                            return zip;
+                        });
+
+        service.writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
+
+        assertThat(zipReference.get().closed).isTrue();
+        assertThat(output.closed).isFalse();
+        assertThat(unzip(output.toByteArray())).containsExactly(new ZipContent("원본.txt", "SOURCE"));
+    }
+
+    @Test
+    @DisplayName("파일 복사 실패 시에도 ZIP 래퍼를 닫고 호출자 출력은 열어 둔다")
+    void writeArchive_copyFailure_closesZipWrapperButLeavesCallerOutputOpen() {
+        given(fileService.getFiles(any(), any()))
+                .willReturn(List.of(file("FL-1", "원본.txt", "원본.txt")));
+        given(fileService.downloadFile("FL-1"))
+                .willReturn(
+                        new FileService.FileDownloadResult(
+                                new FailingResource(), "원본.txt", "text/plain"));
+        CloseTrackingOutputStream output = new CloseTrackingOutputStream();
+        AtomicReference<TrackingZipOutputStream> zipReference = new AtomicReference<>();
+        service =
+                new RequestFormSourceArchiveService(
+                        fileService,
+                        target -> {
+                            TrackingZipOutputStream zip = new TrackingZipOutputStream(target);
+                            zipReference.set(zip);
+                            return zip;
+                        });
+
+        assertThatThrownBy(
+                        () ->
+                                service.writeArchive(
+                                        new RequestFormSourceArchiveRequest("APF-1", null),
+                                        USER,
+                                        output))
+                .isInstanceOf(CustomGeneralException.class);
+
+        assertThat(zipReference.get().closed).isTrue();
+        assertThat(output.closed).isFalse();
+    }
+
     private static FileDto.Response file(String id, String fileName, String relativePath) {
         return FileDto.Response.builder()
                 .flMpnId(id)
@@ -346,6 +405,36 @@ class RequestFormSourceArchiveServiceTest {
         public void close() throws IOException {
             closed = true;
             super.close();
+        }
+    }
+
+    private static final class TrackingZipOutputStream extends ZipOutputStream {
+        private boolean closed;
+
+        private TrackingZipOutputStream(OutputStream output) {
+            super(output);
+        }
+
+        @Override
+        public void close() throws IOException {
+            closed = true;
+            super.close();
+        }
+    }
+
+    private static final class FailingResource extends ByteArrayResource {
+        private FailingResource() {
+            super(new byte[] {1});
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return new InputStream() {
+                @Override
+                public int read() throws IOException {
+                    throw new IOException("테스트 복사 실패");
+                }
+            };
         }
     }
 }
