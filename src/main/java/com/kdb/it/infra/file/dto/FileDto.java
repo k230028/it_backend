@@ -91,7 +91,10 @@ public class FileDto {
         @Schema(description = "첨부파일크기(바이트). 레거시 파일은 null", example = "102400")
         private Long apgFlSz;
 
-        @Schema(description = "첨부파일의 원본 폴더 상대경로. 기존 파일은 null", example = "2026/IT부(D01)/01. 사업/근거.pdf")
+        @Schema(
+                description = "첨부파일의 원본 폴더 상대경로. 기존 파일은 null",
+                example = "2026/IT부(D01)/01. 사업/근거.pdf",
+                nullable = true)
         private String relativePath;
 
         @Schema(description = "주식별자내용", example = "PRJ-2026-0001")

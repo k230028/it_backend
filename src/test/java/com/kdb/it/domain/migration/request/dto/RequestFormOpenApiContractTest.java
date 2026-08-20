@@ -3,6 +3,7 @@ package com.kdb.it.domain.migration.request.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.infra.file.dto.FileDto;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -41,6 +42,14 @@ class RequestFormOpenApiContractTest {
                 "generalExpenseUnit",
                 "bgUntAbusC");
         assertAllPropertiesRequired(RequestFormDto.CellOverride.class, "sheet", "excelRow");
+    }
+
+    @Test
+    @DisplayName("반입 원본 경로와 선택 파일 목록은 null 허용 OpenAPI 계약을 노출한다")
+    void requestFormSourceNullablePropertiesAreExplicit() {
+        assertThat(property(resolve(FileDto.Response.class), "relativePath").getNullable()).isTrue();
+        assertThat(property(resolve(RequestFormSourceArchiveRequest.class), "fileIds").getNullable())
+                .isTrue();
     }
 
     @Test
