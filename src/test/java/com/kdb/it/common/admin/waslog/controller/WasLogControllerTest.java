@@ -185,6 +185,36 @@ class WasLogControllerTest {
     }
 
     @Test
+    @DisplayName("레벨 변경은 감사기를 호출한다 — 서버 상태를 바꾸는 유일한 조작이라 누락되면 안 된다")
+    void applyLevel_감사호출() throws Exception {
+        given(service.applyLevel(any()))
+                .willReturn(
+                        new WasLogDto.LevelOverride(
+                                "com.kdb.it.domain",
+                                "DEBUG",
+                                "INFO",
+                                java.time.LocalDateTime.of(2026, 8, 20, 11, 0)));
+
+        mockMvc.perform(
+                        post("/api/admin/was-logs/level")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"instanceId":"SVR1","logger":"com.kdb.it.domain",
+                                         "level":"DEBUG","ttlMinutes":30}
+                                        """))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<WasLogDto.LevelRequest> requestCaptor =
+                ArgumentCaptor.forClass(WasLogDto.LevelRequest.class);
+        verify(auditLogger).logLevelChange(requestCaptor.capture());
+
+        WasLogDto.LevelRequest audited = requestCaptor.getValue();
+        assertThat(audited.logger()).isEqualTo("com.kdb.it.domain");
+        assertThat(audited.ttlMinutes()).isEqualTo(30);
+    }
+
+    @Test
     @DisplayName("TTL 범위 위반은 400")
     void applyLevel_TTL위반_400() throws Exception {
         given(service.applyLevel(any()))

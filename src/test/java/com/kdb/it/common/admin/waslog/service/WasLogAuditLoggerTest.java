@@ -110,6 +110,18 @@ class WasLogAuditLoggerTest {
     }
 
     @Test
+    @DisplayName("서로 다른 인스턴스ID를 계속 보내도 추적 맵이 무한히 자라지 않는다")
+    void logSnapshotAccess_추적맵상한() {
+        for (int i = 0; i < 1500; i++) {
+            auditLogger.logSnapshotAccess("SVR" + i);
+        }
+
+        // 상한에 닿으면 비우므로 기록은 남되 맵 크기는 상한 아래로 유지된다.
+        assertThat(appender.list).hasSize(1500);
+        assertThat(auditLogger.trackedKeyCount()).isLessThan(1000);
+    }
+
+    @Test
     @DisplayName("개행이 든 값은 가짜 감사 줄을 만들지 못하게 이스케이프한다")
     void 감사값_개행이스케이프() {
         auditLogger.logDownload("SVR1\n[WAS로그감사] 조회 actor=victim", 0);

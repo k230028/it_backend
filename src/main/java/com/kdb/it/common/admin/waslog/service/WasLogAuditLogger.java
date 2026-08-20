@@ -23,6 +23,15 @@ public class WasLogAuditLogger {
     /** 같은 행위자·인스턴스 조합의 조회를 다시 기록하기까지의 최소 간격(분). */
     private static final long THROTTLE_MINUTES = 10;
 
+    /**
+     * 추적 맵이 담을 수 있는 최대 키(행위자+인스턴스 조합) 개수.
+     *
+     * <p>{@code instanceId}는 {@link com.kdb.it.common.admin.waslog.service.WasLogService}가 검증하기 전
+     * 값이라 관리자가 매번 다른 문자열을 보내면(오타·순번 스크립트 등) 맵이 프로세스 수명 동안 무한히 자랄 수 있다. 상한에 닿으면 맵을 비운다 — 최악의 결과는 그
+     * 직후 같은 조합의 조회가 스로틀 없이 한 번 더 기록되는 것뿐이라 안전한 방향이다.
+     */
+    private static final int MAX_TRACKED_KEYS = 1000;
+
     private final Map<String, LocalDateTime> lastAccessLog = new ConcurrentHashMap<>();
     private final Clock clock;
 
@@ -70,8 +79,14 @@ public class WasLogAuditLogger {
         String key = actor + "|" + instanceId;
         LocalDateTime previous = lastAccessLog.get(key);
         if (previous != null && previous.isAfter(cutoff)) return false;
+        if (lastAccessLog.size() >= MAX_TRACKED_KEYS) lastAccessLog.clear();
         lastAccessLog.put(key, now);
         return true;
+    }
+
+    /** 테스트 검증용 — 현재 추적 중인 키 개수. */
+    int trackedKeyCount() {
+        return lastAccessLog.size();
     }
 
     /**
