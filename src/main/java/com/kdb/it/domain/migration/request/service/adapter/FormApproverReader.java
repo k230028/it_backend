@@ -81,11 +81,24 @@ public class FormApproverReader {
                 if (!startsWithLabel(text, key)) continue;
 
                 String inline = afterLabel(text, label);
-                if (!inline.isEmpty()) return inline;
-                return nameRightOf(sheet, rowIndex, colIndex);
+                if (!inline.isEmpty()) return normalizeReadValue(inline);
+                return normalizeReadValue(nameRightOf(sheet, rowIndex, colIndex));
             }
         }
         return null;
+    }
+
+    /** 사람 이름은 그대로 두고, 공백 없이 적힌 역할 값만 공통 표기로 맞춥니다. */
+    private static String normalizeReadValue(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        if (trimmed.indexOf(' ') < 0 && trimmed.indexOf('\t') < 0) {
+            String normalized = normalizeApproverRole(trimmed);
+            if (normalized.equals("지역본부장") || normalized.equals("부장") || normalized.equals("팀장")) {
+                return normalized;
+            }
+        }
+        return value;
     }
 
     /** 라벨 칸의 병합 영역을 건너뛴 다음 열부터 이름을 찾습니다. 다음 라벨을 만나면 이름이 없는 것으로 봅니다. */

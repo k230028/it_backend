@@ -54,6 +54,14 @@ class FormApproverReaderTest {
     }
 
     @Test
+    @DisplayName("시트에서 읽은 본부장 역할을 지역본부장으로 정규화한다")
+    void normalizesHeadquartersRoleWhenReadFromSheet() {
+        Sheet sheet = sheetOf(Map.of("1,6", "(확인자)", "1,7", "동남권본부장"));
+
+        assertThat(reader.confirmer(sheet)).isEqualTo("지역본부장");
+    }
+
+    @Test
     @DisplayName("라벨 오른쪽 칸의 이름을 읽는다")
     void readsNameFromCellToTheRight() {
         Sheet sheet =
