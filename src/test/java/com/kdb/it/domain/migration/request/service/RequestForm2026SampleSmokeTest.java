@@ -210,7 +210,7 @@ class RequestForm2026SampleSmokeTest {
                         List.of(
                                 new MockMultipartFile(
                                         "files",
-                                        "sample.xls",
+                                        "sample-요청서.xls",
                                         "application/vnd.ms-excel",
                                         readSampleBytes(sample))),
                         new RequestFormDto.ImportManifest("2026", List.of(entry), List.of()),
