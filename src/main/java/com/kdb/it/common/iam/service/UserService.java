@@ -44,7 +44,7 @@ public class UserService {
      *
      * <p>특정 부점({@code orgCode})에 소속된 모든 사용자를 조직명과 함께 프로젝션으로 조회합니다.
      *
-     * <p>응답에는 사번, 부점명, 팀명, 사용자명, 직위명이 포함됩니다.
+     * <p>응답에는 사번, 부점명, 팀명, 사용자명, 직위명이 포함되며 K 행번 우선, 직위코드 오름차순으로 정렬됩니다.
      *
      * @param orgCode 조회할 부점코드 ({@code BBR_C})
      * @return 해당 부점의 사용자 목록 DTO ({@link UserDto.ListResponse} 리스트)
@@ -101,6 +101,8 @@ public class UserService {
      *
      * <p>전체 조직이 대상이므로 검색어는 {@link #MIN_KEYWORD_LENGTH}자 이상이어야 하며 결과는 {@link
      * #SEARCH_RESULT_LIMIT}건까지만 반환합니다.
+     *
+     * <p>표시 순서는 K 행번 우선, 직위코드 오름차순이며 상한 절단보다 먼저 적용됩니다.
      *
      * @param keyword 검색어 (이름·팀명·사번 부분 일치, null/blank 허용)
      * @param orgCode 부서코드 (null이면 전체 부서 대상)

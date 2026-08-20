@@ -68,6 +68,12 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
         persistUser("BE03001", "홍길동", "팀장", ORG_CODE, "12004", "N");
         persistUser("BE03002", "김길동", "사원", ORG_CODE, "12004", "Y");
         persistUser("BE03003", "null조직", "사원", null, "12005", "N");
+        // 표시 정렬(K 행번 우선 → 직위코드 오름차순) 검증용 픽스처.
+        // 행번 접두어가 정렬 키이므로 이 클래스 전용 조직코드(Z71)를 붙여 다른 픽스처와 겹치지 않게 한다.
+        persistOrderingUser("KZ71002", "정렬케이뒤", "20");
+        persistOrderingUser("OZ71001", "정렬오앞", "10");
+        persistOrderingUser("KZ71001", "정렬케이앞", "10");
+        persistOrderingUser("OZ71002", "정렬오뒤", null);
         em.flush();
         em.clear();
     }
@@ -119,6 +125,24 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                         .toList();
         assertThat(names).contains("홍길동", "김길동", "null조직");
         assertThat(names.indexOf("김길동")).isLessThan(names.indexOf("홍길동"));
+    }
+
+    @Test
+    @DisplayName("부서 목록과 키워드 검색은 K 행번을 앞세우고 직위코드 오름차순으로 정렬한다")
+    void employeeRows_orderByEnoPrefixThenPositionCode() {
+        List<String> expected = List.of("KZ71001", "KZ71002", "OZ71001", "OZ71002");
+
+        // 부서 목록: K 행번(직위코드 10 → 20) → O 행번(직위코드 10 → 직위코드 없음)
+        assertThat(userRepository.findListRowsByBbrC(ORG_CODE))
+                .extracting(UserDto.ListRow::eno)
+                .filteredOn(eno -> expected.contains(eno))
+                .containsExactlyElementsOf(expected);
+
+        // 키워드 검색도 같은 순서를 사용한다 (상한 절단보다 정렬이 먼저 적용됨)
+        assertThat(userRepository.searchListRowsByKeyword("정렬", SEARCH_LIMIT))
+                .extracting(UserDto.ListRow::eno)
+                .filteredOn(eno -> expected.contains(eno))
+                .containsExactlyElementsOf(expected);
     }
 
     @Test
@@ -271,6 +295,26 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                 .lstChgUsid("FIXTURE")
                 .lstChgDtm(LocalDateTime.now())
                 .build();
+    }
+
+    /** 표시 정렬 검증용 사용자 — 행번 접두어와 직위코드만 다르게 두고 나머지는 동일하게 맞춘다. */
+    private void persistOrderingUser(String eno, String name, String ptC) {
+        em.persist(
+                CuserI.builder()
+                        .eno(eno)
+                        .usrNm(name)
+                        .ptC(ptC)
+                        .ptCNm("정렬")
+                        .bbrC(ORG_CODE)
+                        .temC("12004")
+                        .temNm("테스트팀")
+                        .etrMilAddrNm(eno + "@example.test")
+                        .delYn("N")
+                        .fstEnrUsid("FIXTURE")
+                        .fstEnrDtm(LocalDateTime.now())
+                        .lstChgUsid("FIXTURE")
+                        .lstChgDtm(LocalDateTime.now())
+                        .build());
     }
 
     private void persistUser(

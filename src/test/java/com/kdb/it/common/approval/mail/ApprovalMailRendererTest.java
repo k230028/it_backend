@@ -80,11 +80,11 @@ class ApprovalMailRendererTest {
     }
 
     @Test
-    @DisplayName("상세 보기 버튼은 오른쪽 정렬하고 바로가기 아이콘을 붙인다")
+    @DisplayName("결재하러 가기 버튼은 오른쪽 정렬하고 바로가기 아이콘을 붙인다")
     void html_linkButtonIsRightAlignedWithIcon() throws Exception {
         String html = render(SNAPSHOT).html();
 
-        assertThat(html).contains("text-align:right;").contains("신청서 상세 보기 ↗");
+        assertThat(html).contains("text-align:right;").contains("결재하러 가기 ↗");
     }
 
     @Test

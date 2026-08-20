@@ -7,6 +7,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
@@ -151,6 +152,50 @@ class BoardPostServiceTest {
                         new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition(),
                         normalUser);
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("일정 게시판 목록은 일정 기간을 공개 기간으로 필터링하지 않는다")
+    void searchPosts_scheduleBoard_ignoresPublicationPeriod() {
+        Cblbmm scheduleBoard = scheduleBoard();
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0031", "N"))
+                .willReturn(Optional.of(scheduleBoard));
+        given(postRepository.searchPostRows(any(), any(), anyBoolean()))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        var condition = new BoardPostDto.SearchCondition();
+
+        service.searchPosts("BLBM-2026-0031", condition, normalUser);
+
+        assertThat(condition.isIgnorePublicationPeriod()).isTrue();
+    }
+
+    @Test
+    @DisplayName("일정 게시판은 시작일자와 종료일자가 모두 있어야 등록할 수 있다")
+    void createPost_scheduleBoard_requiresDateRange() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0031", "N"))
+                .willReturn(Optional.of(scheduleBoard()));
+        var request = new BoardPostDto.CreateRequest();
+        request.setNacNm("예산 편성 일정");
+
+        assertThatThrownBy(() -> service.createPost("BLBM-2026-0031", request, normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("시작일자와 종료일자");
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    @DisplayName("일정 게시판은 종료일자가 시작일자보다 빠르면 등록할 수 없다")
+    void createPost_scheduleBoard_rejectsReversedDateRange() {
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0031", "N"))
+                .willReturn(Optional.of(scheduleBoard()));
+        var request = new BoardPostDto.CreateRequest();
+        request.setNacNm("역전 일정");
+        request.setSttYmd(LocalDate.of(2026, 9, 2));
+        request.setEndYmd(LocalDate.of(2026, 9, 1));
+
+        assertThatThrownBy(() -> service.createPost("BLBM-2026-0031", request, normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("종료일자");
     }
 
     @Test
@@ -1089,6 +1134,18 @@ class BoardPostServiceTest {
                 .itPtlBlbTc("002")
                 .repUseYn("Y")
                 .cmmtUseYn("Y")
+                .useYn("Y")
+                .delYn("N")
+                .build();
+    }
+
+    private Cblbmm scheduleBoard() {
+        return Cblbmm.builder()
+                .blbMngNo("BLBM-2026-0031")
+                .blbNm("일정")
+                .itPtlBlbTc("003")
+                .repUseYn("N")
+                .cmmtUseYn("N")
                 .useYn("Y")
                 .delYn("N")
                 .build();

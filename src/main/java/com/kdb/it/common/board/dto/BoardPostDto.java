@@ -350,6 +350,13 @@ public class BoardPostDto {
     @NoArgsConstructor
     @Schema(name = "BoardPostSearchCondition", description = "게시물 목록 검색 조건")
     public static class SearchCondition {
+        @Schema(hidden = true)
+        private boolean ignorePublicationPeriod;
+
+        public void ignorePublicationPeriod() {
+            this.ignorePublicationPeriod = true;
+        }
+
         @Schema(description = "키워드 (제목/본문/작성자 LIKE)")
         private String keyword;
 

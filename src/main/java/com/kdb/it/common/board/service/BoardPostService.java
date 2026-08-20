@@ -36,6 +36,7 @@ import org.springframework.util.StringUtils;
 public class BoardPostService {
 
     private static final Logger log = LoggerFactory.getLogger(BoardPostService.class);
+    private static final String SCHEDULE_BOARD_TYPE = "003";
 
     private final BoardMetaRepository metaRepository;
     private final BoardPostRepository postRepository;
@@ -55,8 +56,11 @@ public class BoardPostService {
     public Page<BoardPostDto.ListItem> searchPosts(
             String blbMngNo, BoardPostDto.SearchCondition cond, CustomUserDetails user) {
 
-        findUserActiveBoard(blbMngNo); // 사용 중인 게시판만 사용자 목록 조회 허용
+        Cblbmm board = findUserActiveBoard(blbMngNo); // 사용 중인 게시판만 사용자 목록 조회 허용
         validateSearchCondition(cond);
+        if (SCHEDULE_BOARD_TYPE.equals(board.getItPtlBlbTc())) {
+            cond.ignorePublicationPeriod();
+        }
 
         return postRepository
                 .searchPostRows(blbMngNo, cond, user.isAdmin())
@@ -119,6 +123,7 @@ public class BoardPostService {
         Cblbmm board = findUserActiveBoard(blbMngNo);
         verifyCanWrite(user, board);
         verifyBbrC(user, request.getBbrC());
+        validateSchedulePeriod(board, request.getSttYmd(), request.getEndYmd());
 
         String sanitizedCone = HtmlSanitizer.sanitize(request.getNacCone());
         Long seq = postRepository.getNextSequenceValue();
@@ -165,10 +170,11 @@ public class BoardPostService {
             BoardPostDto.UpdateRequest request,
             CustomUserDetails user) {
 
-        findUserActiveBoard(blbMngNo);
+        Cblbmm board = findUserActiveBoard(blbMngNo);
         Cblbcm post = findPostInBoardForUpdate(blbMngNo, nacMngNo);
         verifyCanModify(user, post);
         verifyBbrC(user, request.getBbrC());
+        validateSchedulePeriod(board, request.getSttYmd(), request.getEndYmd());
 
         String sanitizedCone = HtmlSanitizer.sanitize(request.getNacCone());
         post.update(request.toUpdateCommand(sanitizedCone));
@@ -353,10 +359,13 @@ public class BoardPostService {
         if (user.isAdmin()) return;
 
         LocalDate today = LocalDate.now();
+        boolean checkPublicationPeriod = !SCHEDULE_BOARD_TYPE.equals(board.getItPtlBlbTc());
         boolean visible =
                 "Y".equals(post.getXpoYn())
-                        && (post.getSttDt() == null || !post.getSttDt().isAfter(today))
-                        && (post.getEndDt() == null || !post.getEndDt().isBefore(today));
+                        && (!checkPublicationPeriod
+                                || ((post.getSttDt() == null || !post.getSttDt().isAfter(today))
+                                        && (post.getEndDt() == null
+                                                || !post.getEndDt().isBefore(today))));
 
         if (!visible) {
             throw new CustomGeneralException("게시물에 접근할 권한이 없습니다.");
@@ -407,6 +416,16 @@ public class BoardPostService {
         }
         if (StringUtils.hasText(cond.getKeyword()) && cond.getKeyword().trim().length() < 2) {
             throw new CustomGeneralException("검색어는 2자 이상 입력하세요.");
+        }
+    }
+
+    private void validateSchedulePeriod(Cblbmm board, LocalDate startDate, LocalDate endDate) {
+        if (!SCHEDULE_BOARD_TYPE.equals(board.getItPtlBlbTc())) return;
+        if (startDate == null || endDate == null) {
+            throw new CustomGeneralException("일정 게시판은 시작일자와 종료일자를 모두 입력해야 합니다.");
+        }
+        if (endDate.isBefore(startDate)) {
+            throw new CustomGeneralException("종료일자는 시작일자보다 빠를 수 없습니다.");
         }
     }
 

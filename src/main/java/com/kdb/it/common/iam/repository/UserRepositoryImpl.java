@@ -9,6 +9,8 @@ import com.kdb.it.common.iam.entity.QCuserI;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDateTime;
@@ -172,7 +174,10 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
     public List<UserDto.ListRow> findListRowsByBbrC(String bbrC) {
         QCuserI user = QCuserI.cuserI;
         QCorgnI organization = new QCorgnI("listOrganization");
-        return selectListRows(user, organization).where(user.bbrC.eq(bbrC)).fetch();
+        return selectListRows(user, organization)
+                .where(user.bbrC.eq(bbrC))
+                .orderBy(employeeDisplayOrder(user))
+                .fetch();
     }
 
     @Override
@@ -186,8 +191,9 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
                                 .containsIgnoreCase(keyword)
                                 .or(user.temNm.containsIgnoreCase(keyword))
                                 .or(user.eno.containsIgnoreCase(keyword)))
-                // 전체 조직이 대상이므로 표시 순서를 고정하고 반환 건수를 제한한다
-                .orderBy(user.usrNm.asc(), user.eno.asc())
+                // 전체 조직이 대상이므로 표시 순서를 고정하고 반환 건수를 제한한다.
+                // 정렬이 상한 절단보다 먼저 적용되므로 K 행번과 상위 직위가 먼저 살아남는다.
+                .orderBy(employeeDisplayOrder(user))
                 .limit(limit)
                 .fetch();
     }
@@ -259,6 +265,31 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
                 .from(user)
                 .leftJoin(organization)
                 .on(organization.prlmOgzCCone.eq(user.bbrC));
+    }
+
+    /**
+     * 직원 목록(직원 검색 다이얼로그·자동완성)의 표시 정렬 순서를 만듭니다.
+     *
+     * <p>우선순위: ① K로 시작하는 행번({@code ENO}) 우선(K*** &gt; O***) → ② 직위코드({@code PT_C}) 오름차순 → ③ 사용자명·행번
+     * 오름차순. ③은 동순위 결과의 표시 순서를 고정하기 위한 보조 키입니다.
+     *
+     * <p>직위코드가 없는 사용자는 같은 행번 그룹의 마지막에 표시합니다.
+     *
+     * @param user 사용자 Q 타입
+     * @return 표시 정렬 OrderSpecifier 배열
+     */
+    private OrderSpecifier<?>[] employeeDisplayOrder(QCuserI user) {
+        return new OrderSpecifier<?>[] {
+            enoPrefixPriority(user).asc(),
+            user.ptC.asc().nullsLast(),
+            user.usrNm.asc(),
+            user.eno.asc()
+        };
+    }
+
+    /** K로 시작하는 행번을 0, 그 외(O 행번 등)를 1로 매겨 K 행번을 앞세우는 정렬 키를 만듭니다. */
+    private NumberExpression<Integer> enoPrefixPriority(QCuserI user) {
+        return new CaseBuilder().when(user.eno.startsWith("K")).then(0).otherwise(1);
     }
 
     /**

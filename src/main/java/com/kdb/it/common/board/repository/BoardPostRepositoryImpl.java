@@ -116,10 +116,12 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
         builder.and(p.delYn.eq("N"));
 
         if (!isAdmin || cond.isPublicOnly()) {
-            LocalDate today = LocalDate.now();
             builder.and(p.xpoYn.eq("Y"));
-            builder.and(p.sttDt.isNull().or(p.sttDt.loe(today)));
-            builder.and(p.endDt.isNull().or(p.endDt.goe(today)));
+            if (!cond.isIgnorePublicationPeriod()) {
+                LocalDate today = LocalDate.now();
+                builder.and(p.sttDt.isNull().or(p.sttDt.loe(today)));
+                builder.and(p.endDt.isNull().or(p.endDt.goe(today)));
+            }
         }
 
         if (StringUtils.hasText(cond.getKeyword())) {

@@ -196,7 +196,7 @@ public class ApprovalMailRenderer {
                 + "\" style=\"display:inline-block;background:"
                 + MailHtml.PRIMARY
                 + ";color:#fff;text-decoration:none;font-size:13px;font-weight:600;"
-                + "padding:8px 14px;border-radius:4px;\">신청서 상세 보기 ↗</a></div>";
+                + "padding:8px 14px;border-radius:4px;\">결재하러 가기 ↗</a></div>";
     }
 
     /** 총괄표 합계 — 항목이 없는 구분은 행을 생략한다. */
