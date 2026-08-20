@@ -7,6 +7,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.kdb.it.common.admin.waslog.config.WasLogProperties;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -65,6 +67,21 @@ class WasLogPeerClientTest {
         assertThatThrownBy(() -> client.fetchSnapshot(PEER_URL, "SVR2", query))
                 .isInstanceOf(WasLogPeerException.class)
                 .hasMessageContaining("SVR2");
+    }
+
+    @Test
+    @DisplayName("2xx인데 본문이 비면 WasLogPeerException을 던진다")
+    void fetchSnapshot_빈본문() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(PEER_URL + "/internal/was-logs/snapshot"))
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        WasLogPeerClient client = new DefaultWasLogPeerClient(builder.build(), properties);
+
+        assertThatThrownBy(() -> client.fetchSnapshot(PEER_URL, "SVR2", query))
+                .isInstanceOf(WasLogPeerException.class)
+                .hasMessageContaining("본문");
     }
 
     @Test

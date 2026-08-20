@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/internal/was-logs")
 @RequiredArgsConstructor
-@ConditionalOnExpression("!'${app.was-log.internal-secret:}'.isEmpty()")
+@ConditionalOnExpression("!'${app.was-log.internal-secret:}'.isBlank()")
 public class WasLogInternalController {
 
     private final WasLogService service;
@@ -40,7 +40,11 @@ public class WasLogInternalController {
     }
 
     private boolean matches(String token) {
-        if (token == null) return false;
+        // 조건식과 이 검사는 같은 값을 서로 다른 경로로 읽는다 — 조건식은 Environment 키를 직접,
+        // 이 필드는 @ConfigurationProperties 완화 바인딩(빈 값을 ""로 보정)을 거친다. 두 경로가
+        // 어긋나 빈 비밀값으로 빈이 등록되면 MessageDigest.isEqual("", "")가 true라 무인증이 된다.
+        // 보안 불변식을 한 경로에만 의존시키지 않는다.
+        if (token == null || properties.internalSecret().isBlank()) return false;
         return MessageDigest.isEqual(
                 token.getBytes(StandardCharsets.UTF_8),
                 properties.internalSecret().getBytes(StandardCharsets.UTF_8));
