@@ -12,9 +12,7 @@ class RequestFormRelativePathTest {
     @Test
     @DisplayName("manifest 경로의 역슬래시를 슬래시 상대경로로 정규화한다")
     void normalize_convertsBackslashesToRelativePath() {
-        assertThat(
-                        RequestFormRelativePath.normalize(
-                                "2026\\IT부(D01)\\01. 사업\\근거.pdf", "근거.pdf"))
+        assertThat(RequestFormRelativePath.normalize("2026\\IT부(D01)\\01. 사업\\근거.pdf", "근거.pdf"))
                 .isEqualTo("2026/IT부(D01)/01. 사업/근거.pdf");
     }
 
@@ -61,15 +59,25 @@ class RequestFormRelativePathTest {
     @Test
     @DisplayName("제어문자와 잘못된 실제 파일명을 거부한다")
     void normalize_rejectsControlCharactersAndUnsafeOriginalFilenames() {
-        assertThatThrownBy(() -> RequestFormRelativePath.normalize("2026/\u0000secret.pdf", "secret.pdf"))
+        assertThatThrownBy(
+                        () ->
+                                RequestFormRelativePath.normalize(
+                                        "2026/\u0000secret.pdf", "secret.pdf"))
                 .isInstanceOf(CustomGeneralException.class);
         assertThatThrownBy(() -> RequestFormRelativePath.normalize("2026/secret.pdf", ""))
                 .isInstanceOf(CustomGeneralException.class);
-        assertThatThrownBy(() -> RequestFormRelativePath.normalize("2026/secret.pdf", "../secret.pdf"))
+        assertThatThrownBy(
+                        () -> RequestFormRelativePath.normalize("2026/secret.pdf", "../secret.pdf"))
                 .isInstanceOf(CustomGeneralException.class);
-        assertThatThrownBy(() -> RequestFormRelativePath.normalize("2026/secret.pdf", "secret/other.pdf"))
+        assertThatThrownBy(
+                        () ->
+                                RequestFormRelativePath.normalize(
+                                        "2026/secret.pdf", "secret/other.pdf"))
                 .isInstanceOf(CustomGeneralException.class);
-        assertThatThrownBy(() -> RequestFormRelativePath.normalize("2026/secret.pdf", "secret\u0000.pdf"))
+        assertThatThrownBy(
+                        () ->
+                                RequestFormRelativePath.normalize(
+                                        "2026/secret.pdf", "secret\u0000.pdf"))
                 .isInstanceOf(CustomGeneralException.class);
     }
 

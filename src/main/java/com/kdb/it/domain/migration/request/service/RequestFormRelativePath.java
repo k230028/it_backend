@@ -69,9 +69,7 @@ public final class RequestFormRelativePath {
     }
 
     private static boolean hasWindowsDrivePrefix(String path) {
-        return path.length() >= 2
-                && Character.isLetter(path.charAt(0))
-                && path.charAt(1) == ':';
+        return path.length() >= 2 && Character.isLetter(path.charAt(0)) && path.charAt(1) == ':';
     }
 
     private static boolean containsControlCharacter(String value) {

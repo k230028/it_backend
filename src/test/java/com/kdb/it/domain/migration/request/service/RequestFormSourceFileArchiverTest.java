@@ -113,17 +113,9 @@ class RequestFormSourceFileArchiverTest {
         List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
                 List.of(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                excel,
-                                "2026/IT부(D01)/01. 사업/요청서.xlsx",
-                                "IT부(D01)",
-                                "D01",
-                                applied),
+                                excel, "2026/IT부(D01)/01. 사업/요청서.xlsx", "IT부(D01)", "D01", applied),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                pdf,
-                                "2026\\IT부(D01)\\01. 사업\\근거.pdf",
-                                "IT부(D01)",
-                                "D01",
-                                null));
+                                pdf, "2026\\IT부(D01)\\01. 사업\\근거.pdf", "IT부(D01)", "D01", null));
         given(fileService.uploadFile(any(), any())).willReturn("FL-EXCEL", "FL-PDF");
 
         archiver.archive(plan);
@@ -138,9 +130,7 @@ class RequestFormSourceFileArchiverTest {
         then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
         assertThat(requestCaptor.getAllValues())
                 .extracting(FileDto.UploadRequest::getRelativePath)
-                .containsExactly(
-                        "2026/IT부(D01)/01. 사업/요청서.xlsx",
-                        "2026/IT부(D01)/01. 사업/증빙.pdf");
+                .containsExactly("2026/IT부(D01)/01. 사업/요청서.xlsx", "2026/IT부(D01)/01. 사업/증빙.pdf");
     }
 
     @Test
@@ -209,11 +199,7 @@ class RequestFormSourceFileArchiverTest {
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
                                 file("요청서.xlsx"), group + "/요청서.xlsx", group, "D01", applied),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
-                                file("산출근거.xlsx"),
-                                group + "/산출근거.xlsx",
-                                group,
-                                "D01",
-                                skipped),
+                                file("산출근거.xlsx"), group + "/산출근거.xlsx", group, "D01", skipped),
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
                                 file("견적.pdf"), group + "/견적.pdf", group, "D01", null));
         given(fileService.uploadFile(any(), any())).willReturn("FL-1", "FL-2", "FL-3");

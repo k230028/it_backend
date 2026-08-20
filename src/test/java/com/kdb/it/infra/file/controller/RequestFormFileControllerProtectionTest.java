@@ -22,7 +22,7 @@ import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.authz.RequestFormFileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
-
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,8 +32,6 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.List;
 
 @WebMvcTest(FileController.class)
 @Import({

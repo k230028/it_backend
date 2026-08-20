@@ -7,15 +7,18 @@ import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import jakarta.validation.Valid;
-
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
-
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -35,11 +38,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
 
 /**
  * 공통첨부파일기본 REST 컨트롤러
@@ -121,6 +119,13 @@ public class FileController {
     @Operation(
             summary = "편성요청서 반입 원본 ZIP 다운로드",
             description = "읽기 권한이 있는 편성요청서 반입 원본 전체 또는 선택 파일을 폴더 구조대로 압축합니다.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "폴더 구조를 유지한 ZIP 파일",
+            content =
+                    @Content(
+                            mediaType = "application/zip",
+                            schema = @Schema(type = "string", format = "binary")))
     public ResponseEntity<StreamingResponseBody> downloadRequestFormSourceArchive(
             @Valid @RequestBody RequestFormSourceArchiveRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {

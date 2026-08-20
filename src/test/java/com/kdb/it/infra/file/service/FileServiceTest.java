@@ -411,8 +411,7 @@ class FileServiceTest {
     }
 
     @Test
-    @DisplayName(
-            "deleteFile: 배너 파일은 generic 삭제 경로에서 지울 수 없다 — /api/banners 창구만 배너를 관리한다")
+    @DisplayName("deleteFile: 배너 파일은 generic 삭제 경로에서 지울 수 없다 — /api/banners 창구만 배너를 관리한다")
     void deleteFile_배너파일_AccessDeniedException발생() {
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
         given(cfilem.getPkColNm()).willReturn("배너");

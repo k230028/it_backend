@@ -141,7 +141,8 @@ public class RequestFormSourceFileArchiver {
     private FileDto.UploadRequest request(String apfMngNo, ArchivePlanItem item) {
         return request(apfMngNo)
                 .relativePath(
-                        RequestFormRelativePath.normalize(item.fileKey(), item.file().getOriginalFilename()))
+                        RequestFormRelativePath.normalize(
+                                item.fileKey(), item.file().getOriginalFilename()))
                 .build();
     }
 

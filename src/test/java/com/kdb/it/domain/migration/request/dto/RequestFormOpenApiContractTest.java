@@ -47,8 +47,11 @@ class RequestFormOpenApiContractTest {
     @Test
     @DisplayName("반입 원본 경로와 선택 파일 목록은 null 허용 OpenAPI 계약을 노출한다")
     void requestFormSourceNullablePropertiesAreExplicit() {
-        assertThat(property(resolve(FileDto.Response.class), "relativePath").getNullable()).isTrue();
-        assertThat(property(resolve(RequestFormSourceArchiveRequest.class), "fileIds").getNullable())
+        assertThat(property(resolve(FileDto.Response.class), "relativePath").getNullable())
+                .isTrue();
+        assertThat(
+                        property(resolve(RequestFormSourceArchiveRequest.class), "fileIds")
+                                .getNullable())
                 .isTrue();
     }
 

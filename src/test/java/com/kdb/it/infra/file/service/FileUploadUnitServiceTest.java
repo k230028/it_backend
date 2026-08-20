@@ -106,7 +106,10 @@ class FileUploadUnitServiceTest {
                         .build();
         MockMultipartFile file =
                 new MockMultipartFile(
-                        "file", "근거.pdf", "application/pdf", "PDF".getBytes(StandardCharsets.UTF_8));
+                        "file",
+                        "근거.pdf",
+                        "application/pdf",
+                        "PDF".getBytes(StandardCharsets.UTF_8));
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
 
         Cfilem saved = fileUploadUnitService.uploadFileInNewTransaction(file, request);
