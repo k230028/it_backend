@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.request.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
@@ -33,12 +35,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -48,6 +52,14 @@ class RequestForm2026SampleSmokeTest {
 
     private static final String SINGLE_RECURRING_SAMPLE_SUFFIX = "자원증설.xls";
 
+    private static final String SAMPLE_LOOKUP_FAILURE = "로컬 샘플 탐색에 실패했습니다";
+
+    private static final String SAMPLE_READ_FAILURE = "로컬 샘플을 읽지 못했습니다";
+
+    private static final String SAMPLE_OPEN_FAILURE = "로컬 샘플 워크북을 열지 못했습니다";
+
+    private static final String SAMPLE_METADATA_FAILURE = "브라우저 샘플 메타데이터가 일치하지 않습니다";
+
     private static final Pattern DEPARTMENT_FOLDER =
             Pattern.compile(".*[(（]\\s*([0-9A-Za-z]{1,100})\\s*[)）]$");
 
@@ -56,29 +68,73 @@ class RequestForm2026SampleSmokeTest {
     private final WorkbookReader reader = new WorkbookReader(10_485_760L, 20, 5000);
 
     @Test
+    @DisplayName("샘플 탐색 실패는 실제 후보 경로를 출력하지 않는다")
+    void sampleLookupFailureDoesNotExposeCandidatePaths(@TempDir Path tempDir) throws IOException {
+        Path first = Files.createDirectories(tempDir.resolve("private-a"));
+        Path second = Files.createDirectories(tempDir.resolve("private-b"));
+        Files.createFile(first.resolve("first-" + SINGLE_RECURRING_SAMPLE_SUFFIX));
+        Files.createFile(second.resolve("second-" + SINGLE_RECURRING_SAMPLE_SUFFIX));
+
+        Throwable failure = catchThrowable(() -> findSingleRecurringSample(tempDir));
+
+        assertThat(failure).isInstanceOf(AssertionError.class);
+        assertThat(failure.getMessage()).isEqualTo(SAMPLE_LOOKUP_FAILURE);
+        assertThat(failure.getCause()).isNull();
+    }
+
+    @Test
+    @DisplayName("샘플 읽기 실패는 실제 파일 경로를 출력하지 않는다")
+    void sampleReadFailureDoesNotExposeFilePath(@TempDir Path tempDir) {
+        Path missing = tempDir.resolve("private-folder").resolve("private-file.xls");
+
+        Throwable failure = catchThrowable(() -> readSampleBytes(missing));
+
+        assertThat(failure).isInstanceOf(AssertionError.class);
+        assertThat(failure.getMessage()).isEqualTo(SAMPLE_READ_FAILURE);
+        assertThat(failure.getCause()).isNull();
+    }
+
+    @Test
+    @DisplayName("워크북 열기 실패는 실제 파일 경로를 출력하지 않는다")
+    void sampleOpenFailureDoesNotExposeFilePath(@TempDir Path tempDir) throws IOException {
+        Path malformed = Files.write(tempDir.resolve("private-file.xls"), new byte[] {1, 2, 3});
+
+        Throwable failure = catchThrowable(() -> classifySample(tempDir, malformed));
+
+        assertThat(failure).isInstanceOf(AssertionError.class);
+        assertThat(failure.getMessage()).isEqualTo(SAMPLE_OPEN_FAILURE);
+        assertThat(failure.getCause()).isNull();
+    }
+
+    @Test
+    @DisplayName("메타데이터 비교 실패는 실제 값과 기대 값을 출력하지 않는다")
+    void metadataMismatchDoesNotExposeComparedValues() {
+        String actual = "private-root/private-dept/private-file.xls";
+        String expected = "other-root/other-dept/other-file.xls";
+
+        Throwable failure =
+                catchThrowable(
+                        () -> assertSanitizedMatch(actual, expected, SAMPLE_METADATA_FAILURE));
+
+        assertThat(failure).isInstanceOf(AssertionError.class);
+        assertThat(failure.getMessage()).isEqualTo(SAMPLE_METADATA_FAILURE);
+        assertThat(failure.getCause()).isNull();
+    }
+
+    @Test
     @DisplayName("2026 샘플 Excel을 모두 열고 요청서와 증빙을 기존 개수로 분류한다")
     void opensAndClassifiesSample2026() throws IOException {
         Path sampleRoot = sampleRoot();
         Assumptions.assumeTrue(Files.isDirectory(sampleRoot), "로컬 2026 샘플이 없어 건너뜁니다");
 
-        List<Path> excelFiles;
-        try (var paths = Files.walk(sampleRoot)) {
-            excelFiles =
-                    paths.filter(Files::isRegularFile)
-                            .filter(RequestForm2026SampleSmokeTest::isExcel)
-                            .sorted()
-                            .toList();
-        }
+        List<Path> excelFiles = findExcelSamples(sampleRoot);
 
         int requestForms = 0;
         for (Path path : excelFiles) {
-            String fileKey = sampleRoot.relativize(path).toString().replace('\\', '/');
-            try (Workbook workbook = reader.open(Files.readAllBytes(path), fileKey)) {
-                if (!reader.classify(workbook).isEmpty()) requestForms++;
-            }
+            if (classifySample(sampleRoot, path)) requestForms++;
         }
 
-        assertThat(excelFiles).hasSize(44);
+        assertThat(excelFiles.size()).isEqualTo(44);
         assertThat(requestForms).isEqualTo(32);
         assertThat(excelFiles.size() - requestForms).isEqualTo(12);
     }
@@ -91,7 +147,9 @@ class RequestForm2026SampleSmokeTest {
         String fileKey = browserFileKey(root, sample);
         String deptName = browserDepartmentFolder(fileKey);
         String archiveGroupKey = browserArchiveGroupKey(fileKey);
-        assertThat(RequestFormArchiveGroup.keyOf(fileKey)).isEqualTo(archiveGroupKey).isNotBlank();
+        assertSanitizedMatch(
+                RequestFormArchiveGroup.keyOf(fileKey), archiveGroupKey, SAMPLE_METADATA_FAILURE);
+        assertThat(archiveGroupKey.isBlank()).as(SAMPLE_METADATA_FAILURE).isFalse();
 
         SheetAnchorScanner scanner = new SheetAnchorScanner();
         FormLabelReader labelReader = new FormLabelReader(scanner);
@@ -152,45 +210,57 @@ class RequestForm2026SampleSmokeTest {
                         List.of(
                                 new MockMultipartFile(
                                         "files",
-                                        sample.getFileName().toString(),
+                                        "sample.xls",
                                         "application/vnd.ms-excel",
-                                        Files.readAllBytes(sample))),
+                                        readSampleBytes(sample))),
                         new RequestFormDto.ImportManifest("2026", List.of(entry), List.of()),
                         "00000000",
                         true);
 
         RequestFormDto.FileResult result = response.files().get(0);
-        assertThat(result.fileKey()).isEqualTo(fileKey);
-        assertThat(result.deptName()).isEqualTo(deptName);
+        assertSanitizedMatch(result.fileKey(), fileKey, SAMPLE_METADATA_FAILURE);
+        assertSanitizedMatch(result.deptName(), deptName, SAMPLE_METADATA_FAILURE);
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
-        assertThat(result.diagnostics())
-                .noneMatch(
-                        diagnostic ->
-                                diagnostic.code() == RequestFormDiagnosticCode.FILE_UNREADABLE);
+        assertThat(
+                        result.diagnostics().stream()
+                                .noneMatch(
+                                        diagnostic ->
+                                                diagnostic.code()
+                                                        == RequestFormDiagnosticCode
+                                                                .FILE_UNREADABLE))
+                .as("FILE_UNREADABLE 진단이 없어야 합니다")
+                .isTrue();
         assertThat(result.counts().recurringProjects()).isEqualTo(1);
         assertThat(response.summary().appliedFiles()).isEqualTo(1);
         assertThat(response.summary().blockedFiles()).isZero();
-        verify(orgIndex).resolveOrgFolder(deptName);
+        ArgumentCaptor<String> deptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(orgIndex).resolveOrgFolder(deptCaptor.capture());
+        assertSanitizedMatch(deptCaptor.getValue(), deptName, SAMPLE_METADATA_FAILURE);
         ArgumentCaptor<FormAdapterOutput> outputCaptor =
                 ArgumentCaptor.forClass(FormAdapterOutput.class);
         verify(fileImporter).preview(outputCaptor.capture(), any(), anyString());
-        assertThat(outputCaptor.getValue().projects()).singleElement();
-        assertThat(outputCaptor.getValue().projects().get(0).getItems())
-                .hasSize(2)
-                .allSatisfy(
-                        item -> {
-                            assertThat(item.getGclNm()).isNotBlank();
-                            assertThat(item.getQty()).isPositive();
-                        });
+        assertThat(outputCaptor.getValue().projects().size()).isEqualTo(1);
+        List<ProjectDto.BitemmDto> items = outputCaptor.getValue().projects().get(0).getItems();
+        assertThat(items.size()).isEqualTo(2);
+        assertThat(
+                        items.stream()
+                                .allMatch(
+                                        item ->
+                                                item.getGclNm() != null
+                                                        && !item.getGclNm().isBlank()
+                                                        && item.getQty() != null
+                                                        && item.getQty().signum() > 0))
+                .as("품목 이름과 수량이 모두 유효해야 합니다")
+                .isTrue();
     }
 
     /** 실제 경로는 소스에 남기지 않고 파일명의 최소 suffix로 대상 한 건을 찾습니다. */
     private static Path findSingleRecurringSample(Path root) throws IOException {
         Assumptions.assumeTrue(Files.isDirectory(root), "로컬 2026 샘플이 없어 건너뜁니다");
         List<Path> matches;
-        try (var paths = Files.walk(root)) {
+        try {
             matches =
-                    paths.filter(Files::isRegularFile)
+                    findRegularFiles(root).stream()
                             .filter(
                                     path ->
                                             path.getFileName()
@@ -201,10 +271,60 @@ class RequestForm2026SampleSmokeTest {
                                                                     .toLowerCase(Locale.ROOT)))
                             .sorted()
                             .toList();
+        } catch (RuntimeException failure) {
+            throw sanitizedFailure(SAMPLE_LOOKUP_FAILURE);
         }
         Assumptions.assumeFalse(matches.isEmpty(), "로컬 단건 샘플이 없어 건너뜁니다");
-        assertThat(matches.size()).as("단건 샘플 suffix는 유일해야 합니다").isEqualTo(1);
+        if (matches.size() != 1) throw sanitizedFailure(SAMPLE_LOOKUP_FAILURE);
         return matches.get(0);
+    }
+
+    private static List<Path> findExcelSamples(Path root) {
+        try {
+            return findRegularFiles(root).stream()
+                    .filter(RequestForm2026SampleSmokeTest::isExcel)
+                    .sorted()
+                    .toList();
+        } catch (RuntimeException failure) {
+            throw sanitizedFailure(SAMPLE_LOOKUP_FAILURE);
+        }
+    }
+
+    private static List<Path> findRegularFiles(Path root) {
+        try (var paths = Files.walk(root)) {
+            return paths.filter(Files::isRegularFile).toList();
+        } catch (IOException | RuntimeException failure) {
+            throw sanitizedFailure(SAMPLE_LOOKUP_FAILURE);
+        }
+    }
+
+    private static byte[] readSampleBytes(Path sample) {
+        try {
+            return Files.readAllBytes(sample);
+        } catch (IOException | RuntimeException failure) {
+            throw sanitizedFailure(SAMPLE_READ_FAILURE);
+        }
+    }
+
+    private boolean classifySample(Path root, Path sample) {
+        try {
+            String fileKey = root.relativize(sample).toString().replace('\\', '/');
+            try (Workbook workbook = reader.open(readSampleBytes(sample), fileKey)) {
+                return !reader.classify(workbook).isEmpty();
+            }
+        } catch (AssertionError failure) {
+            throw failure;
+        } catch (IOException | RuntimeException failure) {
+            throw sanitizedFailure(SAMPLE_OPEN_FAILURE);
+        }
+    }
+
+    private static void assertSanitizedMatch(String actual, String expected, String message) {
+        if (!Objects.equals(actual, expected)) throw sanitizedFailure(message);
+    }
+
+    private static AssertionError sanitizedFailure(String message) {
+        return new AssertionError(message);
     }
 
     /** `webkitdirectory`가 선택한 최상위 폴더명을 포함하는 브라우저 상대경로를 만듭니다. */

@@ -71,6 +71,9 @@ class RecurringProjectFormAdapterTest {
                 .hasSize(2)
                 .extracting(ProjectDto.BitemmDto::getQty)
                 .containsExactly(new BigDecimal("3"), new BigDecimal("2"));
+        assertThat(output.projects().get(0).getItems())
+                .extracting(ProjectDto.BitemmDto::getIoeC)
+                .containsExactly("102", "102");
     }
 
     @Test

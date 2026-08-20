@@ -57,7 +57,7 @@ public final class RequestFormFixtures {
         }
     }
 
-    /** 경상사업 한 건과 같은 비목의 소요자원 여러 행을 담은 비식별 .xls. */
+    /** 경상사업 한 건과 병합된 같은 비목의 소요자원 여러 행을 담은 비식별 .xls. */
     public static byte[] singleRecurringMultiItemXls() {
         try (Workbook wb = new HSSFWorkbook()) {
             Sheet s = wb.createSheet("② (경상사업) 2. 경상적인 사업");
@@ -65,6 +65,7 @@ public final class RequestFormFixtures {
             put(s, 2, 0, "사업명");
             s.addMergedRegion(new CellRangeAddress(2, 2, 0, 1));
             put(s, 2, 2, "단일 서버 교체");
+            s.addMergedRegion(new CellRangeAddress(2, 2, 2, 9));
 
             put(s, 7, 0, "구분");
             put(s, 7, 2, "항목");
@@ -84,6 +85,10 @@ public final class RequestFormFixtures {
             putNumber(s, 8, 7, 300);
             put(s, 8, 8, "2월");
             put(s, 8, 9, "내부 교체 기준");
+
+            // 실제 단건 양식처럼 사업 구분은 두 품목 행에 걸쳐 병합되고, 둘째 행의
+            // 반복 비목 셀은 비어 있다. reader가 앞 행의 비목을 이어받아야 한다.
+            s.addMergedRegion(new CellRangeAddress(8, 9, 0, 0));
 
             put(s, 9, 2, "백업 서버");
             putNumber(s, 9, 4, 2);
