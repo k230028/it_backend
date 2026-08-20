@@ -93,6 +93,7 @@ public class FileUploadUnitService {
                         .flKpnPth(flKpnPth)
                         .flTpCone(request.getFlTpCone())
                         .apgFlSz(file.getSize())
+                        .apgFlPth(request.getRelativePath())
                         .pkCone(request.getPkCone())
                         .pkColNm(request.getPkColNm())
                         .build();
@@ -124,6 +125,7 @@ public class FileUploadUnitService {
                         .flKpnPth(source.getFlKpnPth())
                         .flTpCone(request.getFlTpCone())
                         .apgFlSz(source.getApgFlSz())
+                        .apgFlPth(source.getApgFlPth())
                         .pkCone(request.getPkCone())
                         .pkColNm(request.getPkColNm())
                         .build();
