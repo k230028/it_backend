@@ -36,4 +36,11 @@ public final class UserNameResolver {
         String trimmed = storedValue.trim();
         return NON_ASCII.matcher(trimmed).find() ? trimmed : null;
     }
+
+    /** 저장값이 사번이 아니라 이름인지 판정합니다. */
+    public static boolean isStoredName(String storedValue, String lookedUpName) {
+        return (lookedUpName == null || lookedUpName.isBlank())
+                && storedValue != null
+                && NON_ASCII.matcher(storedValue.trim()).find();
+    }
 }

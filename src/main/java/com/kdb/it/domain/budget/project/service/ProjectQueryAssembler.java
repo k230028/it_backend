@@ -176,11 +176,23 @@ public class ProjectQueryAssembler {
                     .findNameViewByPrlmOgzCCone(response.getSvnDpmC())
                     .ifPresent(view -> response.setSvnDpmCNm(view.getBbrNm()));
         }
-        applyUserName(response.getDvmUsid(), response::setDvmUsidNm, response::setDvmUsidPtCNm);
-        applyUserName(response.getTlrUsid(), response::setTlrUsidNm, response::setTlrUsidPtCNm);
-        applyUserName(response.getUsid(), response::setUsidNm, response::setUsidPtCNm);
         applyUserName(
-                response.getDvmTlrUsid(), response::setDvmTlrUsidNm, response::setDvmTlrUsidPtCNm);
+                response.getDvmUsid(),
+                response::setDvmUsid,
+                response::setDvmUsidNm,
+                response::setDvmUsidPtCNm);
+        applyUserName(
+                response.getTlrUsid(),
+                response::setTlrUsid,
+                response::setTlrUsidNm,
+                response::setTlrUsidPtCNm);
+        applyUserName(
+                response.getUsid(), response::setUsid, response::setUsidNm, response::setUsidPtCNm);
+        applyUserName(
+                response.getDvmTlrUsid(),
+                response::setDvmTlrUsid,
+                response::setDvmTlrUsidNm,
+                response::setDvmTlrUsidPtCNm);
         response.setBzTpCNm(response.getBzTpC());
         response.setBzDttNmNm(response.getBzDttNm());
         response.setSklTpTcNm(response.getSklTpTc());
@@ -199,7 +211,10 @@ public class ProjectQueryAssembler {
      * 사용자 조회가 성공한 경우에만 채웁니다.
      */
     private void applyUserName(
-            String userId, Consumer<String> nameSetter, Consumer<String> positionSetter) {
+            String userId,
+            Consumer<String> idSetter,
+            Consumer<String> nameSetter,
+            Consumer<String> positionSetter) {
         if (!hasText(userId)) {
             return;
         }
@@ -208,6 +223,9 @@ public class ProjectQueryAssembler {
             positionSetter.accept(view.getPtCNm());
         }
         nameSetter.accept(UserNameResolver.resolve(userId, view == null ? null : view.getUsrNm()));
+        if (UserNameResolver.isStoredName(userId, view == null ? null : view.getUsrNm())) {
+            idSetter.accept(null);
+        }
     }
 
     private void applyCodeName(String group, String value, Consumer<String> setter) {

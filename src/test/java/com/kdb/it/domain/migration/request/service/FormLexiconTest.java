@@ -82,6 +82,7 @@ class FormLexiconTest {
         assertThat(FormLexicon.canonicalIoeName("Foreign branch IT maintenance fees"))
                 .isEqualTo("국외유지보수료");
         assertThat(FormLexicon.canonicalIoeName("IT Expenses")).isEqualTo("전산제비");
+        assertThat(FormLexicon.canonicalIoeName("유지보수")).isEqualTo("유지보수료");
     }
 
     @Test

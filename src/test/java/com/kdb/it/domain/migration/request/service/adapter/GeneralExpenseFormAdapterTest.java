@@ -90,6 +90,30 @@ class GeneralExpenseFormAdapterTest {
         }
     }
 
+    private static byte[] withGeneralExpenseValues(
+            String unitLabel, Double monthly, Double annual) {
+        return withGeneralExpenseValues(unitLabel, monthly, annual, null);
+    }
+
+    private static byte[] withGeneralExpenseValues(
+            String unitLabel, Double monthly, Double annual, Double secondAnnual) {
+        try (var input = new ByteArrayInputStream(RequestFormFixtures.fullFormXls());
+                var workbook = WorkbookFactory.create(input);
+                var output = new ByteArrayOutputStream()) {
+            var sheet = workbook.getSheetAt(3);
+            sheet.getRow(0).createCell(8).setCellValue(unitLabel);
+            if (monthly == null) sheet.getRow(5).getCell(4).setBlank();
+            else sheet.getRow(5).getCell(4).setCellValue(monthly);
+            if (annual == null) sheet.getRow(5).getCell(5).setBlank();
+            else sheet.getRow(5).getCell(5).setCellValue(annual);
+            if (secondAnnual != null) sheet.getRow(6).getCell(5).setCellValue(secondAnnual);
+            workbook.write(output);
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("테스트 통합문서 생성 실패", e);
+        }
+    }
+
     private FormAdapterContext contextOf(
             byte[] workbookBytes, AmountUnit unit, Map<String, String> overrides) {
         return contextOf(workbookBytes, unit, overrides, "0210");
@@ -293,13 +317,13 @@ class GeneralExpenseFormAdapterTest {
     }
 
     @Test
-    @DisplayName("지정 배수를 원화 행에만 적용한다")
+    @DisplayName("지정 배수를 원화 행에 적용한 뒤 전산제비 상한을 보정한다")
     void appliesMultiplierToKrwRowsOnly() {
         FormAdapterOutput thousand =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.THOUSAND));
 
         assertThat(thousand.costs().get(0).getCostTotXpAmt())
-                .isEqualByComparingTo(new BigDecimal("841854085000"));
+                .isEqualByComparingTo(new BigDecimal("841854085"));
     }
 
     @Test
@@ -312,6 +336,94 @@ class GeneralExpenseFormAdapterTest {
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .contains(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
+    }
+
+    @Test
+    @DisplayName("시트에 천원 단위가 명시되면 금액 크기 추정보다 우선한다")
+    void explicitThousandUnitWinsOverSuggestion() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(withGeneralExpenseValues("단위: KRW 천원", 10d, 841_854d, 1d), null));
+
+        assertThat(output.suggestedGeneralExpenseUnit()).isEqualTo(AmountUnit.THOUSAND);
+        assertThat(output.costs().get(0).getCostTotXpAmt())
+                .isEqualByComparingTo(new BigDecimal("841854000"));
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
+    }
+
+    @Test
+    @DisplayName("전산제비 한 건이 100억원을 초과하면 적용 단위를 1천분의 1로 보정한다")
+    void scalesDownGeneralItExpenseOverTenBillionWon() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(withGeneralExpenseValues("단위: KRW 천원", null, 10_000_001d), null));
+
+        assertThat(output.costs().get(0).getCostTotXpAmt())
+                .isEqualByComparingTo(new BigDecimal("10000001"));
+        assertThat(output.diagnostics())
+                .filteredOn(
+                        d ->
+                                d.code() == RequestFormDiagnosticCode.SUBSTITUTE_DROPPED
+                                        && Integer.valueOf(6).equals(d.excelRow()))
+                .singleElement()
+                .satisfies(d -> assertThat(d.excelRow()).isEqualTo(6));
+    }
+
+    @Test
+    @DisplayName("전산제비 한 건에서 감지한 단위 오타를 같은 시트의 모든 원화 행에 적용한다")
+    void scalesDownAllKrwRowsWhenOneGeneralItExpenseExceedsLimit() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                withGeneralExpenseValues(
+                                        "단위: KRW 천원", null, 10_000_001d, 1_000_000d),
+                                null));
+
+        assertThat(output.costs())
+                .extracting(CostDto.CreateRequest::getCostTotXpAmt)
+                .containsExactly(new BigDecimal("10000001"), new BigDecimal("1000000"));
+    }
+
+    @Test
+    @DisplayName("전산제비 한 건이 정확히 100억원이면 금액을 보정하지 않는다")
+    void keepsGeneralItExpenseAtTenBillionWon() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                withGeneralExpenseValues("단위: KRW 천원", null, 10_000_000d, 1d),
+                                null));
+
+        assertThat(output.costs().get(0).getCostTotXpAmt())
+                .isEqualByComparingTo(new BigDecimal("10000000000"));
+        assertThat(output.diagnostics())
+                .filteredOn(d -> Integer.valueOf(6).equals(d.excelRow()))
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
+    }
+
+    @Test
+    @DisplayName("전산제비가 아닌 일반관리비는 100억원을 초과해도 보정하지 않는다")
+    void keepsOtherExpenseOverTenBillionWon() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseIoeBranchesXls(),
+                                AmountUnit.THOUSAND));
+
+        assertThat(output.costs().get(0).getCostTotXpAmt())
+                .isEqualByComparingTo(new BigDecimal("120000000000"));
+    }
+
+    @Test
+    @DisplayName("연간 금액이 비면 월간 금액을 사용한다")
+    void usesMonthlyAmountWhenAnnualIsBlank() {
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(withGeneralExpenseValues("단위: 원", 123_456d, null), null));
+
+        assertThat(output.costs().get(0).getCostTotXpAmt())
+                .isEqualByComparingTo(new BigDecimal("123456"));
     }
 
     @Test

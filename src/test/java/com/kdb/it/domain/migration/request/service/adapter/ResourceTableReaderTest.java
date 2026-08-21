@@ -179,6 +179,53 @@ class ResourceTableReaderTest {
         assertThat(gbp.getFcAmt()).isEqualByComparingTo(new BigDecimal("500"));
     }
 
+    @Test
+    @DisplayName("국내 정보화사업의 통화 단위가 비면 KRW 백만원으로 본다")
+    void defaultsBlankDomesticCapitalCurrencyToKrwMillions() {
+        ProjectDto.BitemmDto item =
+                ResourceTableReader.toItem(
+                        row("", new BigDecimal("12.5"), "년"), "101", 1, "2026", true);
+
+        assertThat(item.getCurC()).isEqualTo("KRW");
+        assertThat(item.getAmt()).isEqualByComparingTo(new BigDecimal("12500000"));
+        assertThat(item.getFcAmt()).isNull();
+    }
+
+    @Test
+    @DisplayName("구양식에서 단가가 통화 위치로 읽힌 숫자값은 통화 열 부재로 본다")
+    void defaultsNumericPseudoCapitalCurrencyToKrwMillions() {
+        ProjectDto.BitemmDto item =
+                ResourceTableReader.toItem(
+                        row("100,000", new BigDecimal("12.5"), "년"), "101", 1, "2026", true);
+
+        assertThat(item.getCurC()).isEqualTo("KRW");
+        assertThat(item.getAmt()).isEqualByComparingTo(new BigDecimal("12500000"));
+        assertThat(item.getFcAmt()).isNull();
+    }
+
+    @Test
+    @DisplayName("국내 사업이어도 문자형 통화코드 오기는 KRW로 숨기지 않는다")
+    void leavesInvalidTextCurrencyUnresolved() {
+        ProjectDto.BitemmDto item =
+                ResourceTableReader.toItem(
+                        row("US$", new BigDecimal("12.5"), "년"), "101", 1, "2026", true);
+
+        assertThat(item.getCurC()).isEqualTo("US$");
+        assertThat(item.getAmt()).isNull();
+        assertThat(item.getFcAmt()).isEqualByComparingTo(new BigDecimal("12.5"));
+    }
+
+    @Test
+    @DisplayName("국외지점의 빈 통화 단위에는 국내 기본값을 적용하지 않는다")
+    void leavesBlankForeignBranchCurrencyUnresolved() {
+        ProjectDto.BitemmDto item =
+                ResourceTableReader.toItem(
+                        row("", new BigDecimal("12.5"), "년"), "101", 1, "2026", false);
+
+        assertThat(item.getCurC()).isNull();
+        assertThat(item.getAmt()).isNull();
+    }
+
     private static ProjectDto.BitemmDto toItem(ResourceRow row) {
         return ResourceTableReader.toItem(row, "101", 1, "2026");
     }

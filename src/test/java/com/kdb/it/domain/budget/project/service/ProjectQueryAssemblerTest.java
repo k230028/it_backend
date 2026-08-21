@@ -287,6 +287,18 @@ class ProjectQueryAssemblerTest {
     }
 
     @Test
+    @DisplayName("담당자 이름이 저장된 사업은 이름 필드에 두고 사번 필드를 비운다")
+    void assembleDetail_separatesStoredManagerNameFromEmployeeId() {
+        Bprojm project =
+                Bprojm.builder().abusMngNo("PRJ-NAME-001").sno(1).delYn("N").usid("홍길동").build();
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getUsidNm()).isEqualTo("홍길동");
+        assertThat(result.getUsid()).isNull();
+    }
+
+    @Test
     @DisplayName("상세 조립: 조직·사용자·직위와 공통 코드명을 응답에 반영한다")
     void assembleDetail_조직사용자코드명_반영() {
         Bprojm project =

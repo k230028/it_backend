@@ -48,6 +48,11 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
     /** JPY만 양식이 천엔 단위라 엔으로 폅니다. 그 밖의 외화는 통화 기본 단위 그대로입니다. */
     private static final long JPY_MULTIPLIER = 1_000L;
 
+    /** 전산제비 단일 건의 정상 범위 상한. 초과하면 단위 오기로 보고 1/1000로 보정합니다. */
+    private static final BigDecimal GENERAL_IT_EXPENSE_LIMIT = new BigDecimal("10000000000");
+
+    private static final BigDecimal UNIT_TYPO_DIVISOR = new BigDecimal("1000");
+
     /** 증감사유 물리 컬럼의 최대 길이. */
     private static final int INCREASE_REASON_LIMIT = 200;
 
@@ -94,6 +99,21 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         Map<Integer, String> currencies =
                 resolveCurrencies(rows, context, currencyCandidates, diagnostics);
         AmountUnit unit = resolveUnit(context, rows, currencies, diagnostics);
+        Optional<GeneralExpenseRow> unitTypoSource =
+                rows.stream()
+                        .filter(row -> "KRW".equals(currencies.get(row.excelRow())))
+                        .filter(row -> isOversizedGeneralItExpense(row, unit.toWon(amountOf(row))))
+                        .findFirst();
+        boolean adjustSheetUnit = unitTypoSource.isPresent();
+        unitTypoSource.ifPresent(
+                row ->
+                        diagnostics.add(
+                                diagnostic(
+                                        row,
+                                        "costTotXpAmt",
+                                        RequestFormDiagnosticCode.SUBSTITUTE_DROPPED,
+                                        "전산제비 단일 건이 100억원을 초과하여 금액 단위 오타로 보고 같은 시트의 모든 원화 행을 1/1000로 보정했습니다.",
+                                        List.of())));
         String responsible =
                 FormPersonNames.fit(
                         approverReader.author(sheet),
@@ -108,6 +128,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                             context,
                             currencies.get(row.excelRow()),
                             unit,
+                            adjustSheetUnit,
                             responsible,
                             diagnostics));
         }
@@ -177,6 +198,8 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         AmountUnit specified = context.entry().generalExpenseUnit();
         if (specified != null) return specified;
+        AmountUnit declared = declaredUnit(context.sheets().get(FormSheetKind.GENERAL_EXPENSE));
+        if (declared != null) return declared;
 
         List<BigDecimal> krwAmounts = krwAnnualAmounts(rows, currencies);
         // 통화가 미해석인 행은 보정 뒤 원화가 될 수 있다. "원화 행이 없다"고 단정할 수 있는 것은
@@ -198,11 +221,29 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         return suggested;
     }
 
+    /** 시트가 명시한 KRW 금액 단위를 찾습니다. 명시값은 금액 크기 추정보다 우선합니다. */
+    private AmountUnit declaredUnit(Sheet sheet) {
+        int lastRow = Math.min(sheet.getLastRowNum(), 20);
+        for (int row = 0; row <= lastRow; row++) {
+            var current = sheet.getRow(row);
+            if (current == null) continue;
+            for (int column = 0; column < current.getLastCellNum(); column++) {
+                String text = scanner.text(sheet, row, column).replaceAll("\\s+", "");
+                if (!text.contains("단위")) continue;
+                if (text.contains("백만원")) return AmountUnit.MILLION;
+                if (text.contains("천원")) return AmountUnit.THOUSAND;
+                if (text.contains("원")) return AmountUnit.WON;
+            }
+        }
+        return null;
+    }
+
     private CostDto.CreateRequest toCreateRequest(
             GeneralExpenseRow row,
             FormAdapterContext context,
             String currency,
             AmountUnit unit,
+            boolean adjustSheetUnit,
             String responsible,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         CostDto.CreateRequest request = new CostDto.CreateRequest();
@@ -218,7 +259,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         request.setDfrCleC(row.monthly() != null ? CYCLE_MONTHLY : CYCLE_YEARLY);
 
         applyIoe(row, context, request, diagnostics);
-        applyCurrencyAndAmount(row, currency, request, unit);
+        applyCurrencyAndAmount(row, currency, request, unit, adjustSheetUnit);
         applyFlags(row, request, diagnostics);
         return request;
     }
@@ -340,23 +381,38 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             GeneralExpenseRow row,
             String currency,
             CostDto.CreateRequest request,
-            AmountUnit unit) {
+            AmountUnit unit,
+            boolean adjustSheetUnit) {
         if (currency == null) return;
         request.setCurC(currency);
-        if (row.annual() == null) return;
+        BigDecimal amount = row.annual() != null ? row.annual() : row.monthly();
+        if (amount == null) return;
 
         if ("KRW".equals(currency)) {
-            request.setCostTotXpAmt(unit.toWon(row.annual()));
+            BigDecimal won = unit.toWon(amount);
+            if (adjustSheetUnit) won = won.divide(UNIT_TYPO_DIVISOR);
+            request.setCostTotXpAmt(won);
             request.setFcAmt(null);
             return;
         }
         BigDecimal foreignAmount =
                 "JPY".equals(currency)
-                        ? row.annual().multiply(BigDecimal.valueOf(JPY_MULTIPLIER))
-                        : row.annual();
+                        ? amount.multiply(BigDecimal.valueOf(JPY_MULTIPLIER))
+                        : amount;
         request.setFcAmt(foreignAmount);
         request.setCostTotXpAmt(null);
         request.setXcr(null);
+    }
+
+    private static boolean isOversizedGeneralItExpense(GeneralExpenseRow row, BigDecimal won) {
+        if (won == null) return false;
+        String expense =
+                SheetAnchorScanner.normalize(FormLexicon.canonicalIoeName(row.midCategory()));
+        return "전산제비".equals(expense) && won.compareTo(GENERAL_IT_EXPENSE_LIMIT) > 0;
+    }
+
+    private static BigDecimal amountOf(GeneralExpenseRow row) {
+        return row.annual() != null ? row.annual() : row.monthly();
     }
 
     private void applyFlags(
@@ -400,8 +456,9 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             List<GeneralExpenseRow> rows, Map<Integer, String> currencies) {
         List<BigDecimal> amounts = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
-            if ("KRW".equals(currencies.get(row.excelRow())) && row.annual() != null) {
-                amounts.add(row.annual());
+            if ("KRW".equals(currencies.get(row.excelRow()))) {
+                BigDecimal amount = row.annual() != null ? row.annual() : row.monthly();
+                if (amount != null) amounts.add(amount);
             }
         }
         return amounts;

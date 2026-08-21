@@ -11,6 +11,7 @@ import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.CodeNameMapBuilder;
+import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
@@ -242,7 +243,10 @@ public class CostQueryAssembler {
                 cost.getSvnTemNm() != null
                         ? cost.getSvnTemNm()
                         : mapValue(data.organizationNames(), response.getSvnTemC()));
-        response.setCgprNm(mapValue(data.userNames(), response.getCgprId()));
+        String managerId = response.getCgprId();
+        String managerName = mapValue(data.userNames(), managerId);
+        response.setCgprNm(UserNameResolver.resolve(managerId, managerName));
+        if (UserNameResolver.isStoredName(managerId, managerName)) response.setCgprId(null);
         response.setCgprPtCNm(mapValue(data.positions(), response.getCgprId()));
         response.setBgUntAbusCNm(mapValue(data.businessUnitNames(), response.getBgUntAbusC()));
         response.setDfrCleCNm(mapValue(data.paymentNames(), response.getDfrCleC()));
@@ -277,13 +281,18 @@ public class CostQueryAssembler {
                     .ifPresent(value -> response.setSvnTemNm(value.getBbrNm()));
         }
         if (hasText(response.getCgprId())) {
+            String managerId = response.getCgprId();
             userRepository
-                    .findNameViewByEno(response.getCgprId())
+                    .findNameViewByEno(managerId)
                     .ifPresent(
                             value -> {
                                 response.setCgprNm(value.getUsrNm());
                                 response.setCgprPtCNm(value.getPtCNm());
                             });
+            if (response.getCgprNm() == null) {
+                response.setCgprNm(UserNameResolver.resolve(managerId, null));
+                if (UserNameResolver.isStoredName(managerId, null)) response.setCgprId(null);
+            }
         }
         applyCodeName(
                 CommonCodeGroups.ABUS_UNIT, response.getBgUntAbusC(), response::setBgUntAbusCNm);

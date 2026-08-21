@@ -98,8 +98,8 @@ class RequestFormValidatorTest {
     }
 
     @Test
-    @DisplayName("이미 있는 전산업무비 자연키면 재업로드로 보아 막는다")
-    void blocksDuplicateCost() {
+    @DisplayName("기존 전산업무비와 건명 및 속성이 같아도 별도 사업으로 허용한다")
+    void allowsDuplicateCost() {
         Bcostm existing =
                 Bcostm.builder()
                         .costSvnDpmC("0210")
@@ -116,7 +116,21 @@ class RequestFormValidatorTest {
                                         costsOf(cost("010", "블룸버그 회선사용료", new BigDecimal("1000"))),
                                         "2026"))
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.DUPLICATE_EXISTS);
+                .doesNotContain(RequestFormDiagnosticCode.DUPLICATE_EXISTS);
+    }
+
+    @Test
+    @DisplayName("같은 파일 안의 동일 건명도 서로 다른 사업으로 허용한다")
+    void allowsDuplicateCostsWithinBatch() {
+        assertThat(
+                        validator()
+                                .validate(
+                                        costsOf(
+                                                cost("010", "동일 건명", new BigDecimal("1000")),
+                                                cost("010", "동일 건명", new BigDecimal("2000"))),
+                                        "2026"))
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.DUPLICATE_EXISTS);
     }
 
     @Test

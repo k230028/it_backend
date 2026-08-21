@@ -347,6 +347,17 @@ final class ProjectBatchAssembler {
         response.setUsidPtCNm(getOrNull(positions, response.getUsid()));
         response.setDvmTlrUsidNm(resolveName(names, response.getDvmTlrUsid()));
         response.setDvmTlrUsidPtCNm(getOrNull(positions, response.getDvmTlrUsid()));
+        if (UserNameResolver.isStoredName(
+                response.getDvmUsid(), getOrNull(names, response.getDvmUsid())))
+            response.setDvmUsid(null);
+        if (UserNameResolver.isStoredName(
+                response.getTlrUsid(), getOrNull(names, response.getTlrUsid())))
+            response.setTlrUsid(null);
+        if (UserNameResolver.isStoredName(response.getUsid(), getOrNull(names, response.getUsid())))
+            response.setUsid(null);
+        if (UserNameResolver.isStoredName(
+                response.getDvmTlrUsid(), getOrNull(names, response.getDvmTlrUsid())))
+            response.setDvmTlrUsid(null);
     }
 
     private static String resolveName(Map<String, String> names, String userId) {

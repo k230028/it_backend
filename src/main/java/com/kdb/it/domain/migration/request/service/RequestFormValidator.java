@@ -1,7 +1,6 @@
 package com.kdb.it.domain.migration.request.service;
 
 import com.kdb.it.domain.budget.cost.dto.CostDto;
-import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -121,17 +120,6 @@ public class RequestFormValidator {
             Set<FieldSubject> alreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (costs.isEmpty()) return;
-        Set<String> existing = new HashSet<>();
-        for (Bcostm cost : costRepository.findByBseYyAndLstYnAndDelYn(bseYy, "Y", "N")) {
-            existing.add(
-                    naturalKey(
-                            cost.getCostSvnDpmC(),
-                            cost.getIoeC(),
-                            cost.getCttOppNm(),
-                            cost.getCttNm()));
-        }
-        Set<String> withinBatch = new HashSet<>();
-
         for (CostDto.CreateRequest cost : costs) {
             String subject = subjectOf(cost.getCttNm(), "계약명 미기재");
             String cttNm = nullSafe(cost.getCttNm());
@@ -201,22 +189,6 @@ public class RequestFormValidator {
                     subject,
                     "비고",
                     diagnostics);
-
-            String key =
-                    naturalKey(
-                            cost.getCostSvnDpmC(),
-                            cost.getIoeC(),
-                            cost.getCttOppNm(),
-                            cost.getCttNm());
-            if (existing.contains(key) || !withinBatch.add(key)) {
-                diagnostics.add(
-                        blocker(
-                                FormSheetKind.GENERAL_EXPENSE,
-                                "cttNm",
-                                subject,
-                                RequestFormDiagnosticCode.DUPLICATE_EXISTS,
-                                "이미 반입된 전산업무비입니다. 덮어쓰지 않고 건너뜁니다."));
-            }
         }
     }
 

@@ -157,7 +157,11 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             int sno,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         return ResourceTableReader.toItem(
-                row, resolveIoe(row, context, diagnostics), sno, context.bseYy());
+                row,
+                resolveIoe(row, context, diagnostics),
+                sno,
+                context.bseYy(),
+                !context.foreignBranch());
     }
 
     private String resolveIoe(

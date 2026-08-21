@@ -5,6 +5,8 @@ import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 담당자 이름을 물리 컬럼에 맞춰 다듬습니다.
@@ -13,6 +15,8 @@ import java.util.Set;
  * 동명이인이라 사번을 확정하지 못하는 경우가 많아 <b>이름을 그대로</b> 담고, 사번은 반입 후 상세 화면에서 맞춥니다.
  */
 final class FormPersonNames {
+
+    private static final Pattern KOREAN_NAME_WITH_SUFFIX = Pattern.compile("^([가-힣]{2,})\\s+.+$");
 
     /** 담당자 컬럼의 물리 길이. 문자 기준(CHAR semantics)입니다. */
     static final int LIMIT = 14;
@@ -82,6 +86,8 @@ final class FormPersonNames {
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (name == null || name.isBlank()) return null;
         String trimmed = stripTitle(name.trim().replaceAll("\\s+", " "));
+        Matcher koreanName = KOREAN_NAME_WITH_SUFFIX.matcher(trimmed);
+        if (koreanName.matches()) trimmed = koreanName.group(1);
         if (trimmed.length() <= LIMIT) return trimmed;
 
         diagnostics.add(

@@ -60,6 +60,14 @@ class FormPersonNamesTest {
     }
 
     @Test
+    @DisplayName("두 글자 이상 한글 이름 뒤의 공백 표기는 제거한다")
+    void keepsOnlyFirstTokenAfterKoreanName() {
+        assertThat(fit("김민수 책임자")).isEqualTo("김민수");
+        assertThat(fit("홍 길동")).isEqualTo("홍 길동");
+        assertThat(fit("Luke Buckingham-Brown")).isEqualTo("Luke Buckingha");
+    }
+
+    @Test
     @DisplayName("직책을 떼고도 길이를 넘으면 잘라 담고 알린다")
     void truncatesAfterStrippingTitle() {
         assertThat(fit("Luke Buckingham-Brown 과장")).hasSize(FormPersonNames.LIMIT);

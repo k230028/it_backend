@@ -171,6 +171,60 @@ class RecurringProjectFormAdapterTest {
     }
 
     @Test
+    @DisplayName("국내 경상사업의 통화 단위가 없으면 KRW 천원으로 본다")
+    void defaultsBlankDomesticRecurringCurrencyToKrwThousands() {
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls"));
+        Sheet recurring = sheets.get(FormSheetKind.RECURRING);
+        recurring.getRow(8).getCell(6).setBlank();
+        recurring.getRow(8).getCell(7).setCellValue(12.5d);
+        FormAdapterContext domestic =
+                new FormAdapterContext(
+                        sheets,
+                        "2026",
+                        new RequestFormDto.FileEntry(
+                                "자금운용실(420)/붙임.xls", "자금운용실(420)", null, null, null),
+                        "420",
+                        "자금운용실",
+                        null,
+                        TestIoeIndex.snapshot(),
+                        Map.of(),
+                        "12345678");
+
+        ProjectDto.BitemmDto item = adapter.adapt(domestic).projects().get(0).getItems().get(0);
+
+        assertThat(item.getCurC()).isEqualTo("KRW");
+        assertThat(item.getAmt()).isEqualByComparingTo(new BigDecimal("12500"));
+        assertThat(item.getFcAmt()).isNull();
+    }
+
+    @Test
+    @DisplayName("경상사업 시트의 기본 천원 단위를 명시된 KRW 품목에도 동일하게 적용한다")
+    void appliesRecurringSheetUnitToAllKrwItems() {
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(
+                        reader.open(RequestFormFixtures.singleRecurringMultiItemXls(), "픽스처.xls"));
+        FormAdapterContext domestic =
+                new FormAdapterContext(
+                        sheets,
+                        "2026",
+                        new RequestFormDto.FileEntry(
+                                "자금운용실(420)/붙임.xls", "자금운용실(420)", null, null, null),
+                        "420",
+                        "자금운용실",
+                        null,
+                        TestIoeIndex.snapshot(),
+                        Map.of(),
+                        "12345678");
+
+        ProjectDto.CreateRequest project = adapter.adapt(domestic).projects().get(0);
+
+        assertThat(project.getItems())
+                .extracting(ProjectDto.BitemmDto::getAmt)
+                .containsExactly(new BigDecimal("300000"), new BigDecimal("400000"));
+    }
+
+    @Test
     @DisplayName("외화 품목은 FC_AMT에만 담고 수량·순번·최종여부를 채운다")
     void fillsItemAmountsAndSequence() {
         ProjectDto.CreateRequest project =

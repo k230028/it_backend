@@ -31,6 +31,10 @@ public class IoeHierarchyIndex {
     private static final Map<String, String> DEFAULT_CODE_BY_GROUP =
             Map.of("개발비", "103", "기타무형자산", "106");
 
+    /** 중분류·세부가 여러 코드에 걸릴 때 업무적으로 확정된 기본 코드값명입니다. */
+    private static final Map<String, String> DEFAULT_NAME_BY_DETAIL =
+            Map.of("전산용역비 외주용역", "외주용역(외주운영/관제 등)");
+
     /** 계층 문자열의 구분자. `대분류 - 중분류 - 세부` 형태입니다. */
     private static final String HIERARCHY_DELIMITER = "\\s*-\\s*";
 
@@ -59,12 +63,18 @@ public class IoeHierarchyIndex {
         /** 중분류 정규화 키 → 코드 목록. */
         private final Map<String, List<Ccodem>> byGroup = new LinkedHashMap<>();
 
+        /** 코드값명 정규화 키 → 코드. 양식이 구체적인 코드값명을 적은 경우에 사용합니다. */
+        private final Map<String, Ccodem> byName = new LinkedHashMap<>();
+
         private final Set<String> codes = new LinkedHashSet<>();
 
         private Snapshot(List<Ccodem> allCodes) {
             for (Ccodem code : allCodes) {
                 if (code.getCdva() == null) continue;
                 codes.add(code.getCdva().trim());
+                if (code.getCdvaNm() != null) {
+                    byName.put(SheetAnchorScanner.normalize(code.getCdvaNm()), code);
+                }
                 String[] parts = splitHierarchy(code.getCdvaDtl());
                 if (parts.length < 3) continue;
                 String group = SheetAnchorScanner.normalize(parts[1]);
@@ -85,9 +95,20 @@ public class IoeHierarchyIndex {
         public Resolution resolveByDetail(String midCategory, String detailName) {
             String group = SheetAnchorScanner.normalize(FormLexicon.canonicalIoeName(midCategory));
             String detail = SheetAnchorScanner.normalize(FormLexicon.canonicalIoeName(detailName));
+            Ccodem exactName = byName.get(detail);
+            if (exactName != null) return Resolution.of(exactName);
             List<Ccodem> matches = byDetail.get(group + KEY_DELIMITER + detail);
             if (matches == null || matches.isEmpty()) return Resolution.unresolved(detailName);
             if (matches.size() == 1) return Resolution.of(matches.get(0));
+            String defaultName = DEFAULT_NAME_BY_DETAIL.get(group + KEY_DELIMITER + detail);
+            if (defaultName != null) {
+                String normalizedDefault = SheetAnchorScanner.normalize(defaultName);
+                for (Ccodem match : matches) {
+                    if (normalizedDefault.equals(SheetAnchorScanner.normalize(match.getCdvaNm()))) {
+                        return Resolution.of(match);
+                    }
+                }
+            }
             return Resolution.ambiguous(detailName, matches);
         }
 

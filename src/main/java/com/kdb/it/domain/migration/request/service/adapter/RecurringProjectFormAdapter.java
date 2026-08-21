@@ -2,6 +2,7 @@ package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
@@ -92,7 +93,12 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
             for (ResourceRow row : table.get().rows()) {
                 ProjectDto.BitemmDto item =
                         ResourceTableReader.toItem(
-                                row, resolveIoe(row, context, diagnostics), sno++, context.bseYy());
+                                row,
+                                resolveIoe(row, context, diagnostics),
+                                sno++,
+                                context.bseYy(),
+                                context.foreignBranch() ? null : AmountUnit.THOUSAND,
+                                !context.foreignBranch());
                 item.setCncdFdtnCone(row.remarks());
                 items.add(item);
             }

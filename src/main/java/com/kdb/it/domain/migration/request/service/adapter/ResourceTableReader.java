@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.service.FormLexicon;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import java.math.BigDecimal;
@@ -148,7 +149,52 @@ public class ResourceTableReader {
      */
     public static ProjectDto.BitemmDto toItem(
             ResourceRow row, String ioeCode, int sno, String bseYy) {
+        return toItem(row, ioeCode, sno, bseYy, (AmountUnit) null);
+    }
+
+    /**
+     * 국내 정보화사업의 통화 단위 미기재 행에는 양식 기본값인 KRW 백만원을 적용합니다.
+     *
+     * @param domesticDefault 국내 정보화사업 기본값 적용 여부
+     */
+    public static ProjectDto.BitemmDto toItem(
+            ResourceRow row, String ioeCode, int sno, String bseYy, boolean domesticDefault) {
+        return toItem(row, ioeCode, sno, bseYy, domesticDefault ? AmountUnit.MILLION : null);
+    }
+
+    /**
+     * 국내 사업의 통화 단위 미기재 행에 사업 유형별 KRW 기본 단위를 적용합니다.
+     *
+     * @param domesticDefaultUnit 국내 기본 단위. 국외지점처럼 기본값을 적용하지 않으면 null
+     */
+    public static ProjectDto.BitemmDto toItem(
+            ResourceRow row,
+            String ioeCode,
+            int sno,
+            String bseYy,
+            AmountUnit domesticDefaultUnit) {
+        return toItem(row, ioeCode, sno, bseYy, domesticDefaultUnit, false);
+    }
+
+    /**
+     * 국내 기본 단위를 통화 미기재 행뿐 아니라 시트의 모든 KRW 행에 적용할 수 있습니다.
+     *
+     * @param applyDomesticUnitToAllKrw true이면 명시적으로 KRW인 행에도 국내 기본 단위를 적용
+     */
+    public static ProjectDto.BitemmDto toItem(
+            ResourceRow row,
+            String ioeCode,
+            int sno,
+            String bseYy,
+            AmountUnit domesticDefaultUnit,
+            boolean applyDomesticUnitToAllKrw) {
         String currency = normalizeCurrency(row.currency());
+        // 일부 구양식은 통화 열이 없고 병합 헤더 때문에 단가가 통화 위치로 잡힌다.
+        // 실제 통화코드는 문자이므로 국내 사업의 숫자값만 열 부재로 판정한다.
+        if (domesticDefaultUnit != null && isNumericText(currency)) currency = null;
+        boolean defaultedDomestic =
+                domesticDefaultUnit != null && (currency == null || currency.isBlank());
+        if (defaultedDomestic) currency = "KRW";
         ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
         item.setSno(sno);
         item.setIoeC(ioeCode);
@@ -164,9 +210,11 @@ public class ResourceTableReader {
         item.setXcrBseDt(bseYy + "0101");
 
         if ("KRW".equals(currency)) {
-            item.setAmt(row.amount());
+            boolean applyDomesticUnit =
+                    defaultedDomestic || (applyDomesticUnitToAllKrw && domesticDefaultUnit != null);
+            item.setAmt(applyDomesticUnit ? domesticDefaultUnit.toWon(row.amount()) : row.amount());
             item.setFcAmt(null);
-        } else {
+        } else if (currency != null && !currency.isBlank()) {
             long multiplier = "JPY".equals(currency) ? JPY_MULTIPLIER : 1L;
             item.setFcAmt(row.amount().multiply(BigDecimal.valueOf(multiplier)));
             item.setAmt(null);
@@ -178,7 +226,19 @@ public class ResourceTableReader {
     /** 엑셀 통화 셀의 대소문자와 일반·전각 공백을 공통코드 형식으로 맞춥니다. */
     private static String normalizeCurrency(String currency) {
         if (currency == null) return null;
-        return currency.replaceAll("[\\s\\p{Z}]+", "").toUpperCase(Locale.ROOT);
+        String normalized = currency.replaceAll("[\\s\\p{Z}]+", "").toUpperCase(Locale.ROOT);
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    /** 쉼표를 포함한 순수 숫자 표기인지 확인합니다. 문자 통화코드 오기는 기본값으로 숨기지 않습니다. */
+    private static boolean isNumericText(String value) {
+        if (value == null) return false;
+        try {
+            new BigDecimal(value.replace(",", ""));
+            return true;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     /**

@@ -179,6 +179,44 @@ class RequestFormSourceFileArchiverTest {
     }
 
     @Test
+    @DisplayName("상위 폴더의 파일은 모든 하위 사업 신청서에 붙는다")
+    void archive_linksAncestorFileToEveryDescendantBusiness() {
+        String parent = "2026/IT부(D01)/_인프라팀/붙임2";
+        String firstGroup = parent + "/01. 사업A";
+        String secondGroup = parent + "/02. 사업B";
+        RequestFormDto.FileResult first =
+                result(
+                        firstGroup + "/요청서.xlsx",
+                        "IT부(D01)",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-A"));
+        RequestFormDto.FileResult second =
+                result(
+                        secondGroup + "/요청서.xlsx",
+                        "IT부(D01)",
+                        RequestFormDto.FileStatus.APPLIED,
+                        List.of("APF-B"));
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan =
+                List.of(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("공통근거.pdf"), parent + "/공통근거.pdf", parent, "D01", null),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("a.xlsx"), first.fileKey(), firstGroup, "D01", first),
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                file("b.xlsx"), second.fileKey(), secondGroup, "D01", second));
+        given(fileService.uploadFile(any(), any())).willReturn("FL-PARENT", "FL-A", "FL-B");
+
+        archiver.archive(plan);
+
+        ArgumentCaptor<MultipartFile> fileCaptor = ArgumentCaptor.forClass(MultipartFile.class);
+        then(fileService).should(times(3)).uploadFile(fileCaptor.capture(), any());
+        assertThat(fileCaptor.getAllValues())
+                .extracting(MultipartFile::getOriginalFilename)
+                .containsExactly("공통근거.pdf", "a.xlsx", "b.xlsx");
+        then(fileService).should(times(1)).linkExistingFile(any(), any());
+    }
+
+    @Test
     @DisplayName("같은 사업 그룹의 SKIPPED 엑셀과 PDF도 정상 반입 APF에 붙인다")
     void archive_linksSkippedExcelAndPdfInAppliedArchiveGroup() {
         String group = "2026/IT부(D01)/01. 사업A";

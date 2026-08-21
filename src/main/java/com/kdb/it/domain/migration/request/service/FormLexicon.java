@@ -204,6 +204,7 @@ public final class FormLexicon {
         Map<String, String> map = new LinkedHashMap<>();
         // 국문 양식 표기와 공통코드 표기가 어긋나는 것만 담는다.
         // 실측: 양식은 `국외전산유지보수료`, 공통코드(014)는 `국외유지보수료`.
+        alias(map, "유지보수", "유지보수료");
         alias(map, "국외전산유지보수료", "국외유지보수료");
         // 영문 양식 (런던지점 실측)
         alias(map, "Foreign branch IT service", "국외전산용역비");

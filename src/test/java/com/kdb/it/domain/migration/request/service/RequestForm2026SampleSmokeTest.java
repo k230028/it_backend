@@ -14,6 +14,7 @@ import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.CapitalOverviewReader;
@@ -31,6 +32,7 @@ import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -51,6 +53,8 @@ class RequestForm2026SampleSmokeTest {
     private static final String SAMPLE_DIR_ENV = "REQUEST_FORM_SAMPLE_2026_DIR";
 
     private static final String SINGLE_RECURRING_SAMPLE_SUFFIX = "자원증설.xls";
+    private static final String THOUSAND_UNIT_SAMPLE_SUFFIX = "전산설비 유지보수.xls";
+    private static final String OUTSOURCING_SAMPLE_SUFFIX = "편성 요청서_IT계약팀.xls";
 
     private static final String SAMPLE_LOOKUP_FAILURE = "로컬 샘플 탐색에 실패했습니다";
 
@@ -252,10 +256,85 @@ class RequestForm2026SampleSmokeTest {
                                                         && item.getQty().signum() > 0))
                 .as("품목 이름과 수량이 모두 유효해야 합니다")
                 .isTrue();
+        assertThat(items)
+                .as("국내 경상사업의 빈 통화는 KRW 천원으로 해석해야 합니다")
+                .allSatisfy(
+                        item -> {
+                            assertThat(item.getCurC()).isEqualTo("KRW");
+                            assertThat(item.getAmt()).isPositive();
+                            assertThat(item.getAmt().remainder(BigDecimal.valueOf(1_000L)))
+                                    .isZero();
+                            assertThat(item.getFcAmt()).isNull();
+                        });
+        assertThat(result.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.REQUIRED_MISSING);
+    }
+
+    @Test
+    @DisplayName("전산설비 유지보수 샘플의 명시된 천원 단위를 그대로 적용한다")
+    void appliesDeclaredThousandUnitFromMaintenanceSample() throws IOException {
+        FormAdapterOutput output = adaptGeneralExpenseSample(THOUSAND_UNIT_SAMPLE_SUFFIX);
+
+        assertThat(output.suggestedGeneralExpenseUnit()).isEqualTo(AmountUnit.THOUSAND);
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.UNIT_UNCERTAIN);
+    }
+
+    @Test
+    @DisplayName("IT계약팀 샘플의 외주용역을 외주운영·관제 코드로 확정한다")
+    void resolvesOutsourcingFromContractTeamSample() throws IOException {
+        FormAdapterOutput output = adaptGeneralExpenseSample(OUTSOURCING_SAMPLE_SUFFIX);
+
+        assertThat(output.costs())
+                .filteredOn(cost -> "정보화사업(구매) 원가용역".equals(cost.getCttNm()))
+                .singleElement()
+                .satisfies(cost -> assertThat(cost.getIoeC()).isEqualTo("008"));
+        assertThat(output.diagnostics())
+                .filteredOn(diagnostic -> "정보화사업(구매) 원가용역".equals(diagnostic.subject()))
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_AMBIGUOUS);
+    }
+
+    private FormAdapterOutput adaptGeneralExpenseSample(String suffix) throws IOException {
+        Path root = sampleRoot();
+        Path sample = findUniqueSample(root, suffix);
+        SheetAnchorScanner scanner = new SheetAnchorScanner();
+        MigrationIoeCatalogReader catalogReader = mock(MigrationIoeCatalogReader.class);
+        when(catalogReader.candidates(anyString(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(
+                        List.of(
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "KRW", "원화"),
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "USD", "달러")));
+        GeneralExpenseFormAdapter adapter =
+                new GeneralExpenseFormAdapter(
+                        scanner, catalogReader, new FormApproverReader(scanner));
+
+        try (Workbook workbook = reader.open(readSampleBytes(sample), "sample.xls")) {
+            return adapter.adapt(
+                    new com.kdb.it.domain.migration.request.service.adapter.FormAdapterContext(
+                            reader.classify(workbook),
+                            "2026",
+                            new RequestFormDto.FileEntry(
+                                    "sample.xls", "IT기획부(180)", null, null, "571"),
+                            "180",
+                            "IT기획부",
+                            null,
+                            TestIoeIndex.snapshot(),
+                            java.util.Map.of(),
+                            "00000000"));
+        }
     }
 
     /** 실제 경로는 소스에 남기지 않고 파일명의 최소 suffix로 대상 한 건을 찾습니다. */
     private static Path findSingleRecurringSample(Path root) throws IOException {
+        return findUniqueSample(root, SINGLE_RECURRING_SAMPLE_SUFFIX);
+    }
+
+    private static Path findUniqueSample(Path root, String suffix) throws IOException {
         Assumptions.assumeTrue(Files.isDirectory(root), "로컬 2026 샘플이 없어 건너뜁니다");
         List<Path> matches;
         try {
@@ -266,9 +345,7 @@ class RequestForm2026SampleSmokeTest {
                                             path.getFileName()
                                                     .toString()
                                                     .toLowerCase(Locale.ROOT)
-                                                    .endsWith(
-                                                            SINGLE_RECURRING_SAMPLE_SUFFIX
-                                                                    .toLowerCase(Locale.ROOT)))
+                                                    .endsWith(suffix.toLowerCase(Locale.ROOT)))
                             .sorted()
                             .toList();
         } catch (RuntimeException failure) {

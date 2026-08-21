@@ -3,7 +3,6 @@ package com.kdb.it.domain.migration.request.service;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -62,8 +61,6 @@ public class RequestFormSourceFileArchiver {
      * @param plan 업로드 파일·실제 적용 부서코드·파일별 반영 결과를 묶은 내부 계획
      */
     void archive(List<ArchivePlanItem> plan) {
-        // 사업 보관 그룹·실제 적용 부서코드별로 (파일 목록, 신청서번호 집합)을 모은다
-        Map<ArchiveGroupKey, List<ArchivePlanItem>> filesByGroup = new LinkedHashMap<>();
         Map<ArchiveGroupKey, Set<String>> apfMngNosByGroup = new LinkedHashMap<>();
 
         for (ArchivePlanItem item : plan) {
@@ -72,7 +69,6 @@ public class RequestFormSourceFileArchiver {
                 continue;
             }
             ArchiveGroupKey groupKey = new ArchiveGroupKey(item.archiveGroupKey(), deptCode);
-            filesByGroup.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(item);
             RequestFormDto.FileResult result = item.result();
             if (result == null || result.status() != RequestFormDto.FileStatus.APPLIED) {
                 continue;
@@ -86,14 +82,23 @@ public class RequestFormSourceFileArchiver {
             }
         }
 
-        for (Map.Entry<ArchiveGroupKey, List<ArchivePlanItem>> group : filesByGroup.entrySet()) {
-            Set<String> apfMngNos = apfMngNosByGroup.getOrDefault(group.getKey(), Set.of());
-            if (apfMngNos.isEmpty()) {
-                continue;
+        for (ArchivePlanItem item : plan) {
+            if (!StringUtils.hasText(item.archiveGroupKey())
+                    || !StringUtils.hasText(item.effectiveDeptCode())) continue;
+            Set<String> targets = new LinkedHashSet<>();
+            for (Map.Entry<ArchiveGroupKey, Set<String>> group : apfMngNosByGroup.entrySet()) {
+                ArchiveGroupKey key = group.getKey();
+                if (!key.effectiveDeptCode().equals(item.effectiveDeptCode())) continue;
+                if (key.archiveGroupKey().equals(item.archiveGroupKey())
+                        || key.archiveGroupKey().startsWith(item.archiveGroupKey() + "/")) {
+                    targets.addAll(group.getValue());
+                }
             }
-            for (ArchivePlanItem item : group.getValue()) {
-                archiveOne(item, apfMngNos, group.getKey());
-            }
+            if (!targets.isEmpty())
+                archiveOne(
+                        item,
+                        targets,
+                        new ArchiveGroupKey(item.archiveGroupKey(), item.effectiveDeptCode()));
         }
     }
 

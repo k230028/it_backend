@@ -33,18 +33,26 @@ class IoeHierarchyIndexTest {
         // 영문 양식
         assertThat(snapshot.resolveByDetail("IT Expenses", "Foreign branch line usage fees").code())
                 .isEqualTo("013");
+        assertThat(snapshot.resolveByDetail("전산 제비", "유지보수").code()).isEqualTo("011");
     }
 
     @Test
-    @DisplayName("외주용역은 008·009 두 코드가 걸려 중의적으로 남는다")
-    void marksOutsourcingAmbiguous() {
+    @DisplayName("외주용역은 외주운영·관제 코드 008로 확정한다")
+    void defaultsOutsourcingToOperationsAndMonitoring() {
         IoeHierarchyIndex.Resolution resolution = snapshot.resolveByDetail("전산 용역비", "외주용역");
 
-        assertThat(resolution.isAmbiguous()).isTrue();
-        assertThat(resolution.code()).isNull();
-        assertThat(resolution.candidates())
-                .extracting(MigrationDto.Candidate::code)
-                .containsExactlyInAnyOrder("008", "009");
+        assertThat(resolution.isAmbiguous()).isFalse();
+        assertThat(resolution.code()).isEqualTo("008");
+        assertThat(resolution.label()).isEqualTo("외주용역(외주운영/관제 등)");
+        assertThat(resolution.candidates()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("자문·심사로 구체적으로 적은 외주용역은 코드 009로 확정한다")
+    void resolvesExplicitConsultingOutsourcing() {
+        IoeHierarchyIndex.Resolution resolution = snapshot.resolveByDetail("전산 용역비", "외주용역(자문/심사)");
+
+        assertThat(resolution.code()).isEqualTo("009");
     }
 
     @Test

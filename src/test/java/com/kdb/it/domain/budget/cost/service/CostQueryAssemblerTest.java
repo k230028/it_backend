@@ -279,6 +279,18 @@ class CostQueryAssemblerTest {
     }
 
     @Test
+    @DisplayName("담당자 이름이 저장된 전산업무비는 이름 필드에 두고 사번 필드를 비운다")
+    void assembleList_separatesStoredManagerNameFromEmployeeId() {
+        Bcostm cost =
+                Bcostm.builder().costBgNo("COST-NAME").bgSno(1).lstYn("Y").cgprId("김담당").build();
+
+        CostDto.Response result = assembler.assembleList(List.of(cost)).getFirst();
+
+        assertThat(result.getCgprNm()).isEqualTo("김담당");
+        assertThat(result.getCgprId()).isNull();
+    }
+
+    @Test
     @DisplayName("대표행 동등성: 같은 대표행은 단건·목록·bulk에서 같은 이력과 편성예산 분류를 만든다")
     void 대표행_단건목록bulk_동등성() {
         Bcostm representative =
