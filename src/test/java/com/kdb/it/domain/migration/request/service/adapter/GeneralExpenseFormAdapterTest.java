@@ -40,7 +40,7 @@ class GeneralExpenseFormAdapterTest {
     /** 통화 공통코드(`CUR_C`)만 답하는 카탈로그 리더. 실 DB의 통화 목록을 흉내 냅니다. */
     private static MigrationIoeCatalogReader currencyCatalogReader() {
         MigrationIoeCatalogReader mock = Mockito.mock(MigrationIoeCatalogReader.class);
-        Mockito.when(mock.candidates(CommonCodeGroups.CURRENCY, false))
+        Mockito.when(mock.currencyCandidates())
                 .thenReturn(
                         List.of(
                                 new MigrationDto.Candidate("KRW", "원화"),

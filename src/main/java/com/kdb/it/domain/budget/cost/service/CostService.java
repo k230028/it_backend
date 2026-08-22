@@ -5,6 +5,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.OrgNameResolver;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
+import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
@@ -131,6 +132,7 @@ public class CostService {
         cost.assignPrlmHrkOgzCCone(orgSnapshot.prlmHrkOgzCNm());
         cost.assignSvnOrgNames(
                 orgNameResolver.resolveName(cost.getCostSvnDpmC()), orgSnapshot.svnTemNm());
+        cost.assignCgprName(resolveCgprName(cost.getCgprId()));
         costRepository.save(cost);
 
         applyTerminalOrgCodes(request.getTerminals());
@@ -145,6 +147,7 @@ public class CostService {
                 reconcileTerminalAmount(terminal);
                 Btermm entity = terminal.toEntity();
                 entity.setBcostmInfo(cost.getCostBgNo(), cost.getBgSno());
+                entity.assignCgprName(resolveCgprName(entity.getCgprId()));
                 btermmRepository.save(entity);
             }
         }
@@ -182,6 +185,7 @@ public class CostService {
 
         CostOrgSnapshot orgSnapshot = resolveAuthorOrgNames(target.getCgprId());
         target.assignPrlmHrkOgzCCone(orgSnapshot.prlmHrkOgzCNm());
+        target.assignCgprName(resolveCgprName(target.getCgprId()));
         target.assignSvnOrgNames(
                 orgNameResolver.resolveName(target.getCostSvnDpmC()), orgSnapshot.svnTemNm());
 
@@ -210,6 +214,7 @@ public class CostService {
                             : null;
             if (existing != null) {
                 updateTerminal(existing, terminal);
+                existing.assignCgprName(resolveCgprName(existing.getCgprId()));
                 keptPks.add(terminalPk(existing.getTmnMngNo(), existing.getSno()));
             } else {
                 if (terminal.getTmnMngNo() == null || terminal.getTmnMngNo().isEmpty()) {
@@ -220,6 +225,7 @@ public class CostService {
                 }
                 Btermm entity = terminal.toEntity();
                 entity.setBcostmInfo(target.getCostBgNo(), target.getBgSno());
+                entity.assignCgprName(resolveCgprName(entity.getCgprId()));
                 btermmRepository.save(entity);
                 keptPks.add(terminalPk(terminal.getTmnMngNo(), terminal.getSno()));
             }
@@ -324,6 +330,21 @@ public class CostService {
                 .rmk(terminal.getRmk())
                 .fcAmt(terminal.getFcAmt())
                 .build();
+    }
+
+    /**
+     * 담당자 표시명을 해석한다. 해석 실패 시 null이며, 그 경우 스냅샷은 기존 값을 유지한다(BE-63).
+     *
+     * @param cgprId 담당자 컬럼 저장값 — 사번 또는 이름
+     * @return 표시명. 해석 실패 시 null
+     */
+    private String resolveCgprName(String cgprId) {
+        if (cgprId == null || cgprId.isBlank()) {
+            return null;
+        }
+        String lookedUp =
+                cuserIRepository.findByEno(cgprId).map(user -> user.getUsrNm()).orElse(null);
+        return UserNameResolver.resolve(cgprId, lookedUp);
     }
 
     private CostOrgSnapshot resolveAuthorOrgNames(String cgprId) {

@@ -1,5 +1,6 @@
 package com.kdb.it.infra.file.service;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -230,5 +231,79 @@ class FileUploadUnitServiceTest {
         assertThat(result.getPkColNm()).isEqualTo("첨부");
         assertThat(result.getFlTpCone()).isEqualTo("첨부파일");
         assertThat(result.getApgFlSz()).isEqualTo(7L);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // buildStorageDir — pkColNm 경로 정화 (SEC-14)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("uploadFileInNewTransaction: pkColNm에 상위 이동이 섞이면 저장 없이 거부한다")
+    void uploadFileInNewTransaction_상위이동_pkColNm이면_거부() {
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .pkColNm("../../etc")
+                        .flTpCone("첨부파일")
+                        .build();
+        MockMultipartFile file =
+                new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
+
+        assertThatThrownBy(
+                        () -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("허용되지 않는 파일 종류");
+        // 값 자체를 응답에 되돌려주지 않는다.
+        verifyNoInteractions(entityManager, fileRepository);
+    }
+
+    @Test
+    @DisplayName("uploadFileInNewTransaction: pkColNm에 경로 구분자가 섞이면 거부한다")
+    void uploadFileInNewTransaction_경로구분자_pkColNm이면_거부() {
+        MockMultipartFile file =
+                new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
+
+        for (String kind : new String[] {"a/b", "a\b", "C:", "..", "  ", ""}) {
+            FileDto.UploadRequest request =
+                    FileDto.UploadRequest.builder().pkColNm(kind).flTpCone("첨부파일").build();
+            assertThatThrownBy(
+                            () -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
+                    .as("종류=%s", kind)
+                    .isInstanceOf(CustomGeneralException.class);
+        }
+        verifyNoInteractions(entityManager, fileRepository);
+    }
+
+    @Test
+    @DisplayName("uploadFileInNewTransaction: pkColNm이 null이면 NPE가 아니라 업무 예외로 거부한다")
+    void uploadFileInNewTransaction_pkColNm이null이면_업무예외() {
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm(null).flTpCone("첨부파일").build();
+        MockMultipartFile file =
+                new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
+
+        assertThatThrownBy(
+                        () -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("허용되지 않는 파일 종류");
+    }
+
+    @Test
+    @DisplayName("uploadFileInNewTransaction: 한글 종류는 기존과 같은 basePath/종류/년/월에 저장한다")
+    void uploadFileInNewTransaction_한글종류는_그대로저장된다(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(fileUploadUnitService, "basePath", tempDir.toString());
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().pkColNm("편성요청서반입").flTpCone("첨부파일").build();
+        MockMultipartFile file =
+                new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
+
+        Cfilem saved = fileUploadUnitService.uploadFileInNewTransaction(file, request);
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        Path expected =
+                tempDir.resolve("편성요청서반입")
+                        .resolve(String.valueOf(today.getYear()))
+                        .resolve(String.format("%02d", today.getMonthValue()));
+        assertThat(saved.getFlKpnPth()).isEqualTo(expected.toString());
     }
 }

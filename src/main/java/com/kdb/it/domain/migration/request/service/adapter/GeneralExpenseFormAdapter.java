@@ -1,7 +1,6 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.common.code.CodeDefaults;
-import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
@@ -94,8 +93,9 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
 
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
         // 통화를 먼저 확정한다. 단위 판정이 "원화 행이 있는가"를 근거로 삼으므로 순서를 뒤집을 수 없다
-        List<MigrationDto.Candidate> currencyCandidates =
-                catalogReader.candidates(CommonCodeGroups.CURRENCY, false);
+        // 저장 경로(resolveXcr)와 같은 유효일자 기준으로 읽는다 — 기준이 어긋나면 유효기간이 닫힌 통화가
+        // 선택지에 떠서 사전검증은 통과하고 반영에서 그 파일만 롤백된다(MIG-28).
+        List<MigrationDto.Candidate> currencyCandidates = catalogReader.currencyCandidates();
         Map<Integer, String> currencies =
                 resolveCurrencies(rows, context, currencyCandidates, diagnostics);
         AmountUnit unit = resolveUnit(context, rows, currencies, diagnostics);

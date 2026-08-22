@@ -16,6 +16,8 @@ import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.FileValidator;
 import com.kdb.it.infra.file.authz.BannerFileTargetWriteAuthorizer;
+import com.kdb.it.infra.file.authz.FileKindRegistry;
+import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.authz.RequestFormFileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.dto.FileDto;
@@ -80,10 +82,7 @@ class FileServiceTest {
                         fileRepository,
                         fileOwnershipChecker,
                         fileUploadUnitService,
-                        new FileTargetWriteAuthorizerRegistry(
-                                List.of(
-                                        new RequestFormFileTargetWriteAuthorizer(),
-                                        new BannerFileTargetWriteAuthorizer())),
+                        writeAuthorizerRegistry(),
                         boardPostFileCacheService);
     }
 
@@ -1179,5 +1178,18 @@ class FileServiceTest {
         verify(f1).delete();
         verify(f2).delete();
         verify(f3).delete();
+    }
+
+    /**
+     * 쓰기 판정 레지스트리. 아는 종류 목록은 판정기가 선언한 종류의 합집합이므로(SEC-14),
+     * 여기 넘긴 두 판정기의 종류가 이 테스트에서 아는 종류가 된다.
+     */
+    private static FileTargetWriteAuthorizerRegistry writeAuthorizerRegistry() {
+        List<FileTargetWriteAuthorizer> authorizers =
+                List.of(
+                        new RequestFormFileTargetWriteAuthorizer(),
+                        new BannerFileTargetWriteAuthorizer());
+        return new FileTargetWriteAuthorizerRegistry(
+                authorizers, new FileKindRegistry(List.of(), authorizers));
     }
 }

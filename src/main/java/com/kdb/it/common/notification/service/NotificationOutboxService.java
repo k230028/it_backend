@@ -3,6 +3,10 @@ package com.kdb.it.common.notification.service;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class NotificationOutboxService {
+
+    /** {@code TTL} 물리 컬럼 상한 — {@code VARCHAR2(100)} BYTE 시맨틱. */
+    private static final int TTL_MAX_BYTES = 100;
+
+    /** {@code INFM_MSG_CONE} 물리 컬럼 상한 — {@code VARCHAR2(4000)} BYTE 시맨틱. */
+    private static final int INFM_MSG_CONE_MAX_BYTES = 4000;
+
+    /** {@code INFM_RCD_URL} 물리 컬럼 상한 — {@code VARCHAR2(300)} BYTE 시맨틱. */
+    private static final int INFM_RCD_URL_MAX_BYTES = 300;
 
     /** {@code SD_DOC_CONE} 물리 컬럼 상한 — UTF-8 바이트 기준 4000바이트. */
     private static final int SD_DOC_CONE_MAX_BYTES = 4000;
@@ -44,9 +57,14 @@ public class NotificationOutboxService {
                 Cinfmm.builder()
                         .infmMsgNo(id)
                         .itPtlInfmSvcTc(event.itPtlInfmSvcTc())
-                        .ttl(clamp(event.ttl(), 100))
-                        .infmMsgCone(clamp(event.infmMsgCone(), 4000))
-                        .infmRcdUrl(clamp(event.infmRcdUrl(), 300))
+                        .ttl(clamp(event.ttl(), TTL_MAX_BYTES, "TTL"))
+                        .infmMsgCone(
+                                clamp(
+                                        event.infmMsgCone(),
+                                        INFM_MSG_CONE_MAX_BYTES,
+                                        "INFM_MSG_CONE"))
+                        .infmRcdUrl(
+                                clamp(event.infmRcdUrl(), INFM_RCD_URL_MAX_BYTES, "INFM_RCD_URL"))
                         .rmsEno(event.recipientEno())
                         .inqYn("N")
                         .itPtlSdTc(event.itPtlSdTc())
@@ -58,11 +76,47 @@ public class NotificationOutboxService {
         return id;
     }
 
-    private static String clamp(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
+    /**
+     * 문자열을 컬럼의 <b>바이트</b> 예산 안으로 자릅니다.
+     *
+     * <p>대상 컬럼은 모두 BYTE 시맨틱({@code VARCHAR2(n)})이고 DB 문자셋은 {@code AL32UTF8}이라 한글 1자가 3바이트를
+     * 차지합니다. 글자 수로 자르면 예산을 최대 3배까지 넘겨 INSERT가 {@code ORA-12899}로 실패하는데, 실패는 {@code
+     * NotificationEventListener}가 삼키므로 알림 행이 조용히 사라집니다.
+     *
+     * <p>{@link CharsetEncoder}가 출력 버퍼가 찰 때 문자 경계에서 멈추는 성질을 이용해 멀티바이트 문자를 중간에서 끊지 않습니다. 서로게이트
+     * 쌍(이모지 등)도 안전합니다. EAI 전문 필드에서 같은 문제를 푼 {@code EaiTextFitter}와 같은 방식입니다.
+     *
+     * @param value 원본 문자열. {@code null}이면 그대로 {@code null}
+     * @param maxBytes 컬럼 바이트 예산
+     * @param columnName 로그에 남길 물리 컬럼명
+     * @return UTF-8 인코딩 길이가 예산 이하인 문자열
+     */
+    private static String clamp(String value, int maxBytes, String columnName) {
+        if (value == null || value.isEmpty()) {
             return value;
         }
-        return value.substring(0, maxLength);
+        int actualBytes = value.getBytes(StandardCharsets.UTF_8).length;
+        if (actualBytes <= maxBytes) {
+            return value;
+        }
+
+        CharsetEncoder encoder =
+                StandardCharsets.UTF_8
+                        .newEncoder()
+                        .onMalformedInput(CodingErrorAction.REPLACE)
+                        .onUnmappableCharacter(CodingErrorAction.REPLACE);
+        CharBuffer in = CharBuffer.wrap(value);
+        encoder.encode(in, ByteBuffer.allocate(maxBytes), true);
+        String clamped = value.substring(0, in.position());
+
+        log.warn(
+                "알림 컬럼 폭 초과로 값을 잘랐습니다: column={}, 원본={}바이트, 예산={}바이트, 남긴 글자수={}/{}",
+                columnName,
+                actualBytes,
+                maxBytes,
+                clamped.length(),
+                value.length());
+        return clamped;
     }
 
     /**

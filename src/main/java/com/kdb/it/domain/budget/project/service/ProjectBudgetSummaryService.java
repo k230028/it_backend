@@ -161,7 +161,7 @@ public class ProjectBudgetSummaryService {
 
         response.setMplCpitAmt(mplCpit);
         response.setMplMngcAmt(mplMngc);
-        response.setTotRqmAmt(currentYear);
+        response.setTyyBgAmt(currentYear);
         // 총 예산·익년 이후 예산 파생값 (DB 스냅샷 컬럼과 같은 의미, 조회는 파생값을 쓴다)
         response.setPrjBgAmt(totalAmt);
         response.setMplAmt(totalMpl);

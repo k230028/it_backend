@@ -290,7 +290,7 @@ class CouncilServiceTest {
         doAnswer(
                         inv -> {
                             ProjectDto.Response resp = inv.getArgument(0);
-                            resp.setTotRqmAmt(new BigDecimal("5000"));
+                            resp.setTyyBgAmt(new BigDecimal("5000"));
                             return null;
                         })
                 .when(projectBudgetSummaryService)
@@ -411,7 +411,7 @@ class CouncilServiceTest {
         doAnswer(
                         inv -> {
                             ProjectDto.Response resp = inv.getArgument(0);
-                            resp.setTotRqmAmt(new BigDecimal("3000"));
+                            resp.setTyyBgAmt(new BigDecimal("3000"));
                             return null;
                         })
                 .when(projectBudgetSummaryService)
@@ -475,7 +475,7 @@ class CouncilServiceTest {
                                     inv.getArgument(1);
                             if (!items.isEmpty()) {
                                 ProjectDto.Response resp = inv.getArgument(0);
-                                resp.setTotRqmAmt(new BigDecimal("7000"));
+                                resp.setTyyBgAmt(new BigDecimal("7000"));
                             }
                             return null;
                         })
@@ -582,7 +582,7 @@ class CouncilServiceTest {
         doAnswer(
                         inv -> {
                             ProjectDto.Response resp = inv.getArgument(0);
-                            resp.setTotRqmAmt(new BigDecimal("2000"));
+                            resp.setTyyBgAmt(new BigDecimal("2000"));
                             return null;
                         })
                 .when(projectBudgetSummaryService)

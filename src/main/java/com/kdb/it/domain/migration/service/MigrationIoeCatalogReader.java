@@ -137,6 +137,26 @@ public class MigrationIoeCatalogReader {
     }
 
     /**
+     * 통화(`CUR_C`) 선택 후보를 <b>유효일자 필터로</b> 만듭니다.
+     *
+     * <p>물리 컬럼이 통화코드이므로 후보값은 <b>코드값</b>입니다({@code storeName=false}).
+     *
+     * <p>유효일자를 보지 않는 {@link #candidates(String, boolean)}를 쓰면 안 됩니다. 저장 경로({@code
+     * CostService.createCost} → {@code XcrLookupService.resolveXcr})가 {@code
+     * findByCIdAndCdvaWithValidDate}로 <b>유효일자 재조회</b>를 하고 없으면 {@code IllegalStateException}으로
+     * 롤백하기 때문입니다. 조회 기준이 어긋나면 유효기간이 닫힌 통화가 선택지에 떠서 사전검증은 통과하고 반영에서 그 파일만 실패합니다(MIG-28).
+     *
+     * <p>{@code KRW}는 {@code resolveXcr}가 조회 없이 통과시키므로 환율값이 비어 있어도 후보에서 빼지 않습니다 — 여기서 환율
+     * 파싱 가능 여부까지 거르면 가장 흔한 통화가 선택지에서 사라집니다.
+     *
+     * @return 예: `[{code:"KRW", label:"원화"}, {code:"USD", label:"미국 달러"}]`
+     */
+    public List<MigrationDto.Candidate> currencyCandidates() {
+        return toCandidates(
+                codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null), null, false);
+    }
+
+    /**
      * 전결권(`IT_PTL_EDRT_TC`) 자본예산 계열의 선택 후보를 만듭니다.
      *
      * <p>물리 컬럼 `IT_PTL_EDRT_TC`가 2자리 코드이므로 후보값은 <b>코드값</b>입니다({@code storeName=false}). 계열을 자본으로
@@ -158,8 +178,21 @@ public class MigrationIoeCatalogReader {
      * @return 후보 목록. 코드값명이 없는 행은 건너뜁니다
      */
     private List<MigrationDto.Candidate> candidates(String cId, String cTp, boolean storeName) {
+        return toCandidates(codeRepository.findByCIdAndDelYn(cId, "N"), cTp, storeName);
+    }
+
+    /**
+     * 조회된 공통코드 행을 선택 후보로 바꿉니다.
+     *
+     * @param codes 이미 조회된 공통코드 행. 어떤 조회 기준을 썼는지는 호출자가 정합니다
+     * @param cTp 코드타입. null이면 좁히지 않습니다
+     * @param storeName true면 후보값으로 코드값명을, false면 코드값을 씁니다
+     * @return 후보 목록. 코드값명이 없는 행은 건너뜁니다
+     */
+    private List<MigrationDto.Candidate> toCandidates(
+            List<Ccodem> codes, String cTp, boolean storeName) {
         List<MigrationDto.Candidate> out = new ArrayList<>();
-        for (Ccodem code : codeRepository.findByCIdAndDelYn(cId, "N")) {
+        for (Ccodem code : codes) {
             if (code.getCdvaNm() == null || (cTp != null && !cTp.equals(code.getCTp()))) continue;
             String name = code.getCdvaNm().trim();
             out.add(new MigrationDto.Candidate(storeName ? name : code.getCdva().trim(), name));

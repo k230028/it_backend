@@ -10,6 +10,14 @@
     <!-- Spring Boot 기본 정의: CONSOLE_LOG_PATTERN, FILE_LOG_PATTERN 등 -->
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
+    <!--
+      링버퍼 용량을 application*.properties의 app.was-log.buffer-capacity에서 읽습니다.
+      이 값이 링버퍼 용량의 단일 출처이며, WasLogProperties.bufferCapacity()도 같은 값을 봅니다.
+      프로퍼티가 없는 환경에서는 defaultValue(2000)를 씁니다.
+    -->
+    <springProperty scope="context" name="WAS_LOG_BUFFER_CAPACITY"
+                    source="app.was-log.buffer-capacity" defaultValue="2000"/>
+
     <!-- 프로파일 누락 시에도 서버 공통 로그 경로를 사용 -->
     <property name="LOG_PATH" value="/log/springitp"/>
 
@@ -57,7 +65,7 @@
 
     <!-- 관리자 화면 조회용 인메모리 링버퍼 (재기동 시 소실, 파일 로그와 별개) -->
     <appender name="RINGBUFFER" class="com.kdb.it.common.admin.waslog.appender.RingBufferAppender">
-        <capacity>2000</capacity>
+        <capacity>${WAS_LOG_BUFFER_CAPACITY}</capacity>
     </appender>
 
     <root level="INFO">

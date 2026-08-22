@@ -548,7 +548,7 @@ public class CouncilService {
         var items = projectItemRepository.findByAbusMngNoAndDelYn(abusMngNo, "N");
         var tmp = ProjectDto.Response.builder().build();
         projectBudgetSummaryService.applyBudgetSummary(tmp, items);
-        return tmp.getTotRqmAmt();
+        return tmp.getTyyBgAmt();
     }
 
     /**
@@ -580,7 +580,7 @@ public class CouncilService {
                     itemsByAbus.getOrDefault(abusMngNo, List.of());
             var tmp = ProjectDto.Response.builder().build();
             projectBudgetSummaryService.applyBudgetSummaryViews(tmp, items);
-            result.put(abusMngNo, tmp.getTotRqmAmt());
+            result.put(abusMngNo, tmp.getTyyBgAmt());
         }
         return result;
     }

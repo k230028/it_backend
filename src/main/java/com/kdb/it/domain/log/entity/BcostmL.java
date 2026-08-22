@@ -64,6 +64,9 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "CGPR_ID", length = 14, comment = "담당자행번")
     private String cgprId;
 
+    @Column(name = "CGPR_NM", length = 100, comment = "담당자명")
+    private String cgprNm;
+
     @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 100, comment = "인사상위조직코드내용")
     private String prlmHrkOgzCCone;
 

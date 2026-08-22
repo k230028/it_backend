@@ -18,6 +18,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceFileArchiver;
 import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.authz.FileKindRegistry;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.authz.RequestFormFileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.dto.FileDto;
@@ -37,6 +38,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import({
     TestSecurityConfig.class,
     JacksonConfig.class,
+    // 아는 종류 목록도 함께 올린다 — 쓰기 레지스트리가 이것을 물고 있다(SEC-14).
+    FileKindRegistry.class,
     FileTargetWriteAuthorizerRegistry.class,
     RequestFormFileTargetWriteAuthorizer.class
 })

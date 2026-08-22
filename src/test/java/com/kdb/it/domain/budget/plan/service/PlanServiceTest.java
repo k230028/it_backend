@@ -458,7 +458,7 @@ class PlanServiceTest {
                         .abusNm("경상사업")
                         .bzTpC("운영")
                         .prlmHrkOgzCCone("IT부문")
-                        .totRqmAmt(BigDecimal.valueOf(300))
+                        .tyyBgAmt(BigDecimal.valueOf(300))
                         .assetBg(BigDecimal.valueOf(200))
                         .costBg(BigDecimal.valueOf(100))
                         .odnYn("Y")
@@ -627,7 +627,7 @@ class PlanServiceTest {
                 ProjectDto.Response.builder()
                         .abusMngNo("PRJ-2026-DUP-TEST")
                         // 요청/소요 금액 — 합산 대상이 아님 (편성예산과 구분되는 값)
-                        .totRqmAmt(BigDecimal.valueOf(1000))
+                        .tyyBgAmt(BigDecimal.valueOf(1000))
                         .assetBg(BigDecimal.valueOf(800))
                         .costBg(BigDecimal.valueOf(200))
                         // BBUGTM 편성예산 — 실제 합산 대상

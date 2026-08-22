@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
@@ -70,7 +69,7 @@ class FormAdapterResolutionPathTest {
 
     /** 통화 공통코드(`CUR_C`)를 답하도록 미리 스텁한 시트 ③ 어댑터. */
     private GeneralExpenseFormAdapter generalExpenseAdapter() {
-        when(catalogReader.candidates(CommonCodeGroups.CURRENCY, false))
+        when(catalogReader.currencyCandidates())
                 .thenReturn(
                         List.of(
                                 new MigrationDto.Candidate("KRW", "원화"),

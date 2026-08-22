@@ -507,7 +507,7 @@ public class PlanService {
                                                 .svnHdq(p.getPrlmHrkOgzCCone())
                                                 .svnDpm(p.getSvnDpmC())
                                                 .svnDpmNm(p.getSvnDpmCNm())
-                                                .prjBg(p.getTotRqmAmt())
+                                                .prjBg(p.getTyyBgAmt())
                                                 .assetBg(p.getAssetBg())
                                                 .costBg(p.getCostBg())
                                                 .build())
@@ -649,7 +649,7 @@ public class PlanService {
         ProjectDto.Response firstProject = ordinaryProjects.getFirst();
         BigDecimal assetBg = sumAmount(ordinaryProjects, project -> project.getAssetBg());
         BigDecimal costBg = sumAmount(ordinaryProjects, project -> project.getCostBg());
-        BigDecimal prjBg = sumAmount(ordinaryProjects, project -> project.getTotRqmAmt());
+        BigDecimal prjBg = sumAmount(ordinaryProjects, project -> project.getTyyBgAmt());
         if (BigDecimal.ZERO.compareTo(prjBg) == 0) {
             prjBg = assetBg.add(costBg);
         }

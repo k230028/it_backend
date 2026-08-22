@@ -392,7 +392,7 @@ class ProjectQueryAssemblerTest {
         assertThat(result.getAssetBg()).isEqualByComparingTo("100");
         assertThat(result.getDvcBg()).isEqualByComparingTo("100");
         assertThat(result.getMplCpitAmt()).isEqualByComparingTo("30");
-        assertThat(result.getTotRqmAmt()).isEqualByComparingTo("70");
+        assertThat(result.getTyyBgAmt()).isEqualByComparingTo("70");
     }
 
     @Test
@@ -539,7 +539,7 @@ class ProjectQueryAssemblerTest {
                                     .isEqualTo(detail.getItems().getFirst().getIoeCNm());
                             assertThat(result.getAssetBg()).isEqualByComparingTo("100");
                             assertThat(result.getMplCpitAmt()).isEqualByComparingTo("30");
-                            assertThat(result.getTotRqmAmt()).isEqualByComparingTo("70");
+                            assertThat(result.getTyyBgAmt()).isEqualByComparingTo("70");
                         });
     }
 

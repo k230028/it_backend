@@ -127,6 +127,44 @@ class MigrationIoeCatalogReaderTest {
     }
 
     @Test
+    @DisplayName("통화 선택 후보도 유효일자 필터로 읽는다 — 만료 통화는 선택지에 오르지 않는다")
+    void 통화_후보는_유효일자_필터로_읽는다() {
+        // 유효일자를 보지 않는 candidates(CURRENCY, false)로 되돌리면 이 스텁이 비어 후보가 빈다.
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
+                .thenReturn(List.of(named(CommonCodeGroups.CURRENCY, "GBP", "영국 파운드", null)));
+
+        List<MigrationDto.Candidate> result = readerWithRepo().currencyCandidates();
+
+        assertThat(result)
+                .extracting(MigrationDto.Candidate::code, MigrationDto.Candidate::label)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("GBP", "영국 파운드"));
+    }
+
+    @Test
+    @DisplayName("통화 후보 조회는 유효일자를 보지 않는 경로를 쓰지 않는다")
+    void 통화_후보는_유효일자_무시_조회를_쓰지않는다() {
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
+                .thenReturn(List.of(named(CommonCodeGroups.CURRENCY, "KRW", "원화", null)));
+
+        readerWithRepo().currencyCandidates();
+
+        // 저장 경로(resolveXcr)와 판정 기준이 어긋나는 지점 — verify 범위를 후보 조회까지 넓힌다(MIG-28).
+        org.mockito.Mockito.verify(codeRepository, org.mockito.Mockito.never())
+                .findByCIdAndDelYn(CommonCodeGroups.CURRENCY, "N");
+    }
+
+    @Test
+    @DisplayName("환율값이 비어 있어도 통화 후보에는 남긴다 — resolveXcr이 KRW는 조회 없이 통과시킨다")
+    void 환율없는_통화도_후보에_남는다() {
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
+                .thenReturn(List.of(named(CommonCodeGroups.CURRENCY, "KRW", "원화", null)));
+
+        assertThat(readerWithRepo().currencyCandidates())
+                .extracting(MigrationDto.Candidate::code)
+                .containsExactly("KRW");
+    }
+
+    @Test
     @DisplayName("추진가능성·전결권·사업코드 카탈로그를 만든다 — 전결권은 자본 계열만 채택한다")
     void 코드_카탈로그를_만든다() {
         when(codeRepository.findByCIdAndDelYn(CommonCodeGroups.EXE_POSSIBLE, "N"))

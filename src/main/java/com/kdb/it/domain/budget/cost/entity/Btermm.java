@@ -123,6 +123,19 @@ public class Btermm extends BaseEntity {
     @Column(name = "CGPR_ID", length = 14, comment = "담당자행번 (물리컬럼 CGPR_ID=담당자ID)")
     private String cgprId;
 
+    /** 담당자명 스냅샷. 퇴사 후에도 남기기 위해 저장한다(BE-63). */
+    @Column(name = "CGPR_NM", length = 100, comment = "담당자명")
+    private String cgprNm;
+
+    /**
+     * 담당자명 스냅샷 설정. 해석 실패 시 <b>기존 값을 유지</b>한다 — 조인으로 되살릴 수 없는 값이다(BE-63).
+     *
+     * @param cgprNm 담당자명. 해석 실패 시 null
+     */
+    public void assignCgprName(String cgprNm) {
+        if (cgprNm != null && !cgprNm.isBlank()) this.cgprNm = cgprNm;
+    }
+
     /** 담당팀 (최대 5자) */
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드 (물리컬럼 SVN_TEM_C=주관팀코드)")
     private String termSvnTemC;

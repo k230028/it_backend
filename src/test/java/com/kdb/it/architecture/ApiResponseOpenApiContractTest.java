@@ -591,15 +591,16 @@ class ApiResponseOpenApiContractTest {
     /**
      * ProjectDto.Response는 필드 대부분이 requiredMode 미지정 상태라 {@link #assertAllPropertiesRequired}를 그대로 쓸
      * 수 없다(전체 필드가 required여야 한다는 전제와 충돌). Task 4에서 신규로 노출한 3개 파생 금액 필드(prjBgAmt, mplAmt, dfrAmt)와
-     * 기존 totRqmAmt만 좁혀서 검증한다.
+     * 사업 응답의 금액 계약만 좁혀서 검증한다. 사업계획(Bizplan)의 동명 필드 `totRqmAmt`는
+     * 총소요금액이라 이름이 옳으므로 개명 대상이 아니다(BE-36).
      */
     @Test
     void projectResponseExposesAmountContracts() {
         Schema<?> schema = resolve(ProjectDto.Response.class);
-        assertThat(schema.getRequired()).contains("prjBgAmt", "mplAmt", "dfrAmt", "totRqmAmt");
+        assertThat(schema.getRequired()).contains("prjBgAmt", "mplAmt", "dfrAmt", "tyyBgAmt");
         assertThat(Boolean.TRUE.equals(property(schema, "prjBgAmt").getNullable())).isFalse();
         assertThat(Boolean.TRUE.equals(property(schema, "mplAmt").getNullable())).isFalse();
-        assertThat(Boolean.TRUE.equals(property(schema, "totRqmAmt").getNullable())).isFalse();
+        assertThat(Boolean.TRUE.equals(property(schema, "tyyBgAmt").getNullable())).isFalse();
         assertThat(Boolean.TRUE.equals(property(schema, "dfrAmt").getNullable())).isTrue();
     }
 

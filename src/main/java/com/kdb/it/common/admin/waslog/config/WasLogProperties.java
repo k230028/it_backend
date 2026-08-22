@@ -6,7 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * WAS 로그 뷰어 설정 — 접두사 {@code app.was-log}.
  *
- * @param bufferCapacity 링버퍼 용량. logback XML의 {@code <capacity>}와 같은 값을 유지한다
+ * @param bufferCapacity 링버퍼 용량. logback-spring.xml이 {@code <springProperty>}로 같은 프로퍼티를 읽어
+ *     RINGBUFFER의 {@code <capacity>}에 주입하므로 이 프로퍼티가 단일 출처다
  * @param peers 인스턴스ID → 내부 호출용 base URL. 자기 자신을 포함해도 된다
  * @param internalSecret 피어 내부 엔드포인트 공유 비밀값. 비어 있으면 내부 컨트롤러가 등록되지 않는다
  * @param connectTimeoutMs 피어 연결 타임아웃(ms)

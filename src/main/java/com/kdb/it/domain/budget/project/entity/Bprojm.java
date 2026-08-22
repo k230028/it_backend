@@ -128,6 +128,14 @@ public class Bprojm extends BaseEntity {
     @Column(name = "TLR_USID", length = 14, comment = "주관부서담당팀장 (물리컬럼 TLR_USID=팀장사용자ID)")
     private String tlrUsid;
 
+    /** 주관부서담당팀장명 스냅샷. 퇴사 후에도 남기기 위해 저장한다 — {@link #assignPersonNames} 참고. */
+    @Column(name = "TLR_NM", length = 100, comment = "주관부서담당팀장명")
+    private String tlrNm;
+
+    /** 주관부서담당자명 스냅샷. 퇴사 후에도 남기기 위해 저장한다 — {@link #assignPersonNames} 참고. */
+    @Column(name = "USR_NM", length = 100, comment = "주관부서담당자명")
+    private String usrNm;
+
     /** IT부서담당팀장: IT부서 담당 팀장 사번 또는 이름 (최대 14자) */
     @Column(name = "DVM_TLR_USID", length = 14, comment = "IT부서담당팀장 (물리컬럼 DVM_TLR_USID=개발팀장사용자ID)")
     private String dvmTlrUsid;
@@ -584,6 +592,22 @@ public class Bprojm extends BaseEntity {
     public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;
+    }
+
+    /**
+     * 담당팀장명/담당자명 스냅샷 설정.
+     *
+     * <p><b>해석에 실패하면 기존 값을 유지합니다.</b> 담당자가 퇴사하면 {@code TPRMPP_CUSERI} 조인이 비는데, 그때 null로 덮으면
+     * 이 컬럼을 둔 이유(퇴사자 이름 보존)가 사라집니다. 조인으로는 되살릴 수 없는 값이므로 한 번 채운 뒤에는 덮어쓰지 않는 쪽이 안전합니다.
+     *
+     * <p>{@link #assignSvnOrgNames}와 같은 자리(생성·수정 직후, flush 이전)에서 호출합니다.
+     *
+     * @param tlrNm 담당팀장명. 해석 실패 시 null — 기존 값을 유지합니다
+     * @param usrNm 담당자명. 해석 실패 시 null — 기존 값을 유지합니다
+     */
+    public void assignPersonNames(String tlrNm, String usrNm) {
+        if (tlrNm != null && !tlrNm.isBlank()) this.tlrNm = tlrNm;
+        if (usrNm != null && !usrNm.isBlank()) this.usrNm = usrNm;
     }
 
     /**

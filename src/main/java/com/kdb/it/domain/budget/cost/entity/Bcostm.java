@@ -105,6 +105,10 @@ public class Bcostm extends BaseEntity {
     @Column(name = "CGPR_ID", length = 14, comment = "담당자행번 (물리컬럼 CGPR_ID=담당자ID)")
     private String cgprId;
 
+    /** 담당자명 스냅샷. 퇴사 후에도 남기기 위해 저장한다(BE-63). */
+    @Column(name = "CGPR_NM", length = 100, comment = "담당자명")
+    private String cgprNm;
+
     /** 인사상위조직: 해당 비용 항목 작성자 소속 조직의 상위조직코드내용 (신규 생성 시 작성자 기준 자동 설정, 최대 100자) */
     @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 100, comment = "인사상위조직코드내용")
     private String prlmHrkOgzCCone;
@@ -274,6 +278,18 @@ public class Bcostm extends BaseEntity {
      * @param svnDpmNm 주관부서명 (코드 미등록 시 null 허용)
      * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)
      */
+    /**
+     * 담당자명 스냅샷 설정.
+     *
+     * <p>해석에 실패하면(퇴사 등으로 조인이 빔) <b>기존 값을 유지</b>합니다 — 조인으로 되살릴 수 없는 값이라 null로 덮으면 이 컬럼을 둔
+     * 이유가 사라집니다(BE-63).
+     *
+     * @param cgprNm 담당자명. 해석 실패 시 null — 기존 값을 유지합니다
+     */
+    public void assignCgprName(String cgprNm) {
+        if (cgprNm != null && !cgprNm.isBlank()) this.cgprNm = cgprNm;
+    }
+
     public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;

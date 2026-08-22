@@ -74,6 +74,12 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "TLR_USID", length = 32, comment = "주관부서담당팀장")
     private String tlrUsid;
 
+    @Column(name = "TLR_NM", length = 100, comment = "주관부서담당팀장명")
+    private String tlrNm;
+
+    @Column(name = "USR_NM", length = 100, comment = "주관부서담당자명")
+    private String usrNm;
+
     @Column(name = "DVM_TLR_USID", length = 32, comment = "IT부서담당팀장")
     private String dvmTlrUsid;
 

@@ -88,14 +88,18 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, CapplaId
     java.util.List<Cappla> findByApfDcmNoAndFntTbNm(String apfDcmNo, String fntTbNm);
 
     /**
-     * 신청서번호로 연결된 원장 매핑을 모두 조회합니다.
+     * 신청서번호로 연결된 활성 원장 매핑을 조회합니다.
      *
      * <p>반입 원본 파일의 열람 권한 판정이 씁니다. 파일의 부모는 신청서번호이고, 판정 기준은 그 신청서가 가리키는 원장의 주관부서이기 때문입니다.
      *
+     * <p>권한 판정은 실패 시 거부(fail closed)여야 하므로 논리 삭제된 매핑을 제외합니다. 매핑이 삭제되거나 다른 원장으로 재매핑된 뒤에도 구 부서
+     * 사용자가 원본을 계속 열람하는 경로를 막습니다(SEC-15).
+     *
      * @param apfDcmNo 신청서식별번호
-     * @return 연결된 매핑 목록. 없으면 빈 목록
+     * @param delYn 삭제여부. 권한 판정은 {@code "N"}만 사용합니다
+     * @return 연결된 활성 매핑 목록. 없으면 빈 목록
      */
-    java.util.List<Cappla> findByApfDcmNo(String apfDcmNo);
+    java.util.List<Cappla> findByApfDcmNoAndDelYn(String apfDcmNo, String delYn);
 
     /**
      * 원천 데이터에 특정 상태의 신청서가 존재하는지 확인

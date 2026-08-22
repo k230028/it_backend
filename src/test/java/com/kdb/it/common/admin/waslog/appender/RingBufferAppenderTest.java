@@ -82,4 +82,25 @@ class RingBufferAppenderTest {
                 .containsExactly("공용 저장소");
         assertThat(another.capacity()).isEqualTo(10);
     }
+
+    @Test
+    @DisplayName("메시지와 스택트레이스의 민감값을 가려서 담는다")
+    void append_민감값마스킹() {
+        String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJFMTAwMDEifQ.s1gnatureV4lue_abc";
+        // 링버퍼는 관리자 화면·다운로드로 그대로 나가므로 담기 전에 가린다(BE-55).
+        startedAppender()
+                .doAppend(
+                        event(
+                                Level.ERROR,
+                                "토큰 " + jwt + " 주민 900101-1234567 사번 E10001",
+                                new IllegalStateException("stack 토큰 " + jwt)));
+
+        WasLogEntry entry = lastEntry();
+        assertThat(entry.message())
+                .doesNotContain(jwt)
+                .doesNotContain("900101-1234567")
+                // 사번은 남는다 — 추적의 출발점이다.
+                .contains("E10001");
+        assertThat(entry.throwable()).doesNotContain(jwt);
+    }
 }

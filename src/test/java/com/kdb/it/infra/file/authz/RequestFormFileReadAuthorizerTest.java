@@ -45,8 +45,13 @@ class RequestFormFileReadAuthorizerTest {
     }
 
     private Bprojm project(String svnDpmC) {
+        return project(svnDpmC, "N");
+    }
+
+    private Bprojm project(String svnDpmC, String delYn) {
         Bprojm bprojm = mock(Bprojm.class);
         when(bprojm.getSvnDpmC()).thenReturn(svnDpmC);
+        when(bprojm.getDelYn()).thenReturn(delYn);
         return bprojm;
     }
 
@@ -76,7 +81,7 @@ class RequestFormFileReadAuthorizerTest {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
         Cappla projectMap = map("BPROJM", "ABUS-1");
         Bprojm project = project("D01");
-        given(applicationMapRepository.findByApfDcmNo("APF-1")).willReturn(List.of(projectMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-1", "N")).willReturn(List.of(projectMap));
         given(projectRepository.findById(new BprojmId("ABUS-1", 1)))
                 .willReturn(Optional.of(project));
 
@@ -89,7 +94,7 @@ class RequestFormFileReadAuthorizerTest {
         CustomUserDetails user = new CustomUserDetails("E002", List.of("ITPZZ001"), "D02");
         Cappla projectMap = map("BPROJM", "ABUS-1");
         Bprojm project = project("D01");
-        given(applicationMapRepository.findByApfDcmNo("APF-1")).willReturn(List.of(projectMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-1", "N")).willReturn(List.of(projectMap));
         given(projectRepository.findById(new BprojmId("ABUS-1", 1)))
                 .willReturn(Optional.of(project));
 
@@ -102,8 +107,9 @@ class RequestFormFileReadAuthorizerTest {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
         Bcostm bcostm = mock(Bcostm.class);
         Cappla costMap = map("BCOSTM", "CTT-1");
+        when(bcostm.getDelYn()).thenReturn("N");
         when(bcostm.getCostSvnDpmC()).thenReturn("D01");
-        given(applicationMapRepository.findByApfDcmNo("APF-2")).willReturn(List.of(costMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-2", "N")).willReturn(List.of(costMap));
         given(costRepository.findById(new BcostmId("CTT-1", 1))).willReturn(Optional.of(bcostm));
 
         assertThat(authorizer.canRead(file("APF-2"), user)).isTrue();
@@ -113,7 +119,7 @@ class RequestFormFileReadAuthorizerTest {
     @DisplayName("연결된 원장을 찾지 못하면 읽을 수 없다")
     void missingLedger_cannotRead() {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
-        given(applicationMapRepository.findByApfDcmNo("APF-3")).willReturn(List.of());
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-3", "N")).willReturn(List.of());
 
         assertThat(authorizer.canRead(file("APF-3"), user)).isFalse();
     }
@@ -123,7 +129,7 @@ class RequestFormFileReadAuthorizerTest {
     void missingMappedProjectLedger_cannotRead() {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
         Cappla projectMap = map("BPROJM", "ABUS-1");
-        given(applicationMapRepository.findByApfDcmNo("APF-3")).willReturn(List.of(projectMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-3", "N")).willReturn(List.of(projectMap));
         given(projectRepository.findById(new BprojmId("ABUS-1", 1))).willReturn(Optional.empty());
 
         assertThat(authorizer.canRead(file("APF-3"), user)).isFalse();
@@ -158,7 +164,7 @@ class RequestFormFileReadAuthorizerTest {
     void unsupportedSource_cannotRead() {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
         Cappla unsupportedMap = map("UNKNOWN", "KEY-1");
-        given(applicationMapRepository.findByApfDcmNo("APF-5")).willReturn(List.of(unsupportedMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-5", "N")).willReturn(List.of(unsupportedMap));
 
         assertThat(authorizer.canRead(file("APF-5"), user)).isFalse();
     }
@@ -168,7 +174,7 @@ class RequestFormFileReadAuthorizerTest {
     void blankSourceTable_cannotRead() {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
         Cappla incompleteMap = map(null, "ABUS-1");
-        given(applicationMapRepository.findByApfDcmNo("APF-6")).willReturn(List.of(incompleteMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-6", "N")).willReturn(List.of(incompleteMap));
 
         assertThat(authorizer.canRead(file("APF-6"), user)).isFalse();
     }
@@ -178,7 +184,7 @@ class RequestFormFileReadAuthorizerTest {
     void blankSourceKey_cannotRead() {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
         Cappla incompleteMap = map("BPROJM", null);
-        given(applicationMapRepository.findByApfDcmNo("APF-7")).willReturn(List.of(incompleteMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-7", "N")).willReturn(List.of(incompleteMap));
 
         assertThat(authorizer.canRead(file("APF-7"), user)).isFalse();
     }
@@ -189,8 +195,47 @@ class RequestFormFileReadAuthorizerTest {
         CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
         Cappla incompleteMap = map("BPROJM", "ABUS-1");
         when(incompleteMap.getFntTbCrySno()).thenReturn(null);
-        given(applicationMapRepository.findByApfDcmNo("APF-8")).willReturn(List.of(incompleteMap));
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-8", "N")).willReturn(List.of(incompleteMap));
 
         assertThat(authorizer.canRead(file("APF-8"), user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("논리 삭제된 매핑은 조회 대상이 아니라 읽을 수 없다")
+    void deletedMapping_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        // 리포지토리가 DEL_YN='N'만 돌려주므로 삭제된 매핑뿐인 신청서는 빈 목록이 된다.
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-9", "N")).willReturn(List.of());
+
+        assertThat(authorizer.canRead(file("APF-9"), user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("논리 삭제된 사업 원장은 주관부서가 같아도 읽을 수 없다")
+    void deletedProjectLedger_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        Cappla projectMap = map("BPROJM", "ABUS-1");
+        Bprojm deleted = project("D01", "Y");
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-10", "N"))
+                .willReturn(List.of(projectMap));
+        given(projectRepository.findById(new BprojmId("ABUS-1", 1)))
+                .willReturn(Optional.of(deleted));
+
+        assertThat(authorizer.canRead(file("APF-10"), user)).isFalse();
+    }
+
+    @Test
+    @DisplayName("논리 삭제된 전산업무비 원장은 담당부서가 같아도 읽을 수 없다")
+    void deletedCostLedger_cannotRead() {
+        CustomUserDetails user = new CustomUserDetails("E001", List.of("ITPZZ001"), "D01");
+        Bcostm bcostm = mock(Bcostm.class);
+        Cappla costMap = map("BCOSTM", "CTT-1");
+        when(bcostm.getDelYn()).thenReturn("Y");
+        when(bcostm.getCostSvnDpmC()).thenReturn("D01");
+        given(applicationMapRepository.findByApfDcmNoAndDelYn("APF-11", "N"))
+                .willReturn(List.of(costMap));
+        given(costRepository.findById(new BcostmId("CTT-1", 1))).willReturn(Optional.of(bcostm));
+
+        assertThat(authorizer.canRead(file("APF-11"), user)).isFalse();
     }
 }

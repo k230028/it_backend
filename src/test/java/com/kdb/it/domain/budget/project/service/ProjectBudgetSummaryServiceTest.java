@@ -159,7 +159,7 @@ class ProjectBudgetSummaryServiceTest {
 
         assertThat(response.getAssetBg()).isEqualByComparingTo("1000");
         assertThat(response.getCostBg()).isEqualByComparingTo("500");
-        assertThat(response.getTotRqmAmt()).isEqualByComparingTo("1000");
+        assertThat(response.getTyyBgAmt()).isEqualByComparingTo("1000");
         assertThat(declaredMethodNames(ProjectItemRepository.ProjectItemBudgetView.class))
                 .containsExactlyInAnyOrder(
                         "getGclMngNo", "getAbusMngNo", "getIoeC", "getAmt", "getMplAmt");
@@ -194,7 +194,7 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(res.getMplCpitAmt()).isEqualByComparingTo("300"); // 자본 예정금액 합산
         assertThat(res.getMplMngcAmt()).isEqualByComparingTo("200"); // 관리비 예정금액 합산
         // 당해예산 = (1000+500) - (300+200) = 1000
-        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("1000");
+        assertThat(res.getTyyBgAmt()).isEqualByComparingTo("1000");
     }
 
     @Test
@@ -217,7 +217,7 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(response.getPrjBgAmt()).isEqualByComparingTo("1000");
         assertThat(response.getMplAmt()).isEqualByComparingTo("300");
         // 기존 의미 유지: 당해예산 = 총 AMT − 총 MPL_AMT
-        assertThat(response.getTotRqmAmt()).isEqualByComparingTo("700");
+        assertThat(response.getTyyBgAmt()).isEqualByComparingTo("700");
     }
 
     @Test
@@ -232,7 +232,7 @@ class ProjectBudgetSummaryServiceTest {
         service.applyBudgetSummary(res, List.of(item("C1", 100, 250)));
 
         // Assert: 음수 → 0으로 보정
-        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("0");
+        assertThat(res.getTyyBgAmt()).isEqualByComparingTo("0");
     }
 
     @Test
@@ -250,7 +250,7 @@ class ProjectBudgetSummaryServiceTest {
         // Assert: 원천금액 100이나 이중환산 169000000이 아닌 저장 KRW 금액 130000이어야 한다.
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
         assertThat(res.getDvcBg()).isEqualByComparingTo("130000");
-        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("130000");
+        assertThat(res.getTyyBgAmt()).isEqualByComparingTo("130000");
     }
 
     @Test
@@ -268,7 +268,7 @@ class ProjectBudgetSummaryServiceTest {
         // Then: fcAmt * xcr = 140000이지만 저장된 amt 130000을 그대로 사용한다
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
         assertThat(res.getDvcBg()).isEqualByComparingTo("130000");
-        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("130000");
+        assertThat(res.getTyyBgAmt()).isEqualByComparingTo("130000");
     }
 
     @Test
@@ -285,7 +285,7 @@ class ProjectBudgetSummaryServiceTest {
         // Assert: 총 130000원에서 저장된 예정금액 52000원을 그대로 차감한다.
         assertThat(res.getAssetBg()).isEqualByComparingTo("130000");
         assertThat(res.getMplCpitAmt()).isEqualByComparingTo("52000");
-        assertThat(res.getTotRqmAmt()).isEqualByComparingTo("78000");
+        assertThat(res.getTyyBgAmt()).isEqualByComparingTo("78000");
     }
 
     @Test

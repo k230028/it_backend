@@ -453,9 +453,9 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 당해예산 (파생값: 총 AMT − 총 MPL_AMT, 음수면 0으로 보정) */
-        @Schema(description = "당해예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
-        private BigDecimal totRqmAmt;
+        /** 당년예산금액=당해예산 (파생값: 총 AMT − 총 MPL_AMT, 음수면 0). prjBgAmt = 이 값 + mplAmt (BE-36) */
+        @Schema(description = "당년예산금액 — 당해예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        private BigDecimal tyyBgAmt;
 
         /** 예정자본금액 (파생값: 품목 mplAmt 자본예산 합산) */
         @Schema(description = "예정자본금액 (파생값)")
@@ -465,7 +465,7 @@ public class ProjectDto {
         @Schema(description = "예정관리비금액 (파생값)")
         private BigDecimal mplMngcAmt;
 
-        /** 총 예산 (파생값: 활성 품목 AMT 합계). DB TOT_RQM_AMT와 같은 의미이며 totRqmAmt(당해예산)와 다르다. */
+        /** 총 예산 (파생값: 활성 품목 AMT 합계). DB TOT_RQM_AMT와 같은 의미이며 tyyBgAmt(당해예산)와 다르다. */
         @Schema(description = "총 예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal prjBgAmt;
 

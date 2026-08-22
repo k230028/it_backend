@@ -4,6 +4,7 @@ import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
+import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -224,6 +225,9 @@ public class ProjectService {
                                         orgNameResolver.resolveName(svnTemC), svnTeam.temNm()),
                         request.getSvnTemNm());
         project.assignSvnOrgNames(orgNameResolver.resolveName(project.getSvnDpmC()), svnTemNm);
+        // 담당팀장명·담당자명 스냅샷 — 퇴사 후에도 남기기 위해 저장한다(BE-63)
+        project.assignPersonNames(
+                resolvePersonName(project.getTlrUsid()), resolvePersonName(project.getUsid()));
         // 반환값을 반드시 재대입한다: 요청이 관리번호를 이미 채워 보낸 경우(auto-채번 포함, 위에서
         // request.setAbusMngNo로 채움) ID가 non-null이라 Spring Data의 isNew() 판정이 false가 되고
         // SimpleJpaRepository.save가 entityManager.merge()를 타 별도의 영속 인스턴스를 반환한다.
@@ -362,6 +366,9 @@ public class ProjectService {
         // (팀코드는 CORGNI에 없어 CORGNI 조회로는 팀명을 얻지 못하므로 담당자 팀명을 사용)
         project.assignSvnOrgNames(
                 orgNameResolver.resolveName(project.getSvnDpmC()), svnTeam.temNm());
+        // 담당자 변경 시 이름 스냅샷도 갱신. 해석 실패(퇴사)면 기존 값을 그대로 둔다(BE-63)
+        project.assignPersonNames(
+                resolvePersonName(project.getTlrUsid()), resolvePersonName(project.getUsid()));
 
         // ===== 품목 정보 동기화 (CUD) =====
         itemSynchronizer().sync(project, request.getItems());
@@ -461,6 +468,24 @@ public class ProjectService {
      * @param eno 담당자 사번 (null/공백 허용)
      * @return 소속 팀 스냅샷. eno가 비었거나 사용자 미조회 시 {@link TeamSnapshot#EMPTY}
      */
+    /**
+     * 담당자 표시명을 해석한다.
+     *
+     * <p>이 컬럼들은 사번 <b>또는 이름</b>을 담으므로({@code Bprojm} 주석) {@link UserNameResolver}에 판정을 맡긴다.
+     * 퇴사 등으로 조회에 실패한 사번은 이름으로 노출하지 않고 {@code null}을 돌려주며, 그 경우 스냅샷은 기존 값을 유지한다(BE-63).
+     *
+     * @param storedValue 담당자 컬럼 저장값 — 사번 또는 이름
+     * @return 표시명. 해석 실패 시 null
+     */
+    private String resolvePersonName(String storedValue) {
+        if (storedValue == null || storedValue.isBlank()) {
+            return null;
+        }
+        String lookedUp =
+                cuserIRepository.findByEno(storedValue).map(user -> user.getUsrNm()).orElse(null);
+        return UserNameResolver.resolve(storedValue, lookedUp);
+    }
+
     private TeamSnapshot resolveTeam(String eno) {
         if (eno == null || eno.isBlank()) {
             return TeamSnapshot.EMPTY;

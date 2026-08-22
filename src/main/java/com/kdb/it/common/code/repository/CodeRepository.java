@@ -48,10 +48,14 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
      *
      * <p>이관 조회 인덱스({@code MigrationIoeCatalogReader})가 씁니다. 클래스 상단 참고와 같은 이유로 명시적 JPQL을 사용합니다.
      *
+     * <p>결과는 화면 선택 상자의 후보 나열 순서가 되므로 {@code CodeRepositoryImpl.findByCIdWithValidDate}와 같은
+     * 정렬(코드순서 오름차순, 미지정은 뒤 → 코드값 오름차순)을 적용해 순서를 고정합니다.
+     *
      * @param cId 코드ID
      * @param delYn 삭제여부
-     * @return 코드ID에 속한 공통코드 목록
+     * @return 코드ID에 속한 공통코드 목록. 코드순서·코드값 오름차순
      */
-    @Query("SELECT c FROM Ccodem c WHERE c.cId = :cId AND c.delYn = :delYn")
+    @Query(
+            "SELECT c FROM Ccodem c WHERE c.cId = :cId AND c.delYn = :delYn ORDER BY c.cSqn ASC NULLS LAST, c.cdva ASC")
     List<Ccodem> findByCIdAndDelYn(@Param("cId") String cId, @Param("delYn") String delYn);
 }
