@@ -237,8 +237,14 @@ class ApiResponseOpenApiContractTest {
     @Test
     void boardResponsesExposeRequiredNullableAndEnumContracts() {
         assertAllPropertiesRequired(BoardMetaDto.Response.class, "rmk");
+        // 작성자명·소속부서명은 목록 경량 조회에서 채우지 않는 경우가 있어 nullable 계약이다.
         assertAllPropertiesRequired(
-                BoardPostDto.ListItem.class, "nacUnqId", "sttYmd", "endYmd", "fstEnrBbrNm");
+                BoardPostDto.ListItem.class,
+                "nacUnqId",
+                "sttYmd",
+                "endYmd",
+                "fstEnrUsNm",
+                "fstEnrBbrNm");
         assertAllPropertiesRequired(
                 BoardPostDto.Detail.class, "nacUnqId", "sttYmd", "endYmd", "bbrC", "hrkNacNo");
         assertAllPropertiesRequired(BoardCommentDto.Response.class, "hrkCmmtMngNo");
