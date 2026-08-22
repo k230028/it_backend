@@ -1,6 +1,5 @@
 package com.kdb.it.domain.budget.project.service;
 
-import static com.kdb.it.domain.budget.project.service.ProjectItemChangeDetector.defaultYn;
 import static com.kdb.it.domain.budget.project.service.ProjectItemChangeDetector.isItemChanged;
 
 import com.kdb.it.common.code.CodeDefaults;
@@ -150,8 +149,8 @@ final class ProjectItemSynchronizer {
                     itemDto.getCncdFdtnCone(), // 예산근거
                     toItdYm(itemDto.getBseYm()), // 도입시기
                     itemDto.getDfrCleC(), // 지급주기
-                    defaultYn(itemDto.getSectSysUtzYn()), // 정보보호여부
-                    defaultYn(itemDto.getItrInfrYn()), // 통합인프라여부
+                    itemDto.getSectSysUtzYn(), // 정보보호여부(미기재는 null 유지)
+                    itemDto.getItrInfrYn(), // 통합인프라여부(미기재는 null 유지)
                     reconciled[0], // 품목금액 (서버 재계산)
                     reconciled[1], // 외화금액 (외화 행에서만 유효)
                     clampMpl(itemDto.getMplAmt(), reconciled[0])); // 예정금액 (0 ≤ mplAmt ≤ amt)
@@ -212,10 +211,8 @@ final class ProjectItemSynchronizer {
                 .cncdFdtnCone(itemDto.getCncdFdtnCone()) // 예산근거
                 .bseYm(toItdYm(itemDto.getBseYm())) // 도입시기
                 .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC())) // 지급주기
-                .sectSysUtzYn(itemDto.getSectSysUtzYn() == null ? "N" : itemDto.getSectSysUtzYn())
-                // 정보보호여부
-                .itrInfrYn(itemDto.getItrInfrYn() == null ? "N" : itemDto.getItrInfrYn())
-                // 통합인프라여부
+                .sectSysUtzYn(itemDto.getSectSysUtzYn()) // 정보보호여부(미기재는 null 유지)
+                .itrInfrYn(itemDto.getItrInfrYn()) // 통합인프라여부(미기재는 null 유지)
                 .lstYn("Y") // 최종여부
                 .amt(reconciled[0]) // 품목금액 (서버 재계산)
                 .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)

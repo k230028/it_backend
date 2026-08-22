@@ -27,12 +27,11 @@ import org.springframework.stereotype.Component;
  * 호출하고, 두 블록의 품목을 <b>같은 사업의 {@code BITEMM}</b>으로 담습니다 — 양식 주석("정보화사업에 포함된 일반관리비는 1-1·1-2 시트에 작성")과
  * 실측 {@code BITEMM}에 일반관리비 비목이 들어 있는 사실이 이를 뒷받침합니다.
  *
- * <p>품목 금액({@code BITEMM})의 원본은 여전히 1-2입니다. 반면 <b>사업 단위 금액 3종({@code TOT_RQM_AMT}·{@code
- * MPL_AMT}·{@code DFR_AMT})은 1-1 선언값에서 산출</b>합니다 — 전체기간 총액과 예산연도 이후 계획분은 예산연도 품목 합계로는 얻을 수 없기
- * 때문입니다.
+ * <p>품목 금액({@code BITEMM})의 원본은 원칙적으로 1-2입니다. 단, 1-2가 없는 단일 시트 양식은 1-1 요약표의 명시 단위와 비목별 합계로 품목을
+ * 합성합니다. 사업 단위 금액 3종({@code TOT_RQM_AMT}·{@code MPL_AMT}·{@code DFR_AMT})은 1-1 선언값에서 산출합니다.
  *
- * <p>1-1 요약표는 기재 단위가 파일마다 달라 그대로 쓰지 못합니다. 항상 원 단위인 1-2 품목 합계와 대사해 배수를 역추정한 뒤 그 배수를 곱해 원 단위로 폅니다. 환산
- * 근거가 없거나 산출값을 신뢰할 수 없으면 <b>적재하지 않고 경고만</b> 내며 파일 반입 자체는 막지 않습니다.
+ * <p>1-2가 있으면 항상 원 단위인 품목 합계와 대사해 1-1 배수를 역추정합니다. 1-2가 없으면 1-1 표 제목에 명시된 단위를 씁니다. 환산 근거가 없거나 산출값을
+ * 신뢰할 수 없으면 <b>적재하지 않고 경고만</b> 내며 파일 반입 자체는 막지 않습니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -77,10 +76,14 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         }
 
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>(read.diagnostics());
-        List<ProjectDto.BitemmDto> items = readItems(context, diagnostics);
+        List<ProjectDto.BitemmDto> items =
+                readItems(context, read.amounts(), project.getAbusNm(), diagnostics);
         project.setItems(items);
 
-        BigDecimal itemTotal = sumItemAmounts(items);
+        boolean synthesizedFromOverview =
+                context.sheets().get(FormSheetKind.CAPITAL_RESOURCE) == null;
+        BigDecimal itemTotal =
+                synthesizedFromOverview ? sumCurrentItemAmounts(items) : sumItemAmounts(items);
         Optional<AmountUnit> unit =
                 AmountUnitResolver.inferUnit(read.amounts().yearTotalRaw(), itemTotal);
         reconcileTotals(
@@ -125,12 +128,17 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 Map.copyOf(options));
     }
 
-    /** 1-2의 자본예산·일반관리비 두 블록을 순서대로 읽어 품목 목록을 만듭니다. */
+    /** 1-2의 두 블록을 읽고, 시트가 없으면 1-1 비목별 요약 행으로 품목을 만듭니다. */
     private List<ProjectDto.BitemmDto> readItems(
-            FormAdapterContext context, List<RequestFormDto.FormDiagnostic> diagnostics) {
+            FormAdapterContext context,
+            CapitalOverviewReader.DeclaredAmounts declared,
+            String projectName,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
         Sheet resource = context.sheets().get(FormSheetKind.CAPITAL_RESOURCE);
         List<ProjectDto.BitemmDto> items = new ArrayList<>();
-        if (resource == null) return items;
+        if (resource == null) {
+            return summaryItems(declared, projectName, context, diagnostics);
+        }
 
         int sno = 1;
         Optional<ResourceTableReader.Result> capital =
@@ -151,6 +159,41 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         return items;
     }
 
+    /** 1-2가 없는 단일 시트 양식의 1-1 비목별 합계를 합성 BITEMM DTO로 바꿉니다. */
+    private List<ProjectDto.BitemmDto> summaryItems(
+            CapitalOverviewReader.DeclaredAmounts declared,
+            String projectName,
+            FormAdapterContext context,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        if (declared.summaryUnit() == null || declared.summaryItems().isEmpty()) {
+            return List.of();
+        }
+
+        List<ProjectDto.BitemmDto> items = new ArrayList<>();
+        int sno = 1;
+        for (CapitalOverviewReader.SummaryItem row : declared.summaryItems()) {
+            ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+            item.setSno(sno++);
+            item.setIoeC(
+                    resolveIoe(
+                            FormSheetKind.CAPITAL_OVERVIEW,
+                            row.excelRow(),
+                            row.group(),
+                            projectName,
+                            context,
+                            diagnostics));
+            item.setGclNm(projectName);
+            item.setQty(BigDecimal.ONE);
+            item.setCurC("KRW");
+            item.setXcrBseDt(context.bseYy() + "0101");
+            item.setLstYn("Y");
+            item.setAmt(declared.summaryUnit().toWon(row.amountRaw().add(row.laterAmountRaw())));
+            item.setMplAmt(declared.summaryUnit().toWon(row.laterAmountRaw()));
+            items.add(item);
+        }
+        return List.copyOf(items);
+    }
+
     private ProjectDto.BitemmDto toItem(
             ResourceRow row,
             FormAdapterContext context,
@@ -168,24 +211,46 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             ResourceRow row,
             FormAdapterContext context,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        Optional<String> override =
-                context.override(FormSheetKind.CAPITAL_RESOURCE, row.excelRow(), "ioeC");
+        return resolveIoe(
+                FormSheetKind.CAPITAL_RESOURCE,
+                row.excelRow(),
+                row.group(),
+                row.itemName(),
+                context,
+                diagnostics);
+    }
+
+    private String resolveIoe(
+            FormSheetKind sheet,
+            int excelRow,
+            String group,
+            String subject,
+            FormAdapterContext context,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        Optional<String> override = context.override(sheet, excelRow, "ioeC");
         if (override.isPresent() && context.ioeIndex().exists(override.get()))
             return override.get();
 
         boolean domestic = !context.foreignBranch();
         IoeHierarchyIndex.Resolution resolution =
-                context.ioeIndex().resolveByGroup(row.group(), domestic);
+                sheet == FormSheetKind.CAPITAL_OVERVIEW
+                        ? context.ioeIndex().resolveByDetail("", group)
+                        : context.ioeIndex().resolveByGroup(group, domestic);
+        if (resolution.isUnresolved()) {
+            resolution = context.ioeIndex().resolveByGroup(group, domestic);
+        }
 
         if (resolution.code() == null) {
             diagnostics.add(
                     itemDiagnostic(
-                            row,
+                            sheet,
+                            excelRow,
+                            subject,
                             context,
                             resolution.isAmbiguous()
                                     ? RequestFormDiagnosticCode.CODE_AMBIGUOUS
                                     : RequestFormDiagnosticCode.CODE_UNRESOLVED,
-                            "구분 `%s`의 비목을 정하지 못했습니다.".formatted(row.group()),
+                            "구분 `%s`의 비목을 정하지 못했습니다.".formatted(group),
                             resolution));
             return null;
         }
@@ -194,27 +259,31 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             // 여기서 막으면 개발비·기타무형자산 품목이 있는 파일이 전부 차단된다.
             diagnostics.add(
                     itemDiagnostic(
-                            row,
+                            sheet,
+                            excelRow,
+                            subject,
                             context,
                             RequestFormDiagnosticCode.CODE_DEFAULTED,
                             "구분 `%s`의 비목을 `%s`로 기본 설정했습니다. 다른 비목이면 골라 주세요."
-                                    .formatted(row.group(), resolution.label()),
+                                    .formatted(group, resolution.label()),
                             resolution));
         }
         return resolution.code();
     }
 
     private RequestFormDto.FormDiagnostic itemDiagnostic(
-            ResourceRow row,
+            FormSheetKind sheet,
+            int excelRow,
+            String subject,
             FormAdapterContext context,
             RequestFormDiagnosticCode code,
             String message,
             IoeHierarchyIndex.Resolution resolution) {
         return RequestFormDto.FormDiagnostic.about(
-                FormSheetKind.CAPITAL_RESOURCE,
-                row.excelRow(),
+                sheet,
+                excelRow,
                 "ioeC",
-                row.itemName(),
+                subject,
                 code,
                 message,
                 IoeCandidates.orAll(resolution, context));
@@ -231,6 +300,17 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         BigDecimal total = BigDecimal.ZERO;
         for (ProjectDto.BitemmDto item : items) {
             if (item.getAmt() != null) total = total.add(item.getAmt());
+        }
+        return total;
+    }
+
+    /** 합성 품목의 전체 금액에서 익년 이후 예정분을 빼 예산연도 금액만 합산합니다. */
+    private static BigDecimal sumCurrentItemAmounts(List<ProjectDto.BitemmDto> items) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (ProjectDto.BitemmDto item : items) {
+            if (item.getAmt() == null) continue;
+            BigDecimal later = item.getMplAmt() == null ? BigDecimal.ZERO : item.getMplAmt();
+            total = total.add(item.getAmt().subtract(later));
         }
         return total;
     }
@@ -277,7 +357,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
      * 1-1 선언 금액에서 사업 단위 금액 3종을 산출합니다.
      *
      * <p>산식은 {@code 총소요금액 = 총 사업금액(전체기간)}, {@code 예정금액 = '26년도 이후}, {@code 지급금액 = 총 사업금액 − '26년도 이후
-     * − '26년도 합계}입니다. 요약표는 단위가 파일마다 다르므로 1-2 품목 합계로 역추정한 배수를 곱해 원 단위로 폅니다.
+     * − '26년도 합계}입니다. 요약표는 1-2 품목 합계로 역추정하거나 단일 시트 표의 명시 단위를 적용해 원 단위로 폅니다.
      *
      * <p>환산 근거가 없거나, 총액 칸에 단위가 없어 요약표 배수 해석과 원 단위 해석이 모두 성립하거나, 지급금액이 음수거나, 산출값이 컬럼 용량을 넘으면 <b>적재하지
      * 않고 경고만</b> 냅니다. 파일은 그대로 반영되고 세 컬럼은 품목 합계 스냅샷으로 남습니다 — 여기서 막으면 1-2가 정상인 파일까지 통째로 반입되지 못합니다.

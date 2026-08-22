@@ -5,6 +5,7 @@ import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
@@ -86,7 +87,9 @@ public class BoardPostService {
         verifyCanReadPost(user, post, board);
 
         boolean canModify = user.isAdmin() || user.getEno().equals(post.getFstEnrUsid());
-        return BoardPostDto.Detail.from(post, canModify);
+        // 작성자 이름·부서명은 사번으로 조회하며, 조회되지 않는 사번은 이름 없이 응답한다.
+        CuserI writer = userRepository.findByEno(post.getFstEnrUsid()).orElse(null);
+        return BoardPostDto.Detail.from(post, canModify, writer);
     }
 
     /**

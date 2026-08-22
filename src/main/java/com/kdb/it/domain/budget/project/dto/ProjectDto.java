@@ -852,11 +852,11 @@ public class ProjectDto {
         @Schema(description = "지급주기")
         private String dfrCleC;
 
-        /** 정보보호여부 ("Y" 또는 "N", 기본값 "N") */
+        /** 정보보호여부 ("Y" 또는 "N", 미기재는 null) */
         @Schema(description = "정보보호여부")
         private String sectSysUtzYn;
 
-        /** 통합인프라여부 ("Y" 또는 "N", 기본값 "N") */
+        /** 통합인프라여부 ("Y" 또는 "N", 미기재는 null) */
         @Schema(description = "통합인프라여부")
         private String itrInfrYn;
 

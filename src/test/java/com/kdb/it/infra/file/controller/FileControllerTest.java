@@ -34,6 +34,7 @@ import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveServi
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
+import com.kdb.it.infra.file.service.BoardAttachmentArchiveService;
 import com.kdb.it.infra.file.service.FileService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -67,10 +68,43 @@ class FileControllerTest {
     @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
     @MockitoBean private FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
     @MockitoBean private RequestFormSourceArchiveService requestFormSourceArchiveService;
+    @MockitoBean private BoardAttachmentArchiveService boardAttachmentArchiveService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     private static final String FL_MNG_NO = "FL_00000001";
+
+    @Test
+    @DisplayName("POST /api/files/board-attachments/archive - 선택 첨부 ZIP을 비동기로 스트리밍한다")
+    void downloadBoardAttachmentArchive_validRequest_streamsZip() throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/files/board-attachments/archive")
+                                        .with(csrf())
+                                        .with(user(userDetails))
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                "{\"nacMngNo\":\"NAC-2026-0003\",\"fileIds\":[\"FL-1\"]}"))
+                        .andExpect(request().asyncStarted())
+                        .andExpect(status().isOk())
+                        .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/zip"))
+                        .andExpect(
+                                header().string(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                containsString("NAC-2026-0003")))
+                        .andReturn();
+
+        mockMvc.perform(asyncDispatch(result)).andExpect(status().isOk());
+        verify(boardAttachmentArchiveService)
+                .writeArchive(
+                        org.mockito.ArgumentMatchers.eq("NAC-2026-0003"),
+                        org.mockito.ArgumentMatchers.eq(List.of("FL-1")),
+                        org.mockito.ArgumentMatchers.same(userDetails),
+                        any());
+    }
 
     @Test
     @DisplayName("POST /api/files/request-form-source/archive - 선택 원본 ZIP을 비동기로 스트리밍한다")

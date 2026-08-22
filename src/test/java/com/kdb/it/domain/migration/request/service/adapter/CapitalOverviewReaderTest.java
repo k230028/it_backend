@@ -102,6 +102,39 @@ class CapitalOverviewReaderTest {
     }
 
     @Test
+    @DisplayName("개요는 HTML 칸이라 <br>로 옮기고 평문 칸인 현황은 개행을 그대로 둔다")
+    void convertsOnlyRichTextNarrativeFields() {
+        java.util.Map<String, String> labels = new java.util.LinkedHashMap<>();
+        labels.put("사업명", "사업");
+        labels.put("(개요)", "1) 인증 연동\n2) 로그 수집");
+        labels.put("(현황)", "1) 구형 장비\n2) 수기 대장");
+        Sheet sheet = overviewSheet(labels);
+
+        ProjectDto.CreateRequest project =
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
+
+        // 개요는 Tiptap이 편집하고 화면이 v-html로 그린다 — 개행을 <br>로 옮겨야 두 줄로 보인다
+        assertThat(project.getAbusCone()).isEqualTo("1) 인증 연동<br>2) 로그 수집");
+        // 현황은 Textarea 평문이고 화면이 whitespace-pre-wrap으로 그린다 — <br>를 넣으면 글자 그대로 찍힌다
+        assertThat(project.getCpnSafCone()).isEqualTo("1) 구형 장비\n2) 수기 대장");
+    }
+
+    @Test
+    @DisplayName("사업범위의 셀 안 줄바꿈을 <br>로 옮기고 본문 특수문자는 이스케이프한다")
+    void keepsScopeLineBreaksAsHtml() {
+        // 사업범위는 라벨 아래 행까지 이어 읽으므로 뒤에 다른 라벨이 오지 않도록 마지막에 둔다
+        java.util.Map<String, String> labels = new java.util.LinkedHashMap<>();
+        labels.put("사업명", "사업");
+        labels.put("사업 범위 (전산 요구사항)", "1) 인증 <연동>\r\n2) 로그 & 감사");
+        Sheet sheet = overviewSheet(labels);
+
+        ProjectDto.CreateRequest project =
+                reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
+
+        assertThat(project.getAbusRngCone()).isEqualTo("1) 인증 &lt;연동&gt;<br>2) 로그 &amp; 감사");
+    }
+
+    @Test
     @DisplayName("주관부서/팀이 없으면 폴더명으로 확정한 부서를 쓴다")
     void fallsBackToFolderDepartment() {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업"));

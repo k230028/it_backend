@@ -72,9 +72,11 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         project.setSvnDpmC(context.resolvedDeptCode());
         project.setSttDtm(LocalDate.of(Integer.parseInt(context.bseYy()), 1, 1));
         project.setEndDtm(LocalDate.of(Integer.parseInt(context.bseYy()), 12, 31));
-        project.setAbusCone(labelReader.value(sheet, "(개요)"));
+        // 개요는 사업범위와 함께 Tiptap이 편집하는 HTML 필드다 — 나머지 서술 칸은 평문(Textarea)이라 개행을 그대로 둔다
+        project.setAbusCone(FormText.multiLineRichText(labelReader.value(sheet, "(개요)")));
         project.setCpnSafCone(labelReader.value(sheet, "(현황)"));
-        project.setAbusRngCone(labelReader.value(sheet, "(추진내용)"));
+        // 경상사업의 사업범위는 `(추진내용)` 한 칸이지만 셀 안 줄바꿈(Alt+Enter)이 흔하다 — 정보화사업과 같게 <br>로 옮긴다
+        project.setAbusRngCone(FormText.multiLineRichText(labelReader.value(sheet, "(추진내용)")));
         project.setPlmDes(labelReader.value(sheet, "(미추진시 문제점)"));
         // 이 시트에는 `관련 조직` 블록이 없다. 상단 머리말의 확인자·작성자가 주관팀장·담당자다
         project.setTlrUsid(

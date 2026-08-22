@@ -452,10 +452,10 @@ class ProjectServiceTest {
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                 .willReturn(true);
 
-        // when & then
+        // when & then (기본 인증 주체가 시스템관리자이므로 차단 사유는 결재중뿐이다)
         assertThatThrownBy(() -> projectService.deleteProject(prjMngNo))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("결재중이거나 결재완료된 프로젝트는 삭제할 수 없습니다");
+                .hasMessageContaining("결재중인 프로젝트는 삭제할 수 없습니다");
     }
 
     @Test
@@ -1029,7 +1029,7 @@ class ProjectServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("updateProject: 결재중/결재완료 상태이면 IllegalStateException을 던진다")
+    @DisplayName("updateProject: 결재 상태가 차단 대상이면 IllegalStateException을 던진다")
     void updateProject_결재중상태_예외발생() {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
@@ -1044,9 +1044,97 @@ class ProjectServiceTest {
         ProjectDto.UpdateRequest request =
                 ProjectDto.UpdateRequest.builder().abusNm("수정 시도").build();
 
+        // 기본 인증 주체가 시스템관리자이므로 차단 사유는 결재중뿐이다
         assertThatThrownBy(() -> projectService.updateProject(prjMngNo, request))
                 .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("결재중인 프로젝트는 수정할 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("updateProject: 시스템관리자는 결재완료를 차단 상태에서 제외하고 결재중만 확인한다")
+    void updateProject_관리자_결재완료제외() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
+                .willReturn(List.of());
+
+        projectService.updateProject(
+                prjMngNo, ProjectDto.UpdateRequest.builder().abusNm("관리자 정정").build());
+
+        // 결재완료(02)를 조회 조건에서 빼야 결재완료 사업이 관리자에게 열린다
+        verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        "BPROJM", prjMngNo, 1, List.of(ApprovalStatus.IN_PROGRESS.code()));
+    }
+
+    @Test
+    @DisplayName("updateProject: 관리자가 아니면 결재완료도 차단 상태에 포함한다")
+    void updateProject_비관리자_결재완료포함() {
+        String prjMngNo = "PRJ-2026-0001";
+        CustomUserDetails owner =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+        given(authentication.getPrincipal()).willReturn(owner);
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(prjMngNo)
+                        .sno(1)
+                        .fstEnrUsid("10001")
+                        .svnDpmC("101")
+                        .delYn("N")
+                        .build();
+
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(true);
+
+        assertThatThrownBy(
+                        () ->
+                                projectService.updateProject(
+                                        prjMngNo,
+                                        ProjectDto.UpdateRequest.builder().abusNm("수정 시도").build()))
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("결재중이거나 결재완료된 프로젝트는 수정할 수 없습니다");
+
+        verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        "BPROJM",
+                        prjMngNo,
+                        1,
+                        List.of(
+                                ApprovalStatus.IN_PROGRESS.code(),
+                                ApprovalStatus.COMPLETED.code()));
+    }
+
+    @Test
+    @DisplayName("deleteProject: 시스템관리자는 결재완료를 차단 상태에서 제외하고 결재중만 확인한다")
+    void deleteProject_관리자_결재완료제외() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 1)).willReturn(List.of());
+
+        projectService.deleteProject(prjMngNo);
+
+        assertThat(project.getDelYn()).isEqualTo("Y");
+        verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        "BPROJM", prjMngNo, 1, List.of(ApprovalStatus.IN_PROGRESS.code()));
     }
 
     // ───────────────────────────────────────────────────────

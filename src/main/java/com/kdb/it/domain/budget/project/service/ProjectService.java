@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.project.service;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
@@ -26,7 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>수정/삭제 시 해당 프로젝트에 연결된 신청서(CAPPLA)의 결재 상태를 확인합니다
- *   <li>"결재중" 또는 "결재완료" 상태인 경우 수정/삭제가 불가합니다
+ *   <li>"결재중" 상태인 경우 수정/삭제가 불가합니다
+ *   <li>"결재완료" 상태는 시스템관리자만 사후 정정을 위해 수정/삭제할 수 있습니다
  *   <li>원본 테이블 코드: {@code "BPROJM"}
  * </ul>
  *
@@ -261,11 +263,43 @@ public class ProjectService {
     }
 
     /**
+     * 연결된 신청서의 결재 상태 때문에 쓰기(수정·삭제)가 막히는지 판정합니다.
+     *
+     * <p>결재중(01)은 결재선이 지금 검토 중인 내용이라 누구도 바꿀 수 없습니다. 결재완료(02)는 확정 기록이지만 사후 정정이 필요한 경우가 있어 시스템관리자에게만
+     * 열어 둡니다 — 관리자 판정은 {@link OwnershipVerifier#isCurrentUserAdmin()}에 위임합니다.
+     *
+     * @param prjMngNo 프로젝트관리번호 (CAPPLA.PK_COL_NM)
+     * @param sno 원본 테이블 일련번호 (CAPPLA.FNT_TB_CRY_SNO)
+     * @return 현재 사용자 기준으로 쓰기가 막히면 true
+     */
+    private boolean isBlockedByApproval(String prjMngNo, Integer sno) {
+        List<String> blockingStatuses =
+                OwnershipVerifier.isCurrentUserAdmin()
+                        ? List.of(ApprovalStatus.IN_PROGRESS.code())
+                        : List.of(
+                                ApprovalStatus.IN_PROGRESS.code(), ApprovalStatus.COMPLETED.code());
+        return capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                "BPROJM", prjMngNo, sno, blockingStatuses);
+    }
+
+    /**
+     * 결재 상태 차단 안내 문구를 만듭니다. 관리자는 결재완료가 차단 사유에서 빠지므로 사유를 결재중으로만 알립니다.
+     *
+     * @param action 막힌 동작 이름 ("수정" 또는 "삭제")
+     * @return 사용자에게 보일 안내 문구
+     */
+    private static String approvalBlockMessage(String action) {
+        return OwnershipVerifier.isCurrentUserAdmin()
+                ? "결재중인 프로젝트는 " + action + "할 수 없습니다."
+                : "결재중이거나 결재완료된 프로젝트는 " + action + "할 수 없습니다.";
+    }
+
+    /**
      * 정보화사업 수정
      *
      * <p>프로젝트 기본 정보를 수정하고, 품목(Bitemm) 목록을 동기화합니다.
      *
-     * <p>결재 상태 확인: "결재중" 또는 "결재완료" 상태인 경우 수정이 불가합니다.
+     * <p>결재 상태 확인: "결재중" 상태인 경우 수정이 불가합니다. "결재완료" 상태는 시스템관리자만 수정할 수 있습니다.
      *
      * <p>품목 동기화 로직:
      *
@@ -283,7 +317,7 @@ public class ProjectService {
      * @param request 수정 요청 DTO (변경할 필드들, 품목 목록)
      * @return 수정된 프로젝트관리번호
      * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
-     * @throws IllegalStateException 결재중/결재완료 상태여서 수정 불가한 경우
+     * @throws IllegalStateException 결재중(또는 비관리자의 결재완료) 상태여서 수정 불가한 경우
      */
     // 프로젝트 수정 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
@@ -305,18 +339,8 @@ public class ProjectService {
         OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
         // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
-        // 결재중 또는 결재완료 상태인 경우 수정 불가
-        boolean isProcessingOrApproved =
-                capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                        "BPROJM",
-                        prjMngNo,
-                        project.getSno(),
-                        java.util.List.of(
-                                com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
-                                com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
-
-        if (isProcessingOrApproved) {
-            throw new IllegalStateException("결재중이거나 결재완료된 프로젝트는 수정할 수 없습니다.");
+        if (isBlockedByApproval(prjMngNo, project.getSno())) {
+            throw new IllegalStateException(approvalBlockMessage("수정"));
         }
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
@@ -517,7 +541,7 @@ public class ProjectService {
      *
      * @param prjMngNo 삭제할 프로젝트관리번호
      * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
-     * @throws IllegalStateException 결재중/결재완료 상태여서 삭제 불가한 경우
+     * @throws IllegalStateException 결재중(또는 비관리자의 결재완료) 상태여서 삭제 불가한 경우
      */
     // 프로젝트 삭제 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
@@ -538,18 +562,9 @@ public class ProjectService {
         // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
         OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
-        // 결재 상태 확인 (결재중/결재완료이면 삭제 불가)
-        boolean isProcessingOrApproved =
-                capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                        "BPROJM",
-                        prjMngNo,
-                        project.getSno(),
-                        java.util.List.of(
-                                com.kdb.it.common.approval.domain.ApprovalStatus.IN_PROGRESS.code(),
-                                com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code()));
-
-        if (isProcessingOrApproved) {
-            throw new IllegalStateException("결재중이거나 결재완료된 프로젝트는 삭제할 수 없습니다.");
+        // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
+        if (isBlockedByApproval(prjMngNo, project.getSno())) {
+            throw new IllegalStateException(approvalBlockMessage("삭제"));
         }
 
         // 1. 프로젝트 Soft Delete (DEL_YN='Y')

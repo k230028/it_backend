@@ -22,6 +22,7 @@ import com.kdb.it.infra.file.authz.FileKindRegistry;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.authz.RequestFormFileTargetWriteAuthorizer;
 import com.kdb.it.infra.file.dto.FileDto;
+import com.kdb.it.infra.file.service.BoardAttachmentArchiveService;
 import com.kdb.it.infra.file.service.FileService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +52,7 @@ class RequestFormFileControllerProtectionTest {
     @MockitoBean private FileService fileService;
     @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
     @MockitoBean private RequestFormSourceArchiveService requestFormSourceArchiveService;
+    @MockitoBean private BoardAttachmentArchiveService boardAttachmentArchiveService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 

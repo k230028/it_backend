@@ -94,12 +94,16 @@ public class CapitalOverviewReader {
         project.setOdnYn("N");
         project.setAbusTc(CodeDefaults.NOT_APPLICABLE);
         project.setAbusNm(FormText.singleLineName(labelReader.value(sheet, "사업명")));
-        project.setAbusCone(labelReader.value(sheet, "(개요)"));
+        // 개요는 사업범위와 함께 Tiptap이 편집하는 HTML 필드다 — 나머지 서술 칸은 평문(Textarea)이라 개행을 그대로 둔다
+        project.setAbusCone(FormText.multiLineRichText(labelReader.value(sheet, "(개요)")));
         project.setCpnSafCone(labelReader.value(sheet, "(현황)"));
         project.setAbusNcsCone(labelReader.value(sheet, "(필요성)"));
         project.setDgogPpoCone(labelReader.value(sheet, "(기대효과)"));
         project.setPlmDes(labelReader.value(sheet, "(미추진시 문제점)"));
-        project.setAbusRngCone(labelReader.multiRowValue(sheet, "사업 범위 (전산 요구사항)", MULTI_ROW_SPAN));
+        // 사업범위는 여러 행에 나뉘어 적히는 HTML(Tiptap) 필드다 — 행 사이 줄바꿈을 <br>로 옮겨야 화면에 그대로 보인다
+        project.setAbusRngCone(
+                FormText.multiLineRichText(
+                        labelReader.multiRowValue(sheet, "사업 범위 (전산 요구사항)", MULTI_ROW_SPAN)));
         project.setMnPrgCone(labelReader.multiRowValue(sheet, "추진경과", MULTI_ROW_SPAN));
         project.setHrfPlnCone(labelReader.multiRowValue(sheet, "향후계획", MULTI_ROW_SPAN));
 
@@ -458,7 +462,80 @@ public class CapitalOverviewReader {
                 totalRow.map(row -> summaryColumn(sheet, row, YEAR_TOTAL_SUFFIX)).orElse(null);
         BigDecimal laterTotal =
                 totalRow.map(row -> summaryColumn(sheet, row, LATER_TOTAL_SUFFIX)).orElse(null);
-        return wholePeriod(sheet, yearTotal, laterTotal);
+        SummaryTable summary =
+                totalRow.map(row -> summaryTable(sheet, row)).orElseGet(SummaryTable::empty);
+        return wholePeriod(sheet, yearTotal, laterTotal, summary.unit(), summary.items());
+    }
+
+    /** 1-1 요약표의 비목별 행과 표에 명시된 금액 단위를 읽습니다. */
+    private SummaryTable summaryTable(Sheet sheet, int totalRow) {
+        HeaderCell yearHeader = findHeader(sheet, totalRow, YEAR_TOTAL_SUFFIX);
+        if (yearHeader == null) return SummaryTable.empty();
+
+        HeaderCell laterHeader = findHeader(sheet, totalRow, LATER_TOTAL_SUFFIX);
+        int groupColumn = findGroupColumn(sheet, yearHeader.row());
+        AmountUnit unit = findSummaryUnit(sheet, yearHeader.row());
+        List<SummaryItem> items = new ArrayList<>();
+        for (int rowIndex = yearHeader.row() + 1; rowIndex < totalRow; rowIndex++) {
+            String group = scanner.text(sheet, rowIndex, groupColumn);
+            if (!hasText(group)) continue;
+            String normalizedGroup = SheetAnchorScanner.normalize(group);
+            if ("총계".equals(normalizedGroup)
+                    || "소계".equals(normalizedGroup)
+                    || "계".equals(normalizedGroup)) continue;
+
+            BigDecimal amount = parseAmount(scanner.text(sheet, rowIndex, yearHeader.column()));
+            BigDecimal later =
+                    laterHeader == null
+                            ? null
+                            : parseAmount(scanner.text(sheet, rowIndex, laterHeader.column()));
+            BigDecimal currentValue = amount == null ? BigDecimal.ZERO : amount;
+            BigDecimal laterValue = later == null ? BigDecimal.ZERO : later;
+            if (currentValue.signum() == 0 && laterValue.signum() == 0) continue;
+            items.add(new SummaryItem(rowIndex + 1, group.trim(), currentValue, laterValue));
+        }
+        return new SummaryTable(unit, List.copyOf(items));
+    }
+
+    /** 연도 합계·연도 이후 헤더의 좌표를 찾습니다. */
+    private HeaderCell findHeader(Sheet sheet, int totalRow, String suffix) {
+        for (int rowIndex = 0; rowIndex < totalRow; rowIndex++) {
+            for (int colIndex = 0; colIndex <= TOTAL_SCAN_WIDTH; colIndex++) {
+                String header =
+                        SheetAnchorScanner.normalize(scanner.text(sheet, rowIndex, colIndex));
+                if (header.endsWith(suffix)) return new HeaderCell(rowIndex, colIndex);
+            }
+        }
+        return null;
+    }
+
+    /** 같은 헤더 행에서 `비목` 열을 찾고, 변형 양식이면 통상 위치인 B열을 사용합니다. */
+    private int findGroupColumn(Sheet sheet, int headerRow) {
+        for (int colIndex = 0; colIndex <= TOTAL_SCAN_WIDTH; colIndex++) {
+            String header = SheetAnchorScanner.normalize(scanner.text(sheet, headerRow, colIndex));
+            if ("비목".equals(header)) return colIndex;
+        }
+        return 1;
+    }
+
+    /** 요약표 제목·헤더에 명시된 원/천원/백만원 단위를 읽습니다. */
+    private AmountUnit findSummaryUnit(Sheet sheet, int headerRow) {
+        // 요약표 자체의 표기를 우선하고, 없을 때만 바로 위의 총액·제목 행까지 넓힙니다.
+        for (int offset = 0; offset <= 2; offset++) {
+            int rowIndex = headerRow - offset;
+            if (rowIndex < 0) break;
+            for (int colIndex = 0; colIndex <= TOTAL_SCAN_WIDTH; colIndex++) {
+                String text = scanner.text(sheet, rowIndex, colIndex);
+                if (!hasText(text)) continue;
+                if (text.contains("백만원")) return AmountUnit.MILLION;
+                if (text.contains("천원")) return AmountUnit.THOUSAND;
+                String normalized = SheetAnchorScanner.normalize(text);
+                if ("원".equals(normalized) || normalized.contains("단위원")) {
+                    return AmountUnit.WON;
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -517,10 +594,16 @@ public class CapitalOverviewReader {
      * @param laterTotal 요약표 `'26년도 이후` 기재값
      * @return 선언 금액
      */
-    private DeclaredAmounts wholePeriod(Sheet sheet, BigDecimal yearTotal, BigDecimal laterTotal) {
+    private DeclaredAmounts wholePeriod(
+            Sheet sheet,
+            BigDecimal yearTotal,
+            BigDecimal laterTotal,
+            AmountUnit summaryUnit,
+            List<SummaryItem> summaryItems) {
         String raw = labelReader.value(sheet, "총 사업금액(전체기간)");
         if (!hasText(raw)) {
-            return new DeclaredAmounts(null, null, false, yearTotal, laterTotal);
+            return new DeclaredAmounts(
+                    null, null, false, yearTotal, laterTotal, summaryUnit, summaryItems);
         }
         String trimmed = raw.trim();
         for (Map.Entry<String, AmountUnit> suffix : WHOLE_PERIOD_SUFFIXES) {
@@ -528,14 +611,23 @@ public class CapitalOverviewReader {
             BigDecimal number =
                     parseAmount(trimmed.substring(0, trimmed.length() - suffix.getKey().length()));
             return number == null
-                    ? new DeclaredAmounts(null, null, true, yearTotal, laterTotal)
+                    ? new DeclaredAmounts(
+                            null, null, true, yearTotal, laterTotal, summaryUnit, summaryItems)
                     : new DeclaredAmounts(
-                            suffix.getValue().toWon(number), null, false, yearTotal, laterTotal);
+                            suffix.getValue().toWon(number),
+                            null,
+                            false,
+                            yearTotal,
+                            laterTotal,
+                            summaryUnit,
+                            summaryItems);
         }
         BigDecimal number = parseAmount(trimmed);
         return number == null
-                ? new DeclaredAmounts(null, null, true, yearTotal, laterTotal)
-                : new DeclaredAmounts(null, number, false, yearTotal, laterTotal);
+                ? new DeclaredAmounts(
+                        null, null, true, yearTotal, laterTotal, summaryUnit, summaryItems)
+                : new DeclaredAmounts(
+                        null, number, false, yearTotal, laterTotal, summaryUnit, summaryItems);
     }
 
     private static BigDecimal parseAmount(String raw) {
@@ -589,7 +681,7 @@ public class CapitalOverviewReader {
     /**
      * 1-1 읽기 결과입니다.
      *
-     * @param project 사업 생성 요청 (품목 미포함 — 어댑터가 1-2에서 채웁니다)
+     * @param project 사업 생성 요청 (품목 미포함 — 어댑터가 1-2 또는 1-1 요약표에서 채웁니다)
      * @param diagnostics 해석 진단
      * @param amounts 1-1이 선언한 금액. 단위가 확정되지 않은 값이 섞여 있습니다
      */
@@ -601,8 +693,8 @@ public class CapitalOverviewReader {
     /**
      * 1-1이 선언한 금액입니다. <b>요약표 두 값은 단위가 확정되지 않은 기재값 그대로</b>입니다.
      *
-     * <p>요약표는 헤더에 `백만원`이라 적혀 있어도 실제 기재 단위가 부점마다 다릅니다(실측: 한 파일 `2637`, 다른 파일 `1014981660`). 배수는 1-2
-     * 품목 합계와 대사해야 정해지고 그 합계는 어댑터만 알고 있으므로, 리더는 판단하지 않고 raw로 넘깁니다.
+     * <p>요약표 기재값은 raw로 넘기고, 표 제목의 명시 단위도 별도로 보존합니다. 1-2가 있으면 어댑터가 품목 합계 대사를 우선하고, 1-2가 없으면 명시 단위로
+     * 비목별 행을 원 단위로 환산합니다.
      *
      * <p>반면 `총 사업금액(전체기간)`은 표 헤더에 딸린 칸이 아니라 제출자가 숫자와 단위를 함께 적는 자유 텍스트라, 적힌 접미사가 그 칸의 유일한 근거입니다. 그래서
      * 여기서 원 단위로 확정합니다.
@@ -612,11 +704,29 @@ public class CapitalOverviewReader {
      * @param wholePeriodUnknownUnit 값은 있으나 숫자·단위로 해석하지 못했으면 true. <b>배수 폴백을 금지하는 신호</b>입니다
      * @param yearTotalRaw 요약표 `'26년도 합계` 기재값 (단위 미확정). 요약표를 못 찾으면 null
      * @param laterTotalRaw 요약표 `'26년도 이후` 기재값 (단위 미확정). 기재가 없으면 null
+     * @param summaryUnit 요약표 제목에 명시된 단위. 없으면 null
+     * @param summaryItems 요약표의 비목별 금액 행
      */
     public record DeclaredAmounts(
             BigDecimal wholePeriodWon,
             BigDecimal wholePeriodRaw,
             boolean wholePeriodUnknownUnit,
             BigDecimal yearTotalRaw,
-            BigDecimal laterTotalRaw) {}
+            BigDecimal laterTotalRaw,
+            AmountUnit summaryUnit,
+            List<SummaryItem> summaryItems) {}
+
+    /** 1-1 요약표의 비목별 금액 행입니다. 금액은 아직 표 기재 단위입니다. */
+    public record SummaryItem(
+            int excelRow, String group, BigDecimal amountRaw, BigDecimal laterAmountRaw) {}
+
+    /** 요약표 내부 파싱 결과입니다. */
+    private record SummaryTable(AmountUnit unit, List<SummaryItem> items) {
+        private static SummaryTable empty() {
+            return new SummaryTable(null, List.of());
+        }
+    }
+
+    /** 요약표 헤더 셀 좌표입니다. */
+    private record HeaderCell(int row, int column) {}
 }

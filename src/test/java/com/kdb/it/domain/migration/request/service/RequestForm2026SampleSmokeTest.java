@@ -59,6 +59,8 @@ class RequestForm2026SampleSmokeTest {
     private static final String SINGLE_RECURRING_SAMPLE_SUFFIX = "자원증설.xls";
     private static final String THOUSAND_UNIT_SAMPLE_SUFFIX = "전산설비 유지보수.xls";
     private static final String OUTSOURCING_SAMPLE_SUFFIX = "편성 요청서_IT계약팀.xls";
+    private static final String AGED_INFRA_SAMPLE_SUFFIX =
+            "[자료1] 2026년 전산예산 편성 요청서(노후인프라(HW,SW) 중장기 실행방안 수립).xls";
 
     private static final String VDI_SAMPLE_SUFFIX = "요청서_스마트워크 인프라(VDI) 고도화 사업.xlsx";
 
@@ -350,7 +352,45 @@ class RequestForm2026SampleSmokeTest {
                                         .hasSize(4));
     }
 
+    @Test
+    @DisplayName("1-2가 없는 노후인프라 샘플은 1-1 비목별 합계로 BITEMM을 만든다")
+    void adaptsAgedInfrastructureSummaryItem() throws IOException {
+        FormAdapterOutput output = adaptCapitalSample(AGED_INFRA_SAMPLE_SUFFIX, false);
+
+        assertThat(output.projects())
+                .singleElement()
+                .satisfies(
+                        project -> {
+                            assertThat(project.getItems())
+                                    .singleElement()
+                                    .satisfies(
+                                            item -> {
+                                                assertThat(item.getIoeC()).isEqualTo("008");
+                                                assertThat(item.getGclNm())
+                                                        .isEqualTo(project.getAbusNm());
+                                                assertThat(item.getQty()).isEqualByComparingTo("1");
+                                                assertThat(item.getAmt())
+                                                        .isEqualByComparingTo("1155000000");
+                                                assertThat(item.getMplAmt())
+                                                        .isEqualByComparingTo("0");
+                                            });
+                        });
+        assertThat(output.projectAmounts())
+                .singleElement()
+                .satisfies(
+                        amounts -> {
+                            assertThat(amounts.isPresent()).isTrue();
+                            assertThat(amounts.totRqmAmt()).isEqualByComparingTo("1155000000");
+                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("0");
+                        });
+    }
+
     private FormAdapterOutput adaptCapitalSample(String suffix) throws IOException {
+        return adaptCapitalSample(suffix, true);
+    }
+
+    private FormAdapterOutput adaptCapitalSample(String suffix, boolean requireResource)
+            throws IOException {
         Path root = sampleRoot();
         Path sample = findUniqueSample(root, suffix);
         SheetAnchorScanner scanner = new SheetAnchorScanner();
@@ -374,11 +414,15 @@ class RequestForm2026SampleSmokeTest {
         try (Workbook workbook = reader.open(readSampleBytes(sample), "sample.xls")) {
             Map<FormSheetKind, Sheet> sheets = reader.classify(workbook);
             Sheet resourceSheet = sheets.get(FormSheetKind.CAPITAL_RESOURCE);
-            ResourceTableReader.Result resources =
-                    resourceReader.readCapitalResource(resourceSheet, 0, false).orElseThrow();
-            assertThat(resources.rows())
-                    .as("resource header row=%s", resources.headerRow())
-                    .isNotEmpty();
+            if (requireResource) {
+                ResourceTableReader.Result resources =
+                        resourceReader.readCapitalResource(resourceSheet, 0, false).orElseThrow();
+                assertThat(resources.rows())
+                        .as("resource header row=%s", resources.headerRow())
+                        .isNotEmpty();
+            } else {
+                assertThat(resourceSheet).isNull();
+            }
             return adapter.adapt(
                     new FormAdapterContext(
                             sheets,

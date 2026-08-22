@@ -36,17 +36,12 @@ final class ProjectItemChangeDetector {
                 || !Objects.equals(existing.getCncdFdtnCone(), dto.getCncdFdtnCone())
                 || !Objects.equals(existing.getBseYm(), dto.getBseYm())
                 || !Objects.equals(existing.getDfrCleC(), dto.getDfrCleC())
-                || !Objects.equals(existing.getSectSysUtzYn(), defaultYn(dto.getSectSysUtzYn()))
-                || !Objects.equals(existing.getItrInfrYn(), defaultYn(dto.getItrInfrYn()))
+                || !Objects.equals(existing.getSectSysUtzYn(), dto.getSectSysUtzYn())
+                || !Objects.equals(existing.getItrInfrYn(), dto.getItrInfrYn())
                 || bigDecimalChanged(existing.getAmt(), dto.getAmt())
                 || bigDecimalChanged(existing.getMplAmt(), dto.getMplAmt())
                 // fcAmt 변경 시 D/C 이력 생성 (null-safe 비교)
                 || bigDecimalChanged(existing.getFcAmt(), dto.getFcAmt());
-    }
-
-    /** null이면 "N"으로 정규화 (sectSysUtzYn, itrInfrYn 공통 기본값 처리) */
-    static String defaultYn(String value) {
-        return value == null ? "N" : value;
     }
 
     /** scale이 달라도 같은 수치면 변경으로 보지 않는 null-safe 비교. */

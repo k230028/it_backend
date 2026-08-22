@@ -5,7 +5,9 @@ import com.kdb.it.domain.migration.request.dto.RequestFormSourceArchiveRequest;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
+import com.kdb.it.infra.file.dto.BoardAttachmentArchiveRequest;
 import com.kdb.it.infra.file.dto.FileDto;
+import com.kdb.it.infra.file.service.BoardAttachmentArchiveService;
 import com.kdb.it.infra.file.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -58,6 +60,7 @@ public class FileController {
     private final FileOwnershipChecker fileOwnershipChecker;
     private final FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
     private final RequestFormSourceArchiveService requestFormSourceArchiveService;
+    private final BoardAttachmentArchiveService boardAttachmentArchiveService;
 
     // ─────────────────────────────────────────
     // 조회
@@ -103,6 +106,41 @@ public class FileController {
             @RequestParam("pkCone") List<String> pkCones,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(fileService.getFilesBatch(pkColNm, pkCones, userDetails));
+    }
+
+    /** 읽기 권한이 있는 게시물의 전체 또는 선택 첨부파일을 ZIP으로 다운로드합니다. */
+    @PostMapping(
+            value = "/board-attachments/archive",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = "application/zip")
+    @Operation(
+            summary = "게시판 첨부파일 ZIP 다운로드",
+            description = "읽기 권한이 있는 게시물의 전체 또는 선택 첨부파일을 하나의 ZIP으로 압축합니다.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "게시판 첨부파일 ZIP",
+            content =
+                    @Content(
+                            mediaType = "application/zip",
+                            schema = @Schema(type = "string", format = "binary")))
+    public ResponseEntity<StreamingResponseBody> downloadBoardAttachmentArchive(
+            @Valid @RequestBody BoardAttachmentArchiveRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ContentDisposition disposition =
+                ContentDisposition.attachment()
+                        .filename(
+                                "게시물_" + safeFileNamePart(request.nacMngNo()) + "_첨부파일.zip",
+                                StandardCharsets.UTF_8)
+                        .build();
+        StreamingResponseBody body =
+                output ->
+                        boardAttachmentArchiveService.writeArchive(
+                                request.nacMngNo(), request.fileIds(), userDetails, output);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .body(body);
     }
 
     /**

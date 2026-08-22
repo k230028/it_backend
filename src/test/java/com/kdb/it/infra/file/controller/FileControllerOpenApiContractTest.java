@@ -10,6 +10,7 @@ import com.kdb.it.config.SwaggerConfig;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
+import com.kdb.it.infra.file.service.BoardAttachmentArchiveService;
 import com.kdb.it.infra.file.service.FileService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,7 @@ class FileControllerOpenApiContractTest {
     @MockitoBean private FileOwnershipChecker fileOwnershipChecker;
     @MockitoBean private FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
     @MockitoBean private RequestFormSourceArchiveService requestFormSourceArchiveService;
+    @MockitoBean private BoardAttachmentArchiveService boardAttachmentArchiveService;
 
     @Test
     @DisplayName("원본 ZIP 200 응답은 application/zip binary string으로 공개된다")

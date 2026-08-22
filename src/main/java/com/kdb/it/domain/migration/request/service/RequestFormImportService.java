@@ -279,18 +279,18 @@ public class RequestFormImportService {
                 null);
     }
 
-    /** 사업 원본 그룹에 파일명에 '요청서'가 포함된 Excel 파일이 없을 때의 차단 결과입니다. */
+    /** 사업 원본 그룹에 요청서 Excel이 없을 때 보관 대표 파일에 남기는 비차단 경고입니다. */
     private RequestFormDto.FileResult missingRequestWorkbook(RequestFormDto.FileEntry entry) {
         return new RequestFormDto.FileResult(
                 entry.fileKey(),
                 entry.deptName(),
-                RequestFormDto.FileStatus.BLOCKED,
+                RequestFormDto.FileStatus.SKIPPED,
                 List.of(
                         RequestFormDto.FormDiagnostic.of(
                                 null,
                                 null,
                                 "requestFormFile",
-                                RequestFormDiagnosticCode.REQUIRED_MISSING,
+                                RequestFormDiagnosticCode.SHEET_NOT_FOUND,
                                 "사업 폴더에 파일명에 '요청서'가 포함된 Excel 파일이 없습니다.",
                                 List.of())),
                 List.of(),

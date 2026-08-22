@@ -64,7 +64,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
  *   <li>{@code representativeStatus}: 여러 행 MAX, 일부 null, 전부 null, 빈 리스트
  *   <li>{@code enrichItemIoeCNames}: ioeC=null/빈값 혼재 시 필터 람다 커버
  *   <li>{@code getProject} 단건 상세: bproja 있을 때 stsTc·bprojaStsCodes 설정
- *   <li>{@code createProject}: items=null 분기; sectSysUtzYn/itrInfrYn null 기본값 처리
+ *   <li>{@code createProject}: items=null 분기; 합성 품목의 선택 정보 null 유지
  *   <li>{@code updateProject}: gclMngNo 있으나 기존 품목에 없을 때 무처리 분기
  *   <li>{@code getProjectsByIds}: setApplicationInfo 내부 capplm.ifPresent 람다
  * </ul>
@@ -666,6 +666,56 @@ class ProjectServiceCoverageTest {
     }
 
     @Test
+    @DisplayName("isItemChanged: 기존과 요청의 선택 정보가 모두 null이면 변경하지 않는다")
+    void isItemChanged_nullableFlagsRemainUnchanged() {
+        String prjMngNo = "PRJ-IC-NULL";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+        Bitemm existing =
+                Bitemm.builder()
+                        .gclMngNo("GCL-IC-NULL")
+                        .sno(1)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(1)
+                        .ioeC("008")
+                        .gclNm("합성품목")
+                        .qty(BigDecimal.ONE)
+                        .curC("KRW")
+                        .xcr(BigDecimal.ONE)
+                        .xcrBseDt("20260101")
+                        .dfrCleC("0")
+                        .sectSysUtzYn(null)
+                        .itrInfrYn(null)
+                        .amt(BigDecimal.valueOf(400))
+                        .mplAmt(BigDecimal.valueOf(300))
+                        .delYn("N")
+                        .build();
+        ProjectDto.BitemmDto dto =
+                ProjectDto.BitemmDto.builder()
+                        .gclMngNo("GCL-IC-NULL")
+                        .ioeC("008")
+                        .gclNm("합성품목")
+                        .qty(BigDecimal.ONE)
+                        .curC("KRW")
+                        .xcr(BigDecimal.ONE)
+                        .xcrBseDt("20260101")
+                        .dfrCleC("0")
+                        .sectSysUtzYn(null)
+                        .itrInfrYn(null)
+                        .amt(BigDecimal.valueOf(400))
+                        .mplAmt(BigDecimal.valueOf(300))
+                        .build();
+        setupUpdateMocks(prjMngNo, project, List.of(existing));
+
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
+
+        verify(xcrLookupService, never()).resolveXcr(any(), any());
+        assertThat(existing.getSectSysUtzYn()).isNull();
+        assertThat(existing.getItrInfrYn()).isNull();
+    }
+
+    @Test
     @DisplayName("isItemChanged: ioeC가 다르면 변경으로 탐지한다")
     void isItemChanged_ioeC_변경탐지() {
         String prjMngNo = "PRJ-IC-001";
@@ -1254,6 +1304,41 @@ class ProjectServiceCoverageTest {
         verify(bitemmRepository, never()).save(any(Bitemm.class));
         // BPROJA 적재 확인
         verify(bprojaSyncService).upsert(result, result, "01");
+    }
+
+    @Test
+    @DisplayName("createProject: 합성 품목은 지급주기만 해당없음으로 저장하고 선택 정보는 null을 유지한다")
+    void createProject_syntheticItem_preservesNullableFields() {
+        given(projectRepository.getNextSequenceValue()).willReturn(100L);
+        given(bitemmRepository.getNextSequenceValue()).willReturn(100L);
+        given(xcrLookupService.resolveXcr(any(), any())).willReturn(BigDecimal.ONE);
+
+        ProjectDto.BitemmDto item =
+                ProjectDto.BitemmDto.builder()
+                        .ioeC("008")
+                        .gclNm("노후인프라 중장기 실행방안 수립")
+                        .qty(BigDecimal.ONE)
+                        .curC("KRW")
+                        .amt(new BigDecimal("1155000000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .build();
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("노후인프라 중장기 실행방안 수립")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
+
+        projectService.createProject(request);
+
+        ArgumentCaptor<Bitemm> captor = ArgumentCaptor.forClass(Bitemm.class);
+        verify(bitemmRepository).save(captor.capture());
+        Bitemm saved = captor.getValue();
+        assertThat(saved.getDfrCleC()).isEqualTo("0");
+        assertThat(saved.getCncdFdtnCone()).isNull();
+        assertThat(saved.getBseYm()).isNull();
+        assertThat(saved.getSectSysUtzYn()).isNull();
+        assertThat(saved.getItrInfrYn()).isNull();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

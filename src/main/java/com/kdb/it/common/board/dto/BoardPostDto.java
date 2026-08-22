@@ -1,6 +1,7 @@
 package com.kdb.it.common.board.dto;
 
 import com.kdb.it.common.board.entity.Cblbcm;
+import com.kdb.it.common.iam.entity.CuserI;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -172,7 +173,8 @@ public class BoardPostDto {
             requiredProperties = {
                 "nacMngNo", "blbMngNo", "nacNm", "nacCone", "nacInqNbr", "nacUnqId", "ancYn",
                 "xpoYn", "bbrC", "sttYmd", "endYmd", "flApgYn", "flNbr", "nacGrpSqn",
-                "nacGrpLev", "hrkNacNo", "fstEnrUsid", "fstEnrDtm", "lstChgDtm", "canModify"
+                "nacGrpLev", "hrkNacNo", "fstEnrUsid", "fstEnrUsNm", "fstEnrBbrNm", "fstEnrDtm",
+                "lstChgDtm", "canModify"
             })
     public static class Detail {
         @Schema(description = "게시물관리번호")
@@ -232,6 +234,12 @@ public class BoardPostDto {
         @Schema(description = "작성자사번")
         private String fstEnrUsid;
 
+        @Schema(description = "작성자명", nullable = true)
+        private String fstEnrUsNm;
+
+        @Schema(description = "작성자 소속부서명", nullable = true)
+        private String fstEnrBbrNm;
+
         @Schema(description = "등록일시")
         private LocalDateTime fstEnrDtm;
 
@@ -241,7 +249,15 @@ public class BoardPostDto {
         @Schema(description = "수정 가능 여부")
         private boolean canModify;
 
-        public static Detail from(Cblbcm e, boolean canModify) {
+        /**
+         * 게시물 엔티티와 작성자 정보를 상세 응답으로 변환합니다.
+         *
+         * @param e 게시물 엔티티
+         * @param canModify 수정 가능 여부
+         * @param writer 작성자 사용자. 퇴직·삭제 등으로 조회되지 않으면 null이며 이름·부서명은 비웁니다.
+         * @return 게시물 상세 DTO
+         */
+        public static Detail from(Cblbcm e, boolean canModify, CuserI writer) {
             return Detail.builder()
                     .nacMngNo(e.getNacMngNo())
                     .blbMngNo(e.getBlbMngNo())
@@ -260,6 +276,8 @@ public class BoardPostDto {
                     .nacGrpLev(e.getNacGrpLev())
                     .hrkNacNo(e.getHrkNacNo())
                     .fstEnrUsid(e.getFstEnrUsid())
+                    .fstEnrUsNm(writer == null ? null : writer.getUsrNm())
+                    .fstEnrBbrNm(writer == null ? null : writer.getBbrNm())
                     .fstEnrDtm(e.getFstEnrDtm())
                     .lstChgDtm(e.getLstChgDtm())
                     .canModify(canModify)

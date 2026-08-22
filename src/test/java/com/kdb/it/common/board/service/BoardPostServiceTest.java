@@ -505,6 +505,56 @@ class BoardPostServiceTest {
     }
 
     @Test
+    @DisplayName("게시물 상세는 작성자 사번으로 이름과 소속부서명을 채운다")
+    void getPostDetail_writerProfile_success() {
+        Cblbmm writableBoard = writableBoard();
+        Cblbcm post = post("NAC-2026-0001", "USER001");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.of(post));
+        given(userRepository.findByEno("USER001"))
+                .willReturn(
+                        Optional.of(
+                                com.kdb.it.common.iam.entity.CuserI.builder()
+                                        .eno("USER001")
+                                        .usrNm("홍길동")
+                                        .organization(
+                                                com.kdb.it.common.iam.entity.CorgnI.builder()
+                                                        .prlmOgzCCone("180")
+                                                        .bbrNm("IT기획부")
+                                                        .build())
+                                        .build()));
+
+        var result = service.getPostDetail("BLBM-2026-0003", "NAC-2026-0001", normalUser);
+
+        assertThat(result.getFstEnrUsid()).isEqualTo("USER001");
+        assertThat(result.getFstEnrUsNm()).isEqualTo("홍길동");
+        assertThat(result.getFstEnrBbrNm()).isEqualTo("IT기획부");
+    }
+
+    @Test
+    @DisplayName("조회되지 않는 작성자 사번은 이름과 부서명 없이 상세를 반환한다")
+    void getPostDetail_unknownWriter_returnsNullNames() {
+        Cblbmm writableBoard = writableBoard();
+        Cblbcm post = post("NAC-2026-0001", "USER001");
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0003", "N"))
+                .willReturn(Optional.of(writableBoard));
+        given(
+                        postRepository.findByBlbMngNoAndNacMngNoAndDelYn(
+                                "BLBM-2026-0003", "NAC-2026-0001", "N"))
+                .willReturn(Optional.of(post));
+        given(userRepository.findByEno("USER001")).willReturn(Optional.empty());
+
+        var result = service.getPostDetail("BLBM-2026-0003", "NAC-2026-0001", normalUser);
+
+        assertThat(result.getFstEnrUsNm()).isNull();
+        assertThat(result.getFstEnrBbrNm()).isNull();
+    }
+
+    @Test
     @DisplayName("다른 게시판 경로의 상세 GET은 게시물을 찾을 수 없는 것으로 처리한다")
     void getPostDetail_wrongBoard_throwsNotFound() {
         Cblbcm otherBoardPost = post("NAC-2026-0001", "USER001");

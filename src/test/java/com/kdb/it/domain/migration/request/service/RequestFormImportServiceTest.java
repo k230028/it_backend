@@ -260,8 +260,8 @@ class RequestFormImportServiceTest {
     }
 
     @Test
-    @DisplayName("사업 폴더에 요청서 엑셀이 없으면 폴더당 한 번 BLOCKER로 알린다")
-    void blocksArchiveGroupWithoutRequestWorkbook() {
+    @DisplayName("사업 폴더에 요청서 엑셀이 없으면 차단하지 않고 폴더당 한 번 경고한다")
+    void warnsArchiveGroupWithoutRequestWorkbook() {
         List<RequestFormDto.FileEntry> entries =
                 List.of(
                         new RequestFormDto.FileEntry(
@@ -300,7 +300,7 @@ class RequestFormImportServiceTest {
                             assertThat(result.fileKey())
                                     .isEqualTo("IT기획부(180)/01. VDI 고도화/견적서.pdf");
                             assertThat(result.status())
-                                    .isEqualTo(RequestFormDto.FileStatus.BLOCKED);
+                                    .isEqualTo(RequestFormDto.FileStatus.SKIPPED);
                             assertThat(result.diagnostics())
                                     .singleElement()
                                     .satisfies(
@@ -308,13 +308,13 @@ class RequestFormImportServiceTest {
                                                 assertThat(diagnostic.field())
                                                         .isEqualTo("requestFormFile");
                                                 assertThat(diagnostic.severity())
-                                                        .isEqualTo(MigrationDto.Severity.BLOCKER);
+                                                        .isEqualTo(MigrationDto.Severity.WARNING);
                                                 assertThat(diagnostic.message())
                                                         .contains("'요청서'", "Excel");
                                             });
                         });
         assertThat(response.summary().totalFiles()).isEqualTo(2);
-        assertThat(response.summary().blockedFiles()).isEqualTo(1);
+        assertThat(response.summary().blockedFiles()).isZero();
         org.mockito.Mockito.verifyNoInteractions(fileImporter);
     }
 

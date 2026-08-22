@@ -61,6 +61,72 @@ class CapitalDeclaredAmountsTest {
     }
 
     @Test
+    @DisplayName("1-2가 없으면 1-1의 비목별 합계로 품목과 선언 금액을 만든다")
+    void createsItemsFromOverviewSummaryWhenResourceSheetIsAbsent() {
+        FormAdapterOutput output = adapt(overviewWithSummaryItem());
+
+        assertThat(output.projects())
+                .singleElement()
+                .satisfies(
+                        project -> {
+                            assertThat(project.getAbusNm()).isEqualTo("노후인프라 중장기 실행방안 수립");
+                            assertThat(project.getItems())
+                                    .singleElement()
+                                    .satisfies(
+                                            item -> {
+                                                assertThat(item.getIoeC()).isEqualTo("008");
+                                                assertThat(item.getGclNm())
+                                                        .isEqualTo("노후인프라 중장기 실행방안 수립");
+                                                assertThat(item.getQty()).isEqualByComparingTo("1");
+                                                assertThat(item.getCurC()).isEqualTo("KRW");
+                                                assertThat(item.getAmt())
+                                                        .isEqualByComparingTo("1155000000");
+                                                assertThat(item.getMplAmt())
+                                                        .isEqualByComparingTo("0");
+                                                assertThat(item.getCncdFdtnCone()).isNull();
+                                                assertThat(item.getBseYm()).isNull();
+                                                assertThat(item.getDfrCleC()).isNull();
+                                                assertThat(item.getSectSysUtzYn()).isNull();
+                                                assertThat(item.getItrInfrYn()).isNull();
+                                            });
+                        });
+        assertThat(output.projectAmounts())
+                .singleElement()
+                .satisfies(
+                        amounts -> {
+                            assertThat(amounts.isPresent()).isTrue();
+                            assertThat(amounts.totRqmAmt()).isEqualByComparingTo("1155000000");
+                            assertThat(amounts.mplAmt()).isEqualByComparingTo("0");
+                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("0");
+                        });
+        assertThat(output.diagnostics())
+                .noneMatch(diagnostic -> "declaredAmounts".equals(diagnostic.field()));
+    }
+
+    @Test
+    @DisplayName("1-1 합성 품목의 전체 금액은 당해와 이후 금액을 모두 포함한다")
+    void includesLaterAmountInSyntheticItemTotal() {
+        FormAdapterOutput output = adapt(overviewWithSummaryItem(100d, 300d, "400 백만원"));
+
+        assertThat(output.projects().get(0).getItems())
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.getAmt()).isEqualByComparingTo("400000000");
+                            assertThat(item.getMplAmt()).isEqualByComparingTo("300000000");
+                        });
+        assertThat(output.projectAmounts())
+                .singleElement()
+                .satisfies(
+                        amounts -> {
+                            assertThat(amounts.isPresent()).isTrue();
+                            assertThat(amounts.totRqmAmt()).isEqualByComparingTo("400000000");
+                            assertThat(amounts.mplAmt()).isEqualByComparingTo("300000000");
+                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("0");
+                        });
+    }
+
+    @Test
     @DisplayName("[조건②] 품목이 없어 배수를 못 정하면 금액을 적재하지 않고 경고만 낸다")
     void skipsAmountsWhenUnitUnresolved() {
         FormAdapterOutput output = adapt(overviewOnly("2,000백만원", 1_265_624_700d, 0d));
@@ -318,6 +384,44 @@ class CapitalDeclaredAmountsTest {
                         w -> {
                             Sheet sheet = w.createSheet(OVERVIEW_SHEET_NAME);
                             writeOverview(sheet, wholePeriod, yearTotal, laterTotal, totalLabel);
+                        });
+        return wb.getSheetAt(0);
+    }
+
+    /** 실제 단일 시트 샘플처럼 1-1 요약표에 비목별 금액만 있는 워크북을 만듭니다. */
+    private static Sheet overviewWithSummaryItem() {
+        return overviewWithSummaryItem(1155d, 0d, "1,155 백만원");
+    }
+
+    private static Sheet overviewWithSummaryItem(
+            double yearAmount, double laterAmount, String wholePeriod) {
+        Workbook wb =
+                workbookOf(
+                        w -> {
+                            Sheet sheet = w.createSheet(OVERVIEW_SHEET_NAME);
+                            Row nameRow = sheet.createRow(0);
+                            cell(nameRow, 2).setCellValue("사업명");
+                            cell(nameRow, 3).setCellValue("노후인프라 중장기 실행방안 수립");
+                            Row amountRow = sheet.createRow(1);
+                            cell(amountRow, 7).setCellValue("총 사업금액(전체기간)");
+                            cell(amountRow, 9).setCellValue(wholePeriod);
+                            Row header = sheet.createRow(2);
+                            cell(header, 0).setCellValue("분기별 소요(안) (백만원, 부가세포함)");
+                            cell(header, 1).setCellValue("비목");
+                            cell(header, 6).setCellValue("'26년도 합계");
+                            cell(header, 7).setCellValue("'26년도 이후");
+                            cell(header, 8).setCellValue("전체 합계");
+                            Row item = sheet.createRow(3);
+                            cell(item, 1).setCellValue("외주용역비");
+                            cell(item, 5).setCellValue(yearAmount);
+                            cell(item, 6).setCellValue(yearAmount);
+                            cell(item, 7).setCellValue(laterAmount);
+                            cell(item, 8).setCellValue(yearAmount + laterAmount);
+                            Row total = sheet.createRow(4);
+                            cell(total, 0).setCellValue("총 계");
+                            cell(total, 6).setCellValue(yearAmount);
+                            cell(total, 7).setCellValue(laterAmount);
+                            cell(total, 8).setCellValue(yearAmount + laterAmount);
                         });
         return wb.getSheetAt(0);
     }
