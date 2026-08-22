@@ -8,6 +8,19 @@ public final class MenuPathPolicy {
 
     private MenuPathPolicy() {}
 
+    /** 공용 준비중 화면 경로 접두. `/preparing/{slug}`는 `preparing/[[slug]].vue` 하나가 처리한다. */
+    public static final String PREPARING_PATH_PREFIX = "/preparing/";
+
+    /**
+     * 준비중 화면 경로인지 판정한다.
+     *
+     * @param value 판정할 경로
+     * @return `/preparing/`로 시작하면 {@code true}. null과 slug 없는 `/preparing`은 {@code false}
+     */
+    public static boolean isPreparing(String value) {
+        return value != null && value.startsWith(PREPARING_PATH_PREFIX);
+    }
+
     /**
      * 내부 화면 경로인지 판정한다.
      *
