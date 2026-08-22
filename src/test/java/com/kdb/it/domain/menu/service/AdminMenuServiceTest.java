@@ -845,6 +845,190 @@ class AdminMenuServiceTest {
     }
 
     @Test
+    @DisplayName("update: 준비중 해제 요청이어도 새 경로가 여전히 자동 경로면 회수하지 않는다(C1 회귀 방지)")
+    void update_준비중해제_새경로가여전히자동경로면_회수안함() {
+        // given: 프론트가 preparingYn만 N으로 바꾸고 srePth를 비우지 않은 채(버그) 보낸 상황을 흉내낸다
+        Cmenum menu = node("MNU0001018", "P1", 3, "/MHED0002/P1/MNU0001018");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/mnu0001018");
+        Cmenud generated = route("/preparing/mnu0001018", "Y");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001018", "N"))
+                .willReturn(Optional.of(menu));
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001018", "N"))
+                .willReturn(Optional.of(generated));
+        given(cmenuaRepository.findByMnuId("MNU0001018")).willReturn(List.of());
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("사업계획서 작성")
+                        .mnuTpC("PGE")
+                        .srePth("/preparing/mnu0001018") // 클라이언트가 비우지 않음
+                        .preparingYn("N")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+
+        // when
+        service.update("MNU0001018", req);
+
+        // then: 메뉴가 여전히 이 경로를 가리키므로 카탈로그 행이 살아 있어야 한다
+        assertThat(menu.getSrePth()).isEqualTo("/preparing/mnu0001018");
+        assertThat(generated.getDelYn()).isEqualTo("N");
+    }
+
+    @Test
+    @DisplayName("update: 자동 경로를 다른 활성 메뉴가 쓰고 있으면 회수하지 않는다(I1 회귀 방지)")
+    void update_준비중해제_다른메뉴가자동경로참조중이면_회수안함() {
+        // given: MNU0001018의 자동 경로를 MNU9999999가 화면경로로 선택해 쓰고 있다
+        Cmenum menu = node("MNU0001018", "P1", 3, "/MHED0002/P1/MNU0001018");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/mnu0001018");
+        Cmenum otherMenu = node("MNU9999999", "P1", 3, "/MHED0002/P1/MNU9999999");
+        otherMenu.setMnuTpC("PGE");
+        otherMenu.setSrePth("/preparing/mnu0001018");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001018", "N"))
+                .willReturn(Optional.of(menu));
+        given(cmenumRepository.findAllActive()).willReturn(List.of(menu, otherMenu));
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(Optional.of(route("/budget/list", "Y")));
+        given(cmenuaRepository.findByMnuId("MNU0001018")).willReturn(List.of());
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("예산 목록")
+                        .mnuTpC("PGE")
+                        .srePth("/budget/list")
+                        .preparingYn("N")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+
+        // when
+        service.update("MNU0001018", req);
+
+        // then: MNU0001018은 새 경로로 옮겨 갔지만 다른 메뉴가 아직 쓰므로 카탈로그 행은 건드리지 않는다
+        // (조회조차 하지 않는다 — referencedByOtherActiveMenu에서 이미 걸러진다)
+        assertThat(menu.getSrePth()).isEqualTo("/budget/list");
+        verify(cmenudRepository, never()).findBySrePthAndDelYn("/preparing/mnu0001018", "N");
+    }
+
+    @Test
+    @DisplayName("delete: 준비중 메뉴를 삭제하면 자동 등록 경로도 함께 회수한다(M1 회귀 방지)")
+    void delete_준비중메뉴삭제_자동경로도회수() {
+        Cmenum menu = node("MNU0001018", "P1", 3, "/MHED0002/P1/MNU0001018");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/mnu0001018");
+        Cmenud generated = route("/preparing/mnu0001018", "Y");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001018", "N"))
+                .willReturn(Optional.of(menu));
+        given(cmenumRepository.countActiveChildren("MNU0001018")).willReturn(0L);
+        given(cmenuaRepository.findActiveByMnuId("MNU0001018")).willReturn(List.of());
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001018", "N"))
+                .willReturn(Optional.of(generated));
+
+        service.delete("MNU0001018");
+
+        assertThat(menu.getDelYn()).isEqualTo("Y");
+        assertThat(generated.getDelYn()).isEqualTo("Y");
+    }
+
+    @Test
+    @DisplayName("delete: 준비중 메뉴를 삭제해도 다른 활성 메뉴가 그 자동 경로를 쓰면 회수하지 않는다")
+    void delete_준비중메뉴삭제_다른메뉴가참조중이면_회수안함() {
+        Cmenum menu = node("MNU0001018", "P1", 3, "/MHED0002/P1/MNU0001018");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/mnu0001018");
+        Cmenum otherMenu = node("MNU9999999", "P1", 3, "/MHED0002/P1/MNU9999999");
+        otherMenu.setMnuTpC("PGE");
+        otherMenu.setSrePth("/preparing/mnu0001018");
+        Cmenud generated = route("/preparing/mnu0001018", "Y");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001018", "N"))
+                .willReturn(Optional.of(menu));
+        given(cmenumRepository.countActiveChildren("MNU0001018")).willReturn(0L);
+        given(cmenuaRepository.findActiveByMnuId("MNU0001018")).willReturn(List.of());
+        given(cmenumRepository.findAllActive()).willReturn(List.of(otherMenu));
+
+        service.delete("MNU0001018");
+
+        assertThat(menu.getDelYn()).isEqualTo("Y");
+        assertThat(generated.getDelYn()).isEqualTo("N");
+        verify(cmenudRepository, never()).findBySrePthAndDelYn("/preparing/mnu0001018", "N");
+    }
+
+    @Test
+    @DisplayName("update: 기존 준비중 카탈로그 행을 재사용할 때 GUID를 그대로 옮겨 담는다(I2 회귀 방지)")
+    void update_준비중유지_기존GUID보존() {
+        // given: 이미 사용 중(useYn=Y)인 자동 등록 행을 같은 메뉴가 다시 저장으로 건드리는 상황
+        Cmenum menu = node("MNU0001023", "P1", 3, "/MHED0002/P1/MNU0001023");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/mnu0001023");
+        Cmenud existingRoute =
+                Cmenud.builder()
+                        .srePth("/preparing/mnu0001023")
+                        .sreMnuNm("옛 이름 (준비중)")
+                        .useYn("Y")
+                        .rmk("준비중 메뉴 자동 등록")
+                        .guid("11111111-1111-1111-1111-111111111111")
+                        .guidPrgSno(3)
+                        .delYn("N")
+                        .build();
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001023", "N")).willReturn(Optional.of(menu));
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001023", "N"))
+                .willReturn(Optional.of(existingRoute));
+        given(cmenuaRepository.findByMnuId("MNU0001023")).willReturn(List.of());
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("새 이름")
+                        .mnuTpC("PGE")
+                        .srePth(null)
+                        .preparingYn("Y")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+
+        // when
+        service.update("MNU0001023", req);
+
+        // then: 새로 build한 detached 엔티티가 merge(UPDATE)될 때 기존 GUID가 그대로 실려야
+        // NOT NULL 제약(ORA-01407)에 걸리지 않는다.
+        ArgumentCaptor<Cmenud> catalog = ArgumentCaptor.forClass(Cmenud.class);
+        verify(cmenudRepository).save(catalog.capture());
+        assertThat(catalog.getValue().getGuid()).isEqualTo("11111111-1111-1111-1111-111111111111");
+        assertThat(catalog.getValue().getGuidPrgSno()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("update: 관리자가 미사용 처리한 자동 경로를 저장 한 번으로 되살리지 않는다(M4 회귀 방지)")
+    void update_준비중유지_미사용경로되살리지않음() {
+        // given: 관리자가 /admin/routes에서 이 자동 등록 행을 미사용(useYn=N) 처리해 두었다
+        Cmenum menu = node("MNU0001023", "P1", 3, "/MHED0002/P1/MNU0001023");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/mnu0001023");
+        Cmenud existingRoute = route("/preparing/mnu0001023", "N");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001023", "N")).willReturn(Optional.of(menu));
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001023", "N"))
+                .willReturn(Optional.of(existingRoute));
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("새 이름")
+                        .mnuTpC("PGE")
+                        .srePth(null)
+                        .preparingYn("Y")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+
+        // when & then: useYn을 몰래 'Y'로 되돌리지 않으므로, 미사용 경로에 대한 통상 검증에 걸려
+        // 저장이 그대로 거부된다(관리자의 미사용 처리를 저장 한 번으로 무력화하지 않는다).
+        assertThatThrownBy(() -> service.update("MNU0001023", req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("사용 가능한 라우트 카탈로그 경로가 아닙니다");
+
+        // 저장을 시도한 카탈로그 행에도 useYn='N'이 그대로 실려 있어야 한다(몰래 'Y'로 되돌리지 않음).
+        ArgumentCaptor<Cmenud> catalog = ArgumentCaptor.forClass(Cmenud.class);
+        verify(cmenudRepository).save(catalog.capture());
+        assertThat(catalog.getValue().getUseYn()).isEqualTo("N");
+    }
+
+    @Test
     @DisplayName("update: 이미 준비중 경로를 쓰는 메뉴는 저장해도 같은 경로를 유지한다")
     void update_준비중유지_기존경로보존() {
         Cmenum menu = node("MNU0001022", "P1", 3, "/MHED0002/P1/MNU0001022");

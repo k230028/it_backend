@@ -11,6 +11,7 @@ import com.kdb.it.domain.menu.repository.CmenumRepository;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -127,7 +128,8 @@ public class AdminMenuService {
         menu.setImkNm(normalizeIcon(req.getImkNm()));
         // JPA dirty checking으로 flush되며, @LogTarget 스냅샷은 @PreUpdate에서 자동 생성된다.
         replaceRoles(mnuId, req.getAthIds());
-        if (!preparing) releaseGeneratedPreparingPath(mnuId, previousPath);
+        // C1: 확정된 새 경로(srePth)가 여전히 그 자동 경로면 아직 참조 중이므로 회수하지 않는다.
+        if (!preparing) releaseGeneratedPreparingPath(mnuId, previousPath, srePth);
     }
 
     /**
@@ -143,8 +145,11 @@ public class AdminMenuService {
         if (cmenumRepository.countActiveChildren(mnuId) > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "하위 메뉴가 있어 삭제할 수 없습니다.");
         }
+        String previousPath = menu.getSrePth();
         menu.delete(); // DEL_YN='Y'
         for (Cmenua a : cmenuaRepository.findActiveByMnuId(mnuId)) a.delete();
+        // M1: 삭제된 메뉴는 더 이상 어떤 경로도 가리키지 않으므로 자동 등록 경로를 회수한다.
+        releaseGeneratedPreparingPath(mnuId, previousPath, null);
     }
 
     /**
@@ -246,18 +251,25 @@ public class AdminMenuService {
                         ? currentPath
                         : MenuPathPolicy.PREPARING_PATH_PREFIX + mnuId.toLowerCase();
         String catalogName = preparingCatalogName(mnuNm);
-        String rmk =
-                cmenudRepository
-                        .findBySrePthAndDelYn(path, "N")
-                        .map(Cmenud::getRmk)
-                        .orElse(PREPARING_ROUTE_RMK);
+        Optional<Cmenud> existing = cmenudRepository.findBySrePthAndDelYn(path, "N");
+        String rmk = existing.map(Cmenud::getRmk).orElse(PREPARING_ROUTE_RMK);
+        // M4: 관리자가 /admin/routes에서 미사용 처리했을 수 있으므로 기존 사용여부를 유지한다.
+        // 행이 없을 때(신규 등록)만 'Y'로 시작한다.
+        String useYn = existing.map(Cmenud::getUseYn).orElse("Y");
+        // I2: GUID·GUID진행일련번호는 기존 행 값을 그대로 옮겨 담는다. 비워 두면 merge(UPDATE)
+        // 경로에서 @PrePersist가 돌지 않아 NULL로 저장되어 NOT NULL 제약(ORA-01407)에 걸린다.
+        // 신규 행(existing 없음)은 지금처럼 비워 두면 @PrePersist가 채운다.
+        String guid = existing.map(Cmenud::getGuid).orElse(null);
+        Integer guidPrgSno = existing.map(Cmenud::getGuidPrgSno).orElse(null);
         // Cmenud는 setter가 없으므로 같은 PK로 새 엔티티를 저장해 JPA merge로 갱신한다.
         cmenudRepository.save(
                 Cmenud.builder()
                         .srePth(path)
                         .sreMnuNm(catalogName)
-                        .useYn("Y")
+                        .useYn(useYn)
                         .rmk(rmk)
+                        .guid(guid)
+                        .guidPrgSno(guidPrgSno)
                         .delYn("N")
                         .build());
         return path;
@@ -267,16 +279,37 @@ public class AdminMenuService {
      * 이 메뉴가 쓰던 자동 생성 준비중 경로를 카탈로그에서 논리삭제한다.
      *
      * <p>회수 대상은 {@code /preparing/{이 메뉴의 mnuId 소문자}}와 정확히 같은 경로뿐이다.
-     * 사람이 등록한 준비중 경로는 다른 메뉴가 쓸 수 있으므로 건드리지 않는다. 호출 시점에는
-     * 메뉴가 이미 새 경로를 가리키므로 참조 중 삭제가 아니다.
+     * 사람이 등록한 준비중 경로는 다른 메뉴가 쓸 수 있으므로 건드리지 않는다.
+     *
+     * <p>다음 두 경우는 조용히 건너뛴다(예외를 던지지 않는다 — 회수 실패로 메뉴 저장 자체를 막지
+     * 않는다).
+     *
+     * <ul>
+     *   <li>이 메뉴의 새 경로({@code newPath})가 여전히 그 자동 경로인 경우 — 아직 이 메뉴가
+     *       참조 중이다(C1). 클라이언트가 체크만 해제하고 새 경로를 고르지 않은 채 보낸 요청이
+     *       대표적이다.
+     *   <li>다른 활성 메뉴가 같은 자동 경로를 참조 중인 경우 — {@link AdminRouteService#delete}와
+     *       같은 참조 보호다(I1). 자동 등록 행도 {@code USE_YN='Y'}인 평범한 경로라 다른 메뉴가
+     *       고를 수 있다.
+     * </ul>
      *
      * @param mnuId 대상 메뉴 ID
-     * @param previousPath 저장 직전 화면경로. null이면 아무것도 하지 않는다
+     * @param previousPath 저장(또는 삭제) 직전 화면경로. null이면 아무것도 하지 않는다
+     * @param newPath 이 메뉴에 확정된 새 화면경로. 메뉴를 삭제하는 호출이면 null(더 이상 어떤
+     *     경로도 가리키지 않음)
      */
-    private void releaseGeneratedPreparingPath(String mnuId, String previousPath) {
+    private void releaseGeneratedPreparingPath(String mnuId, String previousPath, String newPath) {
         String generated = MenuPathPolicy.PREPARING_PATH_PREFIX + mnuId.toLowerCase();
         if (!generated.equals(previousPath)) return;
-        cmenudRepository.findBySrePthAndDelYn(previousPath, "N").ifPresent(Cmenud::delete);
+        if (generated.equals(newPath)) return;
+        if (referencedByOtherActiveMenu(mnuId, generated)) return;
+        cmenudRepository.findBySrePthAndDelYn(generated, "N").ifPresent(Cmenud::delete);
+    }
+
+    /** 이 메뉴가 아닌 다른 활성 메뉴가 같은 화면경로를 쓰고 있는지 확인한다. */
+    private boolean referencedByOtherActiveMenu(String mnuId, String srePth) {
+        return cmenumRepository.findAllActive().stream()
+                .anyMatch(m -> srePth.equals(m.getSrePth()) && !mnuId.equals(m.getMnuId()));
     }
 
     /**
