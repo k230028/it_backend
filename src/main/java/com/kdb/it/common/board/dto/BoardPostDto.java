@@ -29,6 +29,8 @@ public class BoardPostDto {
             LocalDate sttYmd,
             LocalDate endYmd,
             String fstEnrUsid,
+            String fstEnrUsNm,
+            String fstEnrBbrNm,
             LocalDateTime fstEnrDtm) {}
 
     @Getter
@@ -39,8 +41,22 @@ public class BoardPostDto {
             name = "BoardPostListItem",
             description = "게시물 목록 아이템",
             requiredProperties = {
-                "nacMngNo", "blbMngNo", "nacNm", "nacInqNbr", "nacUnqId", "ancYn", "xpoYn",
-                "flApgYn", "flNbr", "nacGrpLev", "sttYmd", "endYmd", "fstEnrUsid", "fstEnrDtm"
+                "nacMngNo",
+                "blbMngNo",
+                "nacNm",
+                "nacInqNbr",
+                "nacUnqId",
+                "ancYn",
+                "xpoYn",
+                "flApgYn",
+                "flNbr",
+                "nacGrpLev",
+                "sttYmd",
+                "endYmd",
+                "fstEnrUsid",
+                "fstEnrUsNm",
+                "fstEnrBbrNm",
+                "fstEnrDtm"
             })
     public static class ListItem {
         @Schema(description = "게시물관리번호")
@@ -88,6 +104,12 @@ public class BoardPostDto {
         @Schema(description = "작성자사번")
         private String fstEnrUsid;
 
+        @Schema(description = "작성자명", nullable = true)
+        private String fstEnrUsNm;
+
+        @Schema(description = "작성자 소속부서명", nullable = true)
+        private String fstEnrBbrNm;
+
         @Schema(description = "등록일시")
         private LocalDateTime fstEnrDtm;
 
@@ -106,6 +128,8 @@ public class BoardPostDto {
                     .sttYmd(e.getSttDt())
                     .endYmd(e.getEndDt())
                     .fstEnrUsid(e.getFstEnrUsid())
+                    .fstEnrUsNm(null)
+                    .fstEnrBbrNm(null)
                     .fstEnrDtm(e.getFstEnrDtm())
                     .build();
         }
@@ -131,6 +155,8 @@ public class BoardPostDto {
                     .sttYmd(row.sttYmd())
                     .endYmd(row.endYmd())
                     .fstEnrUsid(row.fstEnrUsid())
+                    .fstEnrUsNm(row.fstEnrUsNm())
+                    .fstEnrBbrNm(row.fstEnrBbrNm())
                     .fstEnrDtm(row.fstEnrDtm())
                     .build();
         }

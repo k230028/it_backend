@@ -81,7 +81,7 @@ public class ResourceTableReader {
                                 "qty", "수량",
                                 "unitPrice", "단가",
                                 "currency", "통화",
-                                "amount", annualHeader ? "연간 소요예산 (부가세포함)" : "소요예산 (부가세포함)",
+                                "amount", annualHeader ? "연간 소요예산 (부가세포함)" : "소요예산",
                                 "basis", "산정근거",
                                 "timing", annualHeader ? "대금지급주기 (월/분기/년)" : "도입시기",
                                 "infoSec", "정보보호여부",

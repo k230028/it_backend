@@ -69,7 +69,7 @@ public class FormApproverReader {
             for (int colIndex = 0; colIndex < HEADER_SCAN_COLUMNS; colIndex++) {
                 String text = scanner.text(sheet, rowIndex, colIndex);
                 if (text.isEmpty()) continue;
-                if (!startsWithLabel(text, key)) continue;
+                if (!containsLabel(text, key)) continue;
 
                 String inline = afterLabel(text, label);
                 if (!inline.isEmpty()) return inline;
@@ -90,10 +90,8 @@ public class FormApproverReader {
         return null;
     }
 
-    private static boolean startsWithLabel(String text, String normalizedLabel) {
-        String normalized = SheetAnchorScanner.normalize(text);
-        if (normalized.startsWith(normalizedLabel)) return true;
-        return normalized.startsWith("(" + normalizedLabel + ")");
+    private static boolean containsLabel(String text, String normalizedLabel) {
+        return SheetAnchorScanner.normalize(text).contains(normalizedLabel);
     }
 
     private static String afterLabel(String text, String label) {
@@ -108,7 +106,7 @@ public class FormApproverReader {
 
     private static boolean isPersonLabel(String value) {
         for (String label : new String[] {"확인자", "담당자", "실무자", "작성자"}) {
-            if (startsWithLabel(value, label)) return true;
+            if (containsLabel(value, label)) return true;
         }
         return false;
     }

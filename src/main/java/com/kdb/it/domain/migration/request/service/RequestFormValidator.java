@@ -10,6 +10,7 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -156,14 +157,24 @@ public class RequestFormValidator {
                                     field ->
                                             alreadyReported.contains(
                                                     new FieldSubject(field, cttNm)));
-            if (!skipAmountCheck && cost.getCostTotXpAmt() == null && cost.getFcAmt() == null) {
-                diagnostics.add(
-                        blocker(
-                                FormSheetKind.GENERAL_EXPENSE,
-                                "amt",
-                                subject,
-                                RequestFormDiagnosticCode.REQUIRED_MISSING,
-                                "금액이 비어 있습니다."));
+            if (!skipAmountCheck) {
+                if (cost.getCostTotXpAmt() == null && cost.getFcAmt() == null) {
+                    diagnostics.add(
+                            blocker(
+                                    FormSheetKind.GENERAL_EXPENSE,
+                                    "amt",
+                                    subject,
+                                    RequestFormDiagnosticCode.REQUIRED_MISSING,
+                                    "금액이 비어 있습니다."));
+                } else if (isZeroAmount(cost.getCostTotXpAmt(), cost.getFcAmt())) {
+                    diagnostics.add(
+                            blocker(
+                                    FormSheetKind.GENERAL_EXPENSE,
+                                    "amt",
+                                    subject,
+                                    RequestFormDiagnosticCode.REQUIRED_MISSING,
+                                    "금액이 0원입니다."));
+                }
             }
             limit(
                     cost.getCttNm(),
@@ -220,6 +231,15 @@ public class RequestFormValidator {
                     "사업명",
                     diagnostics);
             validateItems(project, sheet, subject, alreadyReported, diagnostics);
+            if (hasZeroProjectAmount(project.getItems())) {
+                diagnostics.add(
+                        blocker(
+                                sheet,
+                                "amt",
+                                subject,
+                                RequestFormDiagnosticCode.REQUIRED_MISSING,
+                                "사업 소요금액이 0원입니다."));
+            }
 
             String key = normalizeProjectName(project.getAbusNm());
             if (key.isEmpty()) continue;
@@ -233,6 +253,21 @@ public class RequestFormValidator {
                                 "이미 반입된 사업입니다. 덮어쓰지 않고 건너뜁니다."));
             }
         }
+    }
+
+    /** 소요자원이 없거나, 빠진 금액 없이 모든 소요자원 금액이 0이면 0원 사업으로 판정합니다. */
+    private static boolean hasZeroProjectAmount(List<ProjectDto.BitemmDto> items) {
+        if (items == null || items.isEmpty()) return true;
+        if (items.stream().anyMatch(item -> item.getAmt() == null && item.getFcAmt() == null)) {
+            return false;
+        }
+        return items.stream().allMatch(item -> isZeroAmount(item.getAmt(), item.getFcAmt()));
+    }
+
+    /** 원화·외화 금액 중 값이 있는 모든 항목이 0인지 판정합니다. */
+    private static boolean isZeroAmount(BigDecimal krwAmount, BigDecimal foreignAmount) {
+        return (krwAmount == null || krwAmount.signum() == 0)
+                && (foreignAmount == null || foreignAmount.signum() == 0);
     }
 
     /**

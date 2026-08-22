@@ -117,8 +117,8 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("게시물 목록 프로젝션은 응답에 필요한 14개 필드만 가진다")
-    void listRow_hasExactFourteenFields() {
+    @DisplayName("게시물 목록 프로젝션은 작성자명과 작성부서명을 포함한 16개 필드만 가진다")
+    void listRow_hasExactSixteenFields() {
         assertThat(BoardPostDto.ListRow.class.getRecordComponents())
                 .extracting(component -> component.getName())
                 .containsExactly(
@@ -135,6 +135,8 @@ class BoardPostServiceTest {
                         "sttYmd",
                         "endYmd",
                         "fstEnrUsid",
+                        "fstEnrUsNm",
+                        "fstEnrBbrNm",
                         "fstEnrDtm");
     }
 
@@ -421,6 +423,8 @@ class BoardPostServiceTest {
                         null,
                         null,
                         "USER001",
+                        "홍길동",
+                        "디지털기획부",
                         LocalDateTime.of(2026, 7, 20, 10, 0));
         given(postRepository.searchPostRows(any(), any(), anyBoolean()))
                 .willReturn(new PageImpl<>(List.of(row), PageRequest.of(1, 20), 21));
@@ -432,6 +436,8 @@ class BoardPostServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().getFirst().getNacMngNo()).isEqualTo("NAC-2026-0001");
+        assertThat(result.getContent().getFirst().getFstEnrUsNm()).isEqualTo("홍길동");
+        assertThat(result.getContent().getFirst().getFstEnrBbrNm()).isEqualTo("디지털기획부");
         assertThat(result.getTotalElements()).isEqualTo(21);
         assertThat(result.getNumber()).isEqualTo(1);
         verify(postRepository).searchPostRows("BLBM-2026-0001", cond, false);

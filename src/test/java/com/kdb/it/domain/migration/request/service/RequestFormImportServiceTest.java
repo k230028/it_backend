@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
@@ -153,6 +155,36 @@ class RequestFormImportServiceTest {
     }
 
     @Test
+    @DisplayName("어댑터 결과를 합친 뒤 경상사업의 빈 담당자를 전산업무비 담당자로 보정한다")
+    void fillsMissingResponsibleAfterMergingAdapters() {
+        ProjectDto.CreateRequest recurring = new ProjectDto.CreateRequest();
+        recurring.setOdnYn("Y");
+        CostDto.CreateRequest expense = new CostDto.CreateRequest();
+        expense.setCgprId("김담당");
+        when(recurringAdapter.adapt(any()))
+                .thenReturn(new FormAdapterOutput(List.of(recurring), List.of(), List.of(), null));
+        when(generalAdapter.adapt(any()))
+                .thenReturn(new FormAdapterOutput(List.of(), List.of(expense), List.of(), null));
+        when(fileImporter.preview(any(), any(), anyString())).thenReturn(applied("자금운용실/요청서.xls"));
+
+        service(50)
+                .importBatch(
+                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                        manifest("자금운용실/요청서.xls"),
+                        "12345678",
+                        true);
+
+        ArgumentCaptor<FormAdapterOutput> outputCaptor =
+                ArgumentCaptor.forClass(FormAdapterOutput.class);
+        org.mockito.Mockito.verify(fileImporter)
+                .preview(outputCaptor.capture(), any(), anyString());
+        assertThat(outputCaptor.getValue().projects())
+                .filteredOn(project -> "Y".equals(project.getOdnYn()))
+                .extracting(ProjectDto.CreateRequest::getUsid)
+                .containsExactly("김담당");
+    }
+
+    @Test
     @DisplayName("dry-run은 원본을 보관하지 않는다")
     void dryRun_doesNotArchive() {
         when(fileImporter.preview(any(), any(), anyString())).thenReturn(applied("자금운용실/요청서.xls"));
@@ -225,6 +257,65 @@ class RequestFormImportServiceTest {
                             assertThat(item.fileKey()).isEqualTo("자금운용실/증빙.pdf");
                             assertThat(item.result()).isNull();
                         });
+    }
+
+    @Test
+    @DisplayName("사업 폴더에 요청서 엑셀이 없으면 폴더당 한 번 BLOCKER로 알린다")
+    void blocksArchiveGroupWithoutRequestWorkbook() {
+        List<RequestFormDto.FileEntry> entries =
+                List.of(
+                        new RequestFormDto.FileEntry(
+                                "IT기획부(180)/01. VDI 고도화/견적서.pdf",
+                                "IT기획부(180)",
+                                null,
+                                null,
+                                null,
+                                true),
+                        new RequestFormDto.FileEntry(
+                                "IT기획부(180)/01. VDI 고도화/산출근거.xlsx",
+                                "IT기획부(180)",
+                                null,
+                                null,
+                                null,
+                                true));
+
+        RequestFormDto.ImportResponse response =
+                service(50)
+                        .importBatch(
+                                List.of(
+                                        new MockMultipartFile(
+                                                "files",
+                                                "견적서.pdf",
+                                                "application/pdf",
+                                                "%PDF".getBytes(StandardCharsets.UTF_8)),
+                                        file("산출근거.xlsx", RequestFormFixtures.capitalOnlyXlsx())),
+                                new RequestFormDto.ImportManifest("2026", entries, List.of()),
+                                "12345678",
+                                true);
+
+        assertThat(response.files())
+                .singleElement()
+                .satisfies(
+                        result -> {
+                            assertThat(result.fileKey())
+                                    .isEqualTo("IT기획부(180)/01. VDI 고도화/견적서.pdf");
+                            assertThat(result.status())
+                                    .isEqualTo(RequestFormDto.FileStatus.BLOCKED);
+                            assertThat(result.diagnostics())
+                                    .singleElement()
+                                    .satisfies(
+                                            diagnostic -> {
+                                                assertThat(diagnostic.field())
+                                                        .isEqualTo("requestFormFile");
+                                                assertThat(diagnostic.severity())
+                                                        .isEqualTo(MigrationDto.Severity.BLOCKER);
+                                                assertThat(diagnostic.message())
+                                                        .contains("'요청서'", "Excel");
+                                            });
+                        });
+        assertThat(response.summary().totalFiles()).isEqualTo(2);
+        assertThat(response.summary().blockedFiles()).isEqualTo(1);
+        org.mockito.Mockito.verifyNoInteractions(fileImporter);
     }
 
     @Test

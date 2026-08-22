@@ -15,10 +15,12 @@ import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
+import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.CapitalOverviewReader;
 import com.kdb.it.domain.migration.request.service.adapter.CapitalProjectFormAdapter;
+import com.kdb.it.domain.migration.request.service.adapter.FormAdapterContext;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
 import com.kdb.it.domain.migration.request.service.adapter.FormApproverReader;
 import com.kdb.it.domain.migration.request.service.adapter.FormCheckboxReader;
@@ -37,9 +39,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
@@ -55,6 +59,13 @@ class RequestForm2026SampleSmokeTest {
     private static final String SINGLE_RECURRING_SAMPLE_SUFFIX = "자원증설.xls";
     private static final String THOUSAND_UNIT_SAMPLE_SUFFIX = "전산설비 유지보수.xls";
     private static final String OUTSOURCING_SAMPLE_SUFFIX = "편성 요청서_IT계약팀.xls";
+
+    private static final String VDI_SAMPLE_SUFFIX = "요청서_스마트워크 인프라(VDI) 고도화 사업.xlsx";
+
+    private static final String NAC_SAMPLE_SUFFIX = "편성 요청서(NAC 고도화).xls";
+
+    private static final String QUALITY_AUTOMATION_SAMPLE_SUFFIX =
+            "정보화사업 요청서(신규사업 양식)_테스트 자동화 솔루션 도입_v1.1.xlsx";
 
     private static final String SAMPLE_LOOKUP_FAILURE = "로컬 샘플 탐색에 실패했습니다";
 
@@ -295,6 +306,92 @@ class RequestForm2026SampleSmokeTest {
                 .filteredOn(diagnostic -> "정보화사업(구매) 원가용역".equals(diagnostic.subject()))
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .doesNotContain(RequestFormDiagnosticCode.CODE_AMBIGUOUS);
+    }
+
+    @Test
+    @DisplayName("스마트워크 VDI 요청서를 정보화사업과 소요자원으로 변환한다")
+    void adaptsVdiCapitalSample() throws IOException {
+        FormAdapterOutput output = adaptCapitalSample(VDI_SAMPLE_SUFFIX);
+
+        assertThat(output.projects())
+                .singleElement()
+                .satisfies(
+                        project ->
+                                assertThat(project.getItems())
+                                        .as("diagnostics=%s", output.diagnostics())
+                                        .isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("NAC 고도화 요청서를 정보화사업과 소요자원으로 변환한다")
+    void adaptsNacCapitalSample() throws IOException {
+        FormAdapterOutput output = adaptCapitalSample(NAC_SAMPLE_SUFFIX);
+
+        assertThat(output.projects())
+                .singleElement()
+                .satisfies(
+                        project ->
+                                assertThat(project.getItems())
+                                        .as("diagnostics=%s", output.diagnostics())
+                                        .isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("테스트 자동화 솔루션 요청서를 정보화사업과 소요자원으로 변환한다")
+    void adaptsQualityAutomationCapitalSample() throws IOException {
+        FormAdapterOutput output = adaptCapitalSample(QUALITY_AUTOMATION_SAMPLE_SUFFIX);
+
+        assertThat(output.projects())
+                .singleElement()
+                .satisfies(
+                        project ->
+                                assertThat(project.getItems())
+                                        .as("diagnostics=%s", output.diagnostics())
+                                        .hasSize(4));
+    }
+
+    private FormAdapterOutput adaptCapitalSample(String suffix) throws IOException {
+        Path root = sampleRoot();
+        Path sample = findUniqueSample(root, suffix);
+        SheetAnchorScanner scanner = new SheetAnchorScanner();
+        MigrationIoeCatalogReader catalogReader = mock(MigrationIoeCatalogReader.class);
+        when(catalogReader.candidates(anyString(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(List.of());
+        when(catalogReader.edrtCapitalCandidates()).thenReturn(List.of());
+        when(catalogReader.exePttCodeByName()).thenReturn(Map.of());
+        when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of());
+        when(catalogReader.reportStatusCodeByName()).thenReturn(Map.of());
+        FormLabelReader labelReader = new FormLabelReader(scanner);
+        ResourceTableReader resourceReader = new ResourceTableReader(scanner);
+        CapitalProjectFormAdapter adapter =
+                new CapitalProjectFormAdapter(
+                        new CapitalOverviewReader(scanner, labelReader, new FormCheckboxReader()),
+                        resourceReader,
+                        catalogReader);
+        OrgIdentityResolver.Index orgIndex = mock(OrgIdentityResolver.Index.class);
+        when(orgIndex.parentOrgNameOf(anyString())).thenReturn("IT기획부");
+
+        try (Workbook workbook = reader.open(readSampleBytes(sample), "sample.xls")) {
+            Map<FormSheetKind, Sheet> sheets = reader.classify(workbook);
+            Sheet resourceSheet = sheets.get(FormSheetKind.CAPITAL_RESOURCE);
+            ResourceTableReader.Result resources =
+                    resourceReader.readCapitalResource(resourceSheet, 0, false).orElseThrow();
+            assertThat(resources.rows())
+                    .as("resource header row=%s", resources.headerRow())
+                    .isNotEmpty();
+            return adapter.adapt(
+                    new FormAdapterContext(
+                            sheets,
+                            "2026",
+                            new RequestFormDto.FileEntry(
+                                    "sample.xls", "IT기획부(180)", null, null, null),
+                            "180",
+                            "IT기획부",
+                            orgIndex,
+                            TestIoeIndex.snapshot(),
+                            Map.of(),
+                            "00000000"));
+        }
     }
 
     private FormAdapterOutput adaptGeneralExpenseSample(String suffix) throws IOException {

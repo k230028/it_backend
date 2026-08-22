@@ -183,8 +183,8 @@ public class SheetAnchorScanner {
      * <p>양식은 헤더가 1~2행에 걸치고 병합이 섞여 있어, 헤더 후보 행과 그 다음 행을 함께 훑어 열별 표기를 모읍니다. `requiredColumns`가 모두 잡힌
      * 첫 행만 헤더로 인정합니다 — 부분 일치를 허용하면 데이터 행의 문구가 헤더로 오인됩니다.
      *
-     * <p>여기에 더해 **필수 컬럼 중 최소 하나는 후보 행 자체에** 있어야 합니다. 다음 행까지 훑는 규칙만 두면 헤더 바로 위의 빈 행도 아래 행의 라벨로 조건을
-     * 채워 헤더로 잡히고, 데이터 시작 행이 한 칸씩 밀립니다(실측: 9행 헤더가 8행으로 잡힘).
+     * <p>여기에 더해 필수 컬럼이 여러 개면 **최소 두 개는 후보 행 자체에** 있어야 합니다. 다음 행까지 훑는 규칙만 두면 헤더 위의 세로 병합 구역명 `소요예산`
+     * 하나와 실제 헤더 행을 합쳐 앞 행을 헤더로 잡고, 데이터 시작 행이 한 칸씩 밀립니다. 필수 컬럼이 하나뿐인 호출은 종전처럼 그 하나가 후보 행에 있으면 됩니다.
      *
      * @param sheet 대상 시트
      * @param fromRow 이 행부터 아래로 찾습니다. 두 번째 헤더 블록을 찾을 때 첫 블록 다음 행을 넘깁니다
@@ -202,7 +202,7 @@ public class SheetAnchorScanner {
             int rowIndex = row.getRowNum();
             if (rowIndex < fromRow) continue;
             HeaderMatch match = matchHeaderRow(sheet, rowIndex, columnAliases);
-            if (match.covers(requiredColumns) && match.hasOwnLabel(requiredColumns)) {
+            if (match.covers(requiredColumns) && match.hasEnoughOwnLabels(requiredColumns)) {
                 return Optional.of(new HeaderMap(rowIndex, match.columnIndex()));
             }
         }
@@ -215,8 +215,8 @@ public class SheetAnchorScanner {
         Set<String> onOwnRow = new LinkedHashSet<>();
         int lastColumn = Math.max(lastColumnOf(sheet, rowIndex), lastColumnOf(sheet, rowIndex + 1));
         for (int colIndex = 0; colIndex <= lastColumn; colIndex++) {
-            String primary = normalize(text(sheet, rowIndex, colIndex));
-            String secondary = normalize(text(sheet, rowIndex + 1, colIndex));
+            String primary = normalize(headerText(sheet, rowIndex, colIndex));
+            String secondary = normalize(headerText(sheet, rowIndex + 1, colIndex));
             for (Map.Entry<String, List<String>> entry : columnAliases.entrySet()) {
                 if (columnIndex.containsKey(entry.getKey())) continue;
                 for (String alias : entry.getValue()) {
@@ -237,6 +237,14 @@ public class SheetAnchorScanner {
         return new HeaderMatch(columnIndex, onOwnRow);
     }
 
+    /** 이전 행에서 시작한 세로 병합 구역명은 현재 행의 헤더 라벨로 반복하지 않습니다. */
+    private String headerText(Sheet sheet, int rowIndex, int colIndex) {
+        for (CellRangeAddress region : sheet.getMergedRegions()) {
+            if (region.isInRange(rowIndex, colIndex) && region.getFirstRow() < rowIndex) return "";
+        }
+        return text(sheet, rowIndex, colIndex);
+    }
+
     /**
      * 한 후보 행의 매칭 결과입니다.
      *
@@ -253,11 +261,13 @@ public class SheetAnchorScanner {
             return true;
         }
 
-        boolean hasOwnLabel(String[] requiredColumns) {
+        boolean hasEnoughOwnLabels(String[] requiredColumns) {
+            int requiredOwnLabels = Math.min(requiredColumns.length, 2);
+            int ownLabels = 0;
             for (String required : requiredColumns) {
-                if (onOwnRow.contains(required)) return true;
+                if (onOwnRow.contains(required)) ownLabels++;
             }
-            return false;
+            return ownLabels >= requiredOwnLabels;
         }
     }
 

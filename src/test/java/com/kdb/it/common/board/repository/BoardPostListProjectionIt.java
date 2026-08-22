@@ -4,17 +4,134 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
+import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
 @DisplayName("게시글 목록 경량 프로젝션 조건과 정렬")
 class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
 
     @Autowired BoardPostRepository postRepository;
+
+    @Autowired TestEntityManager em;
+
+    @Test
+    @DisplayName("목록 프로젝션은 작성자명과 소속부서명을 반환하고 작성자 정보가 없어도 게시물을 유지한다")
+    void searchPostRows_returnsWriterNameAndDepartmentWithLeftJoin()
+            throws ReflectiveOperationException {
+        String organizationCode = "Z73";
+        String authorId = "BE31WRITER";
+        em.persist(
+                CorgnI.builder()
+                        .prlmOgzCCone(organizationCode)
+                        .bbrNm("디지털기획부")
+                        .delYn("N")
+                        .fstEnrUsid("FIXTURE")
+                        .fstEnrDtm(LocalDateTime.now())
+                        .lstChgUsid("FIXTURE")
+                        .lstChgDtm(LocalDateTime.now())
+                        .build());
+        em.persist(
+                CuserI.builder()
+                        .eno(authorId)
+                        .usrNm("일정작성자")
+                        .bbrC(organizationCode)
+                        .delYn("N")
+                        .fstEnrUsid("FIXTURE")
+                        .fstEnrDtm(LocalDateTime.now())
+                        .lstChgUsid("FIXTURE")
+                        .lstChgDtm(LocalDateTime.now())
+                        .build());
+        postRepository.saveAllAndFlush(
+                List.of(
+                        post(
+                                "BE31-DEPT",
+                                "부서 일정",
+                                "본문",
+                                authorId,
+                                "N",
+                                "Y",
+                                9901,
+                                1,
+                                null,
+                                null,
+                                "N"),
+                        post(
+                                "BE31-ORPHAN",
+                                "작성자 없는 일정",
+                                "본문",
+                                "BE31-MISSING",
+                                "N",
+                                "Y",
+                                9900,
+                                1,
+                                null,
+                                null,
+                                "N")));
+        em.clear();
+
+        BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
+        condition.setPage(0);
+        condition.setSize(20);
+
+        var rows = postRepository.searchPostRows("BLB-BE03", condition, true).getContent();
+
+        var departmentComponent =
+                java.util.Arrays.stream(BoardPostDto.ListRow.class.getRecordComponents())
+                        .filter(component -> component.getName().equals("fstEnrBbrNm"))
+                        .findFirst();
+        var writerNameComponent =
+                java.util.Arrays.stream(BoardPostDto.ListRow.class.getRecordComponents())
+                        .filter(component -> component.getName().equals("fstEnrUsNm"))
+                        .findFirst();
+        assertThat(departmentComponent).as("작성부서명 프로젝션 필드").isPresent();
+        assertThat(writerNameComponent).as("작성자명 프로젝션 필드").isPresent();
+
+        var departmentAccessor = departmentComponent.orElseThrow().getAccessor();
+        var writerNameAccessor = writerNameComponent.orElseThrow().getAccessor();
+        var projected =
+                rows.stream()
+                        .filter(row -> row.nacMngNo().startsWith("BE31-"))
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        BoardPostDto.ListRow::nacMngNo,
+                                        row -> {
+                                            try {
+                                                return java.util.Optional.ofNullable(
+                                                        (String) departmentAccessor.invoke(row));
+                                            } catch (ReflectiveOperationException exception) {
+                                                throw new AssertionError(exception);
+                                            }
+                                        }));
+        assertThat(projected)
+                .containsEntry("BE31-DEPT", java.util.Optional.of("디지털기획부"))
+                .containsEntry("BE31-ORPHAN", java.util.Optional.empty());
+
+        var projectedWriterNames =
+                rows.stream()
+                        .filter(row -> row.nacMngNo().startsWith("BE31-"))
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        BoardPostDto.ListRow::nacMngNo,
+                                        row -> {
+                                            try {
+                                                return java.util.Optional.ofNullable(
+                                                        (String) writerNameAccessor.invoke(row));
+                                            } catch (ReflectiveOperationException exception) {
+                                                throw new AssertionError(exception);
+                                            }
+                                        }));
+        assertThat(projectedWriterNames)
+                .containsEntry("BE31-DEPT", java.util.Optional.of("일정작성자"))
+                .containsEntry("BE31-ORPHAN", java.util.Optional.empty());
+    }
 
     @Test
     @DisplayName("조회수 갱신 잠금 조회는 게시판 소속을 확인하고 managed entity를 증가시킨다")

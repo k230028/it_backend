@@ -237,7 +237,8 @@ class ApiResponseOpenApiContractTest {
     @Test
     void boardResponsesExposeRequiredNullableAndEnumContracts() {
         assertAllPropertiesRequired(BoardMetaDto.Response.class, "rmk");
-        assertAllPropertiesRequired(BoardPostDto.ListItem.class, "nacUnqId", "sttYmd", "endYmd");
+        assertAllPropertiesRequired(
+                BoardPostDto.ListItem.class, "nacUnqId", "sttYmd", "endYmd", "fstEnrBbrNm");
         assertAllPropertiesRequired(
                 BoardPostDto.Detail.class, "nacUnqId", "sttYmd", "endYmd", "bbrC", "hrkNacNo");
         assertAllPropertiesRequired(BoardCommentDto.Response.class, "hrkCmmtMngNo");

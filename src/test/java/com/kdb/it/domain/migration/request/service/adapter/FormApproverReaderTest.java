@@ -100,6 +100,14 @@ class FormApproverReaderTest {
     }
 
     @Test
+    @DisplayName("복합 라벨에 실무자가 포함되면 담당자 이름을 읽는다")
+    void readsPersonWhenLabelContainsStaff() {
+        Sheet sheet = sheetOf(Map.of("1,8", "(작성실무자)", "1,9", "김실무 대리"));
+
+        assertThat(reader.author(sheet)).isEqualTo("김실무 대리");
+    }
+
+    @Test
     @DisplayName("적혀 있지 않으면 비워 둔다")
     void returnsNullWhenAbsent() {
         // 다른 사람으로 대신 채우면 원장에 사실이 아닌 담당자가 남는다

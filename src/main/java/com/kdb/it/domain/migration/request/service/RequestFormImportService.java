@@ -90,6 +90,8 @@ public class RequestFormImportService {
         OrgIdentityResolver.Index orgIndex = orgIdentityResolver.snapshot();
         IoeHierarchyIndex.Snapshot ioeIndex = ioeHierarchyIndex.snapshot();
         Map<String, Map<String, String>> overridesByFile = groupOverrides(manifest);
+        Map<String, Integer> missingRequestRepresentatives =
+                missingRequestRepresentatives(files, manifest.entries());
 
         List<RequestFormDto.FileResult> results = new ArrayList<>();
         List<RequestFormSourceFileArchiver.ArchivePlanItem> archivePlan = new ArrayList<>();
@@ -105,6 +107,9 @@ public class RequestFormImportService {
                 archivePlan.add(
                         new RequestFormSourceFileArchiver.ArchivePlanItem(
                                 file, entry.fileKey(), archiveGroupKey, deptCode, null));
+                if (Integer.valueOf(i).equals(missingRequestRepresentatives.get(archiveGroupKey))) {
+                    results.add(missingRequestWorkbook(entry));
+                }
                 continue;
             }
             ProcessedFile processed =
@@ -133,6 +138,27 @@ public class RequestFormImportService {
         }
         return new RequestFormDto.ImportResponse(
                 dryRun, summarize(files.size(), results), List.copyOf(results));
+    }
+
+    /** 요청서 파싱 대상이 하나도 없는 원본 보관 그룹별 대표 파일 인덱스를 찾습니다. */
+    private Map<String, Integer> missingRequestRepresentatives(
+            List<MultipartFile> files, List<RequestFormDto.FileEntry> entries) {
+        Map<String, Integer> representatives = new LinkedHashMap<>();
+        Map<String, Boolean> hasRequestWorkbook = new HashMap<>();
+        for (int i = 0; i < files.size(); i++) {
+            RequestFormDto.FileEntry entry = entries.get(i);
+            String groupKey = RequestFormArchiveGroup.keyOf(entry.fileKey());
+            representatives.putIfAbsent(groupKey, i);
+            boolean parseTarget =
+                    !entry.archiveOnly()
+                            && RequestFormParseTarget.isTarget(files.get(i).getOriginalFilename());
+            hasRequestWorkbook.merge(groupKey, parseTarget, Boolean::logicalOr);
+        }
+        hasRequestWorkbook.forEach(
+                (groupKey, hasRequest) -> {
+                    if (hasRequest) representatives.remove(groupKey);
+                });
+        return representatives;
     }
 
     private String resolveDepartmentCode(
@@ -186,6 +212,7 @@ public class RequestFormImportService {
                 if (sheets.containsKey(adapter.trigger()))
                     output = output.merge(adapter.adapt(context));
             }
+            FormResponsibleFallback.apply(output);
 
             RequestFormDto.FileResult result =
                     dryRun
@@ -247,6 +274,25 @@ public class RequestFormImportService {
                 List.of(
                         RequestFormDto.FormDiagnostic.of(
                                 null, null, null, code, message, List.of())),
+                List.of(),
+                RequestFormDto.RecordCounts.zero(),
+                null);
+    }
+
+    /** 사업 원본 그룹에 파일명에 '요청서'가 포함된 Excel 파일이 없을 때의 차단 결과입니다. */
+    private RequestFormDto.FileResult missingRequestWorkbook(RequestFormDto.FileEntry entry) {
+        return new RequestFormDto.FileResult(
+                entry.fileKey(),
+                entry.deptName(),
+                RequestFormDto.FileStatus.BLOCKED,
+                List.of(
+                        RequestFormDto.FormDiagnostic.of(
+                                null,
+                                null,
+                                "requestFormFile",
+                                RequestFormDiagnosticCode.REQUIRED_MISSING,
+                                "사업 폴더에 파일명에 '요청서'가 포함된 Excel 파일이 없습니다.",
+                                List.of())),
                 List.of(),
                 RequestFormDto.RecordCounts.zero(),
                 null);

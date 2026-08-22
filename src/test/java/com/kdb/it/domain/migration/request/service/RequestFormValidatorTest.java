@@ -49,7 +49,12 @@ class RequestFormValidatorTest {
     private static ProjectDto.CreateRequest project(String name) {
         ProjectDto.CreateRequest request = new ProjectDto.CreateRequest();
         request.setAbusNm(name);
-        request.setItems(List.of());
+        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+        item.setSno(1);
+        item.setIoeC("001");
+        item.setGclNm("서버");
+        item.setAmt(BigDecimal.ONE);
+        request.setItems(List.of(item));
         return request;
     }
 
@@ -79,6 +84,51 @@ class RequestFormValidatorTest {
         assertThat(validator().validate(costsOf(cost("010", "회선사용료", null)), "2026"))
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .contains(RequestFormDiagnosticCode.REQUIRED_MISSING);
+    }
+
+    @Test
+    @DisplayName("전산업무비 금액이 0원이면 막는다")
+    void blocksZeroCostAmount() {
+        assertThat(validator().validate(costsOf(cost("010", "회선사용료", BigDecimal.ZERO)), "2026"))
+                .filteredOn(d -> "amt".equals(d.field()))
+                .singleElement()
+                .satisfies(
+                        diagnostic -> {
+                            assertThat(diagnostic.severity())
+                                    .isEqualTo(MigrationDto.Severity.BLOCKER);
+                            assertThat(diagnostic.message()).isEqualTo("금액이 0원입니다.");
+                        });
+    }
+
+    @Test
+    @DisplayName("사업에 소요자원이 없으면 금액 0원으로 막는다")
+    void blocksProjectWithoutItems() {
+        ProjectDto.CreateRequest emptyProject = project("소요자원 누락 사업");
+        emptyProject.setItems(List.of());
+
+        assertThat(validator().validate(projectsOf(emptyProject), "2026"))
+                .filteredOn(d -> "amt".equals(d.field()))
+                .singleElement()
+                .satisfies(
+                        diagnostic -> {
+                            assertThat(diagnostic.severity())
+                                    .isEqualTo(MigrationDto.Severity.BLOCKER);
+                            assertThat(diagnostic.subject()).isEqualTo("소요자원 누락 사업");
+                            assertThat(diagnostic.message()).isEqualTo("사업 소요금액이 0원입니다.");
+                        });
+    }
+
+    @Test
+    @DisplayName("사업의 모든 소요자원 금액이 0원이면 막는다")
+    void blocksProjectWithZeroAmountItems() {
+        ProjectDto.CreateRequest zeroProject = project("0원 사업");
+        zeroProject.getItems().get(0).setAmt(BigDecimal.ZERO);
+
+        assertThat(validator().validate(projectsOf(zeroProject), "2026"))
+                .filteredOn(d -> "사업 소요금액이 0원입니다.".equals(d.message()))
+                .singleElement()
+                .extracting(RequestFormDto.FormDiagnostic::severity)
+                .isEqualTo(MigrationDto.Severity.BLOCKER);
     }
 
     @Test

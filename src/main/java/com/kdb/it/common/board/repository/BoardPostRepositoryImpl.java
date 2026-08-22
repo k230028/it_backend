@@ -3,6 +3,8 @@ package com.kdb.it.common.board.repository;
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.QCblbcm;
+import com.kdb.it.common.iam.entity.QCorgnI;
+import com.kdb.it.common.iam.entity.QCuserI;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -72,6 +74,8 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
     public Page<BoardPostDto.ListRow> searchPostRows(
             String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin) {
         QCblbcm p = QCblbcm.cblbcm;
+        QCuserI writer = new QCuserI("boardPostWriter");
+        QCorgnI writerOrganization = new QCorgnI("boardPostWriterOrganization");
         BooleanBuilder builder = buildPredicate(p, blbMngNo, cond, isAdmin);
 
         int page = Math.max(cond.getPage(), 0);
@@ -96,8 +100,14 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
                                         p.sttDt,
                                         p.endDt,
                                         p.fstEnrUsid,
+                                        writer.usrNm,
+                                        writerOrganization.bbrNm,
                                         p.fstEnrDtm))
                         .from(p)
+                        .leftJoin(writer)
+                        .on(writer.eno.eq(p.fstEnrUsid))
+                        .leftJoin(writerOrganization)
+                        .on(writerOrganization.prlmOgzCCone.eq(writer.bbrC))
                         .where(builder)
                         .orderBy(p.ancYn.desc(), p.nacUnqId.desc(), p.nacGrpSqn.asc())
                         .offset(pageable.getOffset())

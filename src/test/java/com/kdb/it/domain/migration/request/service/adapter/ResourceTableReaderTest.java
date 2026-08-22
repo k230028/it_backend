@@ -14,6 +14,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -76,6 +77,38 @@ class ResourceTableReaderTest {
 
         assertThat(table.rows()).extracting(ResourceRow::itemName).doesNotContain("계");
         assertThat(table.rows()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("경상사업 소요예산 헤더에 통화가 포함되어도 품목을 읽는다")
+    void readsRecurringTableWhenAmountHeaderContainsCurrency() {
+        Sheet sheet = capitalSheet(1, 2, "기계장치(HW)", "데스크탑");
+        sheet.getRow(0).getCell(6).setCellValue("소요예산 (GBP,부가세포함)");
+
+        ResourceTableReader.Result table = reader.readRecurring(sheet).orElseThrow();
+
+        assertThat(table.rows())
+                .singleElement()
+                .satisfies(
+                        row -> {
+                            assertThat(row.itemName()).isEqualTo("데스크탑");
+                            assertThat(row.amount()).isEqualByComparingTo("100");
+                        });
+    }
+
+    @Test
+    @DisplayName("세로 병합된 소요예산 구역명 다음의 실제 헤더부터 품목을 읽는다")
+    void skipsMergedSectionLabelAboveResourceHeader() {
+        Sheet sheet = capitalSheet(1, 2, "기계장치(HW)", "서버(일체)");
+        sheet.shiftRows(0, 1, 1);
+        cell(sheet.createRow(0), 0).setCellValue("소요예산");
+        sheet.addMergedRegion(new CellRangeAddress(0, 2, 0, 0));
+
+        ResourceTableReader.Result result =
+                reader.readCapitalResource(sheet, 0, false).orElseThrow();
+
+        assertThat(result.headerRow()).isEqualTo(1);
+        assertThat(result.rows()).extracting(ResourceRow::itemName).containsExactly("서버(일체)");
     }
 
     @Test
