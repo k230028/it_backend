@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -780,5 +781,96 @@ class AdminMenuServiceTest {
         verify(cmenudRepository).save(catalog.capture());
         assertThat(catalog.getValue().getSreMnuNm()).hasSize(100);
         assertThat(catalog.getValue().getSreMnuNm()).endsWith(" (준비중)");
+    }
+
+    @Test
+    @DisplayName("update: 준비중을 해제하면 그 메뉴의 자동 경로만 카탈로그에서 회수한다")
+    void update_준비중해제_자동경로회수() {
+        // given
+        Cmenum menu = node("MNU0001018", "P1", 3, "/MHED0002/P1/MNU0001018");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/mnu0001018");
+        Cmenud generated = route("/preparing/mnu0001018", "Y");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001018", "N"))
+                .willReturn(Optional.of(menu));
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(Optional.of(route("/budget/list", "Y")));
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001018", "N"))
+                .willReturn(Optional.of(generated));
+        given(cmenuaRepository.findByMnuId("MNU0001018")).willReturn(List.of());
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("예산 목록")
+                        .mnuTpC("PGE")
+                        .srePth("/budget/list")
+                        .preparingYn("N")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+
+        // when
+        service.update("MNU0001018", req);
+
+        // then
+        assertThat(menu.getSrePth()).isEqualTo("/budget/list");
+        assertThat(generated.getDelYn()).isEqualTo("Y");
+    }
+
+    @Test
+    @DisplayName("update: 수동 등록 준비중 경로는 해제해도 카탈로그에 남긴다")
+    void update_준비중해제_수동경로보존() {
+        Cmenum menu = node("MNU0001021", "P1", 3, "/MHED0002/P1/MNU0001021");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/cdp");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001021", "N"))
+                .willReturn(Optional.of(menu));
+        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+                .willReturn(Optional.of(route("/budget/list", "Y")));
+        given(cmenuaRepository.findByMnuId("MNU0001021")).willReturn(List.of());
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("예산 목록")
+                        .mnuTpC("PGE")
+                        .srePth("/budget/list")
+                        .preparingYn("N")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+
+        service.update("MNU0001021", req);
+
+        assertThat(menu.getSrePth()).isEqualTo("/budget/list");
+        // 수동 경로는 조회조차 하지 않는다 — 자동 경로 이름과 다르기 때문이다
+        verify(cmenudRepository, never()).findBySrePthAndDelYn("/preparing/cdp", "N");
+    }
+
+    @Test
+    @DisplayName("update: 이미 준비중 경로를 쓰는 메뉴는 저장해도 같은 경로를 유지한다")
+    void update_준비중유지_기존경로보존() {
+        Cmenum menu = node("MNU0001022", "P1", 3, "/MHED0002/P1/MNU0001022");
+        menu.setMnuTpC("PGE");
+        menu.setSrePth("/preparing/cdp");
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001022", "N"))
+                .willReturn(Optional.of(menu));
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/cdp", "N"))
+                .willReturn(Optional.of(route("/preparing/cdp", "Y")));
+        given(cmenuaRepository.findByMnuId("MNU0001022")).willReturn(List.of());
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("IT/AI CDP")
+                        .mnuTpC("PGE")
+                        .srePth(null)
+                        .preparingYn("Y")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+
+        service.update("MNU0001022", req);
+
+        assertThat(menu.getSrePth()).isEqualTo("/preparing/cdp");
+        ArgumentCaptor<Cmenud> catalog = ArgumentCaptor.forClass(Cmenud.class);
+        verify(cmenudRepository).save(catalog.capture());
+        assertThat(catalog.getValue().getSrePth()).isEqualTo("/preparing/cdp");
+        assertThat(catalog.getValue().getSreMnuNm()).isEqualTo("IT/AI CDP (준비중)");
     }
 }

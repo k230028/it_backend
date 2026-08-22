@@ -108,17 +108,26 @@ public class AdminMenuService {
     // replaceRoles로 권한 매핑이 변경되므로 menuAuthMap 캐시를 전체 무효화한다.
     @CacheEvict(value = "menuAuthMap", allEntries = true)
     public void update(String mnuId, MenuDto.UpsertRequest req) {
-        validateTypePath(req.getMnuTpC(), req.getSrePth());
+        /* 준비중 경로는 저장된 메뉴의 현재 경로를 봐야 정해지므로 load()가 검증보다 앞선다. */
         Cmenum menu = load(mnuId);
+        String previousPath = menu.getSrePth();
+        boolean preparing = isPreparingRequest(req);
+        String srePth =
+                preparing
+                        ? resolvePreparingPath(
+                                mnuId, previousPath, req.getMnuNm(), req.getMnuTpC())
+                        : req.getSrePth();
+        validateTypePath(req.getMnuTpC(), srePth);
         // 대상의 현재 계층 위치를 기준으로 다시 검증한다. 이 호출이 없으면 루트 메뉴의 유형만 바꿔 "루트는 GRP" 규칙을 우회할 수 있다.
         validateHierarchy(req.getMnuTpC(), menu.getHrkMnuId());
         menu.setMnuNm(req.getMnuNm());
         menu.setMnuTpC(req.getMnuTpC());
-        menu.setSrePth(req.getSrePth());
+        menu.setSrePth(srePth);
         menu.setHidYn(req.getHidYn() == null ? "N" : req.getHidYn());
         menu.setImkNm(normalizeIcon(req.getImkNm()));
         // JPA dirty checking으로 flush되며, @LogTarget 스냅샷은 @PreUpdate에서 자동 생성된다.
         replaceRoles(mnuId, req.getAthIds());
+        if (!preparing) releaseGeneratedPreparingPath(mnuId, previousPath);
     }
 
     /**
@@ -252,6 +261,22 @@ public class AdminMenuService {
                         .delYn("N")
                         .build());
         return path;
+    }
+
+    /**
+     * 이 메뉴가 쓰던 자동 생성 준비중 경로를 카탈로그에서 논리삭제한다.
+     *
+     * <p>회수 대상은 {@code /preparing/{이 메뉴의 mnuId 소문자}}와 정확히 같은 경로뿐이다.
+     * 사람이 등록한 준비중 경로는 다른 메뉴가 쓸 수 있으므로 건드리지 않는다. 호출 시점에는
+     * 메뉴가 이미 새 경로를 가리키므로 참조 중 삭제가 아니다.
+     *
+     * @param mnuId 대상 메뉴 ID
+     * @param previousPath 저장 직전 화면경로. null이면 아무것도 하지 않는다
+     */
+    private void releaseGeneratedPreparingPath(String mnuId, String previousPath) {
+        String generated = MenuPathPolicy.PREPARING_PATH_PREFIX + mnuId.toLowerCase();
+        if (!generated.equals(previousPath)) return;
+        cmenudRepository.findBySrePthAndDelYn(previousPath, "N").ifPresent(Cmenud::delete);
     }
 
     /**
