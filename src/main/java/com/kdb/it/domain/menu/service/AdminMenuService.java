@@ -29,6 +29,15 @@ public class AdminMenuService {
     private static final int MAX_DEPTH = 4;
     private static final int SORT_STEP = 10;
 
+    /** 카탈로그 화면메뉴명(SRE_MNU_NM) 컬럼 길이. 초과분은 잘라 넣는다. */
+    private static final int CATALOG_NAME_MAX = 100;
+
+    /** 자동 등록 카탈로그 경로명 접미. */
+    private static final String PREPARING_NAME_SUFFIX = " (준비중)";
+
+    /** 자동 등록 카탈로그 비고. 사람이 만든 준비중 경로와 구분하는 표시다. */
+    private static final String PREPARING_ROUTE_RMK = "준비중 메뉴 자동 등록";
+
     /** 아이콘 클래스 허용 문자 — 화면에서 class 속성으로 쓰이므로 클래스명 문자만 통과시킨다. */
     private static final Pattern ICON_CLASS = Pattern.compile("^[a-z0-9 -]{1,100}$");
 
@@ -49,9 +58,17 @@ public class AdminMenuService {
     // 권한 매핑(Cmenua)이 신규 생성되므로 menuAuthMap 캐시를 전체 무효화한다(정합 보장).
     @CacheEvict(value = "menuAuthMap", allEntries = true)
     public String create(MenuDto.UpsertRequest req) {
-        validateTypePath(req.getMnuTpC(), req.getSrePth());
+        /* 준비중이 아니면 종전 순서 그대로 경로부터 검증한다. 준비중 경로는 채번한 mnuId에서
+        나오므로 nextMnuId() 뒤에 확정하고, 그 확정 경로로 같은 검증을 통과시킨다. */
+        boolean preparing = isPreparingRequest(req);
+        String srePth = req.getSrePth();
+        if (!preparing) validateTypePath(req.getMnuTpC(), srePth);
         validateHierarchy(req.getMnuTpC(), req.getHrkMnuId());
         String mnuId = cmenumRepository.nextMnuId();
+        if (preparing) {
+            srePth = resolvePreparingPath(mnuId, null, req.getMnuNm(), req.getMnuTpC());
+            validateTypePath(req.getMnuTpC(), srePth);
+        }
 
         int depth = 1;
         String whlPth = "/" + mnuId;
@@ -68,7 +85,7 @@ public class AdminMenuService {
                         .hrkMnuId(req.getHrkMnuId())
                         .mnuNm(req.getMnuNm())
                         .mnuTpC(req.getMnuTpC())
-                        .srePth(req.getSrePth())
+                        .srePth(srePth)
                         .mnuSotSqnSno(SORT_STEP)
                         .hidYn(req.getHidYn() == null ? "N" : req.getHidYn())
                         .mnuDep(depth)
@@ -183,6 +200,58 @@ public class AdminMenuService {
                         () ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND, "존재하지 않는 메뉴: " + mnuId));
+    }
+
+    /** 준비중 요청인지 판정한다. null은 N으로 본다. */
+    private boolean isPreparingRequest(MenuDto.UpsertRequest req) {
+        return "Y".equals(req.getPreparingYn());
+    }
+
+    /** 카탈로그 화면메뉴명을 만든다. 컬럼 길이(100자)를 넘지 않도록 메뉴명을 자른다. */
+    private String preparingCatalogName(String mnuNm) {
+        int room = CATALOG_NAME_MAX - PREPARING_NAME_SUFFIX.length();
+        String base = mnuNm.length() > room ? mnuNm.substring(0, room) : mnuNm;
+        return base + PREPARING_NAME_SUFFIX;
+    }
+
+    /**
+     * 준비중 경로를 확정하고 라우트 카탈로그 행을 준비한다.
+     *
+     * <p>저장된 메뉴가 이미 준비중 경로를 쓰고 있으면 그 경로를 유지한다. 사람이 등록한
+     * {@code /preparing/cdp} 같은 경로를 자동 경로로 갈아치우지 않기 위해서다. 그 외에는
+     * {@code /preparing/{mnuId 소문자}}를 쓴다. 카탈로그 행이 없으면 만들고, 있으면 재사용하며
+     * 화면메뉴명만 현재 메뉴명 기준으로 맞춘다(같은 메뉴를 다시 저장해도 행이 늘지 않는다).
+     *
+     * @param mnuId 대상 메뉴 ID. 생성이면 채번 직후 값
+     * @param currentPath 저장된 메뉴의 현재 화면경로. 생성이면 null
+     * @param mnuNm 카탈로그 화면메뉴명에 쓸 메뉴명
+     * @param mnuTpC 메뉴유형코드
+     * @return 확정된 준비중 경로
+     * @throws ResponseStatusException 메뉴유형이 PGE가 아닌 경우
+     */
+    private String resolvePreparingPath(
+            String mnuId, String currentPath, String mnuNm, String mnuTpC) {
+        if (!"PGE".equals(mnuTpC)) throw badRequest("준비중은 페이지화면만 가능합니다.");
+        String path =
+                MenuPathPolicy.isPreparing(currentPath)
+                        ? currentPath
+                        : MenuPathPolicy.PREPARING_PATH_PREFIX + mnuId.toLowerCase();
+        String catalogName = preparingCatalogName(mnuNm);
+        String rmk =
+                cmenudRepository
+                        .findBySrePthAndDelYn(path, "N")
+                        .map(Cmenud::getRmk)
+                        .orElse(PREPARING_ROUTE_RMK);
+        // Cmenud는 setter가 없으므로 같은 PK로 새 엔티티를 저장해 JPA merge로 갱신한다.
+        cmenudRepository.save(
+                Cmenud.builder()
+                        .srePth(path)
+                        .sreMnuNm(catalogName)
+                        .useYn("Y")
+                        .rmk(rmk)
+                        .delYn("N")
+                        .build());
+        return path;
     }
 
     /**

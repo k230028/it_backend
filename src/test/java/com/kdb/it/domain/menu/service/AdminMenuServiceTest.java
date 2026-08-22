@@ -693,4 +693,92 @@ class AdminMenuServiceTest {
         assertThat(target.getMnuDep()).isEqualTo(2);
         assertThat(target.getWhlMnuPth()).isEqualTo("/MHED0001/MHED0009");
     }
+
+    @Test
+    @DisplayName("create: 준비중이면 메뉴 ID 기반 경로를 만들고 카탈로그에 등록한다")
+    void create_준비중_경로자동생성및카탈로그등록() {
+        // given
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("사업계획서 작성")
+                        .mnuTpC("PGE")
+                        .hrkMnuId("P1")
+                        .srePth(null)
+                        .preparingYn("Y")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+        given(cmenumRepository.findByMnuIdAndDelYn("P1", "N"))
+                .willReturn(Optional.of(node("P1", "MHED0002", 2, "/MHED0002/P1")));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0001018");
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001018", "N"))
+                .willReturn(Optional.empty())
+                .willReturn(Optional.of(route("/preparing/mnu0001018", "Y")));
+        given(cmenuaRepository.findByMnuId("MNU0001018")).willReturn(List.of());
+
+        // when
+        String result = service.create(req);
+
+        // then
+        assertThat(result).isEqualTo("MNU0001018");
+        ArgumentCaptor<Cmenud> catalog = ArgumentCaptor.forClass(Cmenud.class);
+        verify(cmenudRepository).save(catalog.capture());
+        assertThat(catalog.getValue().getSrePth()).isEqualTo("/preparing/mnu0001018");
+        assertThat(catalog.getValue().getSreMnuNm()).isEqualTo("사업계획서 작성 (준비중)");
+        assertThat(catalog.getValue().getUseYn()).isEqualTo("Y");
+        ArgumentCaptor<Cmenum> menu = ArgumentCaptor.forClass(Cmenum.class);
+        verify(cmenumRepository).save(menu.capture());
+        assertThat(menu.getValue().getSrePth()).isEqualTo("/preparing/mnu0001018");
+    }
+
+    @Test
+    @DisplayName("create: 준비중은 페이지화면만 가능하다")
+    void create_준비중인데GRP_400() {
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm("새 그룹")
+                        .mnuTpC("GRP")
+                        .hrkMnuId("P1")
+                        .srePth(null)
+                        .preparingYn("Y")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0001019");
+
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("준비중은 페이지화면만 가능합니다");
+        verifyNoInteractions(cmenudRepository);
+    }
+
+    @Test
+    @DisplayName("create: 메뉴명이 길어도 카탈로그 경로명은 100자를 넘지 않는다")
+    void create_준비중_긴메뉴명_경로명절단() {
+        String longName = "가".repeat(100);
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder()
+                        .mnuNm(longName)
+                        .mnuTpC("PGE")
+                        .hrkMnuId("P1")
+                        .srePth(null)
+                        .preparingYn("Y")
+                        .hidYn("N")
+                        .athIds(List.of())
+                        .build();
+        given(cmenumRepository.findByMnuIdAndDelYn("P1", "N"))
+                .willReturn(Optional.of(node("P1", "MHED0002", 2, "/MHED0002/P1")));
+        given(cmenumRepository.nextMnuId()).willReturn("MNU0001020");
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001020", "N"))
+                .willReturn(Optional.empty())
+                .willReturn(Optional.of(route("/preparing/mnu0001020", "Y")));
+        given(cmenuaRepository.findByMnuId("MNU0001020")).willReturn(List.of());
+
+        service.create(req);
+
+        ArgumentCaptor<Cmenud> catalog = ArgumentCaptor.forClass(Cmenud.class);
+        verify(cmenudRepository).save(catalog.capture());
+        assertThat(catalog.getValue().getSreMnuNm()).hasSize(100);
+        assertThat(catalog.getValue().getSreMnuNm()).endsWith(" (준비중)");
+    }
 }

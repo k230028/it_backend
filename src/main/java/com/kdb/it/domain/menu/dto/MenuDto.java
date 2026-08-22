@@ -92,6 +92,12 @@ public class MenuDto {
         @Schema(description = "아이콘 클래스(예: pi pi-home). 비우면 미지정", example = "pi pi-home")
         private String imkNm;
 
+        @Schema(
+                description =
+                        "준비중 여부 Y/N. Y면 서버가 준비중 경로를 만들어 카탈로그에 등록하며 srePth는 무시한다",
+                allowableValues = {"Y", "N"})
+        private String preparingYn;
+
         @Schema(description = "노출 권한ID 목록(비우면 전체 공개)")
         private List<String> athIds;
     }
