@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.dto;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.common.system.validation.NotBlankUnlessAdmin;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -255,7 +256,7 @@ public class CostDto extends CostTerminalDto {
         private String fstDfrDt;
 
         /** 통화 코드 */
-        @NotBlank
+        @NotBlankUnlessAdmin
         @Schema(description = "통화", example = "KRW")
         private String curC;
 

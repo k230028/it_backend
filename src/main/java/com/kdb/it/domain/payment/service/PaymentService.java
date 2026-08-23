@@ -37,9 +37,14 @@ import org.springframework.util.StringUtils;
 @Transactional(readOnly = true)
 public class PaymentService {
 
-    static final String STS_DRAFT = "81";
-    static final String STS_IN_PROGRESS = "85";
-    static final String STS_DONE = "89";
+    /*
+     * 대금지급 단계의 IT_PTL_STS_TC. 2026-08-23 코드 개편(MIG-01)으로 8번대가 신설된 '프로젝트'
+     * 단계에 배정되면서 대금지급이 9번대로 옮겨 갔다 — 81/85/89 → 91/93/95.
+     * 마이그레이션은 V20260823_003이며 기존 데이터도 같은 표로 옮긴다.
+     */
+    static final String STS_DRAFT = "91";
+    static final String STS_IN_PROGRESS = "93";
+    static final String STS_DONE = "95";
     static final String TGT_PROJECT = "100";
     static final String TGT_COST = "200";
 

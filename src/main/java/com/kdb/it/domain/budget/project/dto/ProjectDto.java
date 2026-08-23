@@ -2,11 +2,12 @@ package com.kdb.it.domain.budget.project.dto;
 
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.common.system.validation.NotBlankUnlessAdmin;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -388,11 +389,10 @@ public class ProjectDto {
         /** 경상여부 ('Y'=경상사업, 'N'=일반 정보화사업) */
         @Schema(description = "경상여부")
         private String odnYn;
-
         /** 사업구분 — 생성과 같은 규칙. 수정으로 값을 비우거나 '0'으로 되돌리는 구멍을 막는다 (BE-19). */
         @Schema(description = "사업구분 (10=신규, 20=계속)")
-        @NotBlank(message = "사업구분은 필수입니다.")
-        @Pattern(regexp = "10|20", message = "사업구분은 신규(10) 또는 계속(20)만 가능합니다.")
+        @NotBlankUnlessAdmin(
+                message = "사업구분은 필수입니다.", pattern = "10|20", patternMessage = "사업구분은 신규(10) 또는 계속(20)만 가능합니다.")
         private String abusTc;
 
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */

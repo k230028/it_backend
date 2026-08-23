@@ -103,7 +103,7 @@ class PaymentDetailProjectionIt extends AbstractOracleRepositoryTest {
                 .lstYn(latest)
                 .ioeC("100")
                 .cncdRfrNo(projectNo)
-                .stsTc("85")
+                .stsTc("93")
                 .reqCone(request)
                 .cttNm("BE03 지급 계약")
                 .cttAmt(new BigDecimal("987654.321"))

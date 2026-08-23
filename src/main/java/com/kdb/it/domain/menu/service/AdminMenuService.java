@@ -36,9 +36,6 @@ public class AdminMenuService {
     /** 자동 등록 카탈로그 경로명 접미. */
     private static final String PREPARING_NAME_SUFFIX = " (준비중)";
 
-    /** 자동 등록 카탈로그 비고. 사람이 만든 준비중 경로와 구분하는 표시다. */
-    private static final String PREPARING_ROUTE_RMK = "준비중 메뉴 자동 등록";
-
     /** 아이콘 클래스 허용 문자 — 화면에서 class 속성으로 쓰이므로 클래스명 문자만 통과시킨다. */
     private static final Pattern ICON_CLASS = Pattern.compile("^[a-z0-9 -]{1,100}$");
 
@@ -250,7 +247,7 @@ public class AdminMenuService {
                         : MenuPathPolicy.PREPARING_PATH_PREFIX + mnuId.toLowerCase();
         String catalogName = preparingCatalogName(mnuNm);
         Optional<Cmenud> existing = cmenudRepository.findBySrePthAndDelYn(path, "N");
-        String rmk = existing.map(Cmenud::getRmk).orElse(PREPARING_ROUTE_RMK);
+        String rmk = existing.map(Cmenud::getRmk).orElse(MenuPathPolicy.PREPARING_ROUTE_RMK);
         // M4: 관리자가 /admin/routes에서 미사용 처리했을 수 있으므로 기존 사용여부를 유지한다.
         // 행이 없을 때(신규 등록)만 'Y'로 시작한다.
         String useYn = existing.map(Cmenud::getUseYn).orElse("Y");

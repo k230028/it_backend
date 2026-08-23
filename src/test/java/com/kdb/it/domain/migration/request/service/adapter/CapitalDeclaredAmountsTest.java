@@ -300,6 +300,51 @@ class CapitalDeclaredAmountsTest {
     }
 
     @Test
+    @DisplayName("1-2 품목 합계로 대사되지 않아도 `필요예산 편성요청` 칸으로 단위를 확정해 적재한다")
+    void resolvesUnitFromYearRequestWhenItemTotalDisagrees() {
+        ProjectAmounts amounts = fundingDeskSample("1,211백만원").projectAmounts().get(0);
+
+        assertThat(amounts.isPresent()).isTrue();
+        assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
+        assertThat(amounts.mplAmt()).isEqualByComparingTo("202746300");
+        assertThat(amounts.dfrAmt()).isEqualByComparingTo("585835340");
+    }
+
+    @Test
+    @DisplayName("폴백으로 단위를 확정해도 1-1과 1-2가 어긋난 사실은 경고로 남긴다")
+    void warnsAboutTableGapWhenFallbackResolvesUnit() {
+        FormAdapterOutput output = fundingDeskSample("1,211백만원");
+
+        assertThat(FormDiagnostics.messageOf(output.diagnostics(), "declaredYearTotal"))
+                .contains("필요예산 편성요청")
+                .doesNotContain("어느 단위로도 맞지 않습니다");
+        assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
+    }
+
+    @Test
+    @DisplayName("`필요예산 편성요청` 칸에 단위가 없으면 폴백 기준점으로 쓰지 않는다")
+    void ignoresYearRequestWithoutUnitSuffix() {
+        // 접미사가 없으면 그 칸도 요약표와 같은 단위 미확정 값이라 기준점이 되지 못한다
+        FormAdapterOutput output = fundingDeskSample("1,211");
+
+        assertThat(output.projectAmounts().get(0).isPresent()).isFalse();
+        assertThat(amountWarning(output)).contains("기재 단위를 1-2 품목 합계로 확정하지 못했습니다");
+    }
+
+    /**
+     * 실측 제출본(자금운용실)의 금액 구성을 재현합니다.
+     *
+     * <p>1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계가 `'26년도 합계`보다 6,309,600원 큽니다. 상대 오차 0.518%로 허용치
+     * 0.5%를 넘어 품목 합계 대사는 실패하지만, 1-1이 스스로 적은 `'26년도 필요예산 편성요청`과는 원 단위로 맞습니다.
+     *
+     * @param yearRequest `'26년도 필요예산 편성요청` 칸에 적을 문자열
+     */
+    private FormAdapterOutput fundingDeskSample(String yearRequest) {
+        return adaptWithResource(
+                "2,000백만원", yearRequest, 1_211_418_360d, 202_746_300d, "기계장치(HW)", 1_217_727_960d);
+    }
+
+    @Test
     @DisplayName("사업은 그대로 만들어 파일을 막지 않는다")
     void stillProducesProject() {
         FormAdapterOutput output = adapt(overviewOnly("2,000백만원", 1_265_624_700d, 0d));
@@ -324,9 +369,33 @@ class CapitalDeclaredAmountsTest {
         return adaptWithResource(wholePeriod, yearTotal, laterTotal, itemGroup, itemAmount, "KRW");
     }
 
+    /** `'26년도 필요예산 편성요청` 칸까지 채운 1-1과 1-2를 함께 만듭니다. */
+    private FormAdapterOutput adaptWithResource(
+            String wholePeriod,
+            String yearRequest,
+            Double yearTotal,
+            Double laterTotal,
+            String itemGroup,
+            double itemAmount) {
+        return adaptWithResource(
+                wholePeriod, yearRequest, yearTotal, laterTotal, itemGroup, itemAmount, "KRW");
+    }
+
     /** 1-1과 1-2를 함께 담은 워크북을 만듭니다. 통화를 지정해 외화 품목(원화 합계에서 빠지는 행)도 만들 수 있습니다. */
     private FormAdapterOutput adaptWithResource(
             String wholePeriod,
+            Double yearTotal,
+            Double laterTotal,
+            String itemGroup,
+            double itemAmount,
+            String currency) {
+        return adaptWithResource(
+                wholePeriod, null, yearTotal, laterTotal, itemGroup, itemAmount, currency);
+    }
+
+    private FormAdapterOutput adaptWithResource(
+            String wholePeriod,
+            String yearRequest,
             Double yearTotal,
             Double laterTotal,
             String itemGroup,
@@ -336,7 +405,13 @@ class CapitalDeclaredAmountsTest {
                 workbookOf(
                         w -> {
                             Sheet overview = w.createSheet(OVERVIEW_SHEET_NAME);
-                            writeOverview(overview, wholePeriod, yearTotal, laterTotal);
+                            writeOverview(
+                                    overview,
+                                    wholePeriod,
+                                    yearTotal,
+                                    laterTotal,
+                                    "총 계",
+                                    yearRequest);
                             Sheet resource = w.createSheet(RESOURCE_SHEET_NAME);
                             writeResourceItem(resource, itemGroup, itemAmount, currency);
                         });
@@ -438,12 +513,28 @@ class CapitalDeclaredAmountsTest {
             Double yearTotal,
             Double laterTotal,
             String totalLabel) {
+        writeOverview(sheet, wholePeriod, yearTotal, laterTotal, totalLabel, null);
+    }
+
+    private static void writeOverview(
+            Sheet sheet,
+            String wholePeriod,
+            Double yearTotal,
+            Double laterTotal,
+            String totalLabel,
+            String yearRequest) {
         Row nameRow = sheet.createRow(0);
         cell(nameRow, 2).setCellValue("사업명");
         cell(nameRow, 3).setCellValue("사업");
         Row amountRow = sheet.createRow(1);
         cell(amountRow, 7).setCellValue("총 사업금액(전체기간)");
         cell(amountRow, 9).setCellValue(wholePeriod);
+        if (yearRequest != null) {
+            // 실 양식과 같이 총액 칸 바로 아래에 둔다
+            Row requestRow = sheet.createRow(3);
+            cell(requestRow, 7).setCellValue("‘26년도 필요예산 편성요청");
+            cell(requestRow, 9).setCellValue(yearRequest);
+        }
         if (yearTotal != null || laterTotal != null) {
             Row header = sheet.createRow(2);
             cell(header, 6).setCellValue("'26년도 합계");

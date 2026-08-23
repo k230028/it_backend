@@ -273,7 +273,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .reqCone("기존내용")
                             .cttNm("기존계약명")
                             .cttAmt(BigDecimal.valueOf(1000000))
@@ -305,7 +305,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -334,7 +334,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("89")
+                            .stsTc("95")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -370,7 +370,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -394,7 +394,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -417,7 +417,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("89")
+                            .stsTc("95")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -448,17 +448,17 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("85"), adminUser());
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("93"), adminUser());
 
             // Assert
-            assertThat(e.getStsTc()).isEqualTo("85");
+            assertThat(e.getStsTc()).isEqualTo("93");
         }
 
         @Test
@@ -472,17 +472,17 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
 
             // Act
-            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("89"), adminUser());
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("95"), adminUser());
 
             // Assert
-            assertThat(e.getStsTc()).isEqualTo("89");
+            assertThat(e.getStsTc()).isEqualTo("95");
         }
 
         @Test
@@ -495,17 +495,17 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
             when(eaiService.sendEai(any())).thenThrow(new IllegalStateException("EAI 장애"));
 
-            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("85"), adminUser());
+            service.changeStatus("PAY-2026-0001", new PaymentDto.StatusRequest("93"), adminUser());
 
-            assertThat(e.getStsTc()).isEqualTo("85");
-            verify(bprojaSyncService).upsert("PRJ-1", "PAY-2026-0001", "85");
+            assertThat(e.getStsTc()).isEqualTo("93");
+            verify(bprojaSyncService).upsert("PRJ-1", "PAY-2026-0001", "93");
         }
 
         @Test
@@ -519,7 +519,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("89")
+                            .stsTc("95")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -530,7 +530,7 @@ class PaymentServiceTest {
                             () ->
                                     service.changeStatus(
                                             "PAY-2026-0001",
-                                            new PaymentDto.StatusRequest("85"),
+                                            new PaymentDto.StatusRequest("93"),
                                             adminUser()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
@@ -547,7 +547,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -558,7 +558,7 @@ class PaymentServiceTest {
                             () ->
                                     service.changeStatus(
                                             "PAY-2026-0001",
-                                            new PaymentDto.StatusRequest("89"),
+                                            new PaymentDto.StatusRequest("95"),
                                             adminUser()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("허용되지 않은 상태 전이");
@@ -575,7 +575,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -586,7 +586,7 @@ class PaymentServiceTest {
                             () ->
                                     service.changeStatus(
                                             "PAY-2026-0001",
-                                            new PaymentDto.StatusRequest("81"),
+                                            new PaymentDto.StatusRequest("91"),
                                             adminUser()))
                     .isInstanceOf(IllegalStateException.class);
         }
@@ -611,7 +611,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -646,7 +646,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("89")
+                            .stsTc("95")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -673,7 +673,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -722,7 +722,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -774,7 +774,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -825,7 +825,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -870,7 +870,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -914,7 +914,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
@@ -960,7 +960,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .reqCone("요청내용")
                             .cttNm("계약명")
                             .cttAmt(BigDecimal.valueOf(500000))
@@ -1002,7 +1002,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("200")
                             .cncdRfrNo("BG-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .cttNm("유지보수계약")
                             .cttAmt(BigDecimal.valueOf(1000000))
                             .build();
@@ -1046,7 +1046,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-GONE")
-                            .stsTc("81")
+                            .stsTc("91")
                             .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0003"))
                     .thenReturn(Optional.of(detailRow(master, null)));
@@ -1072,7 +1072,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("200")
                             .cncdRfrNo("BG-GONE")
-                            .stsTc("81")
+                            .stsTc("91")
                             .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0005"))
                     .thenReturn(Optional.of(detailRow(master, null)));
@@ -1098,7 +1098,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("999")
                             .cncdRfrNo("UNKNOWN")
-                            .stsTc("81")
+                            .stsTc("91")
                             .build();
             when(paymentRepository.findCurrentDetail("PAY-2026-0004"))
                     .thenReturn(Optional.of(detailRow(master, null)));
@@ -1145,7 +1145,7 @@ class PaymentServiceTest {
                                     1,
                                     "100",
                                     "PRJ-1",
-                                    "81",
+                                    "91",
                                     "계약1",
                                     BigDecimal.valueOf(1000000),
                                     "E0001",
@@ -1155,7 +1155,7 @@ class PaymentServiceTest {
                                     1,
                                     "200",
                                     "BG-1",
-                                    "85",
+                                    "93",
                                     "계약2",
                                     BigDecimal.valueOf(2000000),
                                     "E0002",
@@ -1181,18 +1181,18 @@ class PaymentServiceTest {
                                     1,
                                     "100",
                                     "PRJ-1",
-                                    "81",
+                                    "91",
                                     "계약1",
                                     BigDecimal.valueOf(1000000),
                                     "E0001",
                                     null));
-            when(paymentRepository.search("81", null, null, "18001")).thenReturn(mockResult);
+            when(paymentRepository.search("91", null, null, "18001")).thenReturn(mockResult);
 
             // Act
-            List<PaymentDto.ListItem> result = service.list("81", null, null, requester());
+            List<PaymentDto.ListItem> result = service.list("91", null, null, requester());
 
             // Assert - 일반 사용자이므로 bbrC="18001"로 search 호출
-            verify(paymentRepository).search("81", null, null, "18001");
+            verify(paymentRepository).search("91", null, null, "18001");
             assertThat(result).hasSize(1);
         }
 
@@ -1213,13 +1213,13 @@ class PaymentServiceTest {
         @DisplayName("상태코드·대상구분·대상관리번호 필터가 모두 지정된 경우 조건이 그대로 전달된다")
         void list_withAllFilters_passedThrough() {
             // Arrange
-            when(paymentRepository.search("85", "100", "PRJ-1", null)).thenReturn(List.of());
+            when(paymentRepository.search("93", "100", "PRJ-1", null)).thenReturn(List.of());
 
             // Act
-            service.list("85", "100", "PRJ-1", adminUser());
+            service.list("93", "100", "PRJ-1", adminUser());
 
             // Assert
-            verify(paymentRepository).search("85", "100", "PRJ-1", null);
+            verify(paymentRepository).search("93", "100", "PRJ-1", null);
         }
 
         @Test
@@ -1255,7 +1255,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("81")
+                            .stsTc("91")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))
                     .thenReturn(Optional.of(e));
@@ -1265,7 +1265,7 @@ class PaymentServiceTest {
 
             // Assert
             assertThat(result.getDocMngNo()).isEqualTo("PAY-2026-0001");
-            assertThat(result.getStsTc()).isEqualTo("81");
+            assertThat(result.getStsTc()).isEqualTo("91");
         }
 
         @Test
@@ -1298,7 +1298,7 @@ class PaymentServiceTest {
                     .lstYn("Y")
                     .ioeC("100")
                     .cncdRfrNo("PRJ-1")
-                    .stsTc("81")
+                    .stsTc("91")
                     .fstEnrUsid("E0001")
                     .build();
         }
@@ -1345,7 +1345,7 @@ class PaymentServiceTest {
                             () ->
                                     service.changeStatus(
                                             "PAY-2026-0001",
-                                            new PaymentDto.StatusRequest("85"),
+                                            new PaymentDto.StatusRequest("93"),
                                             other()))
                     .isInstanceOf(AccessDeniedException.class);
         }
@@ -1361,7 +1361,7 @@ class PaymentServiceTest {
                             .lstYn("Y")
                             .ioeC("100")
                             .cncdRfrNo("PRJ-1")
-                            .stsTc("85")
+                            .stsTc("93")
                             .fstEnrUsid("E0001")
                             .build();
             when(paymentRepository.findByDocMngNoAndLstYnAndDelYn("PAY-2026-0001", "Y", "N"))

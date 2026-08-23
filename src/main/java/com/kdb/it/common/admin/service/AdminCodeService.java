@@ -250,8 +250,10 @@ public class AdminCodeService {
 
         Set<String> cIds =
                 req.codes().stream().map(AdminDto.CodeRequest::cId).collect(Collectors.toSet());
+        // 논리삭제된 행까지 읽는다. 활성 행만 보면 삭제된 같은 복합키를 신규로 오인해 merge(UPDATE) 경로로
+        // 들어가고, 새 엔티티에는 GUID가 없어 NULL이 나가 NOT NULL 제약(ORA-01407)에 걸린다.
         Map<CodeKey, Ccodem> byKey = new LinkedHashMap<>();
-        for (Ccodem code : codeRepository.findAllByCIdInAndDelYn(cIds, "N")) {
+        for (Ccodem code : codeRepository.findAllByCIdIn(cIds)) {
             byKey.put(new CodeKey(code.getCId(), code.getCdva(), code.getSttDt()), code);
         }
 
@@ -262,6 +264,11 @@ public class AdminCodeService {
             CodeKey key = new CodeKey(item.cId(), item.cdva(), item.sttDt());
             Ccodem existing = byKey.get(key);
             if (existing != null) {
+                // 삭제되어 있던 코드를 다시 올린 것은 사용자에게 신규 등록이므로 created로 센다.
+                boolean revived = "Y".equals(existing.getDelYn());
+                if (revived) {
+                    existing.restore();
+                }
                 existing.update(
                         item.cNm(),
                         item.cdvaDes(),
@@ -273,7 +280,11 @@ public class AdminCodeService {
                         item.cSqn(),
                         item.endDt(),
                         item.cdvaDtlC());
-                updated++;
+                if (revived) {
+                    created++;
+                } else {
+                    updated++;
+                }
             } else {
                 Ccodem code =
                         Ccodem.builder()

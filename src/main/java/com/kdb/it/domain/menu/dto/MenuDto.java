@@ -131,6 +131,28 @@ public class MenuDto {
         private String newHrkMnuId;
     }
 
+    /**
+     * 준비중 화면 안내.
+     *
+     * <p>준비중 화면이 언제 열리는지 같은 안내는 라우트 카탈로그 비고(RMK)에 적는다. 메뉴 행이 아니라 카탈로그가 원천이므로 메뉴 트리에 싣지 않고 이 응답으로 따로
+     * 내려준다.
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "PreparingNotice")
+    public static class PreparingNotice {
+        /** 조회한 준비중 화면경로. 요청 값을 그대로 돌려준다. */
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        private String srePth;
+
+        /** 사용자에게 보여줄 안내 문구. 없거나 자동 등록 표시뿐이면 null. */
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        private String rmk;
+    }
+
     /** 라우트 카탈로그 행. */
     @Getter
     @Setter

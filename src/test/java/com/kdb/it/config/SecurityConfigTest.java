@@ -1,9 +1,11 @@
 package com.kdb.it.config;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -13,7 +15,10 @@ import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.domain.log.listener.AuditFailureRecorder;
 import jakarta.servlet.http.Cookie;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,8 +31,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * Actuator 엔드포인트 접근 제어 검증 (ERR-06 감사 실패 메트릭 보호).
@@ -58,6 +66,8 @@ class SecurityConfigTest {
     @Autowired private JwtUtil jwtUtil;
 
     @Autowired private AuditFailureRecorder auditFailureRecorder;
+
+    @Autowired private SecurityProbeController securityProbeController;
 
     @Test
     @DisplayName("비인증 /actuator/health 는 공개되어 200")
@@ -97,6 +107,36 @@ class SecurityConfigTest {
                         get("/actuator/metrics/" + AUDIT_FAILURE_METRIC)
                                 .cookie(accessTokenCookie(List.of(CustomUserDetails.ATH_ADMIN))))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 스트리밍 응답은 ASYNC 재디스패치에서도 200으로 완료된다")
+    void adminStream_admin_returns200AfterAsyncDispatch() throws Exception {
+        MvcResult started =
+                mockMvc.perform(
+                                get("/api/admin/security-probe/stream")
+                                        .cookie(
+                                                accessTokenCookie(
+                                                        List.of(CustomUserDetails.ATH_ADMIN))))
+                        .andExpect(request().asyncStarted())
+                        .andReturn();
+
+        // MockHttpServletResponse는 실제 컨테이너 응답과 달리 헤더 Map이 thread-safe하지 않다.
+        // 최초 보안 필터 체인이 헤더를 다 쓴 뒤 스트림 작업을 풀어 비동기 인가 결과만 검증한다.
+        securityProbeController.releaseStream();
+        mockMvc.perform(asyncDispatch(started))
+                .andExpect(status().isOk())
+                .andExpect(content().string("stream-ok"));
+    }
+
+    @Test
+    @DisplayName("일반 사용자는 관리자 스트리밍 응답을 시작하기 전에 403으로 차단된다")
+    void adminStream_normalUser_returns403BeforeAsyncDispatch() throws Exception {
+        mockMvc.perform(
+                        get("/api/admin/security-probe/stream")
+                                .cookie(accessTokenCookie(List.of(CustomUserDetails.ATH_USER))))
+                .andExpect(status().isForbidden())
+                .andExpect(request().asyncNotStarted());
     }
 
     @Test
@@ -160,6 +200,27 @@ class SecurityConfigTest {
 
     @RestController
     static class SecurityProbeController {
+
+        private final CountDownLatch streamRelease = new CountDownLatch(1);
+
+        @GetMapping("/api/admin/security-probe/stream")
+        ResponseEntity<StreamingResponseBody> stream() {
+            return ResponseEntity.ok()
+                    .body(
+                            output -> {
+                                try {
+                                    streamRelease.await();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    throw new IOException("스트리밍 테스트 대기 중 중단됨", e);
+                                }
+                                output.write("stream-ok".getBytes(StandardCharsets.UTF_8));
+                            });
+        }
+
+        void releaseStream() {
+            streamRelease.countDown();
+        }
 
         @PostMapping("/api/boards/{blbMngNo}/posts/{nacMngNo}/views")
         ResponseEntity<Void> mutate() {

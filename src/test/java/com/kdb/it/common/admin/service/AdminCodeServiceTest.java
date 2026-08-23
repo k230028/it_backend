@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -130,8 +129,7 @@ class AdminCodeServiceTest {
         AdminDto.BulkCodeRequest bulkReq = new AdminDto.BulkCodeRequest(List.of(req1, req2));
 
         Ccodem existingCode = Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).build();
-        given(codeRepository.findAllByCIdInAndDelYn(anyCollection(), eq("N")))
-                .willReturn(List.of(existingCode));
+        given(codeRepository.findAllByCIdIn(anyCollection())).willReturn(List.of(existingCode));
 
         // when
         var result = adminCodeService.bulkUpsertCodes(bulkReq);
@@ -140,6 +138,30 @@ class AdminCodeServiceTest {
         assertThat(result.get("updated")).isEqualTo(1);
         assertThat(result.get("created")).isEqualTo(1);
         verify(codeRepository, times(1)).saveAll(anyCollection());
+    }
+
+    @Test
+    @DisplayName("bulkUpsertCodes - 삭제된 코드를 다시 올리면 그 행을 복원하고 created로 센다")
+    void bulkUpsertCodes_삭제된코드_복원() {
+        /*
+         * 활성 행만 읽으면 삭제된 같은 복합키가 신규로 보여 merge(UPDATE) 경로로 들어가고,
+         * 새 엔티티에는 GUID가 없어 NULL이 나가 NOT NULL 제약(ORA-01407)에 걸린다.
+         */
+        String sttDt = "20260101";
+        AdminDto.CodeRequest req =
+                new AdminDto.CodeRequest(
+                        "CODE001", "001", "되살린 코드", null, null, null, null, null, null, null, sttDt,
+                        null, 1);
+        Ccodem deleted =
+                Ccodem.builder().cId("CODE001").cdva("001").sttDt(sttDt).delYn("Y").build();
+        given(codeRepository.findAllByCIdIn(anyCollection())).willReturn(List.of(deleted));
+
+        var result = adminCodeService.bulkUpsertCodes(new AdminDto.BulkCodeRequest(List.of(req)));
+
+        assertThat(deleted.getDelYn()).isEqualTo("N");
+        assertThat(deleted.getCNm()).isEqualTo("되살린 코드");
+        assertThat(result.get("created")).isEqualTo(1);
+        assertThat(result.get("updated")).isZero();
     }
 
     @Test

@@ -30,8 +30,9 @@ import org.springframework.stereotype.Component;
  * <p>품목 금액({@code BITEMM})의 원본은 원칙적으로 1-2입니다. 단, 1-2가 없는 단일 시트 양식은 1-1 요약표의 명시 단위와 비목별 합계로 품목을
  * 합성합니다. 사업 단위 금액 3종({@code TOT_RQM_AMT}·{@code MPL_AMT}·{@code DFR_AMT})은 1-1 선언값에서 산출합니다.
  *
- * <p>1-2가 있으면 항상 원 단위인 품목 합계와 대사해 1-1 배수를 역추정합니다. 1-2가 없으면 1-1 표 제목에 명시된 단위를 씁니다. 환산 근거가 없거나 산출값을
- * 신뢰할 수 없으면 <b>적재하지 않고 경고만</b> 내며 파일 반입 자체는 막지 않습니다.
+ * <p>1-2가 있으면 항상 원 단위인 품목 합계와 대사해 1-1 배수를 역추정합니다. 품목 합계가 요약표와 맞지 않으면(실측: 1-2 일반관리비가 익년 이후 계약분까지 담은
+ * 연간 금액) 1-1이 단위와 함께 한 번 더 적은 `'26년도 필요예산 편성요청` 칸을 두 번째 기준점으로 씁니다. 1-2가 없으면 1-1 표 제목에 명시된 단위를 씁니다.
+ * 환산 근거가 없거나 산출값을 신뢰할 수 없으면 <b>적재하지 않고 경고만</b> 내며 파일 반입 자체는 막지 않습니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -84,10 +85,22 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 context.sheets().get(FormSheetKind.CAPITAL_RESOURCE) == null;
         BigDecimal itemTotal =
                 synthesizedFromOverview ? sumCurrentItemAmounts(items) : sumItemAmounts(items);
-        Optional<AmountUnit> unit =
+        Optional<AmountUnit> itemUnit =
                 AmountUnitResolver.inferUnit(read.amounts().yearTotalRaw(), itemTotal);
+        // 1-2 품목 합계로 대사되지 않으면 1-1이 스스로 적은 `'26년도 필요예산 편성요청`을 두 번째 기준점으로 쓴다.
+        // 같은 금액을 단위와 함께 한 번 더 적은 칸이라 1-2와 어긋난 파일에서도 요약표 배수를 확정할 수 있다
+        Optional<AmountUnit> unit =
+                itemUnit.isPresent()
+                        ? itemUnit
+                        : AmountUnitResolver.inferUnit(
+                                read.amounts().yearTotalRaw(), read.amounts().yearRequestWon());
         reconcileTotals(
-                read.amounts().yearTotalRaw(), itemTotal, unit, project.getAbusNm(), diagnostics);
+                read.amounts().yearTotalRaw(),
+                itemTotal,
+                itemUnit,
+                unit,
+                project.getAbusNm(),
+                diagnostics);
         ProjectAmounts amounts =
                 declaredAmounts(
                         read.amounts(),
@@ -329,16 +342,38 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
      *
      * <p>어느 배수로도 맞지 않으면 단위 문제가 아니라 기재 오류이므로 경고를 냅니다. 요약표를 읽지 못했거나 품목이 없으면 대사할 수 없어 조용히 넘어갑니다 — 그
      * 경우의 안내는 {@link #declaredAmounts}가 냅니다.
+     *
+     * <p>`'26년도 필요예산 편성요청` 폴백으로 배수를 확정했더라도 두 표가 어긋난 사실 자체는 남깁니다. 금액은 적재되지만 1-1과 1-2 중 어느 쪽이 맞는지는
+     * 사람만 판단할 수 있습니다.
+     *
+     * @param declaredYearTotal 요약표 `'26년도 합계` 기재값
+     * @param itemTotal 1-2 품목 합계 (원 단위)
+     * @param itemUnit 품목 합계로 역추정한 배수. 대사에 실패했으면 빈 Optional
+     * @param unit 폴백까지 적용해 확정한 배수. 끝내 못 정했으면 빈 Optional
+     * @param projectName 진단에 붙일 사업명
+     * @param diagnostics 진단 수집 목록
      */
     private void reconcileTotals(
             BigDecimal declaredYearTotal,
             BigDecimal itemTotal,
+            Optional<AmountUnit> itemUnit,
             Optional<AmountUnit> unit,
             String projectName,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (declaredYearTotal == null || itemTotal.signum() == 0) return;
-        if (unit.isPresent()) return;
+        if (itemUnit.isPresent()) return;
 
+        String message =
+                unit.isPresent()
+                        ? "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 다릅니다. 요약표의 기재 단위는 `필요예산 편성요청` 칸과 대사해 %s으로 확정했습니다."
+                                .formatted(
+                                        declaredYearTotal.toPlainString(),
+                                        itemTotal.toPlainString(),
+                                        unit.get().label())
+                        : "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
+                                .formatted(
+                                        declaredYearTotal.toPlainString(),
+                                        itemTotal.toPlainString());
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.about(
                         FormSheetKind.CAPITAL_OVERVIEW,
@@ -346,10 +381,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                         "declaredYearTotal",
                         projectName,
                         RequestFormDiagnosticCode.AMOUNT_MISMATCH,
-                        "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
-                                .formatted(
-                                        declaredYearTotal.toPlainString(),
-                                        itemTotal.toPlainString()),
+                        message,
                         List.of()));
     }
 

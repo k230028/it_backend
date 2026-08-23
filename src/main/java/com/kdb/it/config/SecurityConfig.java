@@ -5,6 +5,7 @@ import com.kdb.it.common.system.security.JwtAuthenticationFilter;
 import com.kdb.it.common.system.security.SimpleRequestCsrfFilter;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.common.util.CustomPasswordEncoder;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -150,6 +151,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         auth -> {
                             auth
+                                    // StreamingResponseBody 완료 시 같은 요청이 ASYNC로 재디스패치된다.
+                                    // 최초 REQUEST는 아래 URL 규칙과 메서드 보안으로 이미 인가됐으므로,
+                                    // stateless JWT 컨텍스트가 없는 내부 재디스패치만 다시 허용한다.
+                                    .dispatcherTypeMatchers(DispatcherType.ASYNC)
+                                    .permitAll()
                                     // 인증 없이 접근 가능한 엔드포인트
                                     .requestMatchers(
                                             "/api/auth/login/start",

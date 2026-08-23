@@ -69,6 +69,8 @@ class RequestForm2026SampleSmokeTest {
     private static final String QUALITY_AUTOMATION_SAMPLE_SUFFIX =
             "정보화사업 요청서(신규사업 양식)_테스트 자동화 솔루션 도입_v1.1.xlsx";
 
+    private static final String FUNDING_DESK_SAMPLE_SUFFIX = "편성 요청서(자금운용실).xls";
+
     private static final String SAMPLE_LOOKUP_FAILURE = "로컬 샘플 탐색에 실패했습니다";
 
     private static final String SAMPLE_READ_FAILURE = "로컬 샘플을 읽지 못했습니다";
@@ -350,6 +352,30 @@ class RequestForm2026SampleSmokeTest {
                                 assertThat(project.getItems())
                                         .as("diagnostics=%s", output.diagnostics())
                                         .hasSize(4));
+    }
+
+    @Test
+    @DisplayName("자금운용실 샘플의 사업 단위 금액 3종을 1-1 선언값으로 적재한다")
+    void adaptsFundingDeskDeclaredAmounts() throws IOException {
+        // 1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계(1,217,727,960)가
+        // `'26년도 합계`(1,211,418,360)보다 0.518% 크다. 품목 합계로는 요약표 배수를 확정하지 못하고
+        // `'26년도 필요예산 편성요청`(1,211백만원)과 대사해야 원 단위로 확정된다
+        FormAdapterOutput output = adaptCapitalSample(FUNDING_DESK_SAMPLE_SUFFIX);
+
+        assertThat(output.projectAmounts())
+                .singleElement()
+                .satisfies(
+                        amounts -> {
+                            assertThat(amounts.isPresent())
+                                    .as("diagnostics=%s", output.diagnostics())
+                                    .isTrue();
+                            // 총 사업금액(전체기간) 2,000백만원
+                            assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
+                            // '26년도 이후 총 계
+                            assertThat(amounts.mplAmt()).isEqualByComparingTo("202746300");
+                            // 총 사업금액 − '26년도 이후 − '26년도 합계
+                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("585835340");
+                        });
     }
 
     @Test

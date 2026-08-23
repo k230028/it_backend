@@ -19,6 +19,7 @@ import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.service.PlanService;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.service.BudgetRateApplicationService;
@@ -41,6 +42,8 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
@@ -71,6 +74,8 @@ class MigrationImportServiceTest {
     @Mock private OrgIdentityResolver orgIdentityResolver;
     @Mock private MigrationIoeCatalogReader catalogReader;
     @Mock private PlanService planService;
+
+    @Mock private BprojaSyncService bprojaSyncService;
 
     /** BLOCKER가 하나라도 있으면 아무 서비스도 호출되지 않는다. */
     @Test
@@ -1258,7 +1263,9 @@ class MigrationImportServiceTest {
                 projectService,
                 projectRepository,
                 budgetRateApplicationService,
-                planService);
+                planService,
+                // 매핑 판정은 실물로 돌리고 기록만 목으로 관측한다
+                new PlanAdjustmentProgressRecorder(bprojaSyncService));
     }
 
     private void stubLookupIndex() {
@@ -1483,5 +1490,71 @@ class MigrationImportServiceTest {
     /** 이 행을 편성하지 않기로 결정한 전산일반관리비 요청. */
     private static MigrationDto.CommitRequest skipDecisionRequest() {
         return costRequest("SKIP");
+    }
+
+    @ParameterizedTest(name = "사업진행 \"{0}\"은 상태코드 {1}로 기록한다")
+    @CsvSource({"진행(품의),71", "진행(계약),75", "취소(연기),00"})
+    @DisplayName("조정 시트의 사업진행을 사업 전용 key로 BPROJA에 기록한다")
+    void 사업진행을_상태코드로_기록한다(String label, String expectedCode) {
+        commitPlanAdjustmentWithProgress(label);
+
+        // 사업 자신의 행(예산편성 상태)도, 부문계획 문서 행도 아닌 전용 key를 쓴다(MIG-01)
+        verify(bprojaSyncService).upsert("PRJ-2026-0005", "ADJ-PRJ-2026-0005", expectedCode);
+    }
+
+    @Test
+    @DisplayName("모르는 사업진행 값은 상태로 접지 않고 스냅샷에만 남긴다")
+    void 모르는_사업진행_값은_기록하지_않는다() {
+        commitPlanAdjustmentWithProgress("알 수 없는 값");
+
+        // 임의 코드로 접으면 화면에 사실과 다른 단계가 켜진다
+        verify(bprojaSyncService, never()).upsert(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("사업진행 값이 비면 아무것도 기록하지 않는다")
+    void 사업진행이_비면_기록하지_않는다() {
+        commitPlanAdjustmentWithProgress("");
+
+        verify(bprojaSyncService, never()).upsert(any(), any(), any());
+    }
+
+    /** 사업진행 값 하나만 다른 부문계획 조정 커밋을 실행한다. */
+    private void commitPlanAdjustmentWithProgress(String progressLabel) {
+        SheetAdapter planAdapter = Mockito.mock(SheetAdapter.class);
+        when(planAdapter.supports()).thenReturn(SheetKind.PLAN_ADJUSTMENT);
+        PlanIntent intent =
+                new PlanIntent(
+                        "문자메시지안심마크도입",
+                        new BigDecimal("1000000"),
+                        null,
+                        null,
+                        new BigDecimal("500000"),
+                        "202603",
+                        Map.of("progressLabel", progressLabel));
+        when(planAdapter.adapt(any(), any()))
+                .thenReturn(new AdapterOutput(List.of(), List.of(), List.of(intent), List.of()));
+
+        when(yearSnapshot.load(anyString()))
+                .thenReturn(
+                        TestSnapshots.snapshotWithProjectName(
+                                "2026", "문자메시지안심마크도입", "PRJ-2026-0005"));
+        stubLookupIndex();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any(), any()))
+                .thenReturn("PLN-2026-0009");
+        when(budgetRateApplicationService.applyItemRates(any()))
+                .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
+
+        MigrationImportService service = serviceWith(List.of(planAdapter));
+        service.commit(
+                new MigrationDto.CommitRequest(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.PLAN_ADJUSTMENT,
+                                        "2026",
+                                        List.of(new MigrationDto.NormalizedRow(2, Map.of())))),
+                        List.of()),
+                "999999");
     }
 }

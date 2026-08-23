@@ -16,6 +16,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -57,8 +58,7 @@ class AdminRouteServiceTest {
                         .sreMnuNm("업무매뉴얼")
                         .useYn("Y")
                         .build();
-        given(cmenudRepository.findBySrePthAndDelYn(route.getSrePth(), "N"))
-                .willReturn(Optional.empty());
+        given(cmenudRepository.findById(route.getSrePth())).willReturn(Optional.empty());
 
         service.create(route);
 
@@ -91,7 +91,7 @@ class AdminRouteServiceTest {
     @Test
     void create_rejectsDuplicate() {
         MenuDto.Route r = MenuDto.Route.builder().srePth("/budget/list").sreMnuNm("예산").build();
-        given(cmenudRepository.findBySrePthAndDelYn("/budget/list", "N"))
+        given(cmenudRepository.findById("/budget/list"))
                 .willReturn(Optional.of(route("/budget/list")));
         assertThatThrownBy(() -> service.create(r))
                 .isInstanceOf(ResponseStatusException.class)
@@ -132,8 +132,7 @@ class AdminRouteServiceTest {
         // given
         MenuDto.Route r =
                 MenuDto.Route.builder().srePth("/new/route").sreMnuNm("새화면").useYn("Y").build();
-        given(cmenudRepository.findBySrePthAndDelYn("/new/route", "N"))
-                .willReturn(Optional.empty());
+        given(cmenudRepository.findById("/new/route")).willReturn(Optional.empty());
 
         // when
         service.create(r);
@@ -161,6 +160,70 @@ class AdminRouteServiceTest {
 
         // then
         verify(cmenudRepository).save(any(Cmenud.class));
+    }
+
+    @Test
+    @DisplayName("create: 논리삭제된 같은 경로가 남아 있으면 그 행을 되살리며 GUID를 유지한다")
+    void create_삭제된경로_되살리고_GUID유지() {
+        /*
+         * 화면경로가 기본키라 이 저장은 INSERT가 아니라 merge(UPDATE)다. GUID를 비워 두면
+         * @PrePersist가 돌지 않아 NULL이 나가고 NOT NULL 제약(ORA-01407)에 걸린다.
+         */
+        Cmenud deleted =
+                Cmenud.builder()
+                        .srePth("/budget/list")
+                        .sreMnuNm("예산목록")
+                        .useYn("Y")
+                        .guid("11111111-2222-3333-4444-555555555555")
+                        .guidPrgSno(1)
+                        .delYn("Y")
+                        .build();
+        given(cmenudRepository.findById("/budget/list")).willReturn(Optional.of(deleted));
+
+        service.create(
+                MenuDto.Route.builder().srePth("/budget/list").sreMnuNm("예산목록(재등록)").build());
+
+        ArgumentCaptor<Cmenud> saved = ArgumentCaptor.forClass(Cmenud.class);
+        verify(cmenudRepository).save(saved.capture());
+        assertThat(saved.getValue().getGuid()).isEqualTo(deleted.getGuid());
+        assertThat(saved.getValue().getGuidPrgSno()).isEqualTo(deleted.getGuidPrgSno());
+        assertThat(saved.getValue().getDelYn()).isEqualTo("N");
+        assertThat(saved.getValue().getSreMnuNm()).isEqualTo("예산목록(재등록)");
+    }
+
+    @Test
+    @DisplayName("update: 비고를 고쳐도 GUID·GUID진행일련번호를 기존 행에서 옮겨 담는다")
+    void update_기존GUID를_유지한다() {
+        /*
+         * setter가 없어 같은 PK로 새 엔티티를 저장(merge)하는데, GUID를 비워 두면 UPDATE 경로에서
+         * @PrePersist가 돌지 않아 NULL이 나가고 NOT NULL 제약(ORA-01407)에 걸린다.
+         */
+        Cmenud existing =
+                Cmenud.builder()
+                        .srePth("/preparing/minf0017")
+                        .sreMnuNm("준비중 (준비중)")
+                        .useYn("Y")
+                        .rmk(MenuPathPolicy.PREPARING_ROUTE_RMK)
+                        .guid("11111111-2222-3333-4444-555555555555")
+                        .guidPrgSno(1)
+                        .delYn("N")
+                        .build();
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/minf0017", "N"))
+                .willReturn(Optional.of(existing));
+
+        service.update(
+                MenuDto.Route.builder()
+                        .srePth("/preparing/minf0017")
+                        .sreMnuNm("준비중 (준비중)")
+                        .useYn("Y")
+                        .rmk("2027년 1월 오픈 예정")
+                        .build());
+
+        ArgumentCaptor<Cmenud> saved = ArgumentCaptor.forClass(Cmenud.class);
+        verify(cmenudRepository).save(saved.capture());
+        assertThat(saved.getValue().getGuid()).isEqualTo(existing.getGuid());
+        assertThat(saved.getValue().getGuidPrgSno()).isEqualTo(existing.getGuidPrgSno());
+        assertThat(saved.getValue().getRmk()).isEqualTo("2027년 1월 오픈 예정");
     }
 
     @Test

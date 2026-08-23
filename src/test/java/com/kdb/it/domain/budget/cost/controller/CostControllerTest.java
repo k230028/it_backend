@@ -124,6 +124,20 @@ class CostControllerTest {
     }
 
     @Test
+    @DisplayName("PUT /api/cost/{itMngcNo} - 시스템관리자는 통화가 없어도 수정 요청을 전달한다")
+    @WithMockUser(username = "10001", authorities = "ROLE_ADMIN")
+    void updateCost_관리자_통화누락_200() throws Exception {
+        given(costService.updateCost(anyString(), any())).willReturn("COST_2026_0001");
+        var body = new CostDto.UpdateRequest();
+
+        mockMvc.perform(
+                        put("/api/cost/COST_2026_0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("DELETE /api/cost/{itMngcNo} - 인증된 사용자 → 204 No Content")
     @WithMockUser(username = "10001")
     void deleteCost_인증_204() throws Exception {

@@ -168,6 +168,54 @@ class ProjectControllerTest {
     }
 
     @Test
+    @DisplayName("PUT /api/projects/{prjMngNo} - 시스템관리자는 사업구분이 없어도 수정 요청을 전달한다")
+    @WithMockUser(username = "10001", authorities = "ROLE_ADMIN")
+    void updateProject_관리자_사업구분누락_200반환() throws Exception {
+        given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
+                .willReturn("PRJ-2026-0001");
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder().abusNm("관리자 정정").build();
+
+        mockMvc.perform(
+                        put("/api/projects/PRJ-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("PRJ-2026-0001"));
+    }
+
+    @Test
+    @DisplayName("PUT /api/projects/{prjMngNo} - 일반 사용자의 사업구분 0은 400 반환")
+    @WithMockUser(username = "10001")
+    void updateProject_일반사용자_사업구분해당없음_400반환() throws Exception {
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder().abusNm("검증 대상").abusTc("0").build();
+
+        mockMvc.perform(
+                        put("/api/projects/PRJ-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /api/projects/{prjMngNo} - 시스템관리자는 사업구분 0도 수정 요청을 전달한다")
+    @WithMockUser(username = "10001", authorities = "ROLE_ADMIN")
+    void updateProject_관리자_사업구분해당없음_200반환() throws Exception {
+        given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
+                .willReturn("PRJ-2026-0001");
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder().abusNm("관리자 정정").abusTc("0").build();
+
+        mockMvc.perform(
+                        put("/api/projects/PRJ-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("PRJ-2026-0001"));
+    }
+
+    @Test
     @DisplayName("DELETE /api/projects/{prjMngNo} - 삭제 가능 프로젝트 → 204 반환")
     @WithMockUser(username = "10001")
     void deleteProject_성공_204반환() throws Exception {

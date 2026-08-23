@@ -119,6 +119,8 @@ public class ProjectQueryAssembler {
         enrichItemIoeNames(itemDtos);
         response.setItems(itemDtos);
         budgetSummaryService.applyBudgetSummary(response, items);
+        budgetSummaryService.applyStoredAmountSnapshot(
+                response, project.getTotRqmAmt(), project.getMplAmt(), project.getDfrAmt());
         return response;
     }
 

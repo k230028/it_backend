@@ -80,7 +80,7 @@ class PaymentControllerTest {
                                         1,
                                         "100",
                                         "PRJ-1",
-                                        "81",
+                                        "91",
                                         "계약A",
                                         new BigDecimal("1000"),
                                         "10001",
@@ -88,7 +88,7 @@ class PaymentControllerTest {
 
         mockMvc.perform(
                         get("/api/project/payments")
-                                .param("status", "81")
+                                .param("status", "91")
                                 .param("prnTc", "100")
                                 .param("cncdRfrNo", "PRJ-1"))
                 .andExpect(status().isOk())
@@ -107,7 +107,7 @@ class PaymentControllerTest {
                                 "100",
                                 "PRJ-1",
                                 "테스트사업",
-                                "81",
+                                "91",
                                 "의뢰",
                                 "계약A",
                                 new BigDecimal("1000"),
@@ -173,7 +173,7 @@ class PaymentControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
-                                                new PaymentDto.StatusRequest("85"))))
+                                                new PaymentDto.StatusRequest("93"))))
                 .andExpect(status().isOk());
     }
 

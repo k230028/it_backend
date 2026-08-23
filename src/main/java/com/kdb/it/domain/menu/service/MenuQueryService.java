@@ -6,6 +6,8 @@ import com.kdb.it.common.i18n.model.TranslationColumns;
 import com.kdb.it.common.i18n.model.TranslationTarget;
 import com.kdb.it.common.i18n.service.TranslationCatalogService;
 import com.kdb.it.domain.menu.dto.MenuDto;
+import com.kdb.it.domain.menu.entity.Cmenud;
+import com.kdb.it.domain.menu.repository.CmenudRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import com.kdb.it.domain.menu.repository.MenuTreeRow;
 import java.util.ArrayList;
@@ -36,6 +38,41 @@ public class MenuQueryService {
 
     /** 메뉴 표시명 번역 카탈로그입니다. */
     private final TranslationCatalogService translationCatalogService;
+
+    /** 준비중 화면 안내 문구(비고)의 원천인 라우트 카탈로그. */
+    private final CmenudRepository cmenudRepository;
+
+    /**
+     * 준비중 화면에 표시할 안내 문구를 조회한다.
+     *
+     * <p>문구의 원천은 라우트 카탈로그의 비고(RMK)다. 관리자가 `/admin/routes`에서 "2027년 1월 오픈 예정" 같은 문장을 적어 두면 그대로 화면에
+     * 나간다.
+     *
+     * <p>다음 세 경우는 안내가 없는 것으로 보고 {@code rmk}를 null로 돌려준다. 준비중이 아닌 경로를 막는 이유는 이 API가 인증만 있으면 열리기 때문이다
+     * — 임의 경로를 넣어 카탈로그 비고를 훑을 수 있으면 안 된다.
+     *
+     * <ul>
+     *   <li>준비중 경로가 아닌 경우
+     *   <li>카탈로그에 없거나 비고가 비어 있는 경우
+     *   <li>비고가 {@link MenuPathPolicy#PREPARING_ROUTE_RMK} 자동 등록 표시뿐인 경우 — 사람이 쓴 안내가 아니다
+     * </ul>
+     *
+     * @param srePth 조회할 화면경로
+     * @return 요청 경로와 안내 문구. 안내가 없으면 {@code rmk}는 null
+     */
+    public MenuDto.PreparingNotice getPreparingNotice(String srePth) {
+        String rmk =
+                !MenuPathPolicy.isPreparing(srePth)
+                        ? null
+                        : cmenudRepository
+                                .findBySrePthAndDelYn(srePth, "N")
+                                .map(Cmenud::getRmk)
+                                .map(String::trim)
+                                .filter(value -> !value.isEmpty())
+                                .filter(value -> !MenuPathPolicy.PREPARING_ROUTE_RMK.equals(value))
+                                .orElse(null);
+        return MenuDto.PreparingNotice.builder().srePth(srePth).rmk(rmk).build();
+    }
 
     /**
      * 사용자용 메뉴 트리를 조회한다.

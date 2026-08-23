@@ -119,6 +119,8 @@ final class ProjectBatchAssembler {
             budgetSummaryService.applyBudgetSummary(response, items);
             budgetSummaryService.applyBudgetSummaryViews(
                     response, budgetViews.getOrDefault(project.getAbusMngNo(), List.of()));
+            budgetSummaryService.applyStoredAmountSnapshot(
+                    response, project.getTotRqmAmt(), project.getMplAmt(), project.getDfrAmt());
         }
         return responses;
     }
@@ -154,6 +156,8 @@ final class ProjectBatchAssembler {
             response.setItems(itemDtos);
             allItemDtos.addAll(itemDtos);
             budgetSummaryService.applyBudgetSummary(response, items);
+            budgetSummaryService.applyStoredAmountSnapshot(
+                    response, project.getTotRqmAmt(), project.getMplAmt(), project.getDfrAmt());
         }
         itemNameEnricher.accept(allItemDtos);
         applyComposedBudgets(responses, budgetYear);

@@ -27,15 +27,16 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
             @Param("delYn") String delYn);
 
     /**
-     * 코드ID 집합에 속한 활성 공통코드를 일괄 조회합니다.
+     * 코드ID 집합에 속한 공통코드를 삭제 여부와 무관하게 일괄 조회합니다.
+     *
+     * <p>일괄 업서트가 논리삭제된 행을 되살리려면 그 행이 보여야 합니다. 활성 행만 읽으면 삭제된 같은 복합키를 신규로 오인해 merge(UPDATE) 경로로 들어가고,
+     * GUID가 NULL로 나가 NOT NULL 제약(ORA-01407)에 걸립니다.
      *
      * @param cIds 조회할 코드ID 집합
-     * @param delYn 삭제여부
-     * @return 코드ID 집합에 속한 공통코드 목록
+     * @return 코드ID 집합에 속한 공통코드 목록(논리삭제 행 포함)
      */
-    @Query("SELECT c FROM Ccodem c WHERE c.cId IN :cIds AND c.delYn = :delYn")
-    List<Ccodem> findAllByCIdInAndDelYn(
-            @Param("cIds") Collection<String> cIds, @Param("delYn") String delYn);
+    @Query("SELECT c FROM Ccodem c WHERE c.cId IN :cIds")
+    List<Ccodem> findAllByCIdIn(@Param("cIds") Collection<String> cIds);
 
     /** 복합키 존재 여부 확인 (삭제여부 무관) */
     @Query(

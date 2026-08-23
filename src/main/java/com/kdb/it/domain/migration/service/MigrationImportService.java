@@ -84,6 +84,7 @@ public class MigrationImportService {
     private final ProjectRepository projectRepository;
     private final BudgetRateApplicationService budgetRateApplicationService;
     private final PlanService planService;
+    private final PlanAdjustmentProgressRecorder progressRecorder;
 
     /**
      * 어댑터를 시트 종류별로 색인해 둡니다.
@@ -104,7 +105,8 @@ public class MigrationImportService {
             ProjectService projectService,
             ProjectRepository projectRepository,
             BudgetRateApplicationService budgetRateApplicationService,
-            PlanService planService) {
+            PlanService planService,
+            PlanAdjustmentProgressRecorder progressRecorder) {
         for (SheetAdapter adapter : sheetAdapters) {
             adapters.put(adapter.supports(), adapter);
         }
@@ -121,6 +123,7 @@ public class MigrationImportService {
         this.projectRepository = projectRepository;
         this.budgetRateApplicationService = budgetRateApplicationService;
         this.planService = planService;
+        this.progressRecorder = progressRecorder;
     }
 
     /**
@@ -684,6 +687,7 @@ public class MigrationImportService {
                     sumAmounts(intent.devAmount(), intent.hwAmount(), intent.swAmount()));
             generalAmounts.add(sumAmounts(intent.generalAmount()));
             snapshotFieldsByProject.put(projectNo, intent.snapshotFields());
+            progressRecorder.record(projectNo, intent.snapshotFields());
         }
         if (projectNos.isEmpty()) {
             return new AdjustmentPlan(null, skipped);

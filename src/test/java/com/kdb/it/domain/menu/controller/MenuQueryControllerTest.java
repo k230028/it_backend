@@ -184,4 +184,60 @@ class MenuQueryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].mnuId").value("MNU_ADMIN"));
     }
+
+    // =========================================================================
+    // GET /api/menus/preparing
+    // =========================================================================
+
+    @Test
+    @DisplayName("GET /api/menus/preparing - 비인증 요청 → 401")
+    void getPreparingNotice_비인증_401() throws Exception {
+        mockMvc.perform(get("/api/menus/preparing").param("path", "/preparing/mcdp0001"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/menus/preparing - 인증 사용자 → 200 + 안내 문구")
+    @WithMockUser(username = "10001", roles = "USER")
+    void getPreparingNotice_인증사용자_200반환() throws Exception {
+        given(menuQueryService.getPreparingNotice("/preparing/mcdp0001"))
+                .willReturn(
+                        MenuDto.PreparingNotice.builder()
+                                .srePth("/preparing/mcdp0001")
+                                .rmk("2027년 1월 오픈 예정")
+                                .build());
+
+        mockMvc.perform(get("/api/menus/preparing").param("path", "/preparing/mcdp0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.srePth").value("/preparing/mcdp0001"))
+                .andExpect(jsonPath("$.rmk").value("2027년 1월 오픈 예정"));
+    }
+
+    @Test
+    @DisplayName("GET /api/menus/preparing - 안내 문구가 없으면 rmk는 null")
+    @WithMockUser(username = "10001", roles = "USER")
+    void getPreparingNotice_안내없음_rmk_null() throws Exception {
+        given(menuQueryService.getPreparingNotice("/preparing/mcdp0001"))
+                .willReturn(
+                        MenuDto.PreparingNotice.builder()
+                                .srePth("/preparing/mcdp0001")
+                                .rmk(null)
+                                .build());
+
+        mockMvc.perform(get("/api/menus/preparing").param("path", "/preparing/mcdp0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rmk").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /api/menus/preparing - path 누락 → 200 + 안내 없음(500이 나가지 않는다)")
+    @WithMockUser(username = "10001", roles = "USER")
+    void getPreparingNotice_path누락_안내없음() throws Exception {
+        given(menuQueryService.getPreparingNotice(null))
+                .willReturn(MenuDto.PreparingNotice.builder().build());
+
+        mockMvc.perform(get("/api/menus/preparing"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rmk").doesNotExist());
+    }
 }

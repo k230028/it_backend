@@ -13,10 +13,13 @@ import com.kdb.it.common.i18n.model.TranslationColumns;
 import com.kdb.it.common.i18n.model.TranslationTarget;
 import com.kdb.it.common.i18n.service.TranslationCatalogService;
 import com.kdb.it.domain.menu.dto.MenuDto;
+import com.kdb.it.domain.menu.entity.Cmenud;
+import com.kdb.it.domain.menu.repository.CmenudRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import com.kdb.it.domain.menu.repository.MenuTreeRow;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +37,8 @@ class MenuQueryServiceTest {
     // 게시판 PGE 경로가 가리키는 게시판이 아직 살아 있는지 판정하는 원천.
     @Mock BoardMetaService boardMetaService;
     @Mock TranslationCatalogService translationCatalogService;
+    // 준비중 안내 문구(비고)의 원천인 라우트 카탈로그.
+    @Mock CmenudRepository cmenudRepository;
 
     MenuQueryService service;
 
@@ -44,7 +49,8 @@ class MenuQueryServiceTest {
                         cmenumRepository,
                         menuAuthMapProvider,
                         boardMetaService,
-                        translationCatalogService);
+                        translationCatalogService,
+                        cmenudRepository);
         // 기본은 컬럼이 있는 정상 환경. 부재 시나리오 테스트만 이 스텁을 뒤집는다.
         lenient().when(cmenumRepository.isIconColumnPresent()).thenReturn(true);
     }
@@ -350,5 +356,64 @@ class MenuQueryServiceTest {
 
         assertThat(tree.getFirst().getMnuNm()).isEqualTo("Administration");
         assertThat(tree.getFirst().getChildren().getFirst().getMnuNm()).isEqualTo("CHILD");
+    }
+
+    // =========================================================================
+    // 준비중 안내 문구(getPreparingNotice)
+    // =========================================================================
+
+    /** 라우트 카탈로그 행. 준비중 안내 조회는 비고만 읽으므로 나머지는 최소값으로 채운다. */
+    private Cmenud route(String srePth, String rmk) {
+        return Cmenud.builder()
+                .srePth(srePth)
+                .sreMnuNm("준비중 (준비중)")
+                .useYn("Y")
+                .rmk(rmk)
+                .delYn("N")
+                .build();
+    }
+
+    @Test
+    @DisplayName("관리자가 적은 비고는 준비중 안내 문구로 그대로 나간다")
+    void 준비중안내_사람이쓴비고_그대로반환() {
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mcdp0001", "N"))
+                .willReturn(Optional.of(route("/preparing/mcdp0001", "2027년 1월 오픈 예정")));
+
+        MenuDto.PreparingNotice notice = service.getPreparingNotice("/preparing/mcdp0001");
+
+        assertThat(notice.getSrePth()).isEqualTo("/preparing/mcdp0001");
+        assertThat(notice.getRmk()).isEqualTo("2027년 1월 오픈 예정");
+    }
+
+    @Test
+    @DisplayName("자동 등록 표시뿐인 비고는 안내 문구가 아니므로 내보내지 않는다")
+    void 준비중안내_자동등록표시_null반환() {
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/mcdp0001", "N"))
+                .willReturn(
+                        Optional.of(
+                                route("/preparing/mcdp0001", MenuPathPolicy.PREPARING_ROUTE_RMK)));
+
+        assertThat(service.getPreparingNotice("/preparing/mcdp0001").getRmk()).isNull();
+    }
+
+    @Test
+    @DisplayName("비고가 공백뿐이거나 카탈로그에 행이 없으면 안내 문구가 없다")
+    void 준비중안내_빈비고와_행없음_null반환() {
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/blank", "N"))
+                .willReturn(Optional.of(route("/preparing/blank", "   ")));
+        given(cmenudRepository.findBySrePthAndDelYn("/preparing/missing", "N"))
+                .willReturn(Optional.empty());
+
+        assertThat(service.getPreparingNotice("/preparing/blank").getRmk()).isNull();
+        assertThat(service.getPreparingNotice("/preparing/missing").getRmk()).isNull();
+    }
+
+    @Test
+    @DisplayName("준비중이 아닌 경로는 카탈로그를 조회하지 않는다 — 임의 경로로 비고를 훑을 수 없다")
+    void 준비중안내_준비중경로가_아니면_조회하지않는다() {
+        MenuDto.PreparingNotice notice = service.getPreparingNotice("/admin/menus");
+
+        assertThat(notice.getRmk()).isNull();
+        verifyNoInteractions(cmenudRepository);
     }
 }

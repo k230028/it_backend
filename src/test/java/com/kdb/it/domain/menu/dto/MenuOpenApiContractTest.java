@@ -23,9 +23,25 @@ class MenuOpenApiContractTest {
         assertThat(schema("mnuTpC").allowableValues()).containsExactly("GRP", "LNK", "PGE");
     }
 
+    @Test
+    void preparingNoticePropertiesAreRequiredAndRmkIsNullable() {
+        assertThat(MenuDto.PreparingNotice.class.getDeclaredFields())
+                .allSatisfy(
+                        field ->
+                                assertThat(schema(field).requiredMode())
+                                        .as(field.getName())
+                                        .isEqualTo(Schema.RequiredMode.REQUIRED));
+
+        assertThat(schema(MenuDto.PreparingNotice.class, "rmk").nullable()).isTrue();
+    }
+
     private static Schema schema(String fieldName) {
+        return schema(MenuDto.Node.class, fieldName);
+    }
+
+    private static Schema schema(Class<?> type, String fieldName) {
         try {
-            return schema(MenuDto.Node.class.getDeclaredField(fieldName));
+            return schema(type.getDeclaredField(fieldName));
         } catch (NoSuchFieldException exception) {
             throw new AssertionError(exception);
         }

@@ -12,6 +12,14 @@ public final class MenuPathPolicy {
     public static final String PREPARING_PATH_PREFIX = "/preparing/";
 
     /**
+     * 준비중 경로를 자동 등록할 때 카탈로그 비고(RMK)에 남기는 표시.
+     *
+     * <p>사람이 적어 넣은 안내 문구(예: "2027년 1월 오픈 예정")와 구분하는 유일한 단서다. 준비중 화면은 비고를 사용자에게 그대로 보여주므로, 이 값과 같은
+     * 비고는 안내 문구가 아니라 시스템 표시로 보고 화면에 내보내지 않는다.
+     */
+    public static final String PREPARING_ROUTE_RMK = "준비중 메뉴 자동 등록";
+
+    /**
      * 준비중 화면 경로인지 판정한다.
      *
      * @param value 판정할 경로

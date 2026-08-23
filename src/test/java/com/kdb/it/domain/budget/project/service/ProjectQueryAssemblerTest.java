@@ -413,6 +413,10 @@ class ProjectQueryAssemblerTest {
                         .exePttYn("Y")
                         .abusTc("A1")
                         .edrtTc("E1")
+                        // 편성요청서 반입 사업처럼 저장 스냅샷이 품목 합계(100/30)와 다른 경우
+                        .totRqmAmt(BigDecimal.valueOf(500))
+                        .mplAmt(BigDecimal.valueOf(200))
+                        .dfrAmt(BigDecimal.valueOf(50))
                         .delYn("N")
                         .build();
         ApplicationMapView latestApplicationMap =
@@ -507,6 +511,15 @@ class ProjectQueryAssemblerTest {
         ProjectDto.Response list = assembler.assembleList(List.of(project)).getFirst();
         ProjectDto.Response bulk = assembler.assembleBulk(List.of(project), null).getFirst();
 
+        assertThat(List.of(detail, list, bulk))
+                .allSatisfy(
+                        result -> {
+                            // 총 예산·익년 이후 예산은 품목 합계가 아니라 저장 스냅샷을 쓴다
+                            assertThat(result.getPrjBgAmt()).isEqualByComparingTo("500");
+                            assertThat(result.getMplAmt()).isEqualByComparingTo("200");
+                            // 당해예산 = 500 − 200 − 50 (품목 기준 70이 아니다)
+                            assertThat(result.getTyyBgAmt()).isEqualByComparingTo("250");
+                        });
         assertThat(List.of(list, bulk))
                 .allSatisfy(
                         result -> {
@@ -539,7 +552,6 @@ class ProjectQueryAssemblerTest {
                                     .isEqualTo(detail.getItems().getFirst().getIoeCNm());
                             assertThat(result.getAssetBg()).isEqualByComparingTo("100");
                             assertThat(result.getMplCpitAmt()).isEqualByComparingTo("30");
-                            assertThat(result.getTyyBgAmt()).isEqualByComparingTo("70");
                         });
     }
 

@@ -54,6 +54,12 @@ public class CapitalOverviewReader {
     /** 요약표 `'26년도 이후` 헤더의 정규화 접미사. */
     private static final String LATER_TOTAL_SUFFIX = "년도이후";
 
+    /** `'26년도 필요예산 편성요청` 라벨의 정규화 접미사. 연도가 바뀌어도 맞도록 뒤쪽만 봅니다. */
+    private static final String YEAR_REQUEST_SUFFIX = "년도필요예산편성요청";
+
+    /** `총 사업금액(전체기간)` 라벨 행부터 `'26년도 필요예산 편성요청`을 찾을 때 훑는 행 수. */
+    private static final int YEAR_REQUEST_SCAN_ROWS = 3;
+
     /**
      * `총 사업금액(전체기간)` 칸의 단위 접미사. <b>긴 접미사를 먼저 본다</b> — `백만원`이 `원`으로 먼저 잡히면 100만배 틀린다.
      *
@@ -464,7 +470,16 @@ public class CapitalOverviewReader {
                 totalRow.map(row -> summaryColumn(sheet, row, LATER_TOTAL_SUFFIX)).orElse(null);
         SummaryTable summary =
                 totalRow.map(row -> summaryTable(sheet, row)).orElseGet(SummaryTable::empty);
-        return wholePeriod(sheet, yearTotal, laterTotal, summary.unit(), summary.items());
+        SuffixedAmount whole = suffixedAmount(labelReader.value(sheet, "총 사업금액(전체기간)"));
+        return new DeclaredAmounts(
+                whole.won(),
+                whole.raw(),
+                whole.unknownUnit(),
+                yearTotal,
+                laterTotal,
+                yearRequestWon(sheet),
+                summary.unit(),
+                summary.items());
     }
 
     /** 1-1 요약표의 비목별 행과 표에 명시된 금액 단위를 읽습니다. */
@@ -584,50 +599,64 @@ public class CapitalOverviewReader {
     }
 
     /**
-     * `총 사업금액(전체기간)` 칸을 읽어 선언 금액을 완성합니다.
+     * `숫자 + 단위` 형태의 자유 텍스트 칸을 읽습니다.
      *
      * <p>숫자 뒤에 붙은 단위 접미사를 인식하면 그 자리에서 원 단위로 폅니다. 접미사가 없으면 숫자만 남겨 호출자가 요약표 배수를 적용하게 하고, 모르는 접미사거나
      * 숫자가 아니면 폴백을 금지하는 신호를 세웁니다.
      *
-     * @param sheet 1-1 시트
-     * @param yearTotal 요약표 `'26년도 합계` 기재값
-     * @param laterTotal 요약표 `'26년도 이후` 기재값
-     * @return 선언 금액
+     * <p>`총 사업금액(전체기간)`과 `'26년도 필요예산 편성요청`이 같은 형식이라 두 칸이 함께 씁니다.
+     *
+     * @param raw 칸에 적힌 문자열
+     * @return 해석 결과. 칸이 비어 있으면 세 필드가 모두 빈 값입니다
      */
-    private DeclaredAmounts wholePeriod(
-            Sheet sheet,
-            BigDecimal yearTotal,
-            BigDecimal laterTotal,
-            AmountUnit summaryUnit,
-            List<SummaryItem> summaryItems) {
-        String raw = labelReader.value(sheet, "총 사업금액(전체기간)");
-        if (!hasText(raw)) {
-            return new DeclaredAmounts(
-                    null, null, false, yearTotal, laterTotal, summaryUnit, summaryItems);
-        }
+    private static SuffixedAmount suffixedAmount(String raw) {
+        if (!hasText(raw)) return new SuffixedAmount(null, null, false);
+
         String trimmed = raw.trim();
         for (Map.Entry<String, AmountUnit> suffix : WHOLE_PERIOD_SUFFIXES) {
             if (!trimmed.endsWith(suffix.getKey())) continue;
             BigDecimal number =
                     parseAmount(trimmed.substring(0, trimmed.length() - suffix.getKey().length()));
             return number == null
-                    ? new DeclaredAmounts(
-                            null, null, true, yearTotal, laterTotal, summaryUnit, summaryItems)
-                    : new DeclaredAmounts(
-                            suffix.getValue().toWon(number),
-                            null,
-                            false,
-                            yearTotal,
-                            laterTotal,
-                            summaryUnit,
-                            summaryItems);
+                    ? new SuffixedAmount(null, null, true)
+                    : new SuffixedAmount(suffix.getValue().toWon(number), null, false);
         }
         BigDecimal number = parseAmount(trimmed);
         return number == null
-                ? new DeclaredAmounts(
-                        null, null, true, yearTotal, laterTotal, summaryUnit, summaryItems)
-                : new DeclaredAmounts(
-                        null, number, false, yearTotal, laterTotal, summaryUnit, summaryItems);
+                ? new SuffixedAmount(null, null, true)
+                : new SuffixedAmount(null, number, false);
+    }
+
+    /**
+     * `'26년도 필요예산 편성요청` 칸을 원 단위로 읽습니다.
+     *
+     * <p>요약표 `'26년도 합계`와 같은 금액을 제출자가 단위와 함께 한 번 더 적은 칸입니다. 1-2 품목 합계로 요약표 배수를 역추정하지 못할 때 <b>같은 시트
+     * 안의 두 번째 기준점</b>이 되므로 접미사로 원 단위가 확정된 값만 남깁니다 — 접미사가 없으면 요약표와 단위가 같아 기준점이 되지 못합니다.
+     *
+     * <p>탐색은 `총 사업금액(전체기간)` 라벨 행부터 몇 행만 훑습니다. 양식이 두 칸을 위아래로 붙여 두었고, 시트 전체를 훑으면 서식만 남은 빈 행이 수만 개 붙은
+     * `.xls` 제출본에서 병합영역 조회가 그만큼 반복됩니다.
+     *
+     * @param sheet 1-1 시트
+     * @return 원 단위 금액. 칸이 없거나 단위 접미사가 없으면 null
+     */
+    private BigDecimal yearRequestWon(Sheet sheet) {
+        Optional<FormLabelReader.Anchor> anchor = labelReader.findLabel(sheet, "총 사업금액(전체기간)");
+        if (anchor.isEmpty()) return null;
+
+        int last =
+                Math.min(anchor.get().rowIndex() + YEAR_REQUEST_SCAN_ROWS, sheet.getLastRowNum());
+        for (int rowIndex = anchor.get().rowIndex(); rowIndex <= last; rowIndex++) {
+            for (int colIndex = 0; colIndex <= TOTAL_SCAN_WIDTH; colIndex++) {
+                String label =
+                        SheetAnchorScanner.normalize(scanner.text(sheet, rowIndex, colIndex));
+                if (!label.endsWith(YEAR_REQUEST_SUFFIX)) continue;
+                return scanner.valueRightOf(sheet, rowIndex, colIndex)
+                        .map(CapitalOverviewReader::suffixedAmount)
+                        .map(SuffixedAmount::won)
+                        .orElse(null);
+            }
+        }
+        return null;
     }
 
     private static BigDecimal parseAmount(String raw) {
@@ -704,6 +733,7 @@ public class CapitalOverviewReader {
      * @param wholePeriodUnknownUnit 값은 있으나 숫자·단위로 해석하지 못했으면 true. <b>배수 폴백을 금지하는 신호</b>입니다
      * @param yearTotalRaw 요약표 `'26년도 합계` 기재값 (단위 미확정). 요약표를 못 찾으면 null
      * @param laterTotalRaw 요약표 `'26년도 이후` 기재값 (단위 미확정). 기재가 없으면 null
+     * @param yearRequestWon `'26년도 필요예산 편성요청` 칸의 원 단위 금액. 단위 접미사가 없으면 null
      * @param summaryUnit 요약표 제목에 명시된 단위. 없으면 null
      * @param summaryItems 요약표의 비목별 금액 행
      */
@@ -713,8 +743,18 @@ public class CapitalOverviewReader {
             boolean wholePeriodUnknownUnit,
             BigDecimal yearTotalRaw,
             BigDecimal laterTotalRaw,
+            BigDecimal yearRequestWon,
             AmountUnit summaryUnit,
             List<SummaryItem> summaryItems) {}
+
+    /**
+     * `숫자 + 단위` 칸의 해석 결과입니다.
+     *
+     * @param won 접미사로 원 단위가 확정된 금액. 접미사가 없거나 해석에 실패하면 null
+     * @param raw 접미사가 없을 때의 기재 숫자
+     * @param unknownUnit 값은 있으나 숫자·단위로 해석하지 못했으면 true
+     */
+    private record SuffixedAmount(BigDecimal won, BigDecimal raw, boolean unknownUnit) {}
 
     /** 1-1 요약표의 비목별 금액 행입니다. 금액은 아직 표 기재 단위입니다. */
     public record SummaryItem(

@@ -168,6 +168,40 @@ public class ProjectBudgetSummaryService {
     }
 
     /**
+     * 저장된 사업 단위 금액 스냅샷으로 총 예산·익년 이후 예산·당해예산을 덮어씁니다.
+     *
+     * <p>{@link #applyBudgetSummary}·{@link #applyBudgetSummaryViews} 다음에 부릅니다. 파생 합계는 <b>예산연도 품목 중
+     * 비목 분류에 걸린 것</b>만 더하므로, 사업 전체기간 금액이 따로 선언된 편성요청서 반입 사업은 화면이 선언값을 보여주지 못합니다(실측: 총 사업금액
+     * 2,000백만원인 사업이 품목 합계 1,217백만원으로 표시).
+     *
+     * <p>당해예산은 {@code 총 예산 − 익년 이후 − 기 지급예산}(0 하한)으로 다시 셉니다. 기 지급예산은 총 예산 안에 든 과거 지급분이므로({@code
+     * ProjectService.applyAmountSnapshot}이 `기 지급예산 ≤ 총 예산`을 검증합니다) 빼야 세 값의 합이 총 예산과 맞습니다. 기 지급예산이
+     * 없는 사업은 종전 파생식({@code ∑AMT − ∑MPL_AMT})과 같은 값입니다.
+     *
+     * <p>일반 등록·수정 경로는 저장할 때마다 두 컬럼을 품목 합계로 갱신하므로({@code ProjectService.applyAmountSnapshot}) 보통
+     * 파생값과 같습니다. 다른 경우는 저장 컬럼이 정본입니다.
+     *
+     * @param response 파생 합계가 이미 채워진 응답
+     * @param totRqmAmt 저장된 총소요금액. null이면 세 값을 모두 파생 합계로 둡니다
+     * @param mplAmt 저장된 예정금액. null이면 파생 합계를 그대로 씁니다
+     * @param dfrAmt 저장된 기 지급예산. null이면 0으로 봅니다
+     * @throws NullPointerException 응답이 null인 경우
+     */
+    public void applyStoredAmountSnapshot(
+            ProjectDto.Response response,
+            BigDecimal totRqmAmt,
+            BigDecimal mplAmt,
+            BigDecimal dfrAmt) {
+        if (totRqmAmt == null) return;
+
+        response.setPrjBgAmt(totRqmAmt);
+        if (mplAmt != null) response.setMplAmt(mplAmt);
+        BigDecimal currentYear =
+                totRqmAmt.subtract(nvl(response.getMplAmt())).subtract(nvl(dfrAmt));
+        response.setTyyBgAmt(currentYear.signum() < 0 ? BigDecimal.ZERO : currentYear);
+    }
+
+    /**
      * 지정 비목 집합에 해당하는 품목 금액을 합산합니다.
      *
      * @param items 계산 대상 품목

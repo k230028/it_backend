@@ -70,13 +70,18 @@ public final class OwnershipVerifier {
      * <p>거부가 아니라 <b>분기</b>가 필요한 규칙에서 사용합니다(예: 결재완료 문서를 관리자만 사후 정정할 수 있게 여는 예외). 접근 자체를 막아야 하면
      * {@link #verifyAdmin(CustomUserDetails)}를 사용합니다.
      *
-     * @return 인증 사용자가 시스템관리자이면 true. 인증 정보가 없거나 주체가 {@link CustomUserDetails}가 아니면 false.
+     * @return 인증 사용자가 시스템관리자이면 true. 인증 정보가 없으면 false.
      */
     public static boolean isCurrentUserAdmin() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null
-                && authentication.getPrincipal() instanceof CustomUserDetails user
-                && user.isAdmin();
+        if (authentication == null) {
+            return false;
+        }
+        if (authentication.getPrincipal() instanceof CustomUserDetails user) {
+            return user.isAdmin();
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
 
     /**

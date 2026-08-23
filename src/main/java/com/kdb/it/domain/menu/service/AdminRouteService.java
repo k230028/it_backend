@@ -5,6 +5,7 @@ import com.kdb.it.domain.menu.entity.Cmenud;
 import com.kdb.it.domain.menu.repository.CmenudRepository;
 import com.kdb.it.domain.menu.repository.CmenumRepository;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,13 +44,16 @@ public class AdminRouteService {
     /**
      * 라우트 카탈로그를 생성한다.
      *
+     * <p>같은 경로가 논리삭제된 채 남아 있으면 새 행을 넣는 대신 그 행을 되살린다. 화면경로가 기본키라 어차피 INSERT가 아니라 merge(UPDATE)가 되는데,
+     * 그때 GUID·GUID진행일련번호를 비워 두면 {@code @PrePersist}가 돌지 않아 NULL이 나가고 NOT NULL 제약(ORA-01407)에 걸린다.
+     *
      * @param req 화면 경로, 메뉴명, 시스템 상위 메뉴 ID, 사용 여부
-     * @throws ResponseStatusException 경로 형식이 잘못되었거나 중복 경로가 있는 경우
+     * @throws ResponseStatusException 경로 형식이 잘못되었거나 사용 중인 중복 경로가 있는 경우
      */
     public void create(MenuDto.Route req) {
         validatePath(req.getSrePth());
-        cmenudRepository
-                .findBySrePthAndDelYn(req.getSrePth(), "N")
+        Optional<Cmenud> row = cmenudRepository.findById(req.getSrePth());
+        row.filter(existing -> "N".equals(existing.getDelYn()))
                 .ifPresent(
                         x -> {
                             throw new ResponseStatusException(
@@ -61,6 +65,8 @@ public class AdminRouteService {
                         .sreMnuNm(req.getSreMnuNm())
                         .useYn(req.getUseYn() == null ? "Y" : req.getUseYn())
                         .rmk(req.getRmk())
+                        .guid(row.map(Cmenud::getGuid).orElse(null))
+                        .guidPrgSno(row.map(Cmenud::getGuidPrgSno).orElse(null))
                         .delYn("N")
                         .build());
     }
@@ -80,12 +86,16 @@ public class AdminRouteService {
                                         new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND, "없는 경로: " + req.getSrePth()));
         // Cmenud는 setter가 없으므로 기본키 srePth를 유지한 새 엔티티를 저장해 JPA merge로 갱신한다.
+        // GUID·GUID진행일련번호는 기존 행 값을 그대로 옮겨 담는다. 비워 두면 merge(UPDATE) 경로에서
+        // @PrePersist가 돌지 않아 NULL로 저장되어 NOT NULL 제약(ORA-01407)에 걸린다.
         cmenudRepository.save(
                 Cmenud.builder()
                         .srePth(c.getSrePth())
                         .sreMnuNm(req.getSreMnuNm())
                         .useYn(req.getUseYn())
                         .rmk(req.getRmk())
+                        .guid(c.getGuid())
+                        .guidPrgSno(c.getGuidPrgSno())
                         .delYn("N")
                         .build());
     }

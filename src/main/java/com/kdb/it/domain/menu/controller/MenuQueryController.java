@@ -42,4 +42,22 @@ public class MenuQueryController {
         return ResponseEntity.ok(
                 menuQueryService.getMenuTree(athIds, SupportedLanguage.normalize(lang)));
     }
+
+    /**
+     * 준비중 화면에 표시할 안내 문구를 조회한다.
+     *
+     * <p>문구는 라우트 카탈로그 비고(RMK)에서 온다. 메뉴 트리에 싣지 않는 이유는 원천이 메뉴 행이 아니고, 준비중 화면 한 장을 위해 모든 화면의 메뉴 조회에
+     * 카탈로그 조인을 얹고 싶지 않아서다.
+     *
+     * <p>{@code path}를 필수로 두지 않는 이유는, 이 저장소의 공통 예외 처리가 누락 파라미터를 400으로 옮기지 않아 500이 나가기 때문이다. 안내 조회는
+     * 값이 없으면 "안내 없음"으로 답하면 그만인 조회라 응답을 항상 성립시킨다.
+     *
+     * @param path 조회할 화면경로. 준비중 경로가 아니거나 비어 있으면 안내 없이 응답한다
+     * @return 요청 경로와 안내 문구. 안내가 없으면 {@code rmk}는 null
+     */
+    @GetMapping("/preparing")
+    public ResponseEntity<MenuDto.PreparingNotice> getPreparingNotice(
+            @RequestParam(name = "path", required = false) String path) {
+        return ResponseEntity.ok(menuQueryService.getPreparingNotice(path));
+    }
 }

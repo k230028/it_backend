@@ -221,6 +221,73 @@ class ProjectBudgetSummaryServiceTest {
     }
 
     @Test
+    @DisplayName("저장 스냅샷이 있으면 총 예산·익년 이후 예산·당해예산을 그 값 기준으로 다시 센다")
+    void applyStoredAmountSnapshot_overridesDerivedTotals() {
+        // 편성요청서 반입 사업(실측): 총 사업금액(전체기간) 2,000,000,000원, 익년 이후 202,746,300원,
+        // 기 지급예산 585,835,340원이 1-1 선언값으로 저장돼 있고, 품목 합계(1,217,727,960)는
+        // 예산연도분만 담는다. 당해예산은 세 값이 총 예산과 맞아떨어지게 1,211,418,360이어야 한다
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("A01", "IOE_DVC")));
+        ProjectDto.Response response = new ProjectDto.Response();
+        service.applyBudgetSummary(response, List.of(item("A01", 1_217_727_960L, 0L)));
+
+        service.applyStoredAmountSnapshot(
+                response,
+                new BigDecimal("2000000000"),
+                new BigDecimal("202746300"),
+                new BigDecimal("585835340"));
+
+        assertThat(response.getPrjBgAmt()).isEqualByComparingTo("2000000000");
+        assertThat(response.getMplAmt()).isEqualByComparingTo("202746300");
+        assertThat(response.getTyyBgAmt()).isEqualByComparingTo("1211418360");
+    }
+
+    @Test
+    @DisplayName("기 지급예산이 없으면 당해예산은 종전 파생식과 같은 값이다")
+    void applyStoredAmountSnapshot_matchesDerivedCurrentYearWithoutDeferred() {
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("A01", "IOE_DVC")));
+        ProjectDto.Response response = new ProjectDto.Response();
+        service.applyBudgetSummary(response, List.of(item("A01", 1000L, 300L)));
+
+        service.applyStoredAmountSnapshot(
+                response, new BigDecimal("1000"), new BigDecimal("300"), null);
+
+        assertThat(response.getPrjBgAmt()).isEqualByComparingTo("1000");
+        assertThat(response.getMplAmt()).isEqualByComparingTo("300");
+        assertThat(response.getTyyBgAmt()).isEqualByComparingTo("700");
+    }
+
+    @Test
+    @DisplayName("당해예산이 음수가 되면 0으로 보정한다")
+    void applyStoredAmountSnapshot_clampsNegativeCurrentYear() {
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("A01", "IOE_DVC")));
+        ProjectDto.Response response = new ProjectDto.Response();
+        service.applyBudgetSummary(response, List.of(item("A01", 1000L, 300L)));
+
+        service.applyStoredAmountSnapshot(
+                response, new BigDecimal("1000"), new BigDecimal("800"), new BigDecimal("400"));
+
+        assertThat(response.getTyyBgAmt()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("저장 스냅샷이 비어 있으면 파생 합계를 그대로 둔다")
+    void applyStoredAmountSnapshot_keepsDerivedTotalsWhenNull() {
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("A01", "IOE_DVC")));
+        ProjectDto.Response response = new ProjectDto.Response();
+        service.applyBudgetSummary(response, List.of(item("A01", 1000L, 300L)));
+
+        service.applyStoredAmountSnapshot(response, null, null, null);
+
+        assertThat(response.getPrjBgAmt()).isEqualByComparingTo("1000");
+        assertThat(response.getMplAmt()).isEqualByComparingTo("300");
+        assertThat(response.getTyyBgAmt()).isEqualByComparingTo("700");
+    }
+
+    @Test
     @DisplayName("당해예산이 음수면 0으로 보정한다")
     void clampsNegativeCurrentYearToZero() {
         // Arrange: C1=자본(IOE_DVC), amt=100이지만 mplAmt=250으로 초과
