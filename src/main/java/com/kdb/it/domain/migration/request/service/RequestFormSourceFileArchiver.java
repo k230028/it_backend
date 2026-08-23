@@ -129,7 +129,7 @@ public class RequestFormSourceFileArchiver {
         while (applicationNumbers.hasNext()) {
             String apfMngNo = applicationNumbers.next();
             try {
-                fileService.linkExistingFile(sourceFlMpnId, request(apfMngNo).build());
+                fileService.linkExistingFile(sourceFlMpnId, uploadRequest(apfMngNo, null));
             } catch (RuntimeException e) {
                 // 보관 실패가 이미 커밋된 원장을 되돌리게 두지 않는다. 해당 건은 파일 0건 상태로 남는다
                 log.error(
@@ -144,17 +144,28 @@ public class RequestFormSourceFileArchiver {
     }
 
     private FileDto.UploadRequest request(String apfMngNo, ArchivePlanItem item) {
-        return request(apfMngNo)
-                .relativePath(
-                        RequestFormRelativePath.normalize(
-                                item.fileKey(), item.file().getOriginalFilename()))
-                .build();
+        return uploadRequest(
+                apfMngNo,
+                RequestFormRelativePath.normalize(
+                        item.fileKey(), item.file().getOriginalFilename()));
     }
 
-    private FileDto.UploadRequest.UploadRequestBuilder request(String apfMngNo) {
+    /**
+     * 업로드 요청을 만듭니다.
+     *
+     * <p>Lombok이 만드는 빌더 타입을 반환하지 않습니다 — {@code javadoc} 태스크는 애너테이션 처리 결과를 보지 못해 생성 타입을 시그니처에서 만나면
+     * {@code cannot find symbol}로 실패합니다(BE-74).
+     *
+     * @param apfMngNo 신청서관리번호
+     * @param relativePath 원본 폴더 상대경로. 상대경로가 없는 재연결에는 {@code null}
+     * @return 업로드 요청 DTO
+     */
+    private FileDto.UploadRequest uploadRequest(String apfMngNo, String relativePath) {
         return FileDto.UploadRequest.builder()
                 .flTpCone(FL_TP_CONE)
                 .pkColNm(PK_COL_NM)
-                .pkCone(apfMngNo);
+                .pkCone(apfMngNo)
+                .relativePath(relativePath)
+                .build();
     }
 }

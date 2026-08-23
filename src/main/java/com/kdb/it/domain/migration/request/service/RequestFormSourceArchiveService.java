@@ -43,19 +43,19 @@ public class RequestFormSourceArchiveService {
     }
 
     /**
-     * 접근 가능한 편성요청서 반입 원본 전체 또는 선택 파일을 ZIP으로 씁니다.
+     * 요청을 검증하고 읽기 권한을 통과한 대상 목록과 폴더 경로를 확정합니다.
      *
-     * <p>파일 목록은 공통 파일 읽기 권한 경계를 통과한 결과만 사용하며, 호출자가 소유한 출력 스트림은 닫지 않습니다.
+     * <p><b>응답 헤더를 확정하기 전에 호출해야 합니다.</b> 이 단계에서 던지는 예외만 공통 예외 응답 계약을 탈 수 있습니다 — {@link
+     * #writeArchive(ArchivePlan, OutputStream)}는 이미 {@code 200 OK}가 커밋된 뒤에 실행되므로 거기서 실패하면 사용자가 성공으로
+     * 보고 절단된 ZIP을 받습니다(BE-67).
      *
      * @param request 신청번호와 선택 파일 ID
      * @param userDetails 인증 사용자
-     * @param output ZIP을 받을 호출자 소유 출력 스트림
-     * @throws CustomGeneralException 요청이 잘못됐거나 선택 파일이 접근 가능한 결과에 없거나 ZIP 생성에 실패한 경우
+     * @return ZIP에 담을 파일과 폴더 경로가 확정된 계획
+     * @throws CustomGeneralException 요청이 잘못됐거나 선택 파일이 접근 가능한 결과에 없는 경우
      */
-    public void writeArchive(
-            RequestFormSourceArchiveRequest request,
-            CustomUserDetails userDetails,
-            OutputStream output) {
+    public ArchivePlan prepareArchive(
+            RequestFormSourceArchiveRequest request, CustomUserDetails userDetails) {
         validateRequest(request);
 
         List<FileDto.Response> authorizedFiles =
@@ -70,8 +70,21 @@ public class RequestFormSourceArchiveService {
         }
 
         Set<String> selection = resolveSelection(request.fileIds(), authorizedFiles);
-        List<ArchiveFile> archiveFiles = preflight(authorizedFiles, selection);
-        writeZip(archiveFiles, output);
+        return new ArchivePlan(preflight(authorizedFiles, selection));
+    }
+
+    /**
+     * 확정된 계획의 바이트만 호출자가 소유한 출력 스트림에 ZIP으로 씁니다.
+     *
+     * <p>호출자가 소유한 출력 스트림은 닫지 않습니다. 검증·권한 판정은 {@link #prepareArchive}가 이미 끝냈으므로 여기서는 저장소 읽기 실패만
+     * 남습니다.
+     *
+     * @param plan {@link #prepareArchive}가 확정한 계획
+     * @param output ZIP을 받을 호출자 소유 출력 스트림
+     * @throws CustomGeneralException ZIP 생성에 실패한 경우
+     */
+    public void writeArchive(ArchivePlan plan, OutputStream output) {
+        writeZip(plan.files(), output);
     }
 
     private void validateRequest(RequestFormSourceArchiveRequest request) {
@@ -165,7 +178,11 @@ public class RequestFormSourceArchiveService {
         }
     }
 
-    private record ArchiveFile(String fileId, String entryName) {}
+    /** 검증·권한 판정을 마친 ZIP 대상 목록 */
+    public record ArchivePlan(List<ArchiveFile> files) {}
+
+    /** ZIP에 담을 파일 한 건과 확정된 엔트리 경로 */
+    public record ArchiveFile(String fileId, String entryName) {}
 
     private static final class NonClosingOutputStream extends FilterOutputStream {
 

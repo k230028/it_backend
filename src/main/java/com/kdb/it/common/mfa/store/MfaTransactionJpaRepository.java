@@ -36,11 +36,17 @@ public interface MfaTransactionJpaRepository extends JpaRepository<MfaTransactio
             @Param("proofHash") String proofHash,
             @Param("now") LocalDateTime now);
 
-    /** 실패 횟수를 올리고 최대 횟수 도달 시 잠근다. 증가와 잠금 판정을 한 문장으로 처리한다. */
+    /**
+     * 실패 횟수를 올리고 최대 횟수 도달 시 잠근다. 증가와 잠금 판정을 한 문장으로 처리한다.
+     *
+     * <p>{@code V20260820_007}이 {@code FLUR_NOT}의 NOT NULL을 해제해 DB가 더 이상 값을 보증하지 않으므로 {@code
+     * COALESCE}로 0을 깔아 둔다. NULL이면 {@code e.failureCount + 1}이 SQL에서 NULL이 되어 실패 잠금이 발화하지
+     * 않는다(BE-70).
+     */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(
-            "UPDATE MfaTransactionEntity e SET e.failureCount = e.failureCount + 1, "
-                    + "e.statusCode = CASE WHEN e.failureCount + 1 >= :maxFailures THEN '30' ELSE '10' END "
+            "UPDATE MfaTransactionEntity e SET e.failureCount = COALESCE(e.failureCount, 0) + 1, "
+                    + "e.statusCode = CASE WHEN COALESCE(e.failureCount, 0) + 1 >= :maxFailures THEN '30' ELSE '10' END "
                     + "WHERE e.tokenHash = :tokenHash AND e.statusCode = '10' AND e.endDtm > :now")
     int fail(
             @Param("tokenHash") String tokenHash,
@@ -66,8 +72,14 @@ public interface MfaTransactionJpaRepository extends JpaRepository<MfaTransactio
             @Param("purposeCode") String purposeCode,
             @Param("now") LocalDateTime now);
 
-    /** 만료 후 유예 시간이 지난 행을 물리 삭제한다(용량 관리 전용, 정확성과 무관). */
+    /**
+     * 만료 후 유예 시간이 지난 행을 물리 삭제한다(용량 관리 전용, 정확성과 무관).
+     *
+     * <p>{@code END_DTM IS NULL}도 함께 지운다. 업무 조회는 모두 {@code e.endDtm > :now}라 NULL 행은 조회되지 않는데, 정리
+     * 술어까지 {@code e.endDtm < :cutoff}만 보면 어느 쪽에도 걸리지 않아 영구 잔존한다. {@code V20260820_007}이 {@code
+     * END_DTM}의 NOT NULL을 해제해 DB가 더 이상 값을 보증하지 않으므로 정리 쪽에서 받아 낸다(BE-70).
+     */
     @Modifying
-    @Query("DELETE FROM MfaTransactionEntity e WHERE e.endDtm < :cutoff")
+    @Query("DELETE FROM MfaTransactionEntity e WHERE e.endDtm < :cutoff OR e.endDtm IS NULL")
     int deleteExpiredBefore(@Param("cutoff") LocalDateTime cutoff);
 }

@@ -156,6 +156,7 @@ public class ProjectQueryAssembler {
                                             : ApprovalStatus.ofCode(
                                                             application.getItPtlApfPrgStsC())
                                                     .label());
+                            response.setApfStsC(application.getItPtlApfPrgStsC());
                             response.setApplicationInfo(
                                     ApplicationInfoDto.fromReadViews(
                                             application,

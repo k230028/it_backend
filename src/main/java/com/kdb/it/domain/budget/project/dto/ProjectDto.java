@@ -633,13 +633,13 @@ public class ProjectDto {
         @Schema(description = "신청서관리번호")
         private String apfMngNo;
 
-        /**
-         * 신청서 결재상태
-         *
-         * <p>연결된 신청서의 현재 결재 상태 (예: "결재중", "결재완료", "반려"). 신청서가 없으면 null입니다.
-         */
+        /** 신청서 결재상태 표시 라벨 (예: "결재중"·"결재완료"·"반려"). 신청서가 없으면 null입니다. */
         @Schema(description = "신청서상태")
         private String apfSts;
+
+        /** 신청서 결재상태 코드 (예: "02"=결재완료). 업무 분기는 라벨이 아니라 이 값으로 한다. */
+        @Schema(description = "신청서상태코드")
+        private String apfStsC;
 
         /**
          * 품목 목록

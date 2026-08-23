@@ -414,9 +414,16 @@ public class BoardPostDto {
     @NoArgsConstructor
     @Schema(name = "BoardPostSearchCondition", description = "게시물 목록 검색 조건")
     public static class SearchCondition {
+        /**
+         * 공개기간 조건을 무시할지 여부. 서버 전용 플래그이므로 setter를 만들지 않는다 — 컨트롤러가 {@code @ModelAttribute}로 바인딩하는
+         * 대상이라 setter가 있으면 쿼리 파라미터로 주입돼 미공개·기간만료 게시물이 노출된다. 서비스가 {@link
+         * #ignorePublicationPeriod()}로만 켠다.
+         */
+        @Setter(AccessLevel.NONE)
         @Schema(hidden = true)
         private boolean ignorePublicationPeriod;
 
+        /** 공개기간 조건을 무시하도록 켠다. 관리자 조회처럼 서버가 스스로 판단한 경로에서만 호출한다. */
         public void ignorePublicationPeriod() {
             this.ignorePublicationPeriod = true;
         }

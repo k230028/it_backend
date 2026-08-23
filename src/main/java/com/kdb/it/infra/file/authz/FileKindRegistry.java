@@ -43,13 +43,4 @@ public class FileKindRegistry {
     public boolean isKnown(String pkColNm) {
         return pkColNm != null && knownKinds.contains(pkColNm);
     }
-
-    /**
-     * 알려진 종류의 이름을 돌려줍니다. 현재 호출자가 없으며 진단·테스트 목적으로만 남겨 둔 접근자입니다.
-     *
-     * @return 종류 이름 집합. {@code Set.copyOf}로 만든 불변 집합이라 순서를 보장하지 않습니다
-     */
-    public Set<String> knownKinds() {
-        return knownKinds;
-    }
 }

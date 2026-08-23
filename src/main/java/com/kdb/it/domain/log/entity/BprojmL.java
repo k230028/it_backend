@@ -20,19 +20,19 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class BprojmL extends BaseLogEntity {
 
-    @Column(name = "ABUS_MNG_NO", length = 32, comment = "프로젝트관리번호")
+    @Column(name = "ABUS_MNG_NO", length = 30, comment = "프로젝트관리번호")
     private String abusMngNo;
 
     @Column(name = "SNO", comment = "프로젝트순번")
     private Integer sno;
 
-    @Column(name = "ABUS_NM", length = 200, comment = "사업명")
+    @Column(name = "ABUS_NM", length = 100, comment = "사업명")
     private String abusNm;
 
     @Column(name = "ABUS_PPO_CONE", length = 300, comment = "사업유형명 (물리컬럼 ABUS_PPO_CONE=사업목적내용)")
     private String bzTpC;
 
-    @Column(name = "SVN_DPM_C", length = 100, comment = "주관부서")
+    @Column(name = "SVN_DPM_C", length = 20, comment = "주관부서")
     private String svnDpmC;
 
     @Column(name = "SVN_TEM_C", length = 5, comment = "주관팀코드")
@@ -44,7 +44,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "SVN_TEM_NM", length = 100, comment = "주관팀명")
     private String svnTemNm;
 
-    @Column(name = "DVM_DPM_C", length = 100, comment = "IT부서")
+    @Column(name = "DVM_DPM_C", length = 20, comment = "IT부서")
     private String dvmDpmC;
 
     @Column(name = "DVM_TEM_C", length = 5, comment = "개발팀코드")
@@ -65,13 +65,13 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "DFR_AMT", precision = 18, scale = 3, comment = "지급금액")
     private BigDecimal dfrAmt;
 
-    @Column(name = "USID", length = 32, comment = "주관부서담당자")
+    @Column(name = "USID", length = 14, comment = "주관부서담당자")
     private String usid;
 
-    @Column(name = "DVM_USID", length = 32, comment = "IT부서담당자")
+    @Column(name = "DVM_USID", length = 14, comment = "IT부서담당자")
     private String dvmUsid;
 
-    @Column(name = "TLR_USID", length = 32, comment = "주관부서담당팀장")
+    @Column(name = "TLR_USID", length = 14, comment = "주관부서담당팀장")
     private String tlrUsid;
 
     @Column(name = "TLR_NM", length = 100, comment = "주관부서담당팀장명")
@@ -80,7 +80,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "USR_NM", length = 100, comment = "주관부서담당자명")
     private String usrNm;
 
-    @Column(name = "DVM_TLR_USID", length = 32, comment = "IT부서담당팀장")
+    @Column(name = "DVM_TLR_USID", length = 14, comment = "IT부서담당팀장")
     private String dvmTlrUsid;
 
     @Column(name = "IT_PTL_EDRT_TC", length = 2, comment = "전결권")
@@ -92,22 +92,22 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "CPN_SAF_CONE", length = 1000, comment = "현황")
     private String cpnSafCone;
 
-    @Column(name = "ABUS_NCS_CONE", length = 1000, comment = "필요성")
+    @Column(name = "ABUS_NCS_CONE", length = 300, comment = "필요성")
     private String abusNcsCone;
 
-    @Column(name = "DGOG_PPO_CONE", length = 1000, comment = "기대효과")
+    @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과")
     private String dgogPpoCone;
 
-    @Column(name = "PLM_DES", length = 1000, comment = "문제")
+    @Column(name = "PLM_DES", length = 4000, comment = "문제")
     private String plmDes;
 
-    @Column(name = "ABUS_RNG_CONE", length = 1000, comment = "사업범위내용")
+    @Column(name = "ABUS_RNG_CONE", length = 600, comment = "사업범위내용")
     private String abusRngCone;
 
     @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
     private String mnPrgCone;
 
-    @Column(name = "HRF_PLN_CONE", length = 1000, comment = "향후계획")
+    @Column(name = "HRF_PLN_CONE", length = 300, comment = "향후계획")
     private String hrfPlnCone;
 
     @Column(name = "BZ_DTT_NM", length = 100, comment = "업무구분명")
@@ -122,7 +122,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "DPL_YN", length = 1, comment = "중복여부")
     private String dplYn;
 
-    @Column(name = "FLF_FSG_DT", comment = "의무완료기한")
+    @Column(name = "FLF_FSG_DT", length = 8, comment = "의무완료기한")
     private String flfFsgDt;
 
     @Column(name = "IT_PTL_RPR_STS_TC", length = 2, comment = "보고상태 (공통코드 2자리)")
@@ -137,7 +137,7 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "BSE_YY", length = 4, comment = "예산연도")
     private String bseYy;
 
-    @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 32, comment = "주관본부")
+    @Column(name = "PRLM_HRK_OGZ_C_CONE", length = 100, comment = "주관본부")
     private String prlmHrkOgzCCone;
 
     @Column(name = "ODN_YN", length = 1, comment = "경상여부")
@@ -145,4 +145,8 @@ public class BprojmL extends BaseLogEntity {
 
     @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "사업구분")
     private String abusTc;
+
+    /** 관련프로젝트관리번호 (이력 거울 — @LogTarget AOP가 마스터 cncdRfrNo를 동명 매핑) */
+    @Column(name = "CNCD_RFR_NO", length = 30, comment = "관련참조번호")
+    private String cncdRfrNo;
 }

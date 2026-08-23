@@ -31,6 +31,7 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
+import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
@@ -99,11 +100,11 @@ class FileControllerTest {
 
         mockMvc.perform(asyncDispatch(result)).andExpect(status().isOk());
         verify(boardAttachmentArchiveService)
-                .writeArchive(
+                .prepareArchive(
                         org.mockito.ArgumentMatchers.eq("NAC-2026-0003"),
                         org.mockito.ArgumentMatchers.eq(List.of("FL-1")),
-                        org.mockito.ArgumentMatchers.same(userDetails),
-                        any());
+                        org.mockito.ArgumentMatchers.same(userDetails));
+        verify(boardAttachmentArchiveService).writeArchive(any(), any());
     }
 
     @Test
@@ -130,7 +131,56 @@ class FileControllerTest {
 
         mockMvc.perform(asyncDispatch(result)).andExpect(status().isOk());
         verify(requestFormSourceArchiveService)
-                .writeArchive(any(), org.mockito.ArgumentMatchers.same(userDetails), any());
+                .prepareArchive(any(), org.mockito.ArgumentMatchers.same(userDetails));
+        verify(requestFormSourceArchiveService).writeArchive(any(), any());
+    }
+
+    @Test
+    @DisplayName("게시판 첨부 ZIP - 대상 확정 실패는 스트리밍 시작 전에 400으로 나간다")
+    void downloadBoardAttachmentArchive_prepareFailure_returns400BeforeStreaming()
+            throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        given(
+                        boardAttachmentArchiveService.prepareArchive(
+                                anyString(), any(), org.mockito.ArgumentMatchers.any()))
+                .willThrow(new CustomGeneralException("선택한 게시판 첨부파일을 다운로드할 수 없습니다."));
+
+        mockMvc.perform(
+                        post("/api/files/board-attachments/archive")
+                                .with(csrf())
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"nacMngNo\":\"NAC-2026-0003\",\"fileIds\":[\"FOREIGN\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(request().asyncNotStarted())
+                .andExpect(header().doesNotExist(HttpHeaders.CONTENT_DISPOSITION));
+
+        // 200 OK가 커밋된 뒤 실패해 절단된 ZIP이 나가면 안 된다(BE-67)
+        verify(boardAttachmentArchiveService, never()).writeArchive(any(), any());
+    }
+
+    @Test
+    @DisplayName("편성요청서 원본 ZIP - 대상 확정 실패는 스트리밍 시작 전에 400으로 나간다")
+    void downloadRequestFormSourceArchive_prepareFailure_returns400BeforeStreaming()
+            throws Exception {
+        CustomUserDetails userDetails =
+                new CustomUserDetails("10001", List.of("ITPZZ001"), "DEPT01");
+        given(requestFormSourceArchiveService.prepareArchive(any(), any()))
+                .willThrow(new CustomGeneralException("다운로드할 수 있는 편성요청서 원본이 없습니다."));
+
+        mockMvc.perform(
+                        post("/api/files/request-form-source/archive")
+                                .with(csrf())
+                                .with(user(userDetails))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"apfMngNo\":\"APF-1\",\"fileIds\":[\"FL-1\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(request().asyncNotStarted())
+                .andExpect(header().doesNotExist(HttpHeaders.CONTENT_DISPOSITION));
+
+        verify(requestFormSourceArchiveService, never()).writeArchive(any(), any());
     }
 
     @Test

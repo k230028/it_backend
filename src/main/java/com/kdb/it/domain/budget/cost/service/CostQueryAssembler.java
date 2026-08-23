@@ -125,6 +125,7 @@ public class CostQueryAssembler {
                 .ifPresent(
                         application -> {
                             response.setApfSts(statusLabel(application.getItPtlApfPrgStsC()));
+                            response.setApfStsC(application.getItPtlApfPrgStsC());
                             response.setApplicationInfo(
                                     ApplicationInfoDto.fromReadViews(
                                             application,
@@ -228,6 +229,7 @@ public class CostQueryAssembler {
                     data.applications().get(applicationMap.getApfDcmNo());
             if (application != null) {
                 response.setApfSts(statusLabel(application.getItPtlApfPrgStsC()));
+                response.setApfStsC(application.getItPtlApfPrgStsC());
                 response.setApplicationInfo(
                         ApplicationInfoDto.fromReadViews(
                                 application,

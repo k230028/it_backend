@@ -1,5 +1,6 @@
 package com.kdb.it.common.board.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -24,6 +25,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.exception.NotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -232,5 +234,23 @@ class BoardPostControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /api/boards/{blbMngNo}/posts의 ignorePublicationPeriod 쿼리 파라미터는 무시된다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void searchPosts_ignorePublicationPeriodQueryParam_무시된다() throws Exception {
+        mockMvc.perform(
+                        get("/api/boards/BLB-1/posts")
+                                .param("ignorePublicationPeriod", "true")
+                                .param("keyword", "공지"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<BoardPostDto.SearchCondition> captor =
+                ArgumentCaptor.forClass(BoardPostDto.SearchCondition.class);
+        verify(boardPostService).searchPosts(anyString(), captor.capture(), any());
+        // 서버 전용 플래그이므로 클라이언트가 true로 보내도 바인딩되지 않아야 한다.
+        assertThat(captor.getValue().isIgnorePublicationPeriod()).isFalse();
+        assertThat(captor.getValue().getKeyword()).isEqualTo("공지");
     }
 }

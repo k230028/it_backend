@@ -40,6 +40,7 @@ import lombok.Setter;
         requiredProperties = {
             "apfMngNo",
             "apfSts",
+            "apfStsC",
             "apfNm",
             "rqsEno",
             "rqsDt",
@@ -55,6 +56,15 @@ public class ApplicationInfoDto {
     /** 신청서상태 (APF_STS, 예: "결재중", "결재완료", "반려") */
     @Schema(description = "신청서상태", nullable = true)
     private String apfSts;
+
+    /**
+     * 신청서상태 코드 (IT_PTL_APF_PRG_STS_C, 예: "02"=결재완료)
+     *
+     * <p>{@link #apfSts}는 표시용 라벨이다. 화면이 업무 분기(예: 결재완료 잠금)에 라벨을 비교하면 표시 문구가 바뀔 때 조용히 어긋나므로, 분기는 이
+     * 코드값으로 한다.
+     */
+    @Schema(description = "신청서상태코드", nullable = true)
+    private String apfStsC;
 
     /** 신청서명 (APF_NM) */
     @Schema(description = "신청서명")
@@ -95,6 +105,7 @@ public class ApplicationInfoDto {
                                 : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
                                                 capplm.getItPtlApfPrgStsC())
                                         .label()) // 신청서상태(코드→라벨)
+                .apfStsC(capplm.getItPtlApfPrgStsC()) // 신청서상태코드(업무 분기용 원본)
                 .apfNm(capplm.getDcdReqTtl()) // 신청서명(결재요청제목에서 파생)
                 .rqsEno(capplm.getDcdReqUsid()) // 신청자 사번(결재요청사용자ID에서 파생)
                 .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
@@ -121,6 +132,7 @@ public class ApplicationInfoDto {
                                 : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
                                                 application.getItPtlApfPrgStsC())
                                         .label())
+                .apfStsC(application.getItPtlApfPrgStsC())
                 .apfNm(application.getDcdReqTtl())
                 .rqsEno(application.getDcdReqUsid())
                 .rqsDt(application.getDcdReqDtm())

@@ -43,7 +43,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "DFR_CLE_C", length = 1, nullable = false, comment = "지급주기코드")
     private String dfrCleC;
 
-    @Column(name = "FST_DFR_DT", comment = "지급예정월")
+    @Column(name = "FST_DFR_DT", length = 8, comment = "지급예정월")
     private String fstDfrDt;
 
     @Column(name = "CUR_C", length = 3, comment = "통화코드")
@@ -52,7 +52,7 @@ public class BcostmL extends BaseLogEntity {
     @Column(name = "XCR", precision = 9, scale = 4, comment = "환율")
     private BigDecimal xcr;
 
-    @Column(name = "XCR_BSE_DT", comment = "환율기준일자")
+    @Column(name = "XCR_BSE_DT", length = 8, comment = "환율기준일자")
     private String xcrBseDt;
 
     @Column(name = "SECT_SYS_UTZ_YN", length = 1, comment = "정보보호여부")
@@ -93,6 +93,10 @@ public class BcostmL extends BaseLogEntity {
 
     @Column(name = "ABUS_TC", length = 2, nullable = false, comment = "전산업무비구분")
     private String abusTc;
+
+    /** 관련전산업무비번호 (이력 거울 — @LogTarget AOP가 마스터 cncdRfrNo를 동명 매핑) */
+    @Column(name = "CNCD_RFR_NO", length = 30, comment = "관련참조번호")
+    private String cncdRfrNo;
 
     /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
     @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")

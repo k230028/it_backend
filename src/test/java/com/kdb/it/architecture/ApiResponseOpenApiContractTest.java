@@ -174,6 +174,7 @@ class ApiResponseOpenApiContractTest {
                 "delYn",
                 "apfMngNo",
                 "apfSts",
+                "apfStsC",
                 "lstChgDtm");
         assertAllPropertiesRequired(
                 CostDto.TerminalDto.class,
@@ -229,7 +230,7 @@ class ApiResponseOpenApiContractTest {
         assertEnum(ApplicationDto.PendingItem.class, "urgency", "urgent", "normal");
         assertEnum(ApplicationDto.ApproverResponse.class, "lstDcdYn", "Y", "N");
 
-        assertAllPropertiesRequired(ApplicationInfoDto.class, "apfSts", "rqsOpnn");
+        assertAllPropertiesRequired(ApplicationInfoDto.class, "apfSts", "apfStsC", "rqsOpnn");
         assertAllPropertiesRequired(
                 ApplicationInfoDto.ApproverDto.class, "dcdTp", "dcdSts", "dcdDt", "dcdOpnn");
     }

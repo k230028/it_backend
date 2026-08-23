@@ -26,8 +26,14 @@ public interface LoginPendingTransactionJpaRepository
             @Param("eno") String eno,
             @Param("now") LocalDateTime now);
 
-    /** 만료 후 유예 시간이 지난 행을 물리 삭제한다(용량 관리 전용). */
+    /**
+     * 만료 후 유예 시간이 지난 행을 물리 삭제한다(용량 관리 전용).
+     *
+     * <p>{@code END_DTM IS NULL}도 함께 지운다 — {@code V20260820_007}이 {@code TPRMPP_CMFADM.END_DTM}의
+     * NOT NULL을 해제해 조회({@code e.endDtm > :now})에도 정리에도 걸리지 않는 행이 생길 수 있다(BE-70).
+     */
     @Modifying
-    @Query("DELETE FROM LoginPendingTransactionEntity e WHERE e.endDtm < :cutoff")
+    @Query(
+            "DELETE FROM LoginPendingTransactionEntity e WHERE e.endDtm < :cutoff OR e.endDtm IS NULL")
     int deleteExpiredBefore(@Param("cutoff") LocalDateTime cutoff);
 }

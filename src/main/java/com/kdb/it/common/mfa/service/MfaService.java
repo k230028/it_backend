@@ -28,9 +28,11 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /** MFA 거래 생성, 소유권 검증, 외부 인증 및 1회용 증표 소비를 조정한다. */
+@Slf4j
 @Service
 public class MfaService {
 
@@ -98,11 +100,23 @@ public class MfaService {
         try {
             challenge = providerRegistry.start(request.method(), context);
         } catch (OnePassProviderException exception) {
+            log.warn(
+                    "MFA 공급자 challenge 시작 거부: method={}, purpose={}, providerCode={}, providerMessage={}",
+                    request.method(),
+                    request.purpose(),
+                    exception.providerCode(),
+                    exception.providerMessage());
             throw new MfaException(
                     MfaErrorCode.MFA_UNAVAILABLE,
                     exception.providerCode(),
                     exception.providerMessage());
         } catch (RuntimeException exception) {
+            // 통신 실패·파싱 실패는 모두 MFA_UNAVAILABLE 한 코드로 수렴하므로 원인 예외를 여기서 남긴다.
+            log.warn(
+                    "MFA 공급자 challenge 시작 실패: method={}, purpose={}",
+                    request.method(),
+                    request.purpose(),
+                    exception);
             throw new MfaException(MfaErrorCode.MFA_UNAVAILABLE);
         }
         String tokenHash = hash(challengeId.toString());
@@ -164,6 +178,12 @@ public class MfaService {
                                     request.verificationValue(),
                                     transaction.svcTrId()));
         } catch (RuntimeException exception) {
+            // 통신 실패·파싱 실패는 모두 MFA_UNAVAILABLE 한 코드로 수렴하므로 원인 예외를 여기서 남긴다.
+            log.warn(
+                    "MFA 공급자 검증 실패: method={}, purpose={}",
+                    transaction.method(),
+                    transaction.purpose(),
+                    exception);
             throw new MfaException(MfaErrorCode.MFA_UNAVAILABLE);
         }
         if (!verification.decided()) {

@@ -126,9 +126,18 @@ public final class OnePassClient {
                 challengeId, qrData, null, context.expiresAt(), providerTransactionId);
     }
 
+    /**
+     * OnePass 엔드포인트로 요청을 보내고 응답 본문을 돌려준다.
+     *
+     * @param request 전송할 요청 본문
+     * @return 응답 본문 맵 (null 응답은 실패로 본다)
+     * @throws IllegalStateException 통신·응답 처리에 실패한 경우. 원인 예외(connect timeout·SSL·5xx·파싱 실패)를 cause로
+     *     체이닝해 운영자가 근본 원인을 구분할 수 있게 한다.
+     */
     private Map<String, Object> request(Map<String, Object> request) {
+        Map<String, Object> response;
         try {
-            Map<String, Object> response =
+            response =
                     restClient
                             .post()
                             .uri(properties.endpoint())
@@ -136,13 +145,13 @@ public final class OnePassClient {
                             .body(request)
                             .retrieve()
                             .body(MAP_TYPE);
-            if (response == null) {
-                throw new IllegalStateException("OnePass MFA 통신 또는 응답 처리에 실패했습니다.");
-            }
-            return response;
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            throw new IllegalStateException("OnePass MFA 통신 또는 응답 처리에 실패했습니다.", exception);
+        }
+        if (response == null) {
             throw new IllegalStateException("OnePass MFA 통신 또는 응답 처리에 실패했습니다.");
         }
+        return response;
     }
 
     private String newServiceTransactionId() {

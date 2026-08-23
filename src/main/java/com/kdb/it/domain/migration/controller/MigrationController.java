@@ -49,8 +49,8 @@ public class MigrationController {
     /**
      * 보정값을 반영해 원장과 결재 받이를 만들고 편성률을 적용합니다.
      *
-     * <p>인증 사용자의 사번({@link CustomUserDetails#getEno()})을 업로드 작성자로 넘깁니다. 이 값은 반영되는 모든 행의 결재 요청자와 감사
-     * 주체로 기록되므로 {@code getUsername()}이 아니라 {@code getEno()}를 사용합니다.
+     * <p>인증 사용자의 사번({@link CustomUserDetails}의 {@code getEno()})을 업로드 작성자로 넘깁니다. 이 값은 반영되는 모든 행의 결재
+     * 요청자와 감사 주체로 기록되므로 {@code getUsername()}이 아니라 {@code getEno()}를 사용합니다.
      *
      * @param request 시트 목록과 보정값
      * @param user 인증 사용자 (사번을 업로드 작성자로 씁니다)

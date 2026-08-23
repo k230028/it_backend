@@ -42,6 +42,18 @@ class BoardAttachmentArchiveServiceTest {
         service = new BoardAttachmentArchiveService(fileService);
     }
 
+    /**
+     * 확정(prepareArchive) → 전송(writeArchive) 두 단계를 이어 부르는 테스트 헬퍼입니다. 컨트롤러는 확정을 응답 헤더 확정 전에 따로
+     * 부르므로(BE-67), 여기서는 기존 시나리오의 동작만 그대로 재현합니다.
+     */
+    private void writeArchive(
+            String nacMngNo,
+            List<String> fileIds,
+            CustomUserDetails userDetails,
+            java.io.OutputStream output) {
+        service.writeArchive(service.prepareArchive(nacMngNo, fileIds, userDetails), output);
+    }
+
     @Test
     @DisplayName("전체 다운로드는 게시물 읽기 권한을 통과한 첨부를 조회 순서대로 ZIP에 담는다")
     void writeArchive_nullSelection_writesAllAuthorizedBoardAttachments() throws Exception {
@@ -51,7 +63,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-2")).willReturn(download("XLSX", "견적서.xlsx"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", null, USER, output);
+        writeArchive("NAC-2026-0003", null, USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(
@@ -76,7 +88,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-3")).willReturn(download("THREE", "첨부.txt"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", List.of("FL-3", "FL-1"), USER, output);
+        writeArchive("NAC-2026-0003", List.of("FL-3", "FL-1"), USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(
@@ -91,7 +103,7 @@ class BoardAttachmentArchiveServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         "NAC-2026-0003",
                                         List.of("FL-1", "FOREIGN"),
                                         USER,
@@ -104,11 +116,11 @@ class BoardAttachmentArchiveServiceTest {
     @Test
     @DisplayName("공백 게시물 번호와 비어 있거나 중복된 선택 목록은 조회 전에 거부한다")
     void writeArchive_invalidRequest_rejectedBeforeLookup() {
-        assertThatThrownBy(() -> service.writeArchive(" ", null, USER, new ByteArrayOutputStream()))
+        assertThatThrownBy(() -> writeArchive(" ", null, USER, new ByteArrayOutputStream()))
                 .isInstanceOf(CustomGeneralException.class);
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         "NAC-2026-0003",
                                         List.of(),
                                         USER,
@@ -116,7 +128,7 @@ class BoardAttachmentArchiveServiceTest {
                 .isInstanceOf(CustomGeneralException.class);
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         "NAC-2026-0003",
                                         List.of("FL-1", "FL-1"),
                                         USER,
@@ -134,7 +146,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-1")).willReturn(download("SAFE", "../폴더\\비밀.txt"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", null, USER, output);
+        writeArchive("NAC-2026-0003", null, USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(new ZipContent(".._폴더_비밀.txt", "SAFE"));
@@ -147,7 +159,7 @@ class BoardAttachmentArchiveServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         "NAC-2026-0003", null, USER, new ByteArrayOutputStream()))
                 .isInstanceOf(CustomGeneralException.class)
                 .hasMessageContaining("없습니다");
@@ -164,7 +176,7 @@ class BoardAttachmentArchiveServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         "NAC-2026-0003",
                                         withBlank,
                                         USER,
@@ -182,7 +194,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-1")).willReturn(download("BLANK", "  "));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", null, USER, output);
+        writeArchive("NAC-2026-0003", null, USER, output);
 
         assertThat(unzip(output.toByteArray())).containsExactly(new ZipContent("FL-1", "BLANK"));
     }
@@ -195,7 +207,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-1")).willReturn(download("SAFE", hostile));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", null, USER, output);
+        writeArchive("NAC-2026-0003", null, USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(new ZipContent("보고_서_메모_.txt", "SAFE"));
@@ -210,7 +222,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-2")).willReturn(download("TWO", ".."));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", null, USER, output);
+        writeArchive("NAC-2026-0003", null, USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(new ZipContent("_", "ONE"), new ZipContent("__", "TWO"));
@@ -226,7 +238,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-3")).willReturn(download("THREE", "첨부"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", null, USER, output);
+        writeArchive("NAC-2026-0003", null, USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(
@@ -244,7 +256,7 @@ class BoardAttachmentArchiveServiceTest {
         given(fileService.downloadFile("FL-2")).willReturn(download("TWO", ".env"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive("NAC-2026-0003", null, USER, output);
+        writeArchive("NAC-2026-0003", null, USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(new ZipContent(".env", "ONE"), new ZipContent(".env(2)", "TWO"));

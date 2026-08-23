@@ -375,6 +375,7 @@ public class CostDto extends CostTerminalDto {
                 "delYn",
                 "apfMngNo",
                 "apfSts",
+                "apfStsC",
                 "lstChgDtm"
             })
     public static class Response {
@@ -582,6 +583,14 @@ public class CostDto extends CostTerminalDto {
         /** 연결된 신청서 결재상태 (서비스에서 설정) */
         @Schema(description = "신청서상태", example = "결재중", nullable = true)
         private String apfSts;
+
+        /**
+         * 연결된 신청서 결재상태 코드 (서비스에서 설정, 예: "02"=결재완료)
+         *
+         * <p>{@link #apfSts}는 표시용 라벨이므로 화면 업무 분기는 이 코드값으로 한다.
+         */
+        @Schema(description = "신청서상태코드", example = "02", nullable = true)
+        private String apfStsC;
 
         /** 신청서 상세 정보 (신청서명, 신청자, 결재자 목록 등) */
         @Schema(description = "신청서 상세 정보")

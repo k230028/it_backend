@@ -315,8 +315,8 @@ public class PlanService {
      * BBUGTM} 편성행({@code DUP_BG})에서 집계하는데, 이관 반영은 편성행을 마지막 단계({@code applyItemRates} 단일 호출)에서 한 번에
      * 만들므로 부문계획을 쓰는 시점에는 그 사업의 편성행이 아직 없거나 이전 값 그대로입니다 — 그대로 재사용하면 합계가 0이거나 stale 값으로 저장됩니다. 그래서 이
      * 경로는 조정 금액(자본예산 세 비목 합)을 호출자가 직접 넘깁니다. 둘째, 조정 시트의 집행 실적·사업진행·비고(§5.4, 원장 컬럼에 대응하는 자리가 없음)를 담을
-     * 자리가 {@link PlanDto.ProjectSnapshot}에는 없어 {@link
-     * PlanDto.SnapshotDto#getMigrationAdjustments()}에 사업관리번호별로 별도로 남깁니다. 이관 오케스트레이션 서비스가 이미 {@code
+     * 자리가 {@link PlanDto.ProjectSnapshot}에는 없어 {@link PlanDto.SnapshotDto}의 {@code
+     * getMigrationAdjustments()}에 사업관리번호별로 별도로 남깁니다. 이관 오케스트레이션 서비스가 이미 {@code
      * com.kdb.it.domain.migration.service.adapter.PlanIntent}를 알고 있으므로, 이 서비스가 그 타입을 몰라도 되도록(신규 도메인
      * 역의존 방지) 원시 타입으로만 받습니다.
      *

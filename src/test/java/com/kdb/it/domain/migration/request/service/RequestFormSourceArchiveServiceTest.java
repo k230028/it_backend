@@ -50,6 +50,17 @@ class RequestFormSourceArchiveServiceTest {
         service = new RequestFormSourceArchiveService(fileService);
     }
 
+    /**
+     * 확정(prepareArchive) → 전송(writeArchive) 두 단계를 이어 부르는 테스트 헬퍼입니다. 컨트롤러는 확정을 응답 헤더 확정 전에 따로
+     * 부르므로(BE-67), 여기서는 기존 시나리오의 동작만 그대로 재현합니다.
+     */
+    private void writeArchive(
+            RequestFormSourceArchiveRequest request,
+            CustomUserDetails userDetails,
+            java.io.OutputStream output) {
+        service.writeArchive(service.prepareArchive(request, userDetails), output);
+    }
+
     @Test
     @DisplayName("선택 ID가 null이면 권한이 있는 모든 원본을 조회 순서와 폴더 구조대로 압축한다")
     void writeArchive_nullSelection_writesAllAuthorizedFilesInNestedFolders() throws Exception {
@@ -62,7 +73,7 @@ class RequestFormSourceArchiveServiceTest {
         given(fileService.downloadFile("FL-2")).willReturn(download("TEXT", "설명.txt"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
+        writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .containsExactly(
@@ -89,7 +100,7 @@ class RequestFormSourceArchiveServiceTest {
         given(fileService.downloadFile("FL-3")).willReturn(download("THREE", "셋째.txt"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive(
+        writeArchive(
                 new RequestFormSourceArchiveRequest("APF-1", List.of("FL-3", "FL-1")),
                 USER,
                 output);
@@ -108,7 +119,7 @@ class RequestFormSourceArchiveServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest(
                                                 "APF-1", List.of("FL-1", "FOREIGN")),
                                         USER,
@@ -123,7 +134,7 @@ class RequestFormSourceArchiveServiceTest {
     void writeArchive_emptySelection_rejected() {
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest("APF-1", List.of()),
                                         USER,
                                         new ByteArrayOutputStream()))
@@ -139,7 +150,7 @@ class RequestFormSourceArchiveServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest("APF-1", null),
                                         USER,
                                         new ByteArrayOutputStream()))
@@ -153,7 +164,7 @@ class RequestFormSourceArchiveServiceTest {
     void writeArchive_duplicateSelection_rejected() {
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest(
                                                 "APF-1", List.of("FL-1", "FL-1")),
                                         USER,
@@ -168,7 +179,7 @@ class RequestFormSourceArchiveServiceTest {
     void writeArchive_blankApplicationNumber_rejected() {
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest(" ", null),
                                         USER,
                                         new ByteArrayOutputStream()))
@@ -182,7 +193,7 @@ class RequestFormSourceArchiveServiceTest {
     void writeArchive_blankSelectedId_rejected() {
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest(
                                                 "APF-1", List.of("FL-1", " ")),
                                         USER,
@@ -210,7 +221,7 @@ class RequestFormSourceArchiveServiceTest {
         given(fileService.downloadFile("FL-5")).willReturn(download("5", "README"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
+        writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
 
         assertThat(unzip(output.toByteArray()))
                 .extracting(ZipContent::name)
@@ -226,7 +237,7 @@ class RequestFormSourceArchiveServiceTest {
         given(fileService.downloadFile("FL-1")).willReturn(download("OLD", "레거시.pdf"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
+        writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
 
         assertThat(unzip(output.toByteArray())).containsExactly(new ZipContent("레거시.pdf", "OLD"));
     }
@@ -238,7 +249,7 @@ class RequestFormSourceArchiveServiceTest {
         given(fileService.downloadFile("FL-1")).willReturn(download("OLD", "레거시.pdf"));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
+        writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
 
         assertThat(unzip(output.toByteArray())).containsExactly(new ZipContent("레거시.pdf", "OLD"));
     }
@@ -251,7 +262,7 @@ class RequestFormSourceArchiveServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest("APF-1", null),
                                         USER,
                                         new ByteArrayOutputStream()))
@@ -278,7 +289,7 @@ class RequestFormSourceArchiveServiceTest {
                 .willReturn(new FileService.FileDownloadResult(second, "둘째.txt", "text/plain"));
         CloseTrackingOutputStream output = new CloseTrackingOutputStream();
 
-        service.writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
+        writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
 
         assertThat(first.closed).isTrue();
         assertThat(second.closed).isTrue();
@@ -305,7 +316,7 @@ class RequestFormSourceArchiveServiceTest {
                             return zip;
                         });
 
-        service.writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
+        writeArchive(new RequestFormSourceArchiveRequest("APF-1", null), USER, output);
 
         assertThat(zipReference.get().closed).isTrue();
         assertThat(output.closed).isFalse();
@@ -334,7 +345,7 @@ class RequestFormSourceArchiveServiceTest {
 
         assertThatThrownBy(
                         () ->
-                                service.writeArchive(
+                                writeArchive(
                                         new RequestFormSourceArchiveRequest("APF-1", null),
                                         USER,
                                         output))

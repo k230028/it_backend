@@ -114,8 +114,8 @@ public class FileController {
      * @param request 게시물 관리번호와 선택 파일 ID
      * @param userDetails 인증 사용자
      * @return ZIP을 응답 스트림에 직접 쓰는 본문
-     * @throws CustomGeneralException 요청이 잘못됐거나 선택 파일이 접근 가능한 결과에 없는 경우. 다만 이 검증은 스트리밍 람다 안에서 실행되므로
-     *     응답 헤더가 이미 확정된 뒤에 발생한다
+     * @throws com.kdb.it.exception.CustomGeneralException 요청이 잘못됐거나 선택 파일이 접근 가능한 결과에 없는 경우. 검증과 권한
+     *     판정은 응답 헤더를 확정하기 전에 끝나므로 공통 예외 응답 계약을 그대로 탄다
      */
     @PostMapping(
             value = "/board-attachments/archive",
@@ -134,6 +134,10 @@ public class FileController {
     public ResponseEntity<StreamingResponseBody> downloadBoardAttachmentArchive(
             @Valid @RequestBody BoardAttachmentArchiveRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        // 검증·권한 판정을 응답 빌드 전에 끝낸다 — 람다 안에서 실패하면 200 OK가 이미 커밋돼 절단된 ZIP이 나간다
+        BoardAttachmentArchiveService.ArchivePlan plan =
+                boardAttachmentArchiveService.prepareArchive(
+                        request.nacMngNo(), request.fileIds(), userDetails);
         ContentDisposition disposition =
                 ContentDisposition.attachment()
                         .filename(
@@ -141,9 +145,7 @@ public class FileController {
                                 StandardCharsets.UTF_8)
                         .build();
         StreamingResponseBody body =
-                output ->
-                        boardAttachmentArchiveService.writeArchive(
-                                request.nacMngNo(), request.fileIds(), userDetails, output);
+                output -> boardAttachmentArchiveService.writeArchive(plan, output);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/zip"))
@@ -157,6 +159,8 @@ public class FileController {
      * @param request 신청번호와 선택 파일 ID
      * @param userDetails 인증 사용자
      * @return 폴더 구조를 유지한 ZIP 스트리밍 응답
+     * @throws com.kdb.it.exception.CustomGeneralException 요청이 잘못됐거나 선택 파일이 접근 가능한 결과에 없는 경우. 검증과 권한
+     *     판정은 응답 헤더를 확정하기 전에 끝나므로 공통 예외 응답 계약을 그대로 탄다
      */
     @PostMapping(
             value = "/request-form-source/archive",
@@ -175,6 +179,9 @@ public class FileController {
     public ResponseEntity<StreamingResponseBody> downloadRequestFormSourceArchive(
             @Valid @RequestBody RequestFormSourceArchiveRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        // 검증·권한 판정을 응답 빌드 전에 끝낸다 — 람다 안에서 실패하면 200 OK가 이미 커밋돼 절단된 ZIP이 나간다
+        RequestFormSourceArchiveService.ArchivePlan plan =
+                requestFormSourceArchiveService.prepareArchive(request, userDetails);
         ContentDisposition disposition =
                 ContentDisposition.attachment()
                         .filename(
@@ -182,8 +189,7 @@ public class FileController {
                                 StandardCharsets.UTF_8)
                         .build();
         StreamingResponseBody body =
-                output ->
-                        requestFormSourceArchiveService.writeArchive(request, userDetails, output);
+                output -> requestFormSourceArchiveService.writeArchive(plan, output);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/zip"))
