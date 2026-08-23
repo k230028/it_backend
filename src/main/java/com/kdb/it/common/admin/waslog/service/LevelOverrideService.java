@@ -40,8 +40,8 @@ public class LevelOverrideService {
     /**
      * 이 프로세스에서 레벨을 바꿀 수 있는 서로 다른 로거 수 상한.
      *
-     * <p>logback은 {@code setLogLevel}로 만든 {@code Logger}를 프로세스 수명 동안 해제하지 않으므로, 동시 개수만 제한하면 TTL이
-     * 지날 때마다 새 이름으로 계속 늘릴 수 있다. 만료돼도 줄지 않는 카운터에 상한을 둬야 진짜 상한이 선다(BE-62).
+     * <p>logback은 {@code setLogLevel}로 만든 {@code Logger}를 프로세스 수명 동안 해제하지 않으므로, 동시 개수만 제한하면 TTL이 지날
+     * 때마다 새 이름으로 계속 늘릴 수 있다. 만료돼도 줄지 않는 카운터에 상한을 둬야 진짜 상한이 선다(BE-62).
      *
      * <p>상한에 걸리면 <b>이미 건드린 로거</b>는 계속 조정할 수 있고 새 이름만 거부된다. 재기동하면 초기화된다.
      */
@@ -53,13 +53,12 @@ public class LevelOverrideService {
     /**
      * 레벨 변경과 만료 복원이 공유하는 락.
      *
-     * <p>{@link #restoreExpired}는 레지스트리에서 만료 항목을 원자적으로 제거한 뒤 {@code setLogLevel}을 부른다. 그 사이에
-     * 같은 로거로 {@link #apply}가 들어오면 두 가지가 어긋난다 — ① 관리자의 새 설정이 복원 값으로 덮이고, ② 새 항목의 {@code
-     * previousLevel}에 임시 레벨이 잡혀 다음 만료 때 그 임시 레벨로 영구 고정된다. 재적용이 원래 레벨을 물려받게 한 장치가 그대로
-     * 무력화되는 결과다(BE-59).
+     * <p>{@link #restoreExpired}는 레지스트리에서 만료 항목을 원자적으로 제거한 뒤 {@code setLogLevel}을 부른다. 그 사이에 같은 로거로
+     * {@link #apply}가 들어오면 두 가지가 어긋난다 — ① 관리자의 새 설정이 복원 값으로 덮이고, ② 새 항목의 {@code previousLevel}에 임시
+     * 레벨이 잡혀 다음 만료 때 그 임시 레벨로 영구 고정된다. 재적용이 원래 레벨을 물려받게 한 장치가 그대로 무력화되는 결과다(BE-59).
      *
-     * <p>창은 마이크로초 단위이고 스캔 주기는 30초라 순차적인 관리자 조작으로는 도달하지 않지만, 닫는 비용이 거의 없다 — 레벨 변경은
-     * 사람이 드물게 하고 스캔은 대부분의 틱에서 아무 일도 하지 않아 실제 경합이 생기지 않는다. 로거별 락으로 쪼갤 이유가 없다.
+     * <p>창은 마이크로초 단위이고 스캔 주기는 30초라 순차적인 관리자 조작으로는 도달하지 않지만, 닫는 비용이 거의 없다 — 레벨 변경은 사람이 드물게 하고 스캔은
+     * 대부분의 틱에서 아무 일도 하지 않아 실제 경합이 생기지 않는다. 로거별 락으로 쪼갤 이유가 없다.
      */
     private final ReentrantLock mutationLock = new ReentrantLock();
 
@@ -80,7 +79,8 @@ public class LevelOverrideService {
      * <p>새 로거 이름은 {@value #MAX_ACTIVE_OVERRIDES}건 동시 적용, 프로세스당 {@value #MAX_DISTINCT_LOGGERS}종까지만
      * 받는다. 이미 적용 중이거나 한 번이라도 건드린 로거의 재조정은 상한과 무관하게 허용한다(BE-62).
      *
-     * @param logger {@link #ALLOWED_LOGGER_PREFIXES} 중 하나로 시작하는 로거명. {@value #MAX_LOGGER_NAME_LENGTH}자 이하
+     * @param logger {@link #ALLOWED_LOGGER_PREFIXES} 중 하나로 시작하는 로거명. {@value
+     *     #MAX_LOGGER_NAME_LENGTH}자 이하
      * @param level ERROR/WARN/INFO/DEBUG/TRACE
      * @param ttlMinutes 1~{@value #MAX_TTL_MINUTES}
      * @throws IllegalArgumentException 로거·레벨·TTL이 규칙을 벗어나거나 로거 수 상한을 넘은 경우

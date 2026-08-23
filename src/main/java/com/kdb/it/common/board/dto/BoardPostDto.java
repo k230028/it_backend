@@ -129,6 +129,8 @@ public class BoardPostDto {
                     .sttYmd(e.getSttDt())
                     .endYmd(e.getEndDt())
                     .fstEnrUsid(e.getFstEnrUsid())
+                    // 엔티티 단독 변환 경로에는 작성자 조인 정보가 없다. 이름·부서명은
+                    // searchPostRows 프로젝션 경로에서만 채우므로 여기서 조회를 추가하지 않는다.
                     .fstEnrUsNm(null)
                     .fstEnrBbrNm(null)
                     .fstEnrDtm(e.getFstEnrDtm())
@@ -171,10 +173,28 @@ public class BoardPostDto {
             name = "BoardPostDetail",
             description = "게시물 상세",
             requiredProperties = {
-                "nacMngNo", "blbMngNo", "nacNm", "nacCone", "nacInqNbr", "nacUnqId", "ancYn",
-                "xpoYn", "bbrC", "sttYmd", "endYmd", "flApgYn", "flNbr", "nacGrpSqn",
-                "nacGrpLev", "hrkNacNo", "fstEnrUsid", "fstEnrUsNm", "fstEnrBbrNm", "fstEnrDtm",
-                "lstChgDtm", "canModify"
+                "nacMngNo",
+                "blbMngNo",
+                "nacNm",
+                "nacCone",
+                "nacInqNbr",
+                "nacUnqId",
+                "ancYn",
+                "xpoYn",
+                "bbrC",
+                "sttYmd",
+                "endYmd",
+                "flApgYn",
+                "flNbr",
+                "nacGrpSqn",
+                "nacGrpLev",
+                "hrkNacNo",
+                "fstEnrUsid",
+                "fstEnrUsNm",
+                "fstEnrBbrNm",
+                "fstEnrDtm",
+                "lstChgDtm",
+                "canModify"
             })
     public static class Detail {
         @Schema(description = "게시물관리번호")

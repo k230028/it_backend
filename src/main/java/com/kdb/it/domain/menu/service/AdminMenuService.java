@@ -115,8 +115,7 @@ public class AdminMenuService {
         boolean preparing = isPreparingRequest(req);
         String srePth =
                 preparing
-                        ? resolvePreparingPath(
-                                mnuId, previousPath, req.getMnuNm(), req.getMnuTpC())
+                        ? resolvePreparingPath(mnuId, previousPath, req.getMnuNm(), req.getMnuTpC())
                         : req.getSrePth();
         validateTypePath(req.getMnuTpC(), srePth);
         // 대상의 현재 계층 위치를 기준으로 다시 검증한다. 이 호출이 없으면 루트 메뉴의 유형만 바꿔 "루트는 GRP" 규칙을 우회할 수 있다.
@@ -231,10 +230,9 @@ public class AdminMenuService {
     /**
      * 준비중 경로를 확정하고 라우트 카탈로그 행을 준비한다.
      *
-     * <p>저장된 메뉴가 이미 준비중 경로를 쓰고 있으면 그 경로를 유지한다. 사람이 등록한
-     * {@code /preparing/cdp} 같은 경로를 자동 경로로 갈아치우지 않기 위해서다. 그 외에는
-     * {@code /preparing/{mnuId 소문자}}를 쓴다. 카탈로그 행이 없으면 만들고, 있으면 재사용하며
-     * 화면메뉴명만 현재 메뉴명 기준으로 맞춘다(같은 메뉴를 다시 저장해도 행이 늘지 않는다).
+     * <p>저장된 메뉴가 이미 준비중 경로를 쓰고 있으면 그 경로를 유지한다. 사람이 등록한 {@code /preparing/cdp} 같은 경로를 자동 경로로 갈아치우지
+     * 않기 위해서다. 그 외에는 {@code /preparing/{mnuId 소문자}}를 쓴다. 카탈로그 행이 없으면 만들고, 있으면 재사용하며 화면메뉴명만 현재 메뉴명
+     * 기준으로 맞춘다(같은 메뉴를 다시 저장해도 행이 늘지 않는다).
      *
      * @param mnuId 대상 메뉴 ID. 생성이면 채번 직후 값
      * @param currentPath 저장된 메뉴의 현재 화면경로. 생성이면 null
@@ -278,25 +276,21 @@ public class AdminMenuService {
     /**
      * 이 메뉴가 쓰던 자동 생성 준비중 경로를 카탈로그에서 논리삭제한다.
      *
-     * <p>회수 대상은 {@code /preparing/{이 메뉴의 mnuId 소문자}}와 정확히 같은 경로뿐이다.
-     * 사람이 등록한 준비중 경로는 다른 메뉴가 쓸 수 있으므로 건드리지 않는다.
+     * <p>회수 대상은 {@code /preparing/{이 메뉴의 mnuId 소문자}}와 정확히 같은 경로뿐이다. 사람이 등록한 준비중 경로는 다른 메뉴가 쓸 수 있으므로
+     * 건드리지 않는다.
      *
-     * <p>다음 두 경우는 조용히 건너뛴다(예외를 던지지 않는다 — 회수 실패로 메뉴 저장 자체를 막지
-     * 않는다).
+     * <p>다음 두 경우는 조용히 건너뛴다(예외를 던지지 않는다 — 회수 실패로 메뉴 저장 자체를 막지 않는다).
      *
      * <ul>
-     *   <li>이 메뉴의 새 경로({@code newPath})가 여전히 그 자동 경로인 경우 — 아직 이 메뉴가
-     *       참조 중이다(C1). 클라이언트가 체크만 해제하고 새 경로를 고르지 않은 채 보낸 요청이
-     *       대표적이다.
-     *   <li>다른 활성 메뉴가 같은 자동 경로를 참조 중인 경우 — {@link AdminRouteService#delete}와
-     *       같은 참조 보호다(I1). 자동 등록 행도 {@code USE_YN='Y'}인 평범한 경로라 다른 메뉴가
-     *       고를 수 있다.
+     *   <li>이 메뉴의 새 경로({@code newPath})가 여전히 그 자동 경로인 경우 — 아직 이 메뉴가 참조 중이다(C1). 클라이언트가 체크만 해제하고 새
+     *       경로를 고르지 않은 채 보낸 요청이 대표적이다.
+     *   <li>다른 활성 메뉴가 같은 자동 경로를 참조 중인 경우 — {@link AdminRouteService#delete}와 같은 참조 보호다(I1). 자동 등록
+     *       행도 {@code USE_YN='Y'}인 평범한 경로라 다른 메뉴가 고를 수 있다.
      * </ul>
      *
      * @param mnuId 대상 메뉴 ID
      * @param previousPath 저장(또는 삭제) 직전 화면경로. null이면 아무것도 하지 않는다
-     * @param newPath 이 메뉴에 확정된 새 화면경로. 메뉴를 삭제하는 호출이면 null(더 이상 어떤
-     *     경로도 가리키지 않음)
+     * @param newPath 이 메뉴에 확정된 새 화면경로. 메뉴를 삭제하는 호출이면 null(더 이상 어떤 경로도 가리키지 않음)
      */
     private void releaseGeneratedPreparingPath(String mnuId, String previousPath, String newPath) {
         String generated = MenuPathPolicy.PREPARING_PATH_PREFIX + mnuId.toLowerCase();

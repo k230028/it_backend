@@ -143,17 +143,19 @@ public class MigrationIoeCatalogReader {
      *
      * <p>유효일자를 보지 않는 {@link #candidates(String, boolean)}를 쓰면 안 됩니다. 저장 경로({@code
      * CostService.createCost} → {@code XcrLookupService.resolveXcr})가 {@code
-     * findByCIdAndCdvaWithValidDate}로 <b>유효일자 재조회</b>를 하고 없으면 {@code IllegalStateException}으로
-     * 롤백하기 때문입니다. 조회 기준이 어긋나면 유효기간이 닫힌 통화가 선택지에 떠서 사전검증은 통과하고 반영에서 그 파일만 실패합니다(MIG-28).
+     * findByCIdAndCdvaWithValidDate}로 <b>유효일자 재조회</b>를 하고 없으면 {@code IllegalStateException}으로 롤백하기
+     * 때문입니다. 조회 기준이 어긋나면 유효기간이 닫힌 통화가 선택지에 떠서 사전검증은 통과하고 반영에서 그 파일만 실패합니다(MIG-28).
      *
-     * <p>{@code KRW}는 {@code resolveXcr}가 조회 없이 통과시키므로 환율값이 비어 있어도 후보에서 빼지 않습니다 — 여기서 환율
-     * 파싱 가능 여부까지 거르면 가장 흔한 통화가 선택지에서 사라집니다.
+     * <p>{@code KRW}는 {@code resolveXcr}가 조회 없이 통과시키므로 환율값이 비어 있어도 후보에서 빼지 않습니다 — 여기서 환율 파싱 가능 여부까지
+     * 거르면 가장 흔한 통화가 선택지에서 사라집니다.
      *
      * @return 예: `[{code:"KRW", label:"원화"}, {code:"USD", label:"미국 달러"}]`
      */
     public List<MigrationDto.Candidate> currencyCandidates() {
         return toCandidates(
-                codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null), null, false);
+                codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null),
+                null,
+                false);
     }
 
     /**

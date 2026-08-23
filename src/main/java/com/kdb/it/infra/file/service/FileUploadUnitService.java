@@ -39,9 +39,9 @@ public class FileUploadUnitService {
     /**
      * 저장 디렉터리 이름으로 허용하는 파일 종류 문자 집합.
      *
-     * <p>{@code pkColNm}은 클라이언트가 보낸 값이 그대로 경로 세그먼트가 되므로, 경로 구분자({@code /}·{@code \}), 상위
-     * 이동({@code ..}), 드라이브 지정({@code :})이 섞일 수 없는 문자만 받습니다. 실제 사용 중인 종류는 모두 한글이고(배너·공통게시판·
-     * 편성요청서반입 등) 영문 종류가 생길 수 있어 영숫자와 밑줄·하이픈까지 허용합니다(SEC-14).
+     * <p>{@code pkColNm}은 클라이언트가 보낸 값이 그대로 경로 세그먼트가 되므로, 경로 구분자({@code /}·{@code \}), 상위 이동({@code
+     * ..}), 드라이브 지정({@code :})이 섞일 수 없는 문자만 받습니다. 실제 사용 중인 종류는 모두 한글이고(배너·공통게시판· 편성요청서반입 등) 영문 종류가
+     * 생길 수 있어 영숫자와 밑줄·하이픈까지 허용합니다(SEC-14).
      */
     private static final Pattern SAFE_PK_COL_NM = Pattern.compile("^[0-9A-Za-z가-힣_-]{1,100}$");
 
@@ -169,13 +169,12 @@ public class FileUploadUnitService {
     /**
      * 파일 종류별 저장 디렉터리를 만듭니다.
      *
-     * <p>{@code pkColNm}은 클라이언트 입력이므로 허용 문자 집합으로 먼저 거르고, 통과한 뒤에도 정규화한 절대경로가 {@code
-     * basePath} 안에 있는지 다운로드({@code FileService.downloadFile})와 같은 기준으로 다시 확인합니다. 확장자
-     * 화이트리스트와 서버 채번 파일명이 있어 임의 코드 배치는 어렵지만, 쓰기 측에도 경로 정규화 원칙을 세웁니다(SEC-14,
-     * {@code docs/guides/security/file-security.md}).
+     * <p>{@code pkColNm}은 클라이언트 입력이므로 허용 문자 집합으로 먼저 거르고, 통과한 뒤에도 정규화한 절대경로가 {@code basePath} 안에 있는지
+     * 다운로드({@code FileService.downloadFile})와 같은 기준으로 다시 확인합니다. 확장자 화이트리스트와 서버 채번 파일명이 있어 임의 코드 배치는
+     * 어렵지만, 쓰기 측에도 경로 정규화 원칙을 세웁니다(SEC-14, {@code docs/guides/security/file-security.md}).
      *
-     * <p>반환하는 경로 문자열의 형태는 바꾸지 않습니다 — {@code FL_KPN_PTH}에 그대로 저장되므로 기존 행과 같은 형태를 유지해야
-     * 합니다. 검증은 별도의 정규화 사본으로만 합니다.
+     * <p>반환하는 경로 문자열의 형태는 바꾸지 않습니다 — {@code FL_KPN_PTH}에 그대로 저장되므로 기존 행과 같은 형태를 유지해야 합니다. 검증은 별도의
+     * 정규화 사본으로만 합니다.
      *
      * @param pkColNm 파일 종류
      * @return {@code basePath/종류/년/월} 디렉터리 경로

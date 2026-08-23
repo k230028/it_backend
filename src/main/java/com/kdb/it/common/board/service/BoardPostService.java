@@ -37,6 +37,11 @@ import org.springframework.util.StringUtils;
 public class BoardPostService {
 
     private static final Logger log = LoggerFactory.getLogger(BoardPostService.class);
+
+    /**
+     * 일정 게시판 구분코드(공통코드 {@code IT_PTL_BLB_TC}의 {@code 003}). 이 유형은 시작·종료일자가 공개기간이 아니라 일정이라 공개기간 필터를
+     * 적용하지 않는다.
+     */
     private static final String SCHEDULE_BOARD_TYPE = "003";
 
     private final BoardMetaRepository metaRepository;
@@ -351,7 +356,8 @@ public class BoardPostService {
     /**
      * 게시물 단건 가시성 검증
      *
-     * <p>게시판 조회는 인증된 모든 사용자에게 공개되므로 게시판 단위 권한 검증은 없으며, 게시물의 화면노출여부·공개기간만 비관리자 대상으로 확인합니다.
+     * <p>게시판 조회는 인증된 모든 사용자에게 공개되므로 게시판 단위 권한 검증은 없으며, 게시물의 화면노출여부와 공개기간만 비관리자 대상으로 확인합니다. 다만 일정
+     * 게시판({@code SCHEDULE_BOARD_TYPE})은 시작·종료일자가 공개기간이 아니라 일정 자체이므로 공개기간 검사에서 제외합니다.
      *
      * @param user 인증 사용자
      * @param post 게시물 엔티티

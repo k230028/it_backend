@@ -4,8 +4,8 @@ import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
-import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.common.util.UserNameResolver;
+import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -495,8 +495,8 @@ public class ProjectService {
     /**
      * 담당자 표시명을 해석한다.
      *
-     * <p>이 컬럼들은 사번 <b>또는 이름</b>을 담으므로({@code Bprojm} 주석) {@link UserNameResolver}에 판정을 맡긴다.
-     * 퇴사 등으로 조회에 실패한 사번은 이름으로 노출하지 않고 {@code null}을 돌려주며, 그 경우 스냅샷은 기존 값을 유지한다(BE-63).
+     * <p>이 컬럼들은 사번 <b>또는 이름</b>을 담으므로({@code Bprojm} 주석) {@link UserNameResolver}에 판정을 맡긴다. 퇴사 등으로
+     * 조회에 실패한 사번은 이름으로 노출하지 않고 {@code null}을 돌려주며, 그 경우 스냅샷은 기존 값을 유지한다(BE-63).
      *
      * @param storedValue 담당자 컬럼 저장값 — 사번 또는 이름
      * @return 표시명. 해석 실패 시 null

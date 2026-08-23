@@ -108,7 +108,15 @@ public class FileController {
         return ResponseEntity.ok(fileService.getFilesBatch(pkColNm, pkCones, userDetails));
     }
 
-    /** 읽기 권한이 있는 게시물의 전체 또는 선택 첨부파일을 ZIP으로 다운로드합니다. */
+    /**
+     * 읽기 권한이 있는 게시물의 전체 또는 선택 첨부파일을 ZIP으로 다운로드합니다.
+     *
+     * @param request 게시물 관리번호와 선택 파일 ID
+     * @param userDetails 인증 사용자
+     * @return ZIP을 응답 스트림에 직접 쓰는 본문
+     * @throws CustomGeneralException 요청이 잘못됐거나 선택 파일이 접근 가능한 결과에 없는 경우. 다만 이 검증은 스트리밍 람다 안에서 실행되므로
+     *     응답 헤더가 이미 확정된 뒤에 발생한다
+     */
     @PostMapping(
             value = "/board-attachments/archive",
             consumes = MediaType.APPLICATION_JSON_VALUE,

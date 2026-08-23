@@ -54,11 +54,13 @@ class MenuPathPolicyTest {
     }
 
     @Test
-    @DisplayName("isPreparing: /preparing/ \uC811\uB450\uB97C \uAC00\uC9C4 \uACBD\uB85C\uB9CC \uC900\uBE44\uC911\uC73C\uB85C \uBCF8\uB2E4")
-    void isPreparing_\uC811\uB450\uC77C\uCE58\uB9CC\uCC38() {
+    @DisplayName(
+            "isPreparing: /preparing/ \uC811\uB450\uB97C \uAC00\uC9C4 \uACBD\uB85C\uB9CC \uC900\uBE44\uC911\uC73C\uB85C \uBCF8\uB2E4")
+    void isPreparing_접두일치만참() {
         assertThat(MenuPathPolicy.isPreparing("/preparing/mnu0001018")).isTrue();
         assertThat(MenuPathPolicy.isPreparing("/preparing/cdp")).isTrue();
-        // slug \uC5C6\uB294 `/preparing`\uC740 \uBA54\uB274\uAC00 \uAC00\uB9AC\uD0A4\uB294 \uACBD\uB85C\uAC00 \uC544\uB2C8\uB2E4
+        // slug \uC5C6\uB294 `/preparing`\uC740 \uBA54\uB274\uAC00 \uAC00\uB9AC\uD0A4\uB294
+        // \uACBD\uB85C\uAC00 \uC544\uB2C8\uB2E4
         assertThat(MenuPathPolicy.isPreparing("/preparing")).isFalse();
         assertThat(MenuPathPolicy.isPreparing("/budget/list")).isFalse();
         assertThat(MenuPathPolicy.isPreparing(null)).isFalse();

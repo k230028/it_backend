@@ -32,8 +32,8 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.ResultActions;
 
 @WebMvcTest(WasLogController.class)
 @WithMockUser(roles = "ADMIN")
@@ -153,8 +153,8 @@ class WasLogDownloadTest {
      * 다운로드 성공 응답을 비동기 디스패치까지 진행시켜 완성된 응답을 돌려준다.
      *
      * <p>본문이 {@link org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody}라
-     * Spring MVC가 비동기로 처리한다. 최초 {@code perform}은 헤더만 채운 상태로 끝나므로, 본문을 검증하려면
-     * {@code asyncDispatch}로 한 번 더 돌려야 한다(BE-61).
+     * Spring MVC가 비동기로 처리한다. 최초 {@code perform}은 헤더만 채운 상태로 끝나므로, 본문을 검증하려면 {@code asyncDispatch}로
+     * 한 번 더 돌려야 한다(BE-61).
      */
     private ResultActions performDownload(RequestBuilder request) throws Exception {
         MvcResult started = mockMvc.perform(request).andReturn();
@@ -188,7 +188,8 @@ class WasLogDownloadTest {
                 .startsWith("#")
                 .contains("PID 자리에 인스턴스ID");
 
-        String logLine = body.lines().filter(line -> !line.startsWith("#")).findFirst().orElseThrow();
+        String logLine =
+                body.lines().filter(line -> !line.startsWith("#")).findFirst().orElseThrow();
         // ISO8601 + 오프셋(%d) → 5칸 우측정렬 레벨(%5p) → 인스턴스ID(PID 자리) → ` --- `
         // → `[앱명] `(%esb) → `[스레드]` → 40칸 로거(%-40.40logger{39}) → ` : ` → 메시지
         // 타임스탬프는 ISO8601 + 오프셋
@@ -223,7 +224,8 @@ class WasLogDownloadTest {
                         .getResponse()
                         .getContentAsString();
 
-        String logLine = body.lines().filter(line -> !line.startsWith("#")).findFirst().orElseThrow();
+        String logLine =
+                body.lines().filter(line -> !line.startsWith("#")).findFirst().orElseThrow();
         // logback의 축약기를 그대로 쓰므로 파일 로그와 같은 문자열이 나온다.
         // 39자 안에 들어가는 순간 축약을 멈추므로 뒤쪽 `controller`는 줄지 않는다 —
         // 직접 구현했다면 `c.k.i.c.a.w.c.WasLogController`로 만들어 파일 로그와 어긋났을 지점이다.

@@ -269,4 +269,196 @@ class WasLogServiceTest {
                 .isInstanceOf(WasLogPeerException.class)
                 .hasMessageContaining("timeout");
     }
+
+    /** 성공 응답과 호출 인자를 기록하는 피어 대역. */
+    private static final class RecordingPeerClient implements WasLogPeerClient {
+        private String snapshotBaseUrl;
+        private String levelBaseUrl;
+        private final WasLogDto.Snapshot snapshot;
+        private final WasLogDto.LevelOverride override;
+
+        private RecordingPeerClient(WasLogDto.Snapshot snapshot, WasLogDto.LevelOverride override) {
+            this.snapshot = snapshot;
+            this.override = override;
+        }
+
+        @Override
+        public WasLogDto.Snapshot fetchSnapshot(
+                String baseUrl, String instanceId, WasLogDto.Query query) {
+            this.snapshotBaseUrl = baseUrl;
+            return snapshot;
+        }
+
+        @Override
+        public WasLogDto.LevelOverride applyLevel(String baseUrl, WasLogDto.LevelRequest request) {
+            this.levelBaseUrl = baseUrl;
+            return override;
+        }
+    }
+
+    @Test
+    @DisplayName("selfInstanceId는 주입된 인스턴스 ID를 그대로 돌려준다")
+    void selfInstanceId_주입값반환() {
+        assertThat(service.selfInstanceId()).isEqualTo("SVR1");
+    }
+
+    @Test
+    @DisplayName("instanceId가 null·공백·자기 자신이면 로컬 버퍼를 읽는다")
+    void snapshot_로컬경로_세가지입력() {
+        WasLogDto.Query query = new WasLogDto.Query(base + 1, 200, Set.of(), null, null);
+
+        for (String instanceId : new String[] {null, "   ", "SVR1"}) {
+            WasLogDto.Snapshot snapshot = service.snapshot(instanceId, query);
+            assertThat(snapshot.instanceId()).isEqualTo("SVR1");
+            assertThat(snapshot.peerError()).isNull();
+            assertThat(snapshot.entries()).extracting(WasLogEntry::seq).containsExactly(base + 2);
+        }
+    }
+
+    @Test
+    @DisplayName("설정에 없는 인스턴스를 조회하면 IllegalArgumentException")
+    void snapshot_알수없는인스턴스() {
+        WasLogDto.Query query = new WasLogDto.Query(0L, 200, Set.of(), null, null);
+
+        assertThatThrownBy(() -> service.snapshot("SVR9", query))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("SVR9");
+    }
+
+    @Test
+    @DisplayName("피어 URL이 비어 있으면 호출하지 않고 IllegalArgumentException")
+    void snapshot_빈피어URL() {
+        WasLogProperties properties =
+                new WasLogProperties(10, Map.of("SVR2", "   "), "s", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", null, null, null);
+        WasLogDto.Query query = new WasLogDto.Query(0L, 200, Set.of(), null, null);
+
+        assertThatThrownBy(() -> routing.snapshot("SVR2", query))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("SVR2");
+    }
+
+    @Test
+    @DisplayName("다른 인스턴스 조회는 설정된 피어 URL로 위임하고 응답을 그대로 돌려준다")
+    void snapshot_피어위임_성공() {
+        WasLogDto.Snapshot peerSnapshot =
+                new WasLogDto.Snapshot("SVR2", "epoch-2", List.of(), 7L, false, List.of(), null);
+        RecordingPeerClient peer = new RecordingPeerClient(peerSnapshot, null);
+        WasLogProperties properties =
+                new WasLogProperties(10, Map.of("SVR2", "http://svr2:28080"), "s", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", peer, null, null);
+
+        WasLogDto.Snapshot actual =
+                routing.snapshot("SVR2", new WasLogDto.Query(0L, 200, Set.of(), null, null));
+
+        assertThat(actual).isEqualTo(peerSnapshot);
+        assertThat(peer.snapshotBaseUrl).isEqualTo("http://svr2:28080");
+    }
+
+    @Test
+    @DisplayName("레벨 변경도 instanceId가 null·공백이면 로컬 서비스로 간다")
+    void applyLevel_로컬경로_null과공백() {
+        LevelOverrideService levelService = mock(LevelOverrideService.class);
+        WasLogDto.LevelOverride expected =
+                new WasLogDto.LevelOverride(
+                        "com.kdb.it", "DEBUG", "INFO", LocalDateTime.of(2026, 8, 20, 11, 0));
+        given(levelService.apply("com.kdb.it", "DEBUG", 30)).willReturn(expected);
+        WasLogProperties properties = new WasLogProperties(10, Map.of(), "", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", null, null, levelService);
+
+        assertThat(routing.applyLevel(new WasLogDto.LevelRequest(null, "com.kdb.it", "DEBUG", 30)))
+                .isEqualTo(expected);
+        assertThat(routing.applyLevel(new WasLogDto.LevelRequest("  ", "com.kdb.it", "DEBUG", 30)))
+                .isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("피어 URL이 비어 있으면 레벨 변경도 호출하지 않고 거부한다")
+    void applyLevel_빈피어URL() {
+        WasLogProperties properties = new WasLogProperties(10, Map.of("SVR2", ""), "s", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", null, null, null);
+        WasLogDto.LevelRequest request =
+                new WasLogDto.LevelRequest("SVR2", "com.kdb.it", "DEBUG", 30);
+
+        assertThatThrownBy(() -> routing.applyLevel(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("SVR2");
+    }
+
+    @Test
+    @DisplayName("다른 인스턴스의 레벨 변경은 피어 URL로 위임한다")
+    void applyLevel_피어위임_성공() {
+        WasLogDto.LevelOverride expected =
+                new WasLogDto.LevelOverride(
+                        "com.kdb.it", "DEBUG", "INFO", LocalDateTime.of(2026, 8, 20, 11, 0));
+        RecordingPeerClient peer = new RecordingPeerClient(null, expected);
+        WasLogProperties properties =
+                new WasLogProperties(10, Map.of("SVR2", "http://svr2:28080"), "s", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", peer, null, null);
+
+        WasLogDto.LevelOverride actual =
+                routing.applyLevel(new WasLogDto.LevelRequest("SVR2", "com.kdb.it", "DEBUG", 30));
+
+        assertThat(actual).isEqualTo(expected);
+        assertThat(peer.levelBaseUrl).isEqualTo("http://svr2:28080");
+    }
+
+    @Test
+    @DisplayName("설정에 자기 자신이 없으면 목록에 스스로를 더하고 ID로 정렬한다")
+    void instances_자기자신보강과정렬() {
+        WasLogProperties properties =
+                new WasLogProperties(
+                        10, Map.of("SVR3", "http://svr3:28080", "SVR2", ""), "s", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", null, null, null);
+
+        List<WasLogDto.InstanceInfo> instances = routing.instances();
+
+        assertThat(instances)
+                .extracting(WasLogDto.InstanceInfo::id)
+                .containsExactly("SVR1", "SVR2", "SVR3");
+        assertThat(instances.get(0).self()).isTrue();
+        // 피어 URL이 비어 있으면 도달 불가로 표시한다.
+        assertThat(instances.get(1).reachable()).isFalse();
+        assertThat(instances.get(2).reachable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("자기 자신은 피어 URL이 없어도 항상 도달 가능으로 본다")
+    void instances_자기자신은항상도달가능() {
+        WasLogProperties properties = new WasLogProperties(10, Map.of("SVR1", ""), "", 1000, 3000);
+        WasLogService routing = new WasLogService(properties, "SVR1", null, null, null);
+
+        List<WasLogDto.InstanceInfo> instances = routing.instances();
+
+        assertThat(instances).hasSize(1);
+        assertThat(instances.getFirst().reachable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("로거·메시지가 없는 항목도 필터에서 예외 없이 걸러진다")
+    void 필터_null로거와메시지() {
+        WasLogBuffer.shared().resize(10);
+        WasLogBuffer.shared().add(9L, "INFO", "main", null, null, null);
+        long only = WasLogBuffer.shared().snapshot().oldestSeq();
+
+        // 로거 접두사 필터 — 로거가 null이면 통과하지 않는다.
+        assertThat(
+                        service.localSnapshot(
+                                        new WasLogDto.Query(
+                                                only - 1, 200, Set.of(), "com.kdb", null))
+                                .entries())
+                .isEmpty();
+        // 키워드 필터 — 메시지·로거가 모두 null이면 어떤 키워드에도 걸리지 않는다.
+        assertThat(
+                        service.localSnapshot(
+                                        new WasLogDto.Query(only - 1, 200, Set.of(), null, "실패"))
+                                .entries())
+                .isEmpty();
+        // 필터가 없으면 그대로 나온다.
+        assertThat(
+                        service.localSnapshot(
+                                        new WasLogDto.Query(only - 1, 200, Set.of(), "  ", "  "))
+                                .entries())
+                .hasSize(1);
+    }
 }

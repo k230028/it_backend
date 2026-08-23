@@ -70,8 +70,8 @@ public class TranslationAdminController {
     /**
      * 저장할 번역 항목 목록입니다.
      *
-     * <p>목록 자체는 필수이며, 빈 목록은 변경 없음으로 처리합니다. 항목의 {@code text}가 비어 있으면 해당 번역을 논리 삭제하므로 요소 단위
-     * 공백 검증은 두지 않습니다.
+     * <p>목록 자체는 필수이며, 빈 목록은 변경 없음으로 처리합니다. 항목의 {@code text}가 비어 있으면 해당 번역을 논리 삭제하므로 요소 단위 공백 검증은 두지
+     * 않습니다.
      */
     public record UpdateRequest(@NotNull List<TranslationDto.Value> translations) {}
 }

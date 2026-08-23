@@ -241,15 +241,11 @@ class FileUploadUnitServiceTest {
     @DisplayName("uploadFileInNewTransaction: pkColNm에 상위 이동이 섞이면 저장 없이 거부한다")
     void uploadFileInNewTransaction_상위이동_pkColNm이면_거부() {
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder()
-                        .pkColNm("../../etc")
-                        .flTpCone("첨부파일")
-                        .build();
+                FileDto.UploadRequest.builder().pkColNm("../../etc").flTpCone("첨부파일").build();
         MockMultipartFile file =
                 new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
 
-        assertThatThrownBy(
-                        () -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
+        assertThatThrownBy(() -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
                 .isInstanceOf(CustomGeneralException.class)
                 .hasMessageContaining("허용되지 않는 파일 종류");
         // 값 자체를 응답에 되돌려주지 않는다.
@@ -281,8 +277,7 @@ class FileUploadUnitServiceTest {
         MockMultipartFile file =
                 new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
 
-        assertThatThrownBy(
-                        () -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
+        assertThatThrownBy(() -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
                 .isInstanceOf(CustomGeneralException.class)
                 .hasMessageContaining("허용되지 않는 파일 종류");
     }

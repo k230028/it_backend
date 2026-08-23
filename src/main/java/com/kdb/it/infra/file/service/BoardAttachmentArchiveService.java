@@ -27,7 +27,17 @@ public class BoardAttachmentArchiveService {
 
     private final FileService fileService;
 
-    /** 게시물 전체 또는 선택 첨부파일을 호출자가 소유한 출력 스트림에 ZIP으로 씁니다. */
+    /**
+     * 게시물 전체 또는 선택 첨부파일을 호출자가 소유한 출력 스트림에 ZIP으로 씁니다.
+     *
+     * <p>파일 목록은 공통 파일 읽기 권한 경계를 통과한 결과만 사용하며, 호출자가 소유한 출력 스트림은 닫지 않습니다.
+     *
+     * @param nacMngNo 게시물 관리번호
+     * @param fileIds 선택 파일 ID. 비어 있으면 접근 가능한 전체 첨부
+     * @param userDetails 인증 사용자
+     * @param output ZIP을 받을 호출자 소유 출력 스트림
+     * @throws CustomGeneralException 요청이 잘못됐거나 선택 파일이 접근 가능한 결과에 없거나 ZIP 생성에 실패한 경우
+     */
     public void writeArchive(
             String nacMngNo,
             List<String> fileIds,

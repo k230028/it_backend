@@ -57,8 +57,8 @@ public class WasLogController {
     /**
      * 애플리케이션명. 다운로드 본문이 파일 로그와 같은 자리에 {@code [이름] }을 넣는 데 쓴다.
      *
-     * <p>{@code FILE_LOG_PATTERN}의 {@code %esb(){APPLICATION_NAME}}에 대응한다 — 이름이 비어 있으면
-     * 그 자리를 통째로 비우는 것까지 같다.
+     * <p>{@code FILE_LOG_PATTERN}의 {@code %esb(){APPLICATION_NAME}}에 대응한다 — 이름이 비어 있으면 그 자리를 통째로
+     * 비우는 것까지 같다.
      */
     @Value("${spring.application.name:}")
     private String applicationName;
@@ -116,8 +116,8 @@ public class WasLogController {
     /**
      * 현재 필터가 적용된 버퍼 내용을 텍스트 파일로 내려받는다.
      *
-     * <p>본문 형식은 파일 로그와 같은 도구로 열 수 있도록 {@code yyyy-MM-dd HH:mm:ss.SSS LEVEL [thread] logger -
-     * message} 형태로 맞춘다.
+     * <p>본문 형식은 파일 로그와 같은 도구로 열 수 있도록 파일 로그 패턴에 맞춘다. 자리·구분자와 PID 자리에 인스턴스ID를 넣는 이유는 {@link
+     * #streamOf} 참고.
      */
     @GetMapping("/download")
     @Operation(summary = "WAS 로그 다운로드", description = "현재 필터 범위를 text/plain 첨부로 반환합니다.")
@@ -167,8 +167,8 @@ public class WasLogController {
     /**
      * 로거명을 {@code %-40.40logger{39}}와 같은 규칙으로 줄인다.
      *
-     * <p>logback이 파일 로그에 쓰는 축약기를 그대로 쓴다 — 직접 구현하면 앞 패키지를 한 글자로 줄이는
-     * 규칙이 미묘하게 어긋나 같은 로거가 두 파일에서 다르게 보인다.
+     * <p>logback이 파일 로그에 쓰는 축약기를 그대로 쓴다 — 직접 구현하면 앞 패키지를 한 글자로 줄이는 규칙이 미묘하게 어긋나 같은 로거가 두 파일에서 다르게
+     * 보인다.
      */
     private static final TargetLengthBasedClassNameAbbreviator LOGGER_ABBREVIATOR =
             new TargetLengthBasedClassNameAbbreviator(39);
@@ -180,18 +180,16 @@ public class WasLogController {
     /**
      * 스냅샷을 응답 스트림에 항목 단위로 내보낸다.
      *
-     * <p><b>형식</b>은 파일 로그({@code FILE_LOG_PATTERN})와 같은 자리·같은 구분자를 쓴다. 기존 로그
-     * 파일과 같은 도구로 열 수 있게 하라는 설계 §5.6의 요구다. 다만 <b>PID 자리에는 PID 대신
-     * 인스턴스ID</b>가 들어간다(FE-55).
+     * <p><b>형식</b>은 파일 로그({@code FILE_LOG_PATTERN})와 같은 자리·같은 구분자를 쓴다. 기존 로그 파일과 같은 도구로 열 수 있게 하라는
+     * 설계 §5.6의 요구다. 다만 <b>PID 자리에는 PID 대신 인스턴스ID</b>가 들어간다(FE-55).
      *
-     * <p>PID를 쓸 수 없는 이유: 다운로드는 피어 인스턴스의 링버퍼를 위임 조회한 결과를 담을 수 있는데
-     * {@link WasLogEntry}에는 그 피어의 PID가 없다. 이 서버의 PID를 적으면 남의 로그에 이 인스턴스의
-     * PID를 붙이는 셈이라 파서를 속인다. 다중 인스턴스 운영에서는 어느 서버의 로그인지가 PID보다
+     * <p>PID를 쓸 수 없는 이유: 다운로드는 피어 인스턴스의 링버퍼를 위임 조회한 결과를 담을 수 있는데 {@link WasLogEntry}에는 그 피어의 PID가
+     * 없다. 이 서버의 PID를 적으면 남의 로그에 이 인스턴스의 PID를 붙이는 셈이라 파서를 속인다. 다중 인스턴스 운영에서는 어느 서버의 로그인지가 PID보다
      * 유용하므로 인스턴스ID를 넣고, 그 사실을 파일 첫 줄에 주석으로 밝힌다.
      *
      * <p>{@code StringBuilder} → {@code String} → UTF-8 {@code byte[]}로 만들면 버퍼 상한(2000건 × 12KB ≈
-     * 24MB)만 한 사본이 요청마다 세 벌 생긴다. ERROR 폭주 중 관리자 둘이 동시에 내려받으면 이미 불안정한 WAS에서 실제 GC 이벤트가 된다. 항목을
-     * 만드는 즉시 흘려보내면 추가 상주 메모리가 한 줄 크기로 고정된다(BE-61).
+     * 24MB)만 한 사본이 요청마다 세 벌 생긴다. ERROR 폭주 중 관리자 둘이 동시에 내려받으면 이미 불안정한 WAS에서 실제 GC 이벤트가 된다. 항목을 만드는
+     * 즉시 흘려보내면 추가 상주 메모리가 한 줄 크기로 고정된다(BE-61).
      *
      * @param snapshot 내보낼 스냅샷
      * @param instanceId PID 자리에 넣을 인스턴스ID

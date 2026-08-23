@@ -79,12 +79,12 @@ public class NotificationOutboxService {
     /**
      * 문자열을 컬럼의 <b>바이트</b> 예산 안으로 자릅니다.
      *
-     * <p>대상 컬럼은 모두 BYTE 시맨틱({@code VARCHAR2(n)})이고 DB 문자셋은 {@code AL32UTF8}이라 한글 1자가 3바이트를
-     * 차지합니다. 글자 수로 자르면 예산을 최대 3배까지 넘겨 INSERT가 {@code ORA-12899}로 실패하는데, 실패는 {@code
+     * <p>대상 컬럼은 모두 BYTE 시맨틱({@code VARCHAR2(n)})이고 DB 문자셋은 {@code AL32UTF8}이라 한글 1자가 3바이트를 차지합니다.
+     * 글자 수로 자르면 예산을 최대 3배까지 넘겨 INSERT가 {@code ORA-12899}로 실패하는데, 실패는 {@code
      * NotificationEventListener}가 삼키므로 알림 행이 조용히 사라집니다.
      *
-     * <p>{@link CharsetEncoder}가 출력 버퍼가 찰 때 문자 경계에서 멈추는 성질을 이용해 멀티바이트 문자를 중간에서 끊지 않습니다. 서로게이트
-     * 쌍(이모지 등)도 안전합니다. EAI 전문 필드에서 같은 문제를 푼 {@code EaiTextFitter}와 같은 방식입니다.
+     * <p>{@link CharsetEncoder}가 출력 버퍼가 찰 때 문자 경계에서 멈추는 성질을 이용해 멀티바이트 문자를 중간에서 끊지 않습니다. 서로게이트 쌍(이모지
+     * 등)도 안전합니다. EAI 전문 필드에서 같은 문제를 푼 {@code EaiTextFitter}와 같은 방식입니다.
      *
      * @param value 원본 문자열. {@code null}이면 그대로 {@code null}
      * @param maxBytes 컬럼 바이트 예산

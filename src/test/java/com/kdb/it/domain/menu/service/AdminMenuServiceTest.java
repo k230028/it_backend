@@ -970,7 +970,8 @@ class AdminMenuServiceTest {
                         .guidPrgSno(3)
                         .delYn("N")
                         .build();
-        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001023", "N")).willReturn(Optional.of(menu));
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001023", "N"))
+                .willReturn(Optional.of(menu));
         given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001023", "N"))
                 .willReturn(Optional.of(existingRoute));
         given(cmenuaRepository.findByMnuId("MNU0001023")).willReturn(List.of());
@@ -1003,7 +1004,8 @@ class AdminMenuServiceTest {
         menu.setMnuTpC("PGE");
         menu.setSrePth("/preparing/mnu0001023");
         Cmenud existingRoute = route("/preparing/mnu0001023", "N");
-        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001023", "N")).willReturn(Optional.of(menu));
+        given(cmenumRepository.findByMnuIdAndDelYn("MNU0001023", "N"))
+                .willReturn(Optional.of(menu));
         given(cmenudRepository.findBySrePthAndDelYn("/preparing/mnu0001023", "N"))
                 .willReturn(Optional.of(existingRoute));
         MenuDto.UpsertRequest req =

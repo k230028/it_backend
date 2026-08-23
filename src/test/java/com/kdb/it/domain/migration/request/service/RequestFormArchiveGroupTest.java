@@ -1,7 +1,9 @@
 package com.kdb.it.domain.migration.request.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
+import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -43,5 +45,24 @@ class RequestFormArchiveGroupTest {
     void returnsEmptyWithoutFolder() {
         assertThat(RequestFormArchiveGroup.keyOf("요청서.xlsx")).isEmpty();
         assertThat(RequestFormArchiveGroup.keyOf(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("생성자는 경로 유틸리티 인스턴스 생성을 차단한다")
+    void constructor_인스턴스화시_예외발생() throws Exception {
+        var constructor = RequestFormArchiveGroup.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        assertThat(catchThrowable(constructor::newInstance))
+                .isInstanceOf(InvocationTargetException.class)
+                .hasCauseInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("빈 문자열과 구분자만 있는 경로는 보관 그룹을 만들지 않는다")
+    void returnsEmptyForBlankAndSeparatorOnly() {
+        assertThat(RequestFormArchiveGroup.keyOf("")).isEmpty();
+        assertThat(RequestFormArchiveGroup.keyOf("   ")).isEmpty();
+        assertThat(RequestFormArchiveGroup.keyOf("///")).isEmpty();
     }
 }

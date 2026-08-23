@@ -93,8 +93,7 @@ public class MenuDto {
         private String imkNm;
 
         @Schema(
-                description =
-                        "준비중 여부 Y/N. Y면 서버가 준비중 경로를 만들어 카탈로그에 등록하며 srePth는 무시한다",
+                description = "준비중 여부 Y/N. Y면 서버가 준비중 경로를 만들어 카탈로그에 등록하며 srePth는 무시한다",
                 allowableValues = {"Y", "N"})
         private String preparingYn;
 

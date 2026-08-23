@@ -72,8 +72,8 @@ Gradle Wrapper는 9.2.1을 사용합니다. 일반 의존성은 `C:\maven-repo` 
 it_backend/
 ├── src/main/java/com/kdb/it/
 │   ├── config/       Security, JPA, QueryDSL, Swagger 설정
-│   ├── common/       인증, SSO, IAM, 결재, 게시판, 코드, 알림, 관리자 공통 기능
-│   ├── domain/       예산, 사업계획, 협의회, 사업 집행, 메뉴, 이관(편성요청서 반입), 감사 도메인
+│   ├── common/       인증, SSO, IAM, MFA, 결재, 게시판, 코드, 다국어, 알림, 관리자 공통 기능
+│   ├── domain/       예산, 사업계획, 협의회, 사업 집행, 메뉴, 배너, 이관(편성요청서 반입), 감사 도메인
 │   ├── exception/    전역 예외 처리
 │   └── infra/        파일, AI, EAI 외부 연동
 ├── src/main/resources/
@@ -107,13 +107,16 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `common.system`, `common.iam`                                                 | JWT 인증, Refresh Token, 로그인 이력, 사용자·조직·권한 | 전체 API의 인증 주체와 부서 범위를 제공                              |
 | `common.sso`                                                                  | ESSO 연동, SSO 상태 보관, 인증 완료 복귀                | 검증한 외부 인증 결과를 `common.system`의 JWT 발급 흐름으로 전달     |
 | `common.approval`                                                             | 신청서, 결재선, 승인·반려·회수                         | 사업·협의회 상태 동기화와 알림 이벤트 발행                           |
-| `common.board`, `common.code`, `common.admin`                                 | 공통 게시판·코드와 관리자 운영 API                     | 파일·메뉴·사용자·감사로그 등 공통 관리 기능을 조합                   |
+| `common.board`, `common.code`, `common.admin`                                 | 공통 게시판·코드와 관리자 운영 API. `common.admin.realtime`은 감사·실시간 로그, `common.admin.waslog`는 인메모리 링버퍼 기반 WAS 로그 조회·런타임 레벨 변경 | 파일·메뉴·사용자·감사로그 등 공통 관리 기능을 조합                   |
+| `common.mfa`                                                                  | 추가 인증 거래 발급·검증·소비와 공유 저장소            | 수동 로그인과 전자결재 명령의 증표를 `common.system`·`common.approval`에 제공 |
+| `common.i18n`                                                                 | 메뉴명·공통코드 표시명 번역과 변경 이력                | 메뉴·코드 조회 응답의 표시명을 언어별로 제공                         |
 | `common.notification`                                                         | 인앱 알림 저장, 소유권 검증, 채널 라우팅               | 결재·게시판 이벤트와 `infra.eai` 연결                                |
 | `domain.budget`                                                               | 정보화사업, 비용, 계획, 문서 검토, 예산 현황·작업      | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
 | `domain.bizplan`                                                              | 정보기술부문 계획에 포함된 사업의 사업계획             | `budget.plan`, `budget.project`의 계획 관계·사업·품목·단계 상태 사용 |
 | `domain.council`                                                              | 정보화실무협의회 일정·평가·질의·결과                   | 결재 완료 이벤트를 같은 트랜잭션에서 상태에 반영                     |
 | `domain.estimate`, `domain.deliberation`, `domain.contract`, `domain.payment` | 사업 집행의 소요예산·심의·계약·지급 단계               | 정보화사업을 기준으로 단계별 문서와 상태를 관리                      |
 | `domain.menu`                                                                 | 사용자 메뉴 조회와 관리자 메뉴·라우트 관리             | 인증 주체의 권한에 맞는 프론트 메뉴 구성을 제공                      |
+| `domain.banner`                                                               | `/info` 홈 배너 등록·노출·활성 전환                    | 전용 테이블 없이 `infra.file`의 공통첨부파일을 규약(`PK_COL_NM='배너'`)으로 재사용 |
 | `domain.log`                                                                  | 업무 엔티티 변경 스냅샷                                | `@LogTarget`이 지정된 엔티티의 생성·수정·논리삭제를 기록             |
 | `domain.migration`                                                            | 수기 엑셀(편성요청서) 반입 — 검증·진단, 원장 생성, 결재완료 표식, 원본 파일 보관 | `budget`의 원장(`BPROJM`·`BCOSTM`), `common.approval` 신청서, `infra.file` 첨부에 연결 |
 | `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동             | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |
@@ -165,7 +168,9 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `SSO_HOST_BASE_URL`     | 백엔드가 접근하는 ESSO 기준 URL                                     |
 | `SSO_AGENT_ID`          | ESSO가 발급한 업무 시스템 식별 번호                                 |
 | `FILE_BASE_PATH`        | 첨부파일 저장 경로                                                   |
-| `SERVER_INSTANCE_ID`    | 멀티 서버 파일명 충돌 방지용 인스턴스 ID                            |
+| `SERVER_INSTANCE_ID`    | 인스턴스 ID. 멀티 서버 파일명 충돌 방지와 WAS 로그 인스턴스 식별에 함께 사용하므로 서버마다 서로 달라야 합니다 |
+| `WAS_LOG_INTERNAL_SECRET` | WAS 로그 피어 내부 API(`/internal/was-logs/**`) 공유 비밀값. 비어 있으면 내부 컨트롤러 자체가 등록되지 않습니다 |
+| `WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2` | 인스턴스별 내부 호출 base URL. 지정하지 않으면 해당 인스턴스를 조회 대상에서 뺍니다 |
 | `GEMINI_API_KEY`        | Gemini API 키. `prod`에서는 기동 시 필수 검증                        |
 | `EAI_ENABLED`           | EAI 전송 활성화 여부. 공통 기본값 `false`, `prod` 기본값 `true`     |
 | `EAI_URL`               | EAI 전송 URL. `prod`에서 EAI가 활성화되면 기동 시 필수 검증         |
@@ -212,7 +217,26 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 - **지정맥 고정키** — `MFA_FINGER_VEIN_FIXED_KEY` 환경변수로 주입합니다. 비밀값이라 프로파일 파일에 기본값을 두지 않으며, 모의 공급자를 끈 프로파일에서 값이 비어 있으면 `MfaConfig`가 기동을 실패시킵니다.
 - **년월일 기준** — 해시의 년월일은 서버 시계(`Clock` 빈)를 씁니다. 자정 경계에 에이전트와 서버의 날짜가 갈리면 검증이 실패할 수 있습니다.
 - **FIDO 재조회** — 사용자가 휴대폰에서 승인할 때까지 화면이 결과를 반복 조회합니다. `trResultConfirm`이 `resultCode=100000`이면서 `trStatus != 1`인 응답은 미결정(UNDECIDED)으로 보아 실패 횟수에 집계하지 않습니다. 연동 규격에 사용자 거부를 뜻하는 `trStatus` 값이 없어 거부와 대기를 구분하지 못하며, 거부한 거래도 만료 시각까지 미결정으로 남습니다.
-- **다중 인스턴스 미지원** — MFA 거래는 애플리케이션 메모리에만 있으므로 서버를 재시작하면 진행 중 거래가 모두 폐기되고 사용자는 MFA를 다시 수행합니다.
+- **다중 인스턴스와 재시작** — 기본값 `app.mfa.store=jpa`에서 MFA 거래와 로그인대기 거래는 Oracle 공유 테이블에 있으므로 인스턴스가 여러 대여도, 인스턴스 하나가 재시작해도 진행 중 거래가 유지됩니다. 상태 전이는 전부 조건부 UPDATE의 영향 행 수로 판정하므로 두 인스턴스가 같은 거래를 동시에 다뤄도 증표가 두 번 소비되지 않습니다. `app.mfa.store=memory`로 바꾼 경우에만 거래가 인스턴스 메모리에 남아 재시작 시 폐기되고 사용자가 MFA를 다시 수행합니다.
+
+### 실시간 WAS 로그 (`/admin/was-logs`)
+
+관리자가 서버 재기동이나 파일 접근 없이 애플리케이션 로그를 보고 로그 레벨을 임시로 올릴 수 있는 기능입니다. 설정은 `app.was-log.*`로 묶여 있습니다.
+
+| 속성                         | 기본값  | 설명                                                                                              |
+| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `app.was-log.buffer-capacity` | `2000`  | 인메모리 링버퍼 용량(줄). `logback-spring.xml`이 `<springProperty>`로 같은 값을 읽어 appender에 주입하므로 이 프로퍼티가 단일 출처입니다 |
+| `app.was-log.peers.{인스턴스ID}` | 비어 있음 | 인스턴스ID → 내부 호출 base URL. `WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2`로 주입합니다              |
+| `app.was-log.internal-secret` | 비어 있음 | 피어 내부 API 공유 비밀값                                                                          |
+| `app.was-log.connect-timeout-ms`·`read-timeout-ms` | `1000`·`3000` | 피어 호출 타임아웃(ms)                                                          |
+| `app.was-log.restore-scan-ms` | `30000` | 만료된 로그레벨 오버라이드를 되돌리는 스캔 주기(ms)                                                 |
+
+설계상 알아 둘 점:
+
+- **저장은 프로세스 메모리뿐입니다.** `RingBufferAppender`가 링버퍼에 적재하므로 재기동 이전 로그는 조회할 수 없고, 용량을 넘으면 오래된 줄부터 버립니다. 버려진 줄이 있으면 응답이 `dropped`로 알려 화면이 배너로 표면화합니다. 장기 보관이 필요한 로그는 기존 파일 appender가 계속 담당합니다.
+- **다중 인스턴스는 피어 팜아웃으로 처리합니다.** 자기 인스턴스가 아닌 대상을 조회하면 `/internal/was-logs/**`로 위임합니다. 이 경로는 `SecurityConfig`에서 `permitAll`이고 공유 비밀 헤더 `X-Internal-Token`이 유일한 관문이므로, 비밀값이 비면 컨트롤러 빈 자체를 등록하지 않아 인증 없는 로그 엔드포인트가 열리는 경로를 구조적으로 없앱니다. 운영 배포 시 방화벽에서 이 경로를 사내 서버 대역으로 제한하고 피어 URL은 HTTPS를 사용합니다.
+- **로그레벨 변경은 항상 TTL을 가집니다.** Actuator 엔드포인트를 열지 않고 `LoggingSystem` 빈만 사용하며, 최대 120분·동시 50건 상한과 `com.kdb.it`·`org.springframework`·`org.hibernate` 접두사 화이트리스트를 적용합니다. 루트 로거 전체 변경은 허용하지 않습니다. 만료되면 스케줄러가 직전 레벨로 되돌리고 재기동 시에는 설정 파일 레벨로 자연 복원됩니다.
+- **조회·레벨변경·다운로드는 모두 관리자 감사 로그를 남깁니다.** 로그 본문을 마스킹하지 않는 대신 누가 언제 무엇을 봤는지 남기는 것이 보상 통제이며, 내부 API는 공유 비밀 불일치로 거부한 시도도 원격 주소와 함께 기록합니다.
 
 ### 내부망 IP로 접속할 때 (CORS)
 

@@ -8,16 +8,15 @@ import org.junit.jupiter.api.Test;
 /**
  * 링버퍼 마스킹 대상 계약 (BE-55).
  *
- * <p>대상은 <b>토큰류와 주민등록번호 둘뿐</b>이다. 과하게 가리면 장애 조사가 불가능해지므로 범위를 넓히는 변경은 이 테스트를 먼저 고쳐야 한다.
- * 특히 <b>사번이 살아남는지</b>를 지키는 음성 케이스가 이 파일의 핵심이다 — 어느 사용자의 요청에서 난 오류인지가 추적의 출발점이다.
+ * <p>대상은 <b>토큰류와 주민등록번호 둘뿐</b>이다. 과하게 가리면 장애 조사가 불가능해지므로 범위를 넓히는 변경은 이 테스트를 먼저 고쳐야 한다. 특히 <b>사번이
+ * 살아남는지</b>를 지키는 음성 케이스가 이 파일의 핵심이다 — 어느 사용자의 요청에서 난 오류인지가 추적의 출발점이다.
  */
 class WasLogMaskerTest {
 
     @Test
     @DisplayName("JWT를 가린다")
     void masksJwt() {
-        String jwt =
-                "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJFMTAwMDEiLCJpYXQiOjE3MDB9.s1gnatureV4lue_abc";
+        String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJFMTAwMDEiLCJpYXQiOjE3MDB9.s1gnatureV4lue_abc";
 
         String masked = WasLogMasker.mask("토큰 검증 실패: " + jwt);
 

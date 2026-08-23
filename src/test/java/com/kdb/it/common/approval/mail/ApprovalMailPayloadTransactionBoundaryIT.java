@@ -31,15 +31,14 @@ import org.springframework.transaction.support.TransactionTemplate;
  * ApprovalMailPayloadProviderTest})은 목 기반이라 트랜잭션 매니저가 아예 없고, 따라서 다음 회귀를 <b>초록으로 통과시킨다</b>.
  *
  * <ul>
- *   <li>로더에서 {@code REQUIRES_NEW}를 떼어 상신 트랜잭션에 참여시키는 변경 — 조회 예외가 바깥 트랜잭션을 rollback-only로
- *       표시하는데 프로바이더의 catch가 그 사실을 가려, 상신은 커밋 시점에 {@code UnexpectedRollbackException}으로 뒤늦게
- *       터진다.
- *   <li>프로바이더에 {@code @Transactional}을 다시 붙이는 변경 — 실제로 2026-08-18 구현 중 catch가 경계 안에 있어 한 번
- *       새어나간 전례가 있다.
+ *   <li>로더에서 {@code REQUIRES_NEW}를 떼어 상신 트랜잭션에 참여시키는 변경 — 조회 예외가 바깥 트랜잭션을 rollback-only로 표시하는데
+ *       프로바이더의 catch가 그 사실을 가려, 상신은 커밋 시점에 {@code UnexpectedRollbackException}으로 뒤늦게 터진다.
+ *   <li>프로바이더에 {@code @Transactional}을 다시 붙이는 변경 — 실제로 2026-08-18 구현 중 catch가 경계 안에 있어 한 번 새어나간 전례가
+ *       있다.
  * </ul>
  *
- * <p>여기서는 상신 트랜잭션을 {@link TransactionTemplate}(기본 {@code REQUIRED})로 재현하고, 그 안에서 {@code render()}를 부른
- * 뒤 <b>바깥 트랜잭션이 rollback-only로 표시되지 않았는지</b>와 <b>커밋이 실제로 성립하는지</b>를 본다. 신청서 마스터는 렌더링 입력으로만 쓰이므로
+ * <p>여기서는 상신 트랜잭션을 {@link TransactionTemplate}(기본 {@code REQUIRED})로 재현하고, 그 안에서 {@code render()}를
+ * 부른 뒤 <b>바깥 트랜잭션이 rollback-only로 표시되지 않았는지</b>와 <b>커밋이 실제로 성립하는지</b>를 본다. 신청서 마스터는 렌더링 입력으로만 쓰이므로
  * 영속화하지 않는다 — 이 테스트가 검증하는 것은 저장 내용이 아니라 트랜잭션 경계다.
  */
 @Tag("it")

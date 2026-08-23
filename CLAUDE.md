@@ -45,6 +45,7 @@
 - 부서·작성자·소유권 필터는 [데이터 접근 범위](docs/guides/security/data-scope.md)를 따릅니다.
 - 파일 업로드·다운로드·부모키 검증은 [파일 보안](docs/guides/security/file-security.md)을 따르며 경로 문자열만으로 권한을 판단하지 않습니다.
 - 수동 로그인과 사용자 전자결재 상태 변경은 사용자·용도에 귀속된 1회용 MFA 증표를 요구합니다. 조회·임시저장·SSO·개발 사용자 전환·외부 결재 콜백에는 적용하지 않습니다.
+- MFA 거래 상태를 서비스나 공급자의 인스턴스 로컬 필드에 두지 않습니다. 저장과 상태 전이는 `MfaTransactionStore`·`LoginPendingTransactionStore` 구현에만 맡기고, 전이는 조건부 UPDATE의 영향 행 수로 판정해 다중 인스턴스에서도 증표가 한 번만 소비되게 합니다.
 - 운영 프로파일은 비밀값·Origin·프론트 URL을 fail-fast로 검사하고 모의 SSO, 직접 사번, 개발 사용자 전환, Bearer 폴백, 비보안 쿠키를 허용하지 않습니다.
 - 전체 계약은 [인증과 인가](docs/guides/security/authentication-authorization.md)를 SoT로 사용합니다.
 
@@ -61,11 +62,15 @@
 - 정보화사업 집행 계약은 [사업 집행 가이드](docs/guides/domains/project-execution.md)를 따릅니다.
 - Tiptap 변수 카탈로그와 해석 계약은 [Tiptap 변수](docs/guides/domains/tiptap-variables.md)를 따릅니다.
 - 메뉴명과 공통코드 표시명은 DB 번역 데이터가 SoT입니다. 분기와 저장에는 번역명이 아니라 코드값을 사용합니다.
+- 준비중 메뉴는 화면 경로를 사람이 입력받지 않고 `/preparing/{mnuId 소문자}`로 채번해 라우트 카탈로그에 함께 등록합니다. 준비중을 해제하거나 메뉴를 삭제할 때 회수하는 대상은 이 규칙으로 자동 생성한 경로뿐이며, 사람이 직접 등록한 준비중 경로는 다른 메뉴가 참조할 수 있으므로 회수하지 않습니다.
 
 ## 8. 주석·로그·테스트
 
 - 신규 주석은 한글로 작성하고 [주석 스타일](docs/guides/conventions/comment-style.md)을 따릅니다.
 - 애플리케이션 로그와 실시간 로그의 책임은 [로깅](docs/guides/operations/logging.md), [실시간 로그](docs/guides/operations/realtime-logs.md)를 따릅니다.
+- WAS 로그 링버퍼는 관리자 화면과 다운로드로 원문이 나가는 경로이므로 적재 전에 마스킹하고, 조회·레벨변경·다운로드는 예외 없이 관리자 감사 로그를 남깁니다. 클라이언트가 보낸 문자열을 로그에 남길 때는 개행·제어문자를 제거해 로그 줄 위조를 막습니다.
+- 런타임 로그레벨 변경은 Actuator 엔드포인트를 열지 않고 `LoggingSystem` 빈으로만 처리하며, 항상 TTL·동시 건수 상한·로거 접두사 화이트리스트를 함께 적용합니다. 루트 로거 전체 변경은 허용하지 않습니다.
+- 인스턴스 간 내부 전용 엔드포인트는 공유 비밀 헤더로만 인증하고, 비밀값이 비어 있으면 컨트롤러 빈 자체를 등록하지 않아 인증 없는 경로가 열리지 않게 합니다.
 - 순수 Service·유틸은 JUnit 단위 테스트, MVC·보안 계약은 MockMvc/통합 테스트, 영속성 변경은 Oracle 호환 검증을 추가합니다.
 - 의존성·보안·DB 변경은 관련 회귀 테스트와 문서 계약을 함께 갱신합니다.
 

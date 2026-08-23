@@ -23,8 +23,7 @@ class FileTargetWriteAuthorizerRegistryTest {
         FileTargetWriteAuthorizer authorizer = mock(FileTargetWriteAuthorizer.class);
         given(authorizer.supportedPkColNms()).willReturn(Set.of("검토의견"));
         given(authorizer.canWrite("101", user)).willReturn(false);
-        FileTargetWriteAuthorizerRegistry registry =
-                registryOf(List.of(authorizer));
+        FileTargetWriteAuthorizerRegistry registry = registryOf(List.of(authorizer));
 
         assertThatThrownBy(() -> registry.verifyTargetWriteAccess("검토의견", "101", user))
                 .isInstanceOf(AccessDeniedException.class)
@@ -37,8 +36,7 @@ class FileTargetWriteAuthorizerRegistryTest {
         FileTargetWriteAuthorizer authorizer = mock(FileTargetWriteAuthorizer.class);
         given(authorizer.supportedPkColNms()).willReturn(Set.of("공통게시판"));
         given(authorizer.canWrite("NAC-2026-0001", user)).willReturn(true);
-        FileTargetWriteAuthorizerRegistry registry =
-                registryOf(List.of(authorizer));
+        FileTargetWriteAuthorizerRegistry registry = registryOf(List.of(authorizer));
 
         assertThatCode(() -> registry.verifyTargetWriteAccess("공통게시판", "NAC-2026-0001", user))
                 .doesNotThrowAnyException();
@@ -59,8 +57,7 @@ class FileTargetWriteAuthorizerRegistryTest {
                         return true;
                     }
                 };
-        FileTargetWriteAuthorizerRegistry registry =
-                registryOf(List.of(legacyAuthorizer));
+        FileTargetWriteAuthorizerRegistry registry = registryOf(List.of(legacyAuthorizer));
 
         assertThatCode(() -> registry.verifyGenericMutationAllowed("공통게시판"))
                 .doesNotThrowAnyException();
@@ -69,8 +66,8 @@ class FileTargetWriteAuthorizerRegistryTest {
     /**
      * 판정기 목록으로 레지스트리를 만든다.
      *
-     * <p>아는 종류 목록은 판정기가 선언한 종류의 합집합이므로, 여기에 넘긴 판정기의 종류가 곧 아는 종류가 된다.
-     * 미등록 종류를 시험하는 테스트는 그 종류를 아는 것으로 만들기 위해 읽기 판정기를 따로 넘긴다.
+     * <p>아는 종류 목록은 판정기가 선언한 종류의 합집합이므로, 여기에 넘긴 판정기의 종류가 곧 아는 종류가 된다. 미등록 종류를 시험하는 테스트는 그 종류를 아는 것으로
+     * 만들기 위해 읽기 판정기를 따로 넘긴다.
      */
     private static FileTargetWriteAuthorizerRegistry registryOf(
             List<FileTargetWriteAuthorizer> authorizers) {
@@ -100,10 +97,7 @@ class FileTargetWriteAuthorizerRegistryTest {
     void unknownKindRejected() {
         FileTargetWriteAuthorizerRegistry registry = registryKnowing("요구사항정의서");
 
-        assertThatThrownBy(
-                        () ->
-                                registry.verifyTargetWriteAccess(
-                                        "내가만든종류", "ANY-1", user))
+        assertThatThrownBy(() -> registry.verifyTargetWriteAccess("내가만든종류", "ANY-1", user))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("알 수 없는 파일 종류");
     }

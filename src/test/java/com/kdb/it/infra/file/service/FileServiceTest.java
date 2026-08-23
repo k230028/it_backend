@@ -1180,10 +1180,7 @@ class FileServiceTest {
         verify(f3).delete();
     }
 
-    /**
-     * 쓰기 판정 레지스트리. 아는 종류 목록은 판정기가 선언한 종류의 합집합이므로(SEC-14),
-     * 여기 넘긴 두 판정기의 종류가 이 테스트에서 아는 종류가 된다.
-     */
+    /** 쓰기 판정 레지스트리. 아는 종류 목록은 판정기가 선언한 종류의 합집합이므로(SEC-14), 여기 넘긴 두 판정기의 종류가 이 테스트에서 아는 종류가 된다. */
     private static FileTargetWriteAuthorizerRegistry writeAuthorizerRegistry() {
         List<FileTargetWriteAuthorizer> authorizers =
                 List.of(

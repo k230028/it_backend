@@ -245,8 +245,16 @@ class ApiResponseOpenApiContractTest {
                 "endYmd",
                 "fstEnrUsNm",
                 "fstEnrBbrNm");
+        // 상세도 작성자 원장을 찾지 못하면 작성자명·소속부서명을 null로 채운다(Detail.from).
         assertAllPropertiesRequired(
-                BoardPostDto.Detail.class, "nacUnqId", "sttYmd", "endYmd", "bbrC", "hrkNacNo");
+                BoardPostDto.Detail.class,
+                "nacUnqId",
+                "sttYmd",
+                "endYmd",
+                "bbrC",
+                "hrkNacNo",
+                "fstEnrUsNm",
+                "fstEnrBbrNm");
         assertAllPropertiesRequired(BoardCommentDto.Response.class, "hrkCmmtMngNo");
         assertEnum(BoardMetaDto.Response.class, "repUseYn", "Y", "N");
         assertEnum(BoardMetaDto.Response.class, "cmmtUseYn", "Y", "N");
@@ -598,8 +606,7 @@ class ApiResponseOpenApiContractTest {
     /**
      * ProjectDto.Response는 필드 대부분이 requiredMode 미지정 상태라 {@link #assertAllPropertiesRequired}를 그대로 쓸
      * 수 없다(전체 필드가 required여야 한다는 전제와 충돌). Task 4에서 신규로 노출한 3개 파생 금액 필드(prjBgAmt, mplAmt, dfrAmt)와
-     * 사업 응답의 금액 계약만 좁혀서 검증한다. 사업계획(Bizplan)의 동명 필드 `totRqmAmt`는
-     * 총소요금액이라 이름이 옳으므로 개명 대상이 아니다(BE-36).
+     * 사업 응답의 금액 계약만 좁혀서 검증한다. 사업계획(Bizplan)의 동명 필드 `totRqmAmt`는 총소요금액이라 이름이 옳으므로 개명 대상이 아니다(BE-36).
      */
     @Test
     void projectResponseExposesAmountContracts() {

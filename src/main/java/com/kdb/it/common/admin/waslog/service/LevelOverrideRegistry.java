@@ -23,8 +23,8 @@ public class LevelOverrideRegistry {
      * 이 프로세스에서 한 번이라도 레벨을 바꾼 로거명. 만료돼도 줄지 않는다.
      *
      * <p>logback {@code LoggerContext}는 {@code setLogLevel}로 만들어진 {@code Logger}를 프로세스가 살아 있는 동안
-     * 보관하고 해제 경로를 주지 않는다. 따라서 "지금 적용 중인 개수"만 제한해서는 프로세스 수명 전체의 상한이 서지 않는다. 만료 후에도 남는 이 집합이
-     * 그 상한의 근거다(BE-62).
+     * 보관하고 해제 경로를 주지 않는다. 따라서 "지금 적용 중인 개수"만 제한해서는 프로세스 수명 전체의 상한이 서지 않는다. 만료 후에도 남는 이 집합이 그 상한의
+     * 근거다(BE-62).
      */
     private final Set<String> touchedLoggers = ConcurrentHashMap.newKeySet();
 

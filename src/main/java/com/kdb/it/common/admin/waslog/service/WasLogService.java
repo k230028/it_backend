@@ -16,12 +16,12 @@ import org.springframework.stereotype.Service;
 /**
  * WAS 로그 조회 서비스.
  *
- * <p>로컬 링버퍼를 필터링해 스냅샷을 만든다. 대상 인스턴스가 자신이 아니면 {@link WasLogPeerClient}로 위임한다(Task 4).
+ * <p>로컬 링버퍼를 필터링해 스냅샷을 만든다. 대상 인스턴스가 자신이 아니면 {@link WasLogPeerClient}로 위임한다.
  */
 @Service
 public class WasLogService {
 
-    /** 조회 상한. 기본값이자 최대값. */
+    /** 조회 상한의 기본값이자 폴링 경로에서 컨트롤러가 강제하는 최대값. 서비스 자체의 상한은 {@link #exportLimit()}다. */
     public static final int MAX_LIMIT = 200;
 
     /** 허용 레벨. */

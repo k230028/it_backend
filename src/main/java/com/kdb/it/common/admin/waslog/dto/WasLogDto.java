@@ -13,7 +13,8 @@ public final class WasLogDto {
      * 조회 조건.
      *
      * @param afterSeq 이 seq 초과분만 조회. 0이면 처음부터
-     * @param limit 조회 상한. 0 이하면 200, 200 초과면 200으로 보정
+     * @param limit 조회 상한. 0 이하면 {@code MAX_LIMIT}(200), 버퍼 용량을 넘으면 버퍼 용량으로 보정. 폴링 API는 컨트롤러가 다시
+     *     200으로 조인다
      * @param levels 허용 레벨 집합. 비어 있으면 필터 없음
      * @param logger 로거명 접두사. null/공백이면 필터 없음
      * @param keyword 메시지·로거 부분일치. null/공백이면 필터 없음
