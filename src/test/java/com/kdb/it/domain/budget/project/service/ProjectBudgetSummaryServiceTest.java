@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
@@ -20,6 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 /**
  * ProjectBudgetSummaryService 단위 테스트.
@@ -294,6 +298,69 @@ class ProjectBudgetSummaryServiceTest {
         assertThat(response.getMplAmt()).isEqualByComparingTo("500");
         assertThat(response.getDfrAmt()).isEqualByComparingTo("20");
         assertThat(response.getTyyBgAmt()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    @DisplayName("저장 스냅샷이 파생 합계와 다르면 사업키와 필드별 차이를 경고한다")
+    void applyStoredAmountSnapshot_warnsForEachDifferentFieldBeforeOverride() {
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("A01", "IOE_DVC")));
+        ProjectDto.Response response =
+                ProjectDto.Response.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .dfrAmt(BigDecimal.ZERO)
+                        .build();
+        service.applyBudgetSummary(response, List.of(item("A01", 90L, 400L)));
+        Logger logger = (Logger) LoggerFactory.getLogger(ProjectBudgetSummaryService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            service.applyStoredAmountSnapshot(
+                    response, new BigDecimal("620"), new BigDecimal("500"), new BigDecimal("20"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(appender.list)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .containsExactlyInAnyOrder(
+                        "정보화사업 금액 스냅샷 불일치: projectKey=PRJ-2026-0001, field=tyyBgAmt, derived=90.000, stored=100",
+                        "정보화사업 금액 스냅샷 불일치: projectKey=PRJ-2026-0001, field=prjBgAmt, derived=490.000, stored=620",
+                        "정보화사업 금액 스냅샷 불일치: projectKey=PRJ-2026-0001, field=mplAmt, derived=400.000, stored=500",
+                        "정보화사업 금액 스냅샷 불일치: projectKey=PRJ-2026-0001, field=dfrAmt, derived=0, stored=20");
+    }
+
+    @Test
+    @DisplayName("저장 스냅샷과 파생 합계가 수치상 같으면 경고하지 않는다")
+    void applyStoredAmountSnapshot_staysQuietWhenSnapshotMatchesDerivedAmounts() {
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("A01", "IOE_DVC")));
+        ProjectDto.Response response =
+                ProjectDto.Response.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .dfrAmt(new BigDecimal("20"))
+                        .build();
+        service.applyBudgetSummary(response, List.of(item("A01", 100L, 500L)));
+        Logger logger = (Logger) LoggerFactory.getLogger(ProjectBudgetSummaryService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            service.applyStoredAmountSnapshot(
+                    response,
+                    new BigDecimal("620.000"),
+                    new BigDecimal("500.00"),
+                    new BigDecimal("20.0"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(appender.list).isEmpty();
     }
 
     @Test
