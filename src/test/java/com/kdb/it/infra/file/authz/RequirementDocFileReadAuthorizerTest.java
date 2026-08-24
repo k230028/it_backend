@@ -23,7 +23,7 @@ class RequirementDocFileReadAuthorizerTest {
 
     private Cfilem file(String docMngNo) {
         Cfilem f = mock(Cfilem.class);
-        when(f.getPkCone()).thenReturn(docMngNo);
+        when(f.getApgFlLnkCtzNm()).thenReturn(docMngNo);
         return f;
     }
 
@@ -35,7 +35,7 @@ class RequirementDocFileReadAuthorizerTest {
     @Test
     @DisplayName("요구사항정의서 종류를 담당한다")
     void supports_requirementDoc() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("요구사항정의서");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("요구사항정의서");
     }
 
     @Test

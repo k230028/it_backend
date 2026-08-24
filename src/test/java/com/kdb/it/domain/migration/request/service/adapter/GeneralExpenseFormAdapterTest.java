@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.repository.CodeRepository;
@@ -284,6 +285,34 @@ class GeneralExpenseFormAdapterTest {
     }
 
     @Test
+    @DisplayName("국외 부점의 전산제비는 국외전산제비로 정하고 대안을 함께 준다")
+    void defaultsForeignGeneralExpenseToForeignItExpense() {
+        // 국외 부점은 전산제비를 세부로 나누지 않고 한 항목으로 편성한다.
+        // 같은 파일이 국내 부점(0210)이면 후보 4건으로 남아 차단되는 자리다
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseIoeBranchesXls(),
+                                AmountUnit.WON,
+                                Map.of(),
+                                "920"));
+
+        assertThat(output.costs().get(1).getIoeC()).isEqualTo("017");
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_AMBIGUOUS);
+        assertThat(output.diagnostics())
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.CODE_DEFAULTED)
+                .anySatisfy(
+                        d -> {
+                            assertThat(d.field()).isEqualTo("ioeC");
+                            assertThat(d.candidates())
+                                    .extracting(MigrationDto.Candidate::code)
+                                    .contains("013", "014", "015");
+                        });
+    }
+
+    @Test
     @DisplayName("계속·신규 표시를 사업구분코드로 바꾼다")
     void mapsContinuedAndNew() {
         FormAdapterOutput output =
@@ -512,10 +541,87 @@ class GeneralExpenseFormAdapterTest {
                 .singleElement()
                 .satisfies(
                         d ->
-                                // 국내 전산제비 3건(회선사용료·유지보수료·전산소모품비)이 후보로 남는다
+                                // 국내 전산제비 4건(회선사용료·유지보수료·전산소모품비·전산회의비)이 후보로 남는다
                                 assertThat(d.candidates())
                                         .extracting(MigrationDto.Candidate::code)
-                                        .containsExactly("010", "011", "012"));
+                                        .containsExactly("010", "011", "012", "016"));
+    }
+
+    @Test
+    @DisplayName("소계·계 집계 행과 통화 칸 좌우가 빈 행은 읽지 않는다")
+    void skipsSummaryRows() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseSummaryRowsXls(),
+                                AmountUnit.WON));
+
+        // 정상 행 2건만 남고 집계 행 3건은 원장에 들어가지 않는다
+        assertThat(output.costs())
+                .extracting(CostDto.CreateRequest::getCttNm)
+                .containsExactly("전용망 회선 이용료", "백업 회선 이용료");
+        // 집계 행이 통화·비목 미해석으로 파일을 차단하지 않는다
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(
+                        RequestFormDiagnosticCode.CODE_UNRESOLVED,
+                        RequestFormDiagnosticCode.CODE_AMBIGUOUS);
+        // 집계 행의 `소계`·`계`가 forward-fill로 아래 행에 물들지 않는다
+        assertThat(output.costs()).extracting(CostDto.CreateRequest::getIoeC).containsOnly("010");
+    }
+
+    @Test
+    @DisplayName("번호로 묶인 계약은 항목마다 전산업무비를 만든다")
+    void splitsEnumeratedContractsIntoSeparateCosts() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseEnumeratedRowXls(),
+                                AmountUnit.THOUSAND));
+
+        assertThat(output.costs()).hasSize(4);
+        assertThat(output.costs().subList(0, 3))
+                .extracting(
+                        CostDto.CreateRequest::getCttNm,
+                        CostDto.CreateRequest::getCttOppNm,
+                        CostDto.CreateRequest::getCostTotXpAmt,
+                        CostDto.CreateRequest::getAbusTc,
+                        CostDto.CreateRequest::getSectSysUtzYn)
+                .containsExactly(
+                        // ①만 신규, ②③은 계속 — 항목마다 계약구분이 다르다
+                        tuple("블룸버그 사용계약", "블룸버그코리아", new BigDecimal("44267000"), "10", "N"),
+                        tuple("레피니티브 사용계약", "레퍼니티브코리아", new BigDecimal("73723000"), "20", "N"),
+                        tuple("코스콤 사용계약", "코스콤", new BigDecimal("8065000"), "20", "N"));
+        // 번호가 없는 칸(통화·비목)은 세 항목이 함께 쓴다
+        assertThat(output.costs().subList(0, 3))
+                .allSatisfy(
+                        cost -> {
+                            assertThat(cost.getCurC()).isEqualTo("KRW");
+                            assertThat(cost.getIoeC()).isEqualTo("010");
+                        });
+        // 비고는 ②에만 적혀 있다 — 나머지에 퍼뜨리지 않는다
+        assertThat(output.costs().get(0).getIndRsn()).isNullOrEmpty();
+        assertThat(output.costs().get(1).getIndRsn()).isEqualTo("업체 요청 인상률 적용");
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(
+                        RequestFormDiagnosticCode.CODE_UNRESOLVED,
+                        RequestFormDiagnosticCode.REQUIRED_MISSING);
+    }
+
+    @Test
+    @DisplayName("금액 칸이 밝힌 단위가 시트 단위를 이긴다")
+    void prefersCellDeclaredUnitOverSheetUnit() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.generalExpenseEnumeratedRowXls(),
+                                AmountUnit.THOUSAND));
+
+        // 시트 단위(천원)를 그대로 곱하면 418억이 된다
+        CostDto.CreateRequest maintenance = output.costs().get(3);
+        assertThat(maintenance.getCttNm()).isEqualTo("협업툴 유지보수");
+        assertThat(maintenance.getCostTotXpAmt()).isEqualByComparingTo(new BigDecimal("41868816"));
     }
 
     @Test

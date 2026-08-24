@@ -174,7 +174,7 @@ class RequestFormSourceFileArchiverTest {
         then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
         then(fileService).should(never()).linkExistingFile(any(), any());
         assertThat(requestCaptor.getAllValues())
-                .extracting(FileDto.UploadRequest::getPkCone)
+                .extracting(FileDto.UploadRequest::getApgFlLnkCtzNm)
                 .containsExactlyInAnyOrder("APF-A", "APF-B");
     }
 
@@ -292,7 +292,7 @@ class RequestFormSourceFileArchiverTest {
         then(fileService).should(times(2)).uploadFile(any(), captor.capture());
         then(fileService).should(never()).linkExistingFile(any(), any());
         assertThat(captor.getAllValues())
-                .extracting(FileDto.UploadRequest::getPkCone)
+                .extracting(FileDto.UploadRequest::getApgFlLnkCtzNm)
                 .containsExactlyInAnyOrder("APF-1", "APF-2");
     }
 
@@ -328,7 +328,7 @@ class RequestFormSourceFileArchiverTest {
         then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
         then(fileService).should(never()).linkExistingFile(any(), any());
         assertThat(requestCaptor.getAllValues())
-                .extracting(FileDto.UploadRequest::getPkCone)
+                .extracting(FileDto.UploadRequest::getApgFlLnkCtzNm)
                 .containsExactlyInAnyOrder("APF-FIRST", "APF-SECOND");
     }
 
@@ -364,7 +364,7 @@ class RequestFormSourceFileArchiverTest {
         then(fileService).should(times(2)).uploadFile(any(), requestCaptor.capture());
         then(fileService).should(never()).linkExistingFile(any(), any());
         assertThat(requestCaptor.getAllValues())
-                .extracting(FileDto.UploadRequest::getPkCone)
+                .extracting(FileDto.UploadRequest::getApgFlLnkCtzNm)
                 .containsExactlyInAnyOrder("APF-D01", "APF-D02");
     }
 
@@ -453,7 +453,7 @@ class RequestFormSourceFileArchiverTest {
         ArgumentCaptor<FileDto.UploadRequest> captor =
                 ArgumentCaptor.forClass(FileDto.UploadRequest.class);
         then(fileService).should().uploadFile(any(), captor.capture());
-        assertThat(captor.getValue().getPkColNm()).isEqualTo("편성요청서반입");
+        assertThat(captor.getValue().getApgFlKdNm()).isEqualTo("편성요청서반입");
         assertThat(captor.getValue().getFlTpCone()).isEqualTo("첨부파일");
     }
 

@@ -71,8 +71,8 @@ class BoardAttachmentArchiveServiceTest {
         ArgumentCaptor<FileDto.SearchCondition> condition =
                 ArgumentCaptor.forClass(FileDto.SearchCondition.class);
         verify(fileService).getFiles(condition.capture(), org.mockito.ArgumentMatchers.same(USER));
-        assertThat(condition.getValue().getPkColNm()).isEqualTo("공통게시판");
-        assertThat(condition.getValue().getPkCone()).isEqualTo("NAC-2026-0003");
+        assertThat(condition.getValue().getApgFlKdNm()).isEqualTo("공통게시판");
+        assertThat(condition.getValue().getApgFlLnkCtzNm()).isEqualTo("NAC-2026-0003");
     }
 
     @Test
@@ -266,8 +266,8 @@ class BoardAttachmentArchiveServiceTest {
         return FileDto.Response.builder()
                 .flMpnId(id)
                 .flNm(fileName)
-                .pkColNm("공통게시판")
-                .pkCone("NAC-2026-0003")
+                .apgFlKdNm("공통게시판")
+                .apgFlLnkCtzNm("NAC-2026-0003")
                 .build();
     }
 

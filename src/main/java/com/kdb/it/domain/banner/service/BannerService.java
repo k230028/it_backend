@@ -21,8 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * /info 홈 배너 서비스
  *
- * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용한다. 이 서비스가 {@code PK_COL_NM='배너'}·{@code
- * PK_CONE='/info'}·{@code FL_TP_CONE='이미지'} 규약을 강제하므로 클라이언트가 임의 값을 보낼 수 없다.
+ * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용한다. 이 서비스가 {@code APG_FL_KD_NM='배너'}·{@code
+ * APG_FL_LNK_CTZ_NM='/info'}·{@code FL_TP_CONE='이미지'} 규약을 강제하므로 클라이언트가 임의 값을 보낼 수 없다.
  *
  * <p>활성·비활성은 {@code DEL_YN}으로 표현한다. {@code 'N'}이 활성, {@code 'Y'}가 비활성이며 물리 파일은 어느 쪽에서도 지우지 않는다.
  */
@@ -31,7 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class BannerService {
 
     /** 배너 노출 위치 — 현재는 /info 홈 한 곳이다. */
-    public static final String BANNER_PK_CONE = "/info";
+    public static final String BANNER_APG_FL_LNK_CTZ_NM = "/info";
 
     private static final String IMAGE_FL_TP_CONE = "이미지";
     private static final String ACTIVE = "N";
@@ -50,8 +50,8 @@ public class BannerService {
     @Transactional(readOnly = true)
     public List<BannerDto.Response> getActiveBanners() {
         return fileRepository
-                .findAllByPkColNmAndPkConeAndDelYn(
-                        BannerFileReadAuthorizer.BANNER_KIND, BANNER_PK_CONE, ACTIVE)
+                .findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                        BannerFileReadAuthorizer.BANNER_KIND, BANNER_APG_FL_LNK_CTZ_NM, ACTIVE)
                 .stream()
                 .sorted(Comparator.comparing(Cfilem::getFlMpnId))
                 .map(file -> toResponse(file, true))
@@ -66,8 +66,8 @@ public class BannerService {
     @Transactional(readOnly = true)
     public List<BannerDto.Response> getAllBanners() {
         return fileRepository
-                .findAllByPkColNmAndPkConeOrderByFlMpnIdAsc(
-                        BannerFileReadAuthorizer.BANNER_KIND, BANNER_PK_CONE)
+                .findAllByApgFlKdNmAndApgFlLnkCtzNmOrderByFlMpnIdAsc(
+                        BannerFileReadAuthorizer.BANNER_KIND, BANNER_APG_FL_LNK_CTZ_NM)
                 .stream()
                 .map(file -> toResponse(file, ACTIVE.equals(file.getDelYn())))
                 .toList();
@@ -89,8 +89,8 @@ public class BannerService {
                         file,
                         FileDto.UploadRequest.builder()
                                 .flTpCone(IMAGE_FL_TP_CONE)
-                                .pkColNm(BannerFileReadAuthorizer.BANNER_KIND)
-                                .pkCone(BANNER_PK_CONE)
+                                .apgFlKdNm(BannerFileReadAuthorizer.BANNER_KIND)
+                                .apgFlLnkCtzNm(BANNER_APG_FL_LNK_CTZ_NM)
                                 .build());
 
         return BannerDto.Response.builder()
@@ -158,7 +158,7 @@ public class BannerService {
                         .orElseThrow(() -> new CustomGeneralException("배너를 찾을 수 없습니다: " + flMpnId));
 
         // 배너 API로 다른 종류의 파일을 조회·변경할 수 없게 막는다.
-        if (!BannerFileReadAuthorizer.BANNER_KIND.equals(file.getPkColNm())) {
+        if (!BannerFileReadAuthorizer.BANNER_KIND.equals(file.getApgFlKdNm())) {
             throw new AccessDeniedException("배너가 아닌 파일은 배너 API로 조회·변경할 수 없습니다.");
         }
         return file;

@@ -11,14 +11,14 @@ import org.mockito.Mockito;
  * 로컬 Oracle 실측 비목 코드로 만든 테스트용 계층 인덱스입니다.
  *
  * <p>어댑터 테스트 여러 개가 같은 코드 목록을 쓰므로 한곳에 모읍니다. 값은 `TPRMPP_CCODEM`에서 `CO_C_ID_NM='IOE_C'`로 조회한
- * `CDVA_ID`·`CDVA_NM`·`CO_CDVA_SPS` 21건 그대로입니다.
+ * `CDVA_ID`·`CDVA_NM`·`CO_CDVA_SPS` 23건 그대로입니다.
  */
 public final class TestIoeIndex {
 
     private TestIoeIndex() {}
 
     /**
-     * 실측 21건을 담은 인덱스를 만듭니다.
+     * 실측 23건을 담은 인덱스를 만듭니다.
      *
      * @return 계층 인덱스 스냅샷
      */
@@ -31,7 +31,7 @@ public final class TestIoeIndex {
     /**
      * 실측 비목 코드 목록을 돌려줍니다.
      *
-     * @return 비목 공통코드 21건
+     * @return 비목 공통코드 23건
      */
     public static List<Ccodem> codes() {
         return List.of(
@@ -49,7 +49,9 @@ public final class TestIoeIndex {
                 code("012", "전산소모품비", "일반관리비 - 전산제비 - 전산소모품비"),
                 code("013", "국외회선사용료", "일반관리비 - 전산제비 - 국외회선사용료"),
                 code("014", "국외유지보수료", "일반관리비 - 전산제비 - 국외유지보수료"),
-                code("015", "국외전산소모품비", "일반관리비 - 전산제비 - 국외전산소모품비"),
+                code("015", "국외전산기타제비", "일반관리비 - 전산제비 - 국외전산기타제비"),
+                code("016", "전산회의비", "일반관리비 - 전산제비 - 전산회의비"),
+                code("017", "국외전산제비", "일반관리비 - 전산제비 - 국외전산제비"),
                 code("101", "국내기계장치", "자본예산 - 기계장치 - 국내"),
                 code("102", "국외기계장치", "자본예산 - 기계장치 - 국외"),
                 code("103", "개발비(일반)", "자본예산 - 개발비 - 일반"),

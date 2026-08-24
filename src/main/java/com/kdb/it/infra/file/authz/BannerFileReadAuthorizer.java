@@ -13,11 +13,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class BannerFileReadAuthorizer implements FileReadAuthorizer {
 
-    /** 배너 파일 종류(PK_COL_NM). */
+    /** 배너 파일 종류(APG_FL_KD_NM). */
     public static final String BANNER_KIND = "배너";
 
     @Override
-    public Set<String> supportedPkColNms() {
+    public Set<String> supportedApgFlKdNms() {
         return Set.of(BANNER_KIND);
     }
 

@@ -32,13 +32,13 @@ public class FileDto {
         private String flTpCone;
 
         @Schema(description = "주식별자내용 (연결할 도메인 레코드 기본키)", example = "PRJ-2026-0001")
-        private String pkCone;
+        private String apgFlLnkCtzNm;
 
         @Schema(
                 description = "주식별자컬럼명 (연결할 도메인 종류)",
                 example = "요구사항정의서",
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        private String pkColNm;
+        private String apgFlKdNm;
 
         @Schema(description = "첨부파일의 원본 폴더 상대경로", example = "2026/IT부(D01)/01. 사업/근거.pdf")
         private String relativePath;
@@ -54,13 +54,13 @@ public class FileDto {
     public static class UpdateRequest {
 
         @Schema(description = "변경할 주식별자내용", example = "PRJ-2026-0002")
-        private String pkCone;
+        private String apgFlLnkCtzNm;
 
         @Schema(
                 description = "변경할 주식별자컬럼명",
                 example = "정보화사업",
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        private String pkColNm;
+        private String apgFlKdNm;
     }
 
     /** 파일 단건·목록 조회 응답 DTO */
@@ -98,10 +98,10 @@ public class FileDto {
         private String relativePath;
 
         @Schema(description = "주식별자내용", example = "PRJ-2026-0001")
-        private String pkCone;
+        private String apgFlLnkCtzNm;
 
         @Schema(description = "주식별자컬럼명", example = "요구사항정의서")
-        private String pkColNm;
+        private String apgFlKdNm;
 
         @Schema(description = "최초등록일시")
         private LocalDateTime fstEnrDtm;
@@ -133,13 +133,13 @@ public class FileDto {
                 description = "주식별자컬럼명",
                 example = "요구사항정의서",
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        private String pkColNm;
+        private String apgFlKdNm;
 
         @Schema(
                 description = "주식별자내용",
                 example = "PRJ-2026-0001",
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        private String pkCone;
+        private String apgFlLnkCtzNm;
     }
 
     /** 파일 목록 조회 조건 DTO */
@@ -152,10 +152,10 @@ public class FileDto {
     public static class SearchCondition {
 
         @Schema(description = "주식별자컬럼명 (필수)", example = "요구사항정의서")
-        private String pkColNm;
+        private String apgFlKdNm;
 
-        @Schema(description = "주식별자내용 (선택 - 미입력 시 pkColNm 전체 조회)", example = "PRJ-2026-0001")
-        private String pkCone;
+        @Schema(description = "주식별자내용 (선택 - 미입력 시 apgFlKdNm 전체 조회)", example = "PRJ-2026-0001")
+        private String apgFlLnkCtzNm;
 
         @Schema(description = "파일유형내용 (선택 - '이미지' 또는 '첨부파일')", example = "첨부파일")
         private String flTpCone;

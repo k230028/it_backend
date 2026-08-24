@@ -56,7 +56,7 @@ class AdminListProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(files.getFirst().getFlMpnId()).isEqualTo("FL_BE03_ADMIN_ACTIVE");
         assertThat(files.getFirst().getFlNm()).isEqualTo("BE03 관리자 문서.pdf");
         assertThat(files.getFirst().getFlTpCone()).isEqualTo("첨부파일");
-        assertThat(files.getFirst().getPkColNm()).isEqualTo("BE03-ADMIN-PARENT");
+        assertThat(files.getFirst().getApgFlKdNm()).isEqualTo("BE03-ADMIN-PARENT");
         assertThat(files.getFirst().getFstEnrDtm()).isEqualTo(registeredAt);
         assertThat(files.getFirst().getFstEnrUsid()).isEqualTo("BE03-TEST");
         assertThat(token.getEno()).isEqualTo("BE03-ADMIN-TOKEN");
@@ -76,8 +76,8 @@ class AdminListProjectionIt extends AbstractOracleRepositoryTest {
                 .flPysNm(id + ".pdf")
                 .flKpnPth("/be03/admin")
                 .flTpCone("첨부파일")
-                .pkColNm("BE03-ADMIN-PARENT")
-                .pkCone("BE03-ADMIN-KEY")
+                .apgFlKdNm("BE03-ADMIN-PARENT")
+                .apgFlLnkCtzNm("BE03-ADMIN-KEY")
                 .fstEnrDtm(registeredAt)
                 .fstEnrUsid("BE03-TEST")
                 .lstChgDtm(registeredAt)

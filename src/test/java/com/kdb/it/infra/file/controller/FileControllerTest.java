@@ -220,7 +220,7 @@ class FileControllerTest {
     @Test
     @DisplayName("GET /api/files - 비인증 → 401")
     void getFiles_비인증_401() throws Exception {
-        mockMvc.perform(get("/api/files").param("pkColNm", "요구사항정의서"))
+        mockMvc.perform(get("/api/files").param("apgFlKdNm", "요구사항정의서"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -229,7 +229,7 @@ class FileControllerTest {
     @WithMockUser(username = "10001")
     void getFiles_인증_200() throws Exception {
         given(fileService.getFiles(any(), any())).willReturn(List.of());
-        mockMvc.perform(get("/api/files").param("pkColNm", "요구사항정의서"))
+        mockMvc.perform(get("/api/files").param("apgFlKdNm", "요구사항정의서"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }
@@ -257,15 +257,15 @@ class FileControllerTest {
         MockMultipartFile flTpCone =
                 new MockMultipartFile(
                         "flTpCone", "", MediaType.TEXT_PLAIN_VALUE, "첨부파일".getBytes());
-        MockMultipartFile pkColNm =
+        MockMultipartFile apgFlKdNm =
                 new MockMultipartFile(
-                        "pkColNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
+                        "apgFlKdNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
 
         mockMvc.perform(
                         multipart("/api/files")
                                 .file(file)
                                 .file(flTpCone)
-                                .file(pkColNm)
+                                .file(apgFlKdNm)
                                 .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest"))
                 .andExpect(status().isCreated());
     }
@@ -291,7 +291,7 @@ class FileControllerTest {
                                                 "flTpCone", null, null, "첨부파일".getBytes()))
                                 .file(
                                         new MockMultipartFile(
-                                                "pkColNm", null, null, "요구사항정의서".getBytes())))
+                                                "apgFlKdNm", null, null, "요구사항정의서".getBytes())))
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(fileService);
@@ -309,15 +309,15 @@ class FileControllerTest {
         MockMultipartFile flTpCone =
                 new MockMultipartFile(
                         "flTpCone", "", MediaType.TEXT_PLAIN_VALUE, "첨부파일".getBytes());
-        MockMultipartFile pkColNm =
+        MockMultipartFile apgFlKdNm =
                 new MockMultipartFile(
-                        "pkColNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
+                        "apgFlKdNm", "", MediaType.TEXT_PLAIN_VALUE, "요구사항정의서".getBytes());
 
         mockMvc.perform(
                         multipart("/api/files/bulk")
                                 .file(file1)
                                 .file(flTpCone)
-                                .file(pkColNm)
+                                .file(apgFlKdNm)
                                 .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest"))
                 .andExpect(status().isOk());
     }
@@ -347,13 +347,13 @@ class FileControllerTest {
                                                 "첨부파일".getBytes()))
                                 .file(
                                         new MockMultipartFile(
-                                                "pkColNm",
+                                                "apgFlKdNm",
                                                 "",
                                                 MediaType.TEXT_PLAIN_VALUE,
                                                 "공통게시판".getBytes()))
                                 .file(
                                         new MockMultipartFile(
-                                                "pkCone",
+                                                "apgFlLnkCtzNm",
                                                 "",
                                                 MediaType.TEXT_PLAIN_VALUE,
                                                 "NAC-2026-0001".getBytes()))
@@ -391,13 +391,13 @@ class FileControllerTest {
                                                 "첨부파일".getBytes()))
                                 .file(
                                         new MockMultipartFile(
-                                                "pkColNm",
+                                                "apgFlKdNm",
                                                 "",
                                                 MediaType.TEXT_PLAIN_VALUE,
                                                 "검토의견".getBytes()))
                                 .file(
                                         new MockMultipartFile(
-                                                "pkCone",
+                                                "apgFlLnkCtzNm",
                                                 "",
                                                 MediaType.TEXT_PLAIN_VALUE,
                                                 "101".getBytes()))
@@ -474,7 +474,7 @@ class FileControllerTest {
                 .when(targetWriteAuthorizerRegistry)
                 .verifyTargetWriteAccess("검토의견", "404", userDetails);
         FileDto.UpdateRequest request =
-                FileDto.UpdateRequest.builder().pkColNm("검토의견").pkCone("404").build();
+                FileDto.UpdateRequest.builder().apgFlKdNm("검토의견").apgFlLnkCtzNm("404").build();
 
         mockMvc.perform(
                         put("/api/files/" + FL_MNG_NO)
@@ -607,8 +607,8 @@ class FileControllerTest {
         mockMvc.perform(
                         get("/api/files")
                                 .with(user(userDetails))
-                                .param("pkColNm", "요구사항정의서")
-                                .param("pkCone", "DOC-1"))
+                                .param("apgFlKdNm", "요구사항정의서")
+                                .param("apgFlLnkCtzNm", "DOC-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(1));
@@ -629,8 +629,8 @@ class FileControllerTest {
         mockMvc.perform(
                         get("/api/files")
                                 .with(user(userDetails))
-                                .param("pkColNm", "요구사항정의서")
-                                .param("pkCone", "DOC-1"))
+                                .param("apgFlKdNm", "요구사항정의서")
+                                .param("apgFlLnkCtzNm", "DOC-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));

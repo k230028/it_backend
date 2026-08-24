@@ -66,8 +66,8 @@ class RequestFormFileControllerProtectionTest {
                         multipart("/api/files")
                                 .file(file("file"))
                                 .file(textPart("flTpCone", "첨부파일"))
-                                .file(textPart("pkColNm", RequestFormSourceFileArchiver.PK_COL_NM))
-                                .file(textPart("pkCone", "APF-2026-00000001"))
+                                .file(textPart("apgFlKdNm", RequestFormSourceFileArchiver.APG_FL_KD_NM))
+                                .file(textPart("apgFlLnkCtzNm", "APF-2026-00000001"))
                                 .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest")
                                 .with(user(admin)))
                 .andExpect(status().isForbidden());
@@ -82,8 +82,8 @@ class RequestFormFileControllerProtectionTest {
                         multipart("/api/files/bulk")
                                 .file(file("files"))
                                 .file(textPart("flTpCone", "첨부파일"))
-                                .file(textPart("pkColNm", RequestFormSourceFileArchiver.PK_COL_NM))
-                                .file(textPart("pkCone", "APF-2026-00000001"))
+                                .file(textPart("apgFlKdNm", RequestFormSourceFileArchiver.APG_FL_KD_NM))
+                                .file(textPart("apgFlLnkCtzNm", "APF-2026-00000001"))
                                 .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest")
                                 .with(user(admin)))
                 .andExpect(status().isForbidden());
@@ -96,8 +96,8 @@ class RequestFormFileControllerProtectionTest {
     void metadataUpdate_rejectsRetargetToOfficialSourceKind() throws Exception {
         FileDto.UpdateRequest request =
                 FileDto.UpdateRequest.builder()
-                        .pkColNm(RequestFormSourceFileArchiver.PK_COL_NM)
-                        .pkCone("APF-2026-00000001")
+                        .apgFlKdNm(RequestFormSourceFileArchiver.APG_FL_KD_NM)
+                        .apgFlLnkCtzNm("APF-2026-00000001")
                         .build();
 
         mockMvc.perform(

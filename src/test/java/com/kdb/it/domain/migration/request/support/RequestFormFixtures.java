@@ -279,6 +279,63 @@ public final class RequestFormFixtures {
                 "Y");
     }
 
+    /**
+     * 1-2 소요자원 시트의 금액 기재 변형을 모은 .xls입니다.
+     *
+     * <p>행 구성(0-based 시트 행 → 엑셀 행): 10→11 단가·소요예산을 `2,122백만원`으로 적은 원화 행(리스크관리부 실측), 11→12 소요예산 칸을
+     * 비우고 단가·통화만 적은 행(상하이지점 실측), 12→13 수량과 단가만 있어 곱해야 하는 행.
+     */
+    public static byte[] capitalResourceAmountVariantsXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet s = wb.createSheet("① (정보화사업) 1-2. 소요자원 상세내용");
+            put(s, 0, 0, "1-2. 정보화사업 소요자원 상세내용");
+            put(s, 9, 1, "구분");
+            put(s, 9, 3, "항목");
+            put(s, 9, 4, "수량");
+            put(s, 9, 5, "단가");
+            put(s, 9, 6, "통화");
+            put(s, 9, 7, "소요예산 (부가세포함)");
+            put(s, 9, 8, "산정근거");
+            put(s, 9, 9, "도입시기(월)");
+            put(s, 9, 10, "정보보호여부");
+            put(s, 9, 11, "인프라 통합관리 여부");
+
+            put(s, 10, 1, "자본예산");
+            put(s, 10, 2, "개발비");
+            put(s, 10, 3, "요건정의");
+            putNumber(s, 10, 4, 1);
+            put(s, 10, 5, "2,122백만원");
+            put(s, 10, 6, "KRW");
+            put(s, 10, 7, "2,122백만원");
+            put(s, 10, 8, "가견적");
+            put(s, 10, 9, "26.12월");
+            put(s, 10, 10, "X");
+            put(s, 10, 11, "O");
+
+            put(s, 11, 2, "기타무형자산(SW)");
+            put(s, 11, 3, "보고서시스템 업그레이드");
+            putNumber(s, 11, 5, 80_000);
+            put(s, 11, 6, "USD");
+            put(s, 11, 8, "기 추진사례 참고");
+            put(s, 11, 9, "26.6월");
+            put(s, 11, 10, "X");
+            put(s, 11, 11, "O");
+
+            put(s, 12, 2, "기타무형자산(SW)");
+            put(s, 12, 3, "라이선스");
+            putNumber(s, 12, 4, 80);
+            putNumber(s, 12, 5, 250);
+            put(s, 12, 6, "USD");
+            put(s, 12, 8, "업체견적");
+            put(s, 12, 9, "26.6월");
+            put(s, 12, 10, "X");
+            put(s, 12, 11, "O");
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     private static void writeResourceRow(
             Sheet s,
             int row,
@@ -435,6 +492,86 @@ public final class RequestFormFixtures {
             put(s, 8, 6, "미정");
             put(s, 8, 7, "√");
             put(s, 8, 9, "○");
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * 시트 ③에 집계 행이 섞인 .xls입니다.
+     *
+     * <p>행 구성(0-based 시트 행 → 엑셀 행): 5→6 정상 행, 6→7 비목 칸에 `소계`를 적은 집계 행, 7→8 세부비목 칸에 `계`를 적고 계약명·통화를
+     * `-`로 채운 집계 행, 8→9 통화 칸 좌우가 모두 빈 집계 행, 9→10 비목 칸을 비워 위 행에서 이어받는 정상 행.
+     *
+     * <p>마지막 행이 있는 이유는 집계 행이 forward-fill을 오염시키지 않는지 함께 보기 위해서입니다.
+     */
+    public static byte[] generalExpenseSummaryRowsXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet s = writeGeneralExpenseHeader(wb, "③ (일반관리비) 전산 일반관리비 편성요청서", false);
+            put(s, 5, 0, "전산 제비");
+            put(s, 5, 1, "회선사용료");
+            put(s, 5, 2, "전용망 회선 이용료");
+            put(s, 5, 3, "KRW");
+            putNumber(s, 5, 4, 100_000d);
+            putNumber(s, 5, 5, 1_200_000d);
+            put(s, 5, 6, "KT");
+
+            // 비목 칸에 `소계`를 적은 집계 행
+            put(s, 6, 0, "소계");
+            put(s, 6, 2, "-");
+            put(s, 6, 3, "-");
+            putNumber(s, 6, 5, 1_200_000d);
+
+            // 세부비목 칸에 `계`를 적고 계약명·통화를 `-`로 채운 집계 행
+            put(s, 7, 1, "계");
+            put(s, 7, 2, "-");
+            put(s, 7, 3, "-");
+            putNumber(s, 7, 5, 1_700_000d);
+
+            // 통화 칸 좌우(계약명·월간)가 모두 빈 집계 행
+            putNumber(s, 8, 5, 1_700_000d);
+
+            // 비목 칸을 비운 정상 행 — 위의 `전산 제비`·`회선사용료`를 이어받아야 한다
+            put(s, 9, 2, "백업 회선 이용료");
+            put(s, 9, 3, "KRW");
+            putNumber(s, 9, 5, 500_000d);
+            put(s, 9, 6, "LGU+");
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * 시트 ③에 계약 여러 건을 번호로 묶은 행이 있는 .xls입니다.
+     *
+     * <p>행 구성(0-based 시트 행 → 엑셀 행): 5→6 원문자 번호로 계약 3건을 묶은 행(연간 칸은 ②③ 사이에 줄바꿈이 없고, 계속·신규는 항목마다 다르며,
+     * 비고는 ②만 적혀 있습니다 — 모두 미래전략개발부 ③ 실측 형태), 6→7 단위를 칸에 직접 적은 단일 행(산업기술리서치센터 ③ 실측).
+     */
+    public static byte[] generalExpenseEnumeratedRowXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            Sheet s = writeGeneralExpenseHeader(wb, "③ (일반관리비) 전산 일반관리비 편성요청서", false);
+            put(s, 5, 0, "전산 제비");
+            put(s, 5, 1, "회선사용료");
+            put(s, 5, 2, "① 블룸버그 사용계약\n② 레피니티브 사용계약\n③ 코스콤 사용계약");
+            put(s, 5, 3, "KRW");
+            put(s, 5, 5, "① 44,267\n② 73,723③ 8,065");
+            put(s, 5, 6, "① 블룸버그코리아\n② 레퍼니티브코리아\n③ 코스콤");
+            put(s, 5, 7, "②  O \n ③  O");
+            put(s, 5, 8, "①  O");
+            put(s, 5, 9, "① X\n ② X\n ③ X");
+            put(s, 5, 10, "② 업체 요청 인상률 적용");
+
+            // 시트 머리말은 천원인데 이 칸만 원으로 적었다 — 칸의 단위가 이겨야 한다
+            put(s, 6, 0, "전산 제비");
+            put(s, 6, 1, "유지보수료");
+            put(s, 6, 2, "협업툴 유지보수");
+            put(s, 6, 3, "KRW");
+            put(s, 6, 5, "41,868,816원");
+            put(s, 6, 6, "심테크시스템");
+            put(s, 6, 7, "O");
+            put(s, 6, 9, "X");
             return toBytes(wb);
         } catch (IOException e) {
             throw new UncheckedIOException(e);

@@ -212,7 +212,7 @@ class AdminServiceTest {
             String flMpnId,
             String flNm,
             String flTpCone,
-            String pkColNm,
+            String apgFlKdNm,
             LocalDateTime fstEnrDtm,
             String fstEnrUsid)
             implements FileRepository.AdminFileView {
@@ -232,8 +232,8 @@ class AdminServiceTest {
         }
 
         @Override
-        public String getPkColNm() {
-            return pkColNm;
+        public String getApgFlKdNm() {
+            return apgFlKdNm;
         }
 
         @Override

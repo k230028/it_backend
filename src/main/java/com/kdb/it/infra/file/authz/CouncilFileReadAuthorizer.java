@@ -14,7 +14,7 @@ import org.springframework.util.StringUtils;
 /**
  * 협의회 연계 파일(사업계획서·타당성검토표·협의회관련자료) 읽기 판정기.
  *
- * <p>세 종류 모두 {@code PK_CONE}가 협의회ID({@code IT_PTL_ASCT_ID})이며, 규칙은 다음 중 하나를 만족하면 읽기 허용이다.
+ * <p>세 종류 모두 {@code APG_FL_LNK_CTZ_NM}가 협의회ID({@code IT_PTL_ASCT_ID})이며, 규칙은 다음 중 하나를 만족하면 읽기 허용이다.
  *
  * <ul>
  *   <li>관리자 또는 정보보안관리자
@@ -31,14 +31,14 @@ public class CouncilFileReadAuthorizer implements FileReadAuthorizer {
     private final ProjectRepository projectRepository;
 
     @Override
-    public Set<String> supportedPkColNms() {
+    public Set<String> supportedApgFlKdNms() {
         return Set.of("사업계획서", "타당성검토표", "협의회관련자료");
     }
 
     /**
      * 협의회 연계 파일 읽기 가능 여부.
      *
-     * @param file 대상 파일(부모 협의회 ID는 {@code PK_CONE} 값)
+     * @param file 대상 파일(부모 협의회 ID는 {@code APG_FL_LNK_CTZ_NM} 값)
      * @param user 현재 사용자(null이면 비인증 → 불가)
      * @return 관리자·정보보안관리자이거나, 해당 협의회 위원이거나, 협의회 사업의 주관부서가 사용자 부서와 일치하면 true. 부모 ID가 없거나 협의회·사업을 찾지
      *     못하면 false
@@ -51,7 +51,7 @@ public class CouncilFileReadAuthorizer implements FileReadAuthorizer {
         if (user.isAdmin() || user.isInfoSecAdmin()) {
             return true;
         }
-        String asctId = file.getPkCone();
+        String asctId = file.getApgFlLnkCtzNm();
         if (!StringUtils.hasText(asctId)) {
             return false;
         }

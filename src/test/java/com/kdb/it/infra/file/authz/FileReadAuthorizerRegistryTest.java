@@ -16,14 +16,14 @@ class FileReadAuthorizerRegistryTest {
 
     private Cfilem fileOfKind(String kind) {
         Cfilem file = mock(Cfilem.class);
-        when(file.getPkColNm()).thenReturn(kind);
+        when(file.getApgFlKdNm()).thenReturn(kind);
         return file;
     }
 
     private FileReadAuthorizer authorizer(Set<String> kinds, boolean result) {
         return new FileReadAuthorizer() {
             @Override
-            public Set<String> supportedPkColNms() {
+            public Set<String> supportedApgFlKdNms() {
                 return kinds;
             }
 
@@ -53,7 +53,7 @@ class FileReadAuthorizerRegistryTest {
     }
 
     @Test
-    @DisplayName("종류(PK_COL_NM)가 null이면 관리자만 허용하고 예외를 던지지 않는다(default-deny)")
+    @DisplayName("종류(APG_FL_KD_NM)가 null이면 관리자만 허용하고 예외를 던지지 않는다(default-deny)")
     void nullKind_adminOnly() {
         var registry = new FileReadAuthorizerRegistry(List.of(authorizer(Set.of("요구사항정의서"), true)));
         CustomUserDetails normal = new CustomUserDetails("E001", List.of("ITPZZ001"), "IT001");

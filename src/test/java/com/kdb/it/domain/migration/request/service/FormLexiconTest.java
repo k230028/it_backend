@@ -119,11 +119,54 @@ class FormLexiconTest {
     }
 
     @Test
+    @DisplayName("전결권자의 통칭·소관 직책을 전결권 코드값명으로 되돌린다")
+    void canonicalizesDelegationNames() {
+        // 부점은 직제상 직명이 아니라 소관 직책을 적는다
+        assertThat(FormLexicon.canonicalEdrtName("부서장")).isEqualTo("부점장");
+        assertThat(FormLexicon.canonicalEdrtName("정보보호최고책임자")).isEqualTo("지역본부장");
+        // 소관을 앞에 붙인 본부장 표기는 지역본부장으로 본다
+        assertThat(FormLexicon.canonicalEdrtName("IDT본부장")).isEqualTo("지역본부장");
+        assertThat(FormLexicon.canonicalEdrtName("동남권 본부장")).isEqualTo("지역본부장");
+        // 체크박스 대조표와 공유하는 통칭도 그대로 산다
+        assertThat(FormLexicon.canonicalEdrtName("수석부행장")).isEqualTo("전무이사");
+        // 코드값명 그대로 적어 낸 값과 대조표에 없는 값은 원문을 넘겨 코드 조회에서 걸러지게 한다
+        assertThat(FormLexicon.canonicalEdrtName("이사회")).isEqualTo("이사회");
+        assertThat(FormLexicon.canonicalEdrtName("없는직위")).isEqualTo("없는직위");
+        assertThat(FormLexicon.canonicalEdrtName(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("최종보고의 `부서장`은 전결권 대조표에 물들지 않는다")
+    void keepsReportStatusNameSeparateFromDelegation() {
+        // 같은 글자가 최종보고에서는 코드값명 자신, 전결권에서는 `부점장`이다
+        assertThat(FormLexicon.canonicalOptionName("부서장 보고")).isEqualTo("부서장");
+        assertThat(FormLexicon.canonicalOptionName("부서장")).isEqualTo("부서장");
+    }
+
+    @Test
     @DisplayName("계속·신규 표시를 사업구분 코드로 바꾼다")
     void mapsContinuedAndNewToAbusTc() {
         assertThat(FormLexicon.toAbusTc("○", "")).contains(FormLexicon.ABUS_TC_CONTINUED);
         assertThat(FormLexicon.toAbusTc("", "√")).contains(FormLexicon.ABUS_TC_NEW);
         assertThat(FormLexicon.toAbusTc("", "")).isEmpty();
         assertThat(FormLexicon.toAbusTc("○", "○")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("표시 기호 대신 열 이름을 낱말로 적은 계약구분도 읽는다")
+    void readsContinuedAndNewWords() {
+        // 실측: 상하이지점 ③은 계속 열에 `계속`, 신규 열에 `신규`라고 적었다
+        assertThat(FormLexicon.toAbusTc("계속", "")).contains(FormLexicon.ABUS_TC_CONTINUED);
+        assertThat(FormLexicon.toAbusTc("", "신규")).contains(FormLexicon.ABUS_TC_NEW);
+        assertThat(FormLexicon.toAbusTc(" 계 속 ", "")).contains(FormLexicon.ABUS_TC_CONTINUED);
+        assertThat(FormLexicon.toAbusTc("계속", "신규")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("남의 열 이름은 표시로 세지 않는다")
+    void ignoresOtherColumnWord() {
+        // 계속 열의 `신규`까지 표시로 세면 두 열이 동시에 켜져 판정이 무너진다
+        assertThat(FormLexicon.toAbusTc("신규", "")).isEmpty();
+        assertThat(FormLexicon.toAbusTc("", "계속")).isEmpty();
     }
 }

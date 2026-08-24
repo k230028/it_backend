@@ -358,7 +358,7 @@ public class AdminDto {
      * @param flMpnId 파일 매핑 ID
      * @param flNm 파일명
      * @param flTpCone 파일 유형 내용
-     * @param pkColNm 원본 PK 컬럼값
+     * @param apgFlKdNm 원본 PK 컬럼값
      * @param fstEnrDtm 최초 등록 일시
      * @param fstEnrUsid 최초 등록자 사번
      * @param fstEnrUsNm 최초 등록자 이름
@@ -368,7 +368,7 @@ public class AdminDto {
             String flMpnId,
             String flNm,
             String flTpCone,
-            String pkColNm,
+            String apgFlKdNm,
             LocalDateTime fstEnrDtm,
             String fstEnrUsid,
             String fstEnrUsNm) {}

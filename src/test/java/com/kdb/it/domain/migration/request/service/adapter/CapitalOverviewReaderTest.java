@@ -380,6 +380,43 @@ class CapitalOverviewReaderTest {
         assertThat(project.getEdrtTc()).isEqualTo("21");
     }
 
+    @Test
+    @DisplayName("전결권자 `부서장`을 부점장 자본예산 코드로 해석한다")
+    void mapsDepartmentHeadDelegationToBranchHeadCode() {
+        Sheet sheet =
+                overviewSheet(new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "전결권자", "부서장")));
+
+        CapitalOverviewReader.Result result =
+                reader.read(
+                        sheet,
+                        context(Map.of()),
+                        new FormCatalogs(Map.of(), Map.of("부점장", "24"), Map.of(), Map.of()));
+
+        assertThat(result.project().getEdrtTc()).isEqualTo("24");
+        assertThat(result.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_UNRESOLVED);
+    }
+
+    @Test
+    @DisplayName("전결권자 `정보보호최고책임자`를 지역본부장 자본예산 코드로 해석한다")
+    void mapsChiefInformationSecurityOfficerToRegionalHeadCode() {
+        Sheet sheet =
+                overviewSheet(
+                        new java.util.LinkedHashMap<>(Map.of("사업명", "사업", "전결권자", "정보보호최고책임자")));
+
+        CapitalOverviewReader.Result result =
+                reader.read(
+                        sheet,
+                        context(Map.of()),
+                        new FormCatalogs(Map.of(), Map.of("지역본부장", "23"), Map.of(), Map.of()));
+
+        assertThat(result.project().getEdrtTc()).isEqualTo("23");
+        assertThat(result.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_UNRESOLVED);
+    }
+
     @ParameterizedTest(name = "{0} → 지역본부장(23)")
     @ValueSource(strings = {"지역본부장", "동남권본부장", "동남권 본부장", "홍길동 본부장"})
     @DisplayName("전결권자 값에 본부장이 포함되면 지역본부장 자본예산 코드로 해석한다")

@@ -32,7 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
  *
  * <p>기본 URL: {@code /api/banners}
  *
- * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용하며, {@code PK_COL_NM='배너'}·{@code PK_CONE='/info'}
+ * <p>배너는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용하며, {@code APG_FL_KD_NM='배너'}·{@code APG_FL_LNK_CTZ_NM='/info'}
  * 규약은 {@link BannerService}가 강제한다.
  *
  * <p>보안: 활성 배너 조회는 인증 사용자 전체, 나머지는 관리자 전용이다.

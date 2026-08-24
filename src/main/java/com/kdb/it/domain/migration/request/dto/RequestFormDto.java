@@ -42,7 +42,7 @@ public final class RequestFormDto {
      * @param deptCodeOverride 미리보기에서 사용자가 고른 부서코드. 없으면 null
      * @param generalExpenseUnit 시트 ③ 금액 기재 단위. 없으면 서버가 제안값을 씁니다
      * @param bgUntAbusC 시트 ③ 사업코드. 양식에 없어 사용자가 지정합니다. 없으면 null
-     * @param archiveOnly true면 원장 파싱 없이 같은 폴더의 반입 원본으로만 보관합니다
+     * @param archiveOnly true면 원장 파싱 없이 같은 폴더의 반입 원본으로만 보관합니다. 생략하거나 null이면 false로 봅니다
      */
     @Schema(name = "RequestFormFileEntry", description = "업로드 파일 부가 정보")
     public record FileEntry(
@@ -67,7 +67,20 @@ public final class RequestFormDto {
                             nullable = true)
                     String bgUntAbusC,
             @Schema(description = "보관 전용 파일 여부", requiredMode = Schema.RequiredMode.REQUIRED)
-                    boolean archiveOnly) {
+                    Boolean archiveOnly) {
+
+        /**
+         * 보관 전용 여부가 빠진 manifest도 받습니다.
+         *
+         * <p>원시 {@code boolean}으로 두면 이 항목이 없는 요청이 Jackson 역직렬화 단계에서 통째로 400이 되어, 관리자에게는 파일 하나도 짚어주지
+         * 못하는 오류만 남습니다. 서버는 {@code RequestFormParseTarget}으로 파싱 대상 여부를 어차피 다시 판정하므로 이 값은 클라이언트가 주는
+         * 힌트일 뿐이라 없으면 false로 접어도 결과가 달라지지 않습니다.
+         */
+        public FileEntry {
+            if (archiveOnly == null) {
+                archiveOnly = Boolean.FALSE;
+            }
+        }
 
         /** 기존 내부 호출은 모두 반입 대상 파일입니다. */
         public FileEntry(

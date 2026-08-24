@@ -16,7 +16,7 @@ class BannerFileReadAuthorizerTest {
     @Test
     @DisplayName("배너 종류를 담당한다")
     void supports_banner() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("배너");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("배너");
     }
 
     @Test

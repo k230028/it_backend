@@ -116,7 +116,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `domain.council`                                                              | 정보화실무협의회 일정·평가·질의·결과                   | 결재 완료 이벤트를 같은 트랜잭션에서 상태에 반영                     |
 | `domain.estimate`, `domain.deliberation`, `domain.contract`, `domain.payment` | 사업 집행의 소요예산·심의·계약·지급 단계               | 정보화사업을 기준으로 단계별 문서와 상태를 관리                      |
 | `domain.menu`                                                                 | 사용자 메뉴 조회와 관리자 메뉴·라우트 관리             | 인증 주체의 권한에 맞는 프론트 메뉴 구성을 제공                      |
-| `domain.banner`                                                               | `/info` 홈 배너 등록·노출·활성 전환                    | 전용 테이블 없이 `infra.file`의 공통첨부파일을 규약(`PK_COL_NM='배너'`)으로 재사용 |
+| `domain.banner`                                                               | `/info` 홈 배너 등록·노출·활성 전환                    | 전용 테이블 없이 `infra.file`의 공통첨부파일을 규약(`APG_FL_KD_NM='배너'`)으로 재사용 |
 | `domain.log`                                                                  | 업무 엔티티 변경 스냅샷                                | `@LogTarget`이 지정된 엔티티의 생성·수정·논리삭제를 기록             |
 | `domain.migration`                                                            | 수기 엑셀(편성요청서) 반입 — 검증·진단, 원장 생성, 결재완료 표식, 원본 파일 보관 | `budget`의 원장(`BPROJM`·`BCOSTM`), `common.approval` 신청서, `infra.file` 첨부에 연결 |
 | `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동             | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |

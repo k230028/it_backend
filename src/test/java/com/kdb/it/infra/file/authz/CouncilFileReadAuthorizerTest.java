@@ -30,14 +30,14 @@ class CouncilFileReadAuthorizerTest {
 
     private Cfilem file(String asctId) {
         Cfilem f = mock(Cfilem.class);
-        when(f.getPkCone()).thenReturn(asctId);
+        when(f.getApgFlLnkCtzNm()).thenReturn(asctId);
         return f;
     }
 
     @Test
     @DisplayName("세 협의회 종류를 담당한다")
     void supports_threeCouncilKinds() {
-        assertThat(authorizer.supportedPkColNms())
+        assertThat(authorizer.supportedApgFlKdNms())
                 .containsExactlyInAnyOrder("사업계획서", "타당성검토표", "협의회관련자료");
     }
 

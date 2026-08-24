@@ -28,7 +28,7 @@ class BoardFileReadAuthorizerTest {
 
     private Cfilem boardFile(String nacMngNo) {
         Cfilem file = mock(Cfilem.class);
-        when(file.getPkCone()).thenReturn(nacMngNo);
+        when(file.getApgFlLnkCtzNm()).thenReturn(nacMngNo);
         return file;
     }
 
@@ -55,7 +55,7 @@ class BoardFileReadAuthorizerTest {
     @Test
     @DisplayName("공통게시판 종류를 담당한다")
     void supports_board() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("공통게시판");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("공통게시판");
     }
 
     @Test

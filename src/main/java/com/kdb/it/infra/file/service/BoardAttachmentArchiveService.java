@@ -47,8 +47,8 @@ public class BoardAttachmentArchiveService {
         List<FileDto.Response> authorizedFiles =
                 fileService.getFiles(
                         FileDto.SearchCondition.builder()
-                                .pkColNm(BOARD_FILE_KIND)
-                                .pkCone(nacMngNo)
+                                .apgFlKdNm(BOARD_FILE_KIND)
+                                .apgFlLnkCtzNm(nacMngNo)
                                 .build(),
                         userDetails);
         if (authorizedFiles.isEmpty()) {

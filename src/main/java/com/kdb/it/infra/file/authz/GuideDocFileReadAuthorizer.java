@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 public class GuideDocFileReadAuthorizer implements FileReadAuthorizer {
 
     @Override
-    public Set<String> supportedPkColNms() {
+    public Set<String> supportedApgFlKdNms() {
         return Set.of("가이드문서");
     }
 

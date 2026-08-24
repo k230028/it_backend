@@ -615,7 +615,7 @@ public class AdminService {
                 f.getFlMpnId(),
                 f.getFlNm(),
                 f.getFlTpCone(),
-                f.getPkColNm(),
+                f.getApgFlKdNm(),
                 f.getFstEnrDtm(),
                 f.getFstEnrUsid(),
                 resolveUserName(f.getFstEnrUsid()));

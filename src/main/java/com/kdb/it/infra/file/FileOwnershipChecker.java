@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>파일 쓰기(수정·삭제)는 기본적으로 업로더 본인 또는 관리자만 허용합니다. 검토의견 첨부는 파일 업로더가 아니라 활성 검토의견 작성자 또는 관리자에게 허용합니다.
  *
- * <p>파일 읽기는 파일 종류(PK_COL_NM)별 authorizer로 판정합니다(미등록=관리자만). 판정은 {@link FileReadAuthorizerRegistry}에
+ * <p>파일 읽기는 파일 종류(APG_FL_KD_NM)별 authorizer로 판정합니다(미등록=관리자만). 판정은 {@link FileReadAuthorizerRegistry}에
  * 위임하며, 종류별 규칙은 각 authorizer가 소유합니다.
  */
 @Component
@@ -43,7 +43,7 @@ public class FileOwnershipChecker {
                 fileRepository
                         .findByFlMpnIdAndDelYn(flMpnId, "N")
                         .orElseThrow(() -> new CustomGeneralException("파일을 찾을 수 없습니다: " + flMpnId));
-        if (ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND.equals(file.getPkColNm())) {
+        if (ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND.equals(file.getApgFlKdNm())) {
             if (!reviewCommentFileWriteAuthorizer.canWrite(file, user)) {
                 throw new AccessDeniedException("파일 쓰기 권한이 없습니다.");
             }
@@ -76,7 +76,7 @@ public class FileOwnershipChecker {
     /**
      * 파일 읽기 가능 여부 판정 (목록 필터링·단건 권한 검증 공통 사용).
      *
-     * <p>파일 종류(PK_COL_NM)별 authorizer로 판정합니다(미등록 종류=관리자만, default-deny). 판정 규칙은 {@link
+     * <p>파일 종류(APG_FL_KD_NM)별 authorizer로 판정합니다(미등록 종류=관리자만, default-deny). 판정 규칙은 {@link
      * FileReadAuthorizerRegistry}와 각 종류별 authorizer가 소유합니다.
      *
      * @param file 대상 파일 엔티티

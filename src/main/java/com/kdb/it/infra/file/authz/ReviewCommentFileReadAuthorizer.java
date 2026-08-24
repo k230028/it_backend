@@ -23,7 +23,7 @@ public class ReviewCommentFileReadAuthorizer implements FileReadAuthorizer {
     private final ServiceRequestDocRepository serviceRequestDocRepository;
 
     @Override
-    public Set<String> supportedPkColNms() {
+    public Set<String> supportedApgFlKdNms() {
         return Set.of("검토의견");
     }
 
@@ -36,13 +36,13 @@ public class ReviewCommentFileReadAuthorizer implements FileReadAuthorizer {
      */
     @Override
     public boolean canRead(Cfilem file, CustomUserDetails user) {
-        if (user == null || file == null || !StringUtils.hasText(file.getPkCone())) {
+        if (user == null || file == null || !StringUtils.hasText(file.getApgFlLnkCtzNm())) {
             return false;
         }
 
         final long commentId;
         try {
-            commentId = Long.parseLong(file.getPkCone());
+            commentId = Long.parseLong(file.getApgFlLnkCtzNm());
         } catch (NumberFormatException ignored) {
             return false;
         }

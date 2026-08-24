@@ -2,6 +2,7 @@ package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
+import com.kdb.it.domain.migration.request.service.FormAmount;
 import com.kdb.it.domain.migration.request.service.FormLexicon;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import java.math.BigDecimal;
@@ -111,7 +112,17 @@ public class ResourceTableReader {
             if (isHeaderRow(itemName)) break;
             if (isTotalRow(sheet, rowIndex)) break;
 
-            BigDecimal amount = number(sheet, map, rowIndex, "amount");
+            BigDecimal qty = number(sheet, map, rowIndex, "qty");
+            FormAmount.Parsed price = FormAmount.parse(text(sheet, map, rowIndex, "unitPrice"));
+            BigDecimal unitPrice = price == null ? null : price.value();
+            FormAmount.Parsed declared = FormAmount.parse(text(sheet, map, rowIndex, "amount"));
+            BigDecimal amount = declared == null ? null : declared.value();
+            AmountUnit amountUnit = declared == null ? null : declared.unit();
+            if (amount == null || amount.signum() == 0) {
+                // 단가로 대신 채울 때는 단위 표기도 단가 칸에서 가져온다 — 값만 옮기면 `2,122백만원`이 2,122원이 된다
+                amount = fromUnitPrice(qty, unitPrice);
+                amountUnit = price == null ? null : price.unit();
+            }
             if (itemName.isEmpty() || amount == null || amount.signum() == 0) continue;
 
             String group = scanner.text(sheet, rowIndex, groupCol);
@@ -122,10 +133,11 @@ public class ResourceTableReader {
                             rowIndex + 1,
                             lastGroup,
                             itemName,
-                            number(sheet, map, rowIndex, "qty"),
-                            number(sheet, map, rowIndex, "unitPrice"),
+                            qty,
+                            unitPrice,
                             text(sheet, map, rowIndex, "currency"),
                             amount,
+                            amountUnit,
                             text(sheet, map, rowIndex, "basis"),
                             text(sheet, map, rowIndex, "timing"),
                             text(sheet, map, rowIndex, "infoSec"),
@@ -210,9 +222,15 @@ public class ResourceTableReader {
         item.setXcrBseDt(bseYy + "0101");
 
         if ("KRW".equals(currency)) {
+            // 칸이 스스로 단위를 밝혔으면(`2,122백만원`) 어댑터 기본 단위보다 그 값이 정확하다.
+            // 이 구분이 없으면 백만원으로 적은 금액이 원 단위로 들어가 1/1,000,000이 된다
             boolean applyDomesticUnit =
                     defaultedDomestic || (applyDomesticUnitToAllKrw && domesticDefaultUnit != null);
-            item.setAmt(applyDomesticUnit ? domesticDefaultUnit.toWon(row.amount()) : row.amount());
+            AmountUnit unit =
+                    row.amountUnit() != null
+                            ? row.amountUnit()
+                            : (applyDomesticUnit ? domesticDefaultUnit : null);
+            item.setAmt(unit == null ? row.amount() : unit.toWon(row.amount()));
             item.setFcAmt(null);
         } else if (currency != null && !currency.isBlank()) {
             long multiplier = "JPY".equals(currency) ? JPY_MULTIPLIER : 1L;
@@ -221,6 +239,24 @@ public class ResourceTableReader {
             item.setXcr(null);
         }
         return item;
+    }
+
+    /**
+     * 소요예산 칸이 비었을 때 단가로 금액을 채웁니다.
+     *
+     * <p>수량·단가·통화만 적고 소요예산 칸을 비워 내는 제출본이 있습니다(실측: 상하이지점 1-2). 그대로 두면 그 행이 통째로 버려져 사업 소요금액이 0원이 되고
+     * 파일이 차단됩니다. 수량이 비어 있으면 1건으로 봅니다 — 단가만 적었다는 것은 그 금액이 곧 소요예산이라는 뜻입니다.
+     *
+     * <p>산출값이 실제와 어긋나면 1-1 선언 금액과 1-2 합계를 맞대보는 기존 대사가 {@code AMOUNT_MISMATCH} 경고로 잡아 줍니다.
+     *
+     * @param qty 수량. 비어 있거나 0이면 1로 봅니다
+     * @param unitPrice 단가
+     * @return 산출 금액. 단가가 없으면 null
+     */
+    private static BigDecimal fromUnitPrice(BigDecimal qty, BigDecimal unitPrice) {
+        if (unitPrice == null || unitPrice.signum() == 0) return null;
+        if (qty == null || qty.signum() == 0) return unitPrice;
+        return unitPrice.multiply(qty);
     }
 
     /** 엑셀 통화 셀의 대소문자와 일반·전각 공백을 공통코드 형식으로 맞춥니다. */
@@ -273,13 +309,7 @@ public class ResourceTableReader {
 
     private BigDecimal number(
             Sheet sheet, SheetAnchorScanner.HeaderMap map, int rowIndex, String columnId) {
-        String raw = text(sheet, map, rowIndex, columnId).replace(",", "").trim();
-        if (raw.isEmpty()) return null;
-        try {
-            return new BigDecimal(raw);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return FormAmount.value(text(sheet, map, rowIndex, columnId));
     }
 
     /** 합계 행인지 판정합니다. 합계는 적재하지 않고 여기서 표를 끝냅니다. */

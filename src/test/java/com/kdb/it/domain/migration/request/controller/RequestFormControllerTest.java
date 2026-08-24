@@ -108,6 +108,36 @@ class RequestFormControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/admin/migration/requests/dry-run: archiveOnly가 빠진 manifest도 받는다")
+    void 보관전용_여부가_없어도_사전검증한다() throws Exception {
+        given(importService.importBatch(anyList(), any(), eq("999999"), eq(true)))
+                .willReturn(response(true));
+        // archiveOnly를 원시 boolean으로 두면 이 형태가 Jackson 단계에서 400이 된다. 구버전 화면 번들이
+        // 그대로 보내는 형태라 계약으로 고정한다.
+        String manifestWithoutArchiveOnly =
+                """
+                {"bseYy":"2026",\
+                "entries":[{"fileKey":"자금운용실/요청서.xls","deptName":"자금운용실",\
+                "deptCodeOverride":null,"generalExpenseUnit":null,"bgUntAbusC":null}],\
+                "overrides":[]}\
+                """;
+
+        mockMvc.perform(
+                        multipart("/api/admin/migration/requests/dry-run")
+                                .file(excelPart())
+                                .file(
+                                        new MockMultipartFile(
+                                                "manifest",
+                                                "manifest.json",
+                                                MediaType.APPLICATION_JSON_VALUE,
+                                                manifestWithoutArchiveOnly.getBytes(
+                                                        StandardCharsets.UTF_8)))
+                                .header("X-Requested-With", "XMLHttpRequest")
+                                .with(adminUser()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("POST /api/admin/migration/requests: 예산연도가 4자리가 아니면 400이다")
     void 잘못된_예산연도는_400이다() throws Exception {
         RequestFormDto.ImportManifest invalid =

@@ -58,7 +58,7 @@ class IoeHierarchyIndexTest {
     @Test
     @DisplayName("대응 코드가 없는 세부비목은 미해석으로 남는다")
     void marksUnknownDetailUnresolved() {
-        IoeHierarchyIndex.Resolution resolution = snapshot.resolveByDetail("전산 제비", "국외전산기타제비");
+        IoeHierarchyIndex.Resolution resolution = snapshot.resolveByDetail("전산 제비", "전산자문료");
 
         assertThat(resolution.isUnresolved()).isTrue();
         assertThat(resolution.isAmbiguous()).isFalse();
@@ -89,12 +89,36 @@ class IoeHierarchyIndexTest {
     }
 
     @Test
-    @DisplayName("전산제비는 세부가 양식에 없어 항상 중의적이다")
+    @DisplayName("국내 전산제비는 세부가 양식에 없어 항상 중의적이다")
     void marksGeneralExpenseGroupAmbiguous() {
         IoeHierarchyIndex.Resolution resolution = snapshot.resolveByGroup("전산제비", true);
 
         assertThat(resolution.isAmbiguous()).isTrue();
         assertThat(resolution.candidates()).hasSizeGreaterThan(1);
+    }
+
+    @Test
+    @DisplayName("국외 부점의 전산제비는 국외전산제비로 정하고 국외 세부를 대안으로 준다")
+    void defaultsForeignGeneralExpenseToForeignItExpense() {
+        IoeHierarchyIndex.Resolution resolution = snapshot.resolveByGroup("전산제비", false);
+
+        assertThat(resolution.isAmbiguous()).isFalse();
+        assertThat(resolution.code()).isEqualTo("017");
+        assertThat(resolution.label()).isEqualTo("국외전산제비");
+        // 국외 세부 3종은 대안으로 남아 다른 비목이면 화면에서 고를 수 있다
+        assertThat(resolution.candidates())
+                .extracting(MigrationDto.Candidate::code)
+                .containsExactly("013", "014", "015", "017");
+    }
+
+    @Test
+    @DisplayName("국내 전산제비 후보에는 국외 항목이 섞이지 않는다")
+    void keepsDomesticGeneralExpenseCandidatesDomestic() {
+        IoeHierarchyIndex.Resolution resolution = snapshot.resolveByGroup("전산제비", true);
+
+        assertThat(resolution.candidates())
+                .extracting(MigrationDto.Candidate::code)
+                .containsExactly("010", "011", "012", "016");
     }
 
     @Test

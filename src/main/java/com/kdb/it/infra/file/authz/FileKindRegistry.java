@@ -6,7 +6,7 @@ import java.util.TreeSet;
 import org.springframework.stereotype.Component;
 
 /**
- * 이 시스템이 아는 첨부파일 종류({@code PK_COL_NM})의 목록입니다.
+ * 이 시스템이 아는 첨부파일 종류({@code APG_FL_KD_NM})의 목록입니다.
  *
  * <p>종류 목록을 따로 손으로 관리하지 않고 <b>판정기들이 선언한 종류의 합집합</b>으로 만듭니다. 새 종류를 쓰려면 읽기 또는 쓰기 판정기를 먼저 등록해야 하므로,
  * "권한 규칙 없는 종류가 조용히 생기는" 경로가 구조적으로 막힙니다.
@@ -29,18 +29,18 @@ public class FileKindRegistry {
             List<FileReadAuthorizer> readAuthorizers,
             List<FileTargetWriteAuthorizer> writeAuthorizers) {
         Set<String> kinds = new TreeSet<>();
-        readAuthorizers.forEach(authorizer -> kinds.addAll(authorizer.supportedPkColNms()));
-        writeAuthorizers.forEach(authorizer -> kinds.addAll(authorizer.supportedPkColNms()));
+        readAuthorizers.forEach(authorizer -> kinds.addAll(authorizer.supportedApgFlKdNms()));
+        writeAuthorizers.forEach(authorizer -> kinds.addAll(authorizer.supportedApgFlKdNms()));
         this.knownKinds = Set.copyOf(kinds);
     }
 
     /**
      * 알려진 종류인지 확인합니다.
      *
-     * @param pkColNm 파일 종류
+     * @param apgFlKdNm 파일 종류
      * @return 판정기가 선언한 종류면 true
      */
-    public boolean isKnown(String pkColNm) {
-        return pkColNm != null && knownKinds.contains(pkColNm);
+    public boolean isKnown(String apgFlKdNm) {
+        return apgFlKdNm != null && knownKinds.contains(apgFlKdNm);
     }
 }

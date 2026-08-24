@@ -38,6 +38,9 @@ public final class FormLexicon {
     /** 체크박스 문구(정규화 키) → 공통코드 코드값명. 문구와 코드값명이 어긋나는 것만 담습니다. */
     private static final Map<String, String> OPTION_CANONICAL = optionCanonical();
 
+    /** 전결권자 표기(정규화 키) → 전결권 공통코드 코드값명. */
+    private static final Map<String, String> EDRT_CANONICAL = edrtCanonical();
+
     /** 긍정 표기 집합. 양식마다 O·√·● 등이 섞여 있습니다. */
     private static final Set<String> AFFIRMATIVE =
             Set.of("O", "o", "○", "◯", "０", "0", "√", "∨", "V", "v", "Y", "y", "●", "◎");
@@ -120,15 +123,33 @@ public final class FormLexicon {
     /**
      * 계약구분의 계속·신규 표시를 사업구분코드로 바꿉니다.
      *
+     * <p>표시 기호(`O`·`√`) 외에 <b>열 이름을 낱말로 적어 낸 표기</b>도 받습니다 — 실측 제출본(상하이지점 ③)이 계속 열에 `계속`, 신규 열에
+     * `신규`라고 적었습니다. 이 표기를 못 읽으면 두 열이 모두 미표시가 되어 계약구분이 조용히 `해당없음`으로 떨어집니다(진단도 나지 않습니다).
+     *
+     * <p><b>자기 열의 이름만</b> 표시로 봅니다. 계속 열에 적힌 `신규`까지 표시로 세면 두 열이 동시에 켜져 오히려 판정이 무너지고, 부점이 열을 잘못 짚은
+     * 것인지 값을 잘못 적은 것인지 알 수 없습니다.
+     *
      * @param continued `계속` 열의 셀 원문
      * @param isNew `신규` 열의 셀 원문
      * @return `20`(계속) 또는 `10`(신규). 둘 다 비었거나 둘 다 표시되면 빈 Optional
      */
     public static Optional<String> toAbusTc(String continued, String isNew) {
-        boolean continuedMarked = toYn(continued).filter("Y"::equals).isPresent();
-        boolean newMarked = toYn(isNew).filter("Y"::equals).isPresent();
+        boolean continuedMarked = isMarked(continued, "계속");
+        boolean newMarked = isMarked(isNew, "신규");
         if (continuedMarked == newMarked) return Optional.empty();
         return Optional.of(continuedMarked ? ABUS_TC_CONTINUED : ABUS_TC_NEW);
+    }
+
+    /**
+     * 계약구분 칸이 표시된 것으로 볼지 판정합니다.
+     *
+     * @param raw 셀 원문
+     * @param columnWord 그 열의 이름 (`계속`·`신규`)
+     * @return 긍정 기호이거나 자기 열의 이름을 적었으면 true
+     */
+    private static boolean isMarked(String raw, String columnWord) {
+        if (toYn(raw).filter("Y"::equals).isPresent()) return true;
+        return columnWord.equals(SheetAnchorScanner.normalize(raw));
     }
 
     private static Map<String, List<String>> englishByLabel() {
@@ -183,6 +204,36 @@ public final class FormLexicon {
             if (normalized.contains(alias.getKey())) contained.add(alias.getValue());
         }
         return contained.size() == 1 ? contained.iterator().next() : raw.trim();
+    }
+
+    /**
+     * 전결권자 표기를 전결권(`IT_PTL_EDRT_TC`) 코드값명으로 되돌립니다.
+     *
+     * <p>1-1의 `전결권자` 칸은 자유 기재라 부점이 <b>직명이 아니라 소관 직책</b>을 적습니다(`부서장`·`정보보호최고책임자`). 코드표는 은행 직제의 직명
+     * 6종(회장·전무이사·부문장·지역본부장·부점장·이사회)만 가지고 있어 그대로는 한 건도 맞지 않습니다.
+     *
+     * <p>{@link #canonicalOptionName}과 나누는 이유는 같은 글자가 다른 그룹에서 다른 코드이기 때문입니다 — `부서장`은 최종보고
+     * (`IT_PTL_RPR_STS_TC`)에서는 그 자체가 코드값명이지만 전결권에서는 `부점장`입니다. 한 맵에 섞으면 최종보고 체크박스가 조용히 어긋납니다.
+     *
+     * @param raw 양식의 전결권자 표기
+     * @return 전결권 코드값명. 대조표에 없으면 체크박스 대조표를 한 번 더 보고, 그것도 없으면 원문 그대로. null이면 빈 문자열
+     */
+    public static String canonicalEdrtName(String raw) {
+        if (raw == null) return "";
+        String exact = EDRT_CANONICAL.get(SheetAnchorScanner.normalize(raw));
+        if (exact != null) return exact;
+        // `IDT본부장`처럼 소관을 앞에 붙여 적는 표기. 코드표에 `본부장`으로 끝나는 직명은 지역본부장뿐이다
+        if (SheetAnchorScanner.normalize(raw).contains("본부장")) return "지역본부장";
+        return canonicalOptionName(raw);
+    }
+
+    private static Map<String, String> edrtCanonical() {
+        Map<String, String> map = new LinkedHashMap<>();
+        // 부점이 쓰는 통칭 → 코드표의 직명
+        alias(map, "부서장", "부점장");
+        // 정보보호최고책임자(CISO)는 정보보호 사업의 전결권자로 적히며 직제상 지역본부장과 같은 급이다
+        alias(map, "정보보호최고책임자", "지역본부장");
+        return Map.copyOf(map);
     }
 
     private static Map<String, String> optionCanonical() {

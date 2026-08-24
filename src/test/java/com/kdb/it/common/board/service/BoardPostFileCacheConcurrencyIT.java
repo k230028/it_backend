@@ -77,7 +77,7 @@ class BoardPostFileCacheConcurrencyIT {
                             Long count =
                                     jdbcTemplate.queryForObject(
                                             "SELECT COUNT(*) FROM TPRMPP_CFILEM "
-                                                    + "WHERE PK_COL_NM = ? AND PK_CONE = ? AND DEL_YN = ?",
+                                                    + "WHERE APG_FL_KD_NM = ? AND APG_FL_LNK_CTZ_NM = ? AND DEL_YN = ?",
                                             Long.class,
                                             "공통게시판",
                                             nacMngNo,
@@ -91,7 +91,7 @@ class BoardPostFileCacheConcurrencyIT {
                             return count;
                         })
                 .when(fileRepository)
-                .countByPkColNmAndPkConeAndDelYn(eq("공통게시판"), eq(nacMngNo), eq("N"));
+                .countByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(eq("공통게시판"), eq(nacMngNo), eq("N"));
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
@@ -156,7 +156,7 @@ class BoardPostFileCacheConcurrencyIT {
         String fileId = PREFIX + suffix + uid;
         jdbcTemplate.update(
                 "INSERT INTO TPRMPP_CFILEM (FL_MPN_ID, FL_NM, FL_PYS_NM, FL_KPN_PTH, FL_TP_CONE, "
-                        + "PK_COL_NM, PK_CONE, FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, "
+                        + "APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, "
                         + "LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, ?, ?, '/data/files/brd11', '첨부파일', '공통게시판', ?, "
                         + "'BRD11TEST', SYSDATE, 'N', ?, 1, 'BRD11TEST', SYSDATE)",

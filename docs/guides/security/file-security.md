@@ -11,7 +11,7 @@
 
 ## 파일 읽기 인가 (SEC-05)
 
-파일 읽기는 파일 종류(`PK_COL_NM`)별 authorizer가 부모 자원의 읽기 권한을 재사용해 판정합니다. 이전의 "비게시판 업무 파일 읽기는 별도 소유권 제한 없음" 방침은 폐기되었고, 목록·메타·다운로드·미리보기 네 경로가 모두 같은 판정을 통과합니다.
+파일 읽기는 파일 종류(`APG_FL_KD_NM`)별 authorizer가 부모 자원의 읽기 권한을 재사용해 판정합니다. 이전의 "비게시판 업무 파일 읽기는 별도 소유권 제한 없음" 방침은 폐기되었고, 목록·메타·다운로드·미리보기 네 경로가 모두 같은 판정을 통과합니다.
 
 - 목록은 `FileService.getFiles`가 `FileOwnershipChecker.canRead()`로 필터링하고, 메타·다운로드·미리보기 단건은 `checkReadAccess()`로 검증합니다.
 - 판정은 `FileReadAuthorizerRegistry`에 위임하며, 레지스트리는 기동 시 종류별 `FileReadAuthorizer` 구현을 수집합니다. 같은 종류를 두 authorizer가 등록하면 기동이 `IllegalStateException`으로 실패합니다.
@@ -19,7 +19,7 @@
 
 ### 종류별 규칙
 
-| `PK_COL_NM` | 부모 | 읽기 허용 |
+| `APG_FL_KD_NM` | 부모 | 읽기 허용 |
 | --- | --- | --- |
 | `공통게시판` | `Cblbcm`(`NAC_MNG_NO`) | 관리자 OR 게시물 공개(화면표시 `sreYn=Y` + 공개기간 `sttDt~endDt` 내) |
 | `요구사항정의서` | `Brdocm`(`DOC_MNG_NO`, 최신 버전) | 관리자 OR 작성자(`FST_ENR_USID`) OR 주관부서(`SVN_DPM_C == 사용자 bbrC`) |
@@ -28,8 +28,8 @@
 | `편성요청서반입` | 반입받은 신청서번호 → `Cappla` 매핑이 가리키는 원장(`BPROJM`·`BCOSTM`) | 관리자 OR 연결 원장의 주관부서(`SVN_DPM_C == 사용자 bbrC`). 매핑·원장이 없으면 거부 |
 | (미등록·`null` 종류) | — | 관리자만(default-deny) |
 
-- 새 파일 종류(`PK_COL_NM`)를 추가하면 authorizer를 등록하기 전까지 default-deny(관리자만)로 처리되므로, 필요한 읽기 규칙은 authorizer로 명시 등록합니다.
-- 목록 인가 판정은 `(PK_COL_NM, PK_CONE)` 요청 범위 캐시로 재사용해 부모 조회 N+1을 방지합니다.
+- 새 파일 종류(`APG_FL_KD_NM`)를 추가하면 authorizer를 등록하기 전까지 default-deny(관리자만)로 처리되므로, 필요한 읽기 규칙은 authorizer로 명시 등록합니다.
+- 목록 인가 판정은 `(APG_FL_KD_NM, APG_FL_LNK_CTZ_NM)` 요청 범위 캐시로 재사용해 부모 조회 N+1을 방지합니다.
 
 ### 읽기 거부 계약
 
@@ -49,6 +49,6 @@
 
 ## 데이터 정합성
 
-- 레거시로 뒤바뀐 부모 키(`PK_COL_NM`/`PK_CONE`)는 정규화 마이그레이션으로 교정하고, 부모를 복구할 수 없는 격리 행은 관리자만 접근할 수 있습니다. 정규화 SQL·격리 목록·수동 재연결 절차는 `file-read-migration.md`로 관리합니다.
+- 레거시로 뒤바뀐 부모 키(`APG_FL_KD_NM`/`APG_FL_LNK_CTZ_NM`)는 정규화 마이그레이션으로 교정하고, 부모를 복구할 수 없는 격리 행은 관리자만 접근할 수 있습니다. 정규화 SQL·격리 목록·수동 재연결 절차는 `file-read-migration.md`로 관리합니다.
 
 `/api/files/**`가 인증을 요구한다는 사실만으로 개별 파일 소유권 검증을 대체할 수 없습니다.

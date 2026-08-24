@@ -3,11 +3,13 @@ package com.kdb.it.domain.migration.request.service.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.service.WorkbookReader;
 import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -36,6 +38,7 @@ class ResourceTableReaderTest {
                 amount,
                 currency,
                 amount,
+                null,
                 "근거",
                 timing,
                 "Y",
@@ -66,6 +69,41 @@ class ResourceTableReaderTest {
                 reader.readCapitalResource(sheet, firstHeader + 1, true).orElseThrow();
 
         assertThat(general.rows()).extracting(ResourceRow::itemName).containsExactly("전용망 회선 이용료");
+    }
+
+    @Test
+    @DisplayName("소요예산 칸이 밝힌 단위를 품목 금액에 적용한다")
+    void appliesCellDeclaredUnitToItemAmount() {
+        Sheet sheet =
+                sheetOf(
+                        RequestFormFixtures.capitalResourceAmountVariantsXls(),
+                        FormSheetKind.CAPITAL_RESOURCE);
+
+        ResourceRow row = reader.readCapitalResource(sheet, 0, false).orElseThrow().rows().get(0);
+
+        assertThat(row.amount()).isEqualByComparingTo("2122");
+        assertThat(row.amountUnit()).isEqualTo(AmountUnit.MILLION);
+        // 국내 정보화사업 기본 단위(백만원)를 다시 곱하지 않고 칸이 밝힌 단위 한 번만 적용한다
+        ProjectDto.BitemmDto item = ResourceTableReader.toItem(row, "103", 1, "2026", true);
+        assertThat(item.getAmt()).isEqualByComparingTo("2122000000");
+    }
+
+    @Test
+    @DisplayName("소요예산 칸이 비면 수량 × 단가로 채운다")
+    void fillsAmountFromUnitPrice() {
+        Sheet sheet =
+                sheetOf(
+                        RequestFormFixtures.capitalResourceAmountVariantsXls(),
+                        FormSheetKind.CAPITAL_RESOURCE);
+
+        List<ResourceRow> rows = reader.readCapitalResource(sheet, 0, false).orElseThrow().rows();
+
+        // 수량이 없으면 1건으로 본다 — 단가만 적었다는 것은 그 금액이 곧 소요예산이라는 뜻이다
+        assertThat(rows.get(1).itemName()).isEqualTo("보고서시스템 업그레이드");
+        assertThat(rows.get(1).amount()).isEqualByComparingTo("80000");
+        // 수량이 있으면 곱한다
+        assertThat(rows.get(2).itemName()).isEqualTo("라이선스");
+        assertThat(rows.get(2).amount()).isEqualByComparingTo("20000");
     }
 
     @Test

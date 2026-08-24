@@ -77,8 +77,8 @@ public class FileController {
     @Operation(
             summary = "파일 목록 조회",
             description =
-                    "주식별자컬럼명(pkColNm) 기준으로 파일 목록을 조회합니다. "
-                            + "pkCone(주식별자내용)을 추가하면 특정 레코드의 파일만 조회합니다. "
+                    "주식별자컬럼명(apgFlKdNm) 기준으로 파일 목록을 조회합니다. "
+                            + "apgFlLnkCtzNm(주식별자내용)을 추가하면 특정 레코드의 파일만 조회합니다. "
                             + "flTpCone('이미지' 또는 '첨부파일')로 파일 종류를 필터링할 수 있습니다.")
     public ResponseEntity<List<FileDto.Response>> getFiles(
             @ParameterObject @ModelAttribute FileDto.SearchCondition condition,
@@ -89,8 +89,8 @@ public class FileController {
     /**
      * 여러 부모 키에 연결된 파일을 한 번에 조회합니다.
      *
-     * @param pkColNm 주식별자컬럼명
-     * @param pkCones 반복 가능한 주식별자내용
+     * @param apgFlKdNm 주식별자컬럼명
+     * @param apgFlLnkCtzNms 반복 가능한 주식별자내용
      * @param userDetails 인증 사용자
      * @return 요청한 부모 키별 접근 가능한 파일 목록
      * @throws com.kdb.it.exception.CustomGeneralException 종류나 부모 키가 비어 있거나 공백인 경우
@@ -99,13 +99,13 @@ public class FileController {
     @Operation(
             summary = "여러 부모의 파일 일괄 조회",
             description =
-                    "pkCone 쿼리 파라미터를 반복해 여러 부모의 파일을 한 번에 조회합니다. "
+                    "apgFlLnkCtzNm 쿼리 파라미터를 반복해 여러 부모의 파일을 한 번에 조회합니다. "
                             + "파일이 없거나 읽기 권한이 없는 부모는 빈 목록으로 반환합니다.")
     public ResponseEntity<Map<String, List<FileDto.Response>>> getFilesBatch(
-            @RequestParam("pkColNm") String pkColNm,
-            @RequestParam("pkCone") List<String> pkCones,
+            @RequestParam("apgFlKdNm") String apgFlKdNm,
+            @RequestParam("apgFlLnkCtzNm") List<String> apgFlLnkCtzNms,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(fileService.getFilesBatch(pkColNm, pkCones, userDetails));
+        return ResponseEntity.ok(fileService.getFilesBatch(apgFlKdNm, apgFlLnkCtzNms, userDetails));
     }
 
     /**
@@ -228,8 +228,8 @@ public class FileController {
      *
      * @param file 업로드 파일
      * @param flTpCone 파일 유형
-     * @param pkCone 원본 식별값
-     * @param pkColNm 원본 식별 컬럼명
+     * @param apgFlLnkCtzNm 원본 식별값
+     * @param apgFlKdNm 원본 식별 컬럼명
      * @param userDetails 인증 사용자
      * @return 생성된 파일 정보
      * @throws com.kdb.it.exception.CustomGeneralException 파일 검증 또는 저장에 실패한 경우
@@ -249,21 +249,21 @@ public class FileController {
                     @RequestPart("flTpCone")
                     String flTpCone,
             @Parameter(description = "주식별자내용 (연결할 도메인 레코드 기본키)")
-                    @RequestPart(value = "pkCone", required = false)
-                    String pkCone,
+                    @RequestPart(value = "apgFlLnkCtzNm", required = false)
+                    String apgFlLnkCtzNm,
             @Parameter(description = "주식별자컬럼명 (연결할 도메인 종류, 예: 요구사항정의서)", required = true)
-                    @RequestPart("pkColNm")
-                    String pkColNm,
+                    @RequestPart("apgFlKdNm")
+                    String apgFlKdNm,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         FileDto.UploadRequest request =
                 FileDto.UploadRequest.builder()
                         .flTpCone(flTpCone)
-                        .pkCone(pkCone)
-                        .pkColNm(pkColNm)
+                        .apgFlLnkCtzNm(apgFlLnkCtzNm)
+                        .apgFlKdNm(apgFlKdNm)
                         .build();
 
-        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(pkColNm, pkCone, userDetails);
+        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(apgFlKdNm, apgFlLnkCtzNm, userDetails);
         // 업로드 후 전체 파일 정보(previewUrl, downloadUrl 포함) 반환
         FileDto.Response response = fileService.uploadFileAndGet(file, request);
         return ResponseEntity.created(URI.create("/api/files/" + response.getFlMpnId()))
@@ -275,8 +275,8 @@ public class FileController {
      *
      * @param files 업로드 파일 목록
      * @param flTpCone 파일 유형
-     * @param pkCone 원본 식별값
-     * @param pkColNm 원본 식별 컬럼명
+     * @param apgFlLnkCtzNm 원본 식별값
+     * @param apgFlKdNm 원본 식별 컬럼명
      * @param userDetails 인증 사용자
      * @return 파일별 업로드 결과
      */
@@ -294,21 +294,21 @@ public class FileController {
                     @RequestPart("flTpCone")
                     String flTpCone,
             @Parameter(description = "주식별자내용 (연결할 도메인 레코드 기본키)")
-                    @RequestPart(value = "pkCone", required = false)
-                    String pkCone,
+                    @RequestPart(value = "apgFlLnkCtzNm", required = false)
+                    String apgFlLnkCtzNm,
             @Parameter(description = "주식별자컬럼명 (연결할 도메인 종류)", required = true)
-                    @RequestPart("pkColNm")
-                    String pkColNm,
+                    @RequestPart("apgFlKdNm")
+                    String apgFlKdNm,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         FileDto.UploadRequest request =
                 FileDto.UploadRequest.builder()
                         .flTpCone(flTpCone)
-                        .pkCone(pkCone)
-                        .pkColNm(pkColNm)
+                        .apgFlLnkCtzNm(apgFlLnkCtzNm)
+                        .apgFlKdNm(apgFlKdNm)
                         .build();
 
-        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(pkColNm, pkCone, userDetails);
+        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(apgFlKdNm, apgFlLnkCtzNm, userDetails);
         return ResponseEntity.ok(fileService.uploadFiles(files, request));
     }
 
@@ -341,7 +341,7 @@ public class FileController {
         // 쓰기 권한 검증 — 파일 종류별 작성자 또는 관리자 정책을 적용한다.
         fileOwnershipChecker.verifyWriteAccess(flMpnId, userDetails);
         targetWriteAuthorizerRegistry.verifyTargetWriteAccess(
-                request.getPkColNm(), request.getPkCone(), userDetails);
+                request.getApgFlKdNm(), request.getApgFlLnkCtzNm(), userDetails);
         String updatedFlMpnId = fileService.updateFileMeta(flMpnId, request);
         return ResponseEntity.ok(updatedFlMpnId);
     }
@@ -385,7 +385,7 @@ public class FileController {
     @Operation(
             summary = "원본 기준 파일 일괄 삭제",
             description =
-                    "특정 도메인 레코드(pkColNm + pkCone)에 연결된 모든 파일을 일괄 논리 삭제합니다. "
+                    "특정 도메인 레코드(apgFlKdNm + apgFlLnkCtzNm)에 연결된 모든 파일을 일괄 논리 삭제합니다. "
                             + "프로젝트나 문서 삭제 시 연관 파일을 일괄 정리할 때 사용합니다. "
                             + "삭제된 파일 수를 반환합니다.")
     public ResponseEntity<Integer> deleteFilesByOrc(
@@ -394,7 +394,7 @@ public class FileController {
         // 소유권 검증은 서비스 계층에서 수행 — 비관리자는 본인 소유 파일만 일괄 삭제 가능
         int deletedCount =
                 fileService.deleteFilesByOrc(
-                        request.getPkColNm(), request.getPkCone(), userDetails);
+                        request.getApgFlKdNm(), request.getApgFlLnkCtzNm(), userDetails);
         return ResponseEntity.ok(deletedCount);
     }
 

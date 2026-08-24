@@ -21,7 +21,7 @@ class FileTargetWriteAuthorizerRegistryTest {
     @DisplayName("등록 종류의 대상 판정이 거부되면 403 예외를 던진다")
     void registeredKindDenied() {
         FileTargetWriteAuthorizer authorizer = mock(FileTargetWriteAuthorizer.class);
-        given(authorizer.supportedPkColNms()).willReturn(Set.of("검토의견"));
+        given(authorizer.supportedApgFlKdNms()).willReturn(Set.of("검토의견"));
         given(authorizer.canWrite("101", user)).willReturn(false);
         FileTargetWriteAuthorizerRegistry registry = registryOf(List.of(authorizer));
 
@@ -34,7 +34,7 @@ class FileTargetWriteAuthorizerRegistryTest {
     @DisplayName("등록 종류의 대상 판정이 허용되면 통과한다")
     void registeredKindAllowed() {
         FileTargetWriteAuthorizer authorizer = mock(FileTargetWriteAuthorizer.class);
-        given(authorizer.supportedPkColNms()).willReturn(Set.of("공통게시판"));
+        given(authorizer.supportedApgFlKdNms()).willReturn(Set.of("공통게시판"));
         given(authorizer.canWrite("NAC-2026-0001", user)).willReturn(true);
         FileTargetWriteAuthorizerRegistry registry = registryOf(List.of(authorizer));
 
@@ -48,12 +48,12 @@ class FileTargetWriteAuthorizerRegistryTest {
         FileTargetWriteAuthorizer legacyAuthorizer =
                 new FileTargetWriteAuthorizer() {
                     @Override
-                    public Set<String> supportedPkColNms() {
+                    public Set<String> supportedApgFlKdNms() {
                         return Set.of("공통게시판");
                     }
 
                     @Override
-                    public boolean canWrite(String pkCone, CustomUserDetails currentUser) {
+                    public boolean canWrite(String apgFlLnkCtzNm, CustomUserDetails currentUser) {
                         return true;
                     }
                 };
@@ -78,7 +78,7 @@ class FileTargetWriteAuthorizerRegistryTest {
     /** 읽기 판정기만 있는(= 쓰기 전용 규칙이 없는) 종류까지 아는 레지스트리. */
     private static FileTargetWriteAuthorizerRegistry registryKnowing(String... kinds) {
         FileReadAuthorizer reader = mock(FileReadAuthorizer.class);
-        given(reader.supportedPkColNms()).willReturn(Set.of(kinds));
+        given(reader.supportedApgFlKdNms()).willReturn(Set.of(kinds));
         return new FileTargetWriteAuthorizerRegistry(
                 List.of(), new FileKindRegistry(List.of(reader), List.of()));
     }

@@ -19,7 +19,7 @@ public class ReviewCommentFileWriteAuthorizer implements FileTargetWriteAuthoriz
     private final BrivgmRepository brivgmRepository;
 
     @Override
-    public Set<String> supportedPkColNms() {
+    public Set<String> supportedApgFlKdNms() {
         return Set.of(REVIEW_COMMENT_KIND);
     }
 
@@ -34,25 +34,25 @@ public class ReviewCommentFileWriteAuthorizer implements FileTargetWriteAuthoriz
         if (file == null) {
             return false;
         }
-        return canWrite(file.getPkCone(), user);
+        return canWrite(file.getApgFlLnkCtzNm(), user);
     }
 
     /**
      * 검토의견 첨부 대상 쓰기 가능 여부를 판정합니다.
      *
-     * @param pkCone 의견일련번호
+     * @param apgFlLnkCtzNm 의견일련번호
      * @param user 현재 사용자
      * @return 활성 검토의견이 존재하고 댓글 작성자 또는 관리자이면 {@code true}
      */
     @Override
-    public boolean canWrite(String pkCone, CustomUserDetails user) {
-        if (user == null || !StringUtils.hasText(pkCone)) {
+    public boolean canWrite(String apgFlLnkCtzNm, CustomUserDetails user) {
+        if (user == null || !StringUtils.hasText(apgFlLnkCtzNm)) {
             return false;
         }
 
         final long commentId;
         try {
-            commentId = Long.parseLong(pkCone);
+            commentId = Long.parseLong(apgFlLnkCtzNm);
         } catch (NumberFormatException ignored) {
             return false;
         }

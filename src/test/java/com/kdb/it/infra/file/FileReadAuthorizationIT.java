@@ -69,7 +69,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class FileReadAuthorizationIT {
 
     // ─────────────────────────────────────────
-    // 파일 종류(PK_COL_NM) 상수
+    // 파일 종류(APG_FL_KD_NM) 상수
     // ─────────────────────────────────────────
     private static final String KIND_REQUIREMENT = "요구사항정의서";
     private static final String KIND_GUIDE = "가이드문서";
@@ -375,7 +375,7 @@ class FileReadAuthorizationIT {
                                                 .SecurityMockMvcRequestPostProcessors.user(
                                                 user(fileOwner, NS + "D" + uid)))
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"pkColNm\":\"공통게시판\",\"pkCone\":\"" + boardNo + "\"}"))
+                                .content("{\"apgFlKdNm\":\"공통게시판\",\"apgFlLnkCtzNm\":\"" + boardNo + "\"}"))
                 .andExpect(status().isForbidden());
 
         assertFileTarget(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid);
@@ -399,7 +399,7 @@ class FileReadAuthorizationIT {
                                                 .SecurityMockMvcRequestPostProcessors.user(
                                                 user(fileOwner, NS + "X" + uid)))
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"pkColNm\":\"검토의견\",\"pkCone\":\"" + commentId + "\"}"))
+                                .content("{\"apgFlKdNm\":\"검토의견\",\"apgFlLnkCtzNm\":\"" + commentId + "\"}"))
                 .andExpect(status().isForbidden());
 
         assertFileTarget(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid);
@@ -412,21 +412,21 @@ class FileReadAuthorizationIT {
     @Test
     @DisplayName("격리 행(read-only): 활성 격리 파일은 일반 사용자에게 모두 거부된다")
     void quarantineRows_notExposedToNormalUser() {
-        // 정규화 기준의 격리 형태: PK_COL_NM null, PK_CONE null, 또는 종류가 6종에 없는 활성 파일.
+        // 정규화 기준의 격리 형태: APG_FL_KD_NM null, APG_FL_LNK_CTZ_NM null, 또는 종류가 6종에 없는 활성 파일.
         // 운영/격리 행만 대상으로 하고(SEC05 제외), 조회만 한다(수정·삭제 금지).
         List<QuarantineRow> quarantined =
                 jdbcTemplate.query(
-                        "SELECT FL_MPN_ID, PK_COL_NM, PK_CONE FROM TPRMPP_CFILEM "
+                        "SELECT FL_MPN_ID, APG_FL_KD_NM, APG_FL_LNK_CTZ_NM FROM TPRMPP_CFILEM "
                                 + "WHERE DEL_YN = 'N' AND FL_MPN_ID NOT LIKE '"
                                 + NS
                                 + "%' "
-                                + "AND (PK_COL_NM IS NULL OR PK_CONE IS NULL OR PK_COL_NM NOT IN "
+                                + "AND (APG_FL_KD_NM IS NULL OR APG_FL_LNK_CTZ_NM IS NULL OR APG_FL_KD_NM NOT IN "
                                 + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판','검토의견'))",
                         (rs, rowNum) ->
                                 new QuarantineRow(
                                         rs.getString("FL_MPN_ID"),
-                                        rs.getString("PK_COL_NM"),
-                                        rs.getString("PK_CONE")));
+                                        rs.getString("APG_FL_KD_NM"),
+                                        rs.getString("APG_FL_LNK_CTZ_NM")));
 
         // 정규화 직후 기준(50 정상 + 7 격리)으로 격리 행이 존재해야 하며, 그 어느 것도 일반 사용자에게 노출되면 안 된다.
         assertThat(quarantined).isNotEmpty();
@@ -435,8 +435,8 @@ class FileReadAuthorizationIT {
             Cfilem file =
                     Cfilem.builder()
                             .flMpnId(row.flMpnId())
-                            .pkColNm(row.pkColNm())
-                            .pkCone(row.pkCone())
+                            .apgFlKdNm(row.apgFlKdNm())
+                            .apgFlLnkCtzNm(row.apgFlLnkCtzNm())
                             .build();
             assertThat(registry.canRead(file, normal))
                     .as("격리 행 %s 은 일반 사용자에게 거부되어야 한다", row.flMpnId())
@@ -448,9 +448,9 @@ class FileReadAuthorizationIT {
     // 픽스처 빌더 / 헬퍼
     // ─────────────────────────────────────────
 
-    /** 종류·부모만 채운 인메모리 파일 엔티티(판정은 PK_COL_NM·PK_CONE의 순수 함수). */
-    private Cfilem fileOfKind(String pkColNm, String pkCone) {
-        return Cfilem.builder().flMpnId(NS + "MEM" + uid).pkColNm(pkColNm).pkCone(pkCone).build();
+    /** 종류·부모만 채운 인메모리 파일 엔티티(판정은 APG_FL_KD_NM·APG_FL_LNK_CTZ_NM의 순수 함수). */
+    private Cfilem fileOfKind(String apgFlKdNm, String apgFlLnkCtzNm) {
+        return Cfilem.builder().flMpnId(NS + "MEM" + uid).apgFlKdNm(apgFlKdNm).apgFlLnkCtzNm(apgFlLnkCtzNm).build();
     }
 
     private CustomUserDetails user(String eno, String bbrC) {
@@ -461,8 +461,8 @@ class FileReadAuthorizationIT {
         return new CustomUserDetails(eno, athIds, bbrC);
     }
 
-    private FileDto.SearchCondition condition(String pkColNm, String pkCone) {
-        return FileDto.SearchCondition.builder().pkColNm(pkColNm).pkCone(pkCone).build();
+    private FileDto.SearchCondition condition(String apgFlKdNm, String apgFlLnkCtzNm) {
+        return FileDto.SearchCondition.builder().apgFlKdNm(apgFlKdNm).apgFlLnkCtzNm(apgFlLnkCtzNm).build();
     }
 
     private String guid() {
@@ -584,25 +584,25 @@ class FileReadAuthorizationIT {
     private void assertFileTarget(String flMpnId, String expectedKind, String expectedParent) {
         Map<String, Object> row =
                 jdbcTemplate.queryForMap(
-                        "SELECT PK_COL_NM, PK_CONE FROM TPRMPP_CFILEM WHERE FL_MPN_ID = ?",
+                        "SELECT APG_FL_KD_NM, APG_FL_LNK_CTZ_NM FROM TPRMPP_CFILEM WHERE FL_MPN_ID = ?",
                         flMpnId);
-        assertThat(row.get("PK_COL_NM")).isEqualTo(expectedKind);
-        assertThat(row.get("PK_CONE")).isEqualTo(expectedParent);
+        assertThat(row.get("APG_FL_KD_NM")).isEqualTo(expectedKind);
+        assertThat(row.get("APG_FL_LNK_CTZ_NM")).isEqualTo(expectedParent);
     }
 
     /** 파일(CFILEM) — 종류·부모·업로더를 통제. */
-    private void insertFile(String flMpnId, String pkColNm, String pkCone, String fstEnrUsid) {
+    private void insertFile(String flMpnId, String apgFlKdNm, String apgFlLnkCtzNm, String fstEnrUsid) {
         jdbcTemplate.update(
                 "INSERT INTO TPRMPP_CFILEM (FL_MPN_ID, FL_NM, FL_PYS_NM, FL_KPN_PTH, FL_TP_CONE, "
-                        + "PK_COL_NM, PK_CONE, FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, "
+                        + "APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, "
                         + "LST_CHG_USID, LST_CHG_DTM) "
                         + "VALUES (?, ?, ?, ?, '첨부파일', ?, ?, ?, SYSDATE, 'N', ?, 1, ?, SYSDATE)",
                 flMpnId,
                 NS + "-" + flMpnId + ".pdf",
                 NS + "_phys.pdf",
                 "/data/files/sec05",
-                pkColNm,
-                pkCone,
+                apgFlKdNm,
+                apgFlLnkCtzNm,
                 fstEnrUsid,
                 guid(),
                 fstEnrUsid);
@@ -612,6 +612,6 @@ class FileReadAuthorizationIT {
         return d == null ? null : Date.valueOf(d);
     }
 
-    /** 격리 행 조회용 경량 레코드(FL_MPN_ID·PK_COL_NM·PK_CONE). */
-    private record QuarantineRow(String flMpnId, String pkColNm, String pkCone) {}
+    /** 격리 행 조회용 경량 레코드(FL_MPN_ID·APG_FL_KD_NM·APG_FL_LNK_CTZ_NM). */
+    private record QuarantineRow(String flMpnId, String apgFlKdNm, String apgFlLnkCtzNm) {}
 }

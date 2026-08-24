@@ -16,8 +16,8 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>DB 테이블: {@code TPRMPP_CFILEM}
  *
- * <p>시스템 전역에서 사용되는 첨부파일(이미지 포함)의 메타데이터를 관리합니다. 주식별자컬럼명({@code PK_COL_NM})과 주식별자내용({@code
- * PK_CONE})으로 어느 도메인 데이터에 연결된 파일인지 식별합니다.
+ * <p>시스템 전역에서 사용되는 첨부파일(이미지 포함)의 메타데이터를 관리합니다. 첨부파일종류명({@code APG_FL_KD_NM})과
+ * 첨부파일연결콘텐츠명({@code APG_FL_LNK_CTZ_NM})으로 어느 도메인 데이터에 연결된 파일인지 식별합니다.
  *
  * <p>파일매핑ID 형식: {@code FL-{8자리 시퀀스}} (예: {@code FL-00000001}) — 최대 36자.
  *
@@ -73,24 +73,24 @@ public class Cfilem extends BaseEntity {
     @Column(name = "APG_FL_PTH", length = 255, comment = "첨부파일경로")
     private String apgFlPth;
 
-    /** 주식별자컬럼명: 파일이 연결된 도메인 종류 (예: 요구사항정의서, 정보화사업, 전산관리비) */
-    @Column(name = "PK_COL_NM", length = 4000, comment = "주식별자컬럼명")
-    private String pkColNm;
+    /** 첨부파일종류명: 파일이 연결된 도메인 종류 (예: 요구사항정의서, 정보화사업, 전산관리비) */
+    @Column(name = "APG_FL_KD_NM", length = 100, comment = "첨부파일종류명")
+    private String apgFlKdNm;
 
-    /** 주식별자내용: 파일이 연결된 도메인 레코드의 기본키 값 (예: PRJ-2026-0001) */
-    @Column(name = "PK_CONE", length = 4000, comment = "주식별자내용")
-    private String pkCone;
+    /** 첨부파일연결콘텐츠명: 파일이 연결된 도메인 레코드의 기본키 값 (예: PRJ-2026-0001) */
+    @Column(name = "APG_FL_LNK_CTZ_NM", length = 100, comment = "첨부파일연결콘텐츠명")
+    private String apgFlLnkCtzNm;
 
     /**
      * 파일 메타데이터 수정 메서드
      *
      * <p>파일이 연결된 원본 도메인 정보를 변경합니다. 파일 자체(파일물리명, 저장경로)는 변경되지 않습니다.
      *
-     * @param pkCone 변경할 주식별자내용
-     * @param pkColNm 변경할 주식별자컬럼명
+     * @param apgFlLnkCtzNm 변경할 주식별자내용
+     * @param apgFlKdNm 변경할 주식별자컬럼명
      */
-    public void updateMeta(String pkCone, String pkColNm) {
-        if (pkCone != null) this.pkCone = pkCone;
-        if (pkColNm != null) this.pkColNm = pkColNm;
+    public void updateMeta(String apgFlLnkCtzNm, String apgFlKdNm) {
+        if (apgFlLnkCtzNm != null) this.apgFlLnkCtzNm = apgFlLnkCtzNm;
+        if (apgFlKdNm != null) this.apgFlKdNm = apgFlKdNm;
     }
 }

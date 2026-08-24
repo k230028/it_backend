@@ -16,7 +16,7 @@ class GuideDocFileReadAuthorizerTest {
     @Test
     @DisplayName("가이드문서 종류를 담당한다")
     void supports_guideDoc() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("가이드문서");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("가이드문서");
     }
 
     @Test

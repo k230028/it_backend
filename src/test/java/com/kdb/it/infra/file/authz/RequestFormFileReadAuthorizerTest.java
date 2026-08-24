@@ -32,7 +32,7 @@ class RequestFormFileReadAuthorizerTest {
 
     private Cfilem file(String apfMngNo) {
         Cfilem f = mock(Cfilem.class);
-        when(f.getPkCone()).thenReturn(apfMngNo);
+        when(f.getApgFlLnkCtzNm()).thenReturn(apfMngNo);
         return f;
     }
 
@@ -58,7 +58,7 @@ class RequestFormFileReadAuthorizerTest {
     @Test
     @DisplayName("편성요청서반입 종류를 담당한다")
     void supports_requestFormKind() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("편성요청서반입");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("편성요청서반입");
     }
 
     @Test

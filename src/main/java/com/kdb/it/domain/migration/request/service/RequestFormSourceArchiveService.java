@@ -61,8 +61,8 @@ public class RequestFormSourceArchiveService {
         List<FileDto.Response> authorizedFiles =
                 fileService.getFiles(
                         FileDto.SearchCondition.builder()
-                                .pkColNm(REQUEST_FORM_SOURCE_KIND)
-                                .pkCone(request.apfMngNo())
+                                .apgFlKdNm(REQUEST_FORM_SOURCE_KIND)
+                                .apgFlLnkCtzNm(request.apfMngNo())
                                 .build(),
                         userDetails);
         if (authorizedFiles.isEmpty()) {

@@ -91,7 +91,7 @@ class FileOwnershipCheckerTest {
         @DisplayName("검토의견 첨부는 업로더가 달라도 댓글 작성자 판정이 허용하면 통과한다")
         void verifyWriteAccess_reviewComment_authorizerAllowsAuthor() {
             Cfilem file = mock(Cfilem.class);
-            given(file.getPkColNm())
+            given(file.getApgFlKdNm())
                     .willReturn(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND);
             given(fileRepository.findByFlMpnIdAndDelYn("FL_REVIEW_01", "N"))
                     .willReturn(Optional.of(file));
@@ -107,7 +107,7 @@ class FileOwnershipCheckerTest {
         @DisplayName("검토의견 첨부 업로더라도 댓글 작성자 판정이 거부하면 403이 발생한다")
         void verifyWriteAccess_reviewComment_authorizerDeniesUploader() {
             Cfilem file = mock(Cfilem.class);
-            given(file.getPkColNm())
+            given(file.getApgFlKdNm())
                     .willReturn(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND);
             given(fileRepository.findByFlMpnIdAndDelYn("FL_REVIEW_02", "N"))
                     .willReturn(Optional.of(file));

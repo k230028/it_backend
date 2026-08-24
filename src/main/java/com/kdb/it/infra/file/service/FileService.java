@@ -83,10 +83,10 @@ public class FileService {
     /**
      * 목록 인가 판정 요청 범위 캐시 키.
      *
-     * <p>파일 읽기 권한은 {@code (PK_COL_NM, PK_CONE, user)}의 순수 함수이므로 같은 (종류, 부모)를 가리키는 파일은 동일한 판정을 공유한다.
+     * <p>파일 읽기 권한은 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, user)}의 순수 함수이므로 같은 (종류, 부모)를 가리키는 파일은 동일한 판정을 공유한다.
      * {@link #getFiles} 안에서만 쓰이는 메서드 지역 캐시의 키로 사용하며, 사용자·요청 사이에 공유되지 않는다.
      */
-    private record FileReadKey(String pkColNm, String pkCone) {}
+    private record FileReadKey(String apgFlKdNm, String apgFlLnkCtzNm) {}
 
     /** 엔티티 → 응답 DTO 변환 */
     private FileDto.Response toResponse(Cfilem cfilem) {
@@ -99,8 +99,8 @@ public class FileService {
                 .flTpCone(cfilem.getFlTpCone())
                 .apgFlSz(cfilem.getApgFlSz())
                 .relativePath(cfilem.getApgFlPth())
-                .pkCone(cfilem.getPkCone())
-                .pkColNm(cfilem.getPkColNm())
+                .apgFlLnkCtzNm(cfilem.getApgFlLnkCtzNm())
+                .apgFlKdNm(cfilem.getApgFlKdNm())
                 .fstEnrDtm(cfilem.getFstEnrDtm())
                 .fstEnrUsid(cfilem.getFstEnrUsid())
                 // 프론트엔드에서 URL 조합 불필요하도록 직접 제공
@@ -137,41 +137,41 @@ public class FileService {
      * <p>조회 우선순위:
      *
      * <ol>
-     *   <li>pkColNm + pkCone + flTpCone 모두 입력 → 세 조건으로 필터링
-     *   <li>pkColNm + pkCone 입력 → 두 조건으로 필터링
-     *   <li>pkColNm만 입력 → 해당 주식별자컬럼명 전체 조회
+     *   <li>apgFlKdNm + apgFlLnkCtzNm + flTpCone 모두 입력 → 세 조건으로 필터링
+     *   <li>apgFlKdNm + apgFlLnkCtzNm 입력 → 두 조건으로 필터링
+     *   <li>apgFlKdNm만 입력 → 해당 주식별자컬럼명 전체 조회
      * </ol>
      *
-     * @param condition 검색 조건 (pkColNm 필수, pkCone·flTpCone 선택)
+     * @param condition 검색 조건 (apgFlKdNm 필수, apgFlLnkCtzNm·flTpCone 선택)
      * @param user 현재 사용자 — 읽기 권한 필터링에 사용 (게시판 비공개 파일 제외)
      * @return 파일 조회 응답 DTO 목록 (읽기 가능한 파일만)
-     * @throws CustomGeneralException pkColNm 미입력 시
+     * @throws CustomGeneralException apgFlKdNm 미입력 시
      */
     public List<FileDto.Response> getFiles(
             FileDto.SearchCondition condition, CustomUserDetails user) {
-        if (!StringUtils.hasText(condition.getPkColNm())) {
-            throw new CustomGeneralException("주식별자컬럼명(pkColNm)은 필수입니다.");
+        if (!StringUtils.hasText(condition.getApgFlKdNm())) {
+            throw new CustomGeneralException("주식별자컬럼명(apgFlKdNm)은 필수입니다.");
         }
 
         List<Cfilem> list;
 
-        if (StringUtils.hasText(condition.getPkCone())
+        if (StringUtils.hasText(condition.getApgFlLnkCtzNm())
                 && StringUtils.hasText(condition.getFlTpCone())) {
             // 주식별자컬럼명 + 주식별자내용 + 파일유형내용 필터링
             list =
-                    fileRepository.findAllByPkColNmAndPkConeAndFlTpConeAndDelYn(
-                            condition.getPkColNm(),
-                            condition.getPkCone(),
+                    fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndFlTpConeAndDelYn(
+                            condition.getApgFlKdNm(),
+                            condition.getApgFlLnkCtzNm(),
                             condition.getFlTpCone(),
                             "N");
-        } else if (StringUtils.hasText(condition.getPkCone())) {
+        } else if (StringUtils.hasText(condition.getApgFlLnkCtzNm())) {
             // 주식별자컬럼명 + 주식별자내용 필터링
             list =
-                    fileRepository.findAllByPkColNmAndPkConeAndDelYn(
-                            condition.getPkColNm(), condition.getPkCone(), "N");
+                    fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                            condition.getApgFlKdNm(), condition.getApgFlLnkCtzNm(), "N");
         } else {
             // 주식별자컬럼명 전체 조회
-            list = fileRepository.findAllByPkColNmAndDelYn(condition.getPkColNm(), "N");
+            list = fileRepository.findAllByApgFlKdNmAndDelYn(condition.getApgFlKdNm(), "N");
         }
 
         // 같은 (종류, 부모) 파일은 판정을 한 번만 계산해 재사용한다(요청 범위 캐시 → 부모 조회 N+1 제거).
@@ -181,7 +181,7 @@ public class FileService {
                 .filter(
                         file ->
                                 decisions.computeIfAbsent(
-                                        new FileReadKey(file.getPkColNm(), file.getPkCone()),
+                                        new FileReadKey(file.getApgFlKdNm(), file.getApgFlLnkCtzNm()),
                                         ignored -> fileOwnershipChecker.canRead(file, user)))
                 .map(this::toResponse)
                 .toList();
@@ -193,31 +193,31 @@ public class FileService {
      * <p>중복 부모 키는 최초 요청 순서로 한 번만 처리하며, 파일이 없거나 읽을 수 없는 부모도 빈 목록으로 결과에 포함합니다. 파일 조회는 한 번만 수행하고 같은
      * 부모의 읽기 권한도 한 번만 판정합니다.
      *
-     * @param pkColNm 주식별자컬럼명
-     * @param pkCones 조회할 부모 키 목록
+     * @param apgFlKdNm 주식별자컬럼명
+     * @param apgFlLnkCtzNms 조회할 부모 키 목록
      * @param user 현재 인증 사용자
      * @return 부모 키를 키로 하는 접근 가능한 파일 목록
      * @throws CustomGeneralException 종류 또는 부모 키가 비어 있거나 공백인 경우
      */
     public Map<String, List<FileDto.Response>> getFilesBatch(
-            String pkColNm, List<String> pkCones, CustomUserDetails user) {
-        if (!StringUtils.hasText(pkColNm)) {
-            throw new CustomGeneralException("주식별자컬럼명(pkColNm)은 필수입니다.");
+            String apgFlKdNm, List<String> apgFlLnkCtzNms, CustomUserDetails user) {
+        if (!StringUtils.hasText(apgFlKdNm)) {
+            throw new CustomGeneralException("주식별자컬럼명(apgFlKdNm)은 필수입니다.");
         }
-        if (pkCones == null
-                || pkCones.isEmpty()
-                || pkCones.stream().anyMatch(pkCone -> !StringUtils.hasText(pkCone))) {
-            throw new CustomGeneralException("주식별자내용(pkCone)은 한 건 이상 필요하며 공백일 수 없습니다.");
+        if (apgFlLnkCtzNms == null
+                || apgFlLnkCtzNms.isEmpty()
+                || apgFlLnkCtzNms.stream().anyMatch(apgFlLnkCtzNm -> !StringUtils.hasText(apgFlLnkCtzNm))) {
+            throw new CustomGeneralException("주식별자내용(apgFlLnkCtzNm)은 한 건 이상 필요하며 공백일 수 없습니다.");
         }
 
-        Set<String> distinctParents = new LinkedHashSet<>(pkCones);
+        Set<String> distinctParents = new LinkedHashSet<>(apgFlLnkCtzNms);
         Map<String, List<Cfilem>> filesByParent = new LinkedHashMap<>();
         distinctParents.forEach(parent -> filesByParent.put(parent, new ArrayList<>()));
         fileRepository
-                .findAllByPkColNmAndPkConeInAndDelYn(pkColNm, distinctParents, "N")
+                .findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn(apgFlKdNm, distinctParents, "N")
                 .forEach(
                         file -> {
-                            List<Cfilem> group = filesByParent.get(file.getPkCone());
+                            List<Cfilem> group = filesByParent.get(file.getApgFlLnkCtzNm());
                             if (group != null) {
                                 group.add(file);
                             }
@@ -264,7 +264,7 @@ public class FileService {
     @Transactional
     public String uploadFile(MultipartFile file, FileDto.UploadRequest request) {
         Cfilem saved = uploadFileInternal(file, request);
-        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
+        syncBoardFileCacheIfNeeded(request.getApgFlKdNm(), request.getApgFlLnkCtzNm());
         return saved.getFlMpnId();
     }
 
@@ -300,7 +300,7 @@ public class FileService {
     @Transactional
     public FileDto.Response uploadFileAndGet(MultipartFile file, FileDto.UploadRequest request) {
         Cfilem saved = uploadFileInternal(file, request);
-        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
+        syncBoardFileCacheIfNeeded(request.getApgFlKdNm(), request.getApgFlLnkCtzNm());
         return toResponse(saved);
     }
 
@@ -325,7 +325,7 @@ public class FileService {
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + sourceFlMpnId));
 
         Cfilem linked = fileUploadUnitService.linkExistingFileInNewTransaction(source, request);
-        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
+        syncBoardFileCacheIfNeeded(request.getApgFlKdNm(), request.getApgFlLnkCtzNm());
         return linked.getFlMpnId();
     }
 
@@ -360,7 +360,7 @@ public class FileService {
             }
         }
 
-        syncBoardFileCacheIfNeeded(request.getPkColNm(), request.getPkCone());
+        syncBoardFileCacheIfNeeded(request.getApgFlKdNm(), request.getApgFlLnkCtzNm());
         return FileDto.BulkUploadResponse.builder()
                 .successList(successList)
                 .failList(failList)
@@ -385,7 +385,7 @@ public class FileService {
      * 후 재업로드를 사용하세요.
      *
      * @param flMpnId 수정할 파일매핑ID
-     * @param request 수정 요청 DTO (pkColNm, pkCone)
+     * @param request 수정 요청 DTO (apgFlKdNm, apgFlLnkCtzNm)
      * @return 수정된 파일매핑ID
      * @throws CustomGeneralException 파일이 존재하지 않는 경우
      * @throws org.springframework.security.access.AccessDeniedException 현재 또는 변경 후 파일 종류가 전용
@@ -401,10 +401,10 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
-        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getPkColNm());
-        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(request.getPkColNm());
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getApgFlKdNm());
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(request.getApgFlKdNm());
         // JPA Dirty Checking으로 자동 UPDATE
-        cfilem.updateMeta(request.getPkCone(), request.getPkColNm());
+        cfilem.updateMeta(request.getApgFlLnkCtzNm(), request.getApgFlKdNm());
         return flMpnId;
     }
 
@@ -432,17 +432,17 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
-        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getPkColNm());
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getApgFlKdNm());
         // 논리 삭제(DEL_YN = 'Y')
         cfilem.delete();
-        syncBoardFileCacheIfNeeded(cfilem.getPkColNm(), cfilem.getPkCone());
+        syncBoardFileCacheIfNeeded(cfilem.getApgFlKdNm(), cfilem.getApgFlLnkCtzNm());
     }
 
-    private void syncBoardFileCacheIfNeeded(String pkColNm, String pkCone) {
-        if (!"공통게시판".equals(pkColNm) || !StringUtils.hasText(pkCone)) {
+    private void syncBoardFileCacheIfNeeded(String apgFlKdNm, String apgFlLnkCtzNm) {
+        if (!"공통게시판".equals(apgFlKdNm) || !StringUtils.hasText(apgFlLnkCtzNm)) {
             return;
         }
-        boardPostFileCacheService.syncFromActiveFiles(pkCone);
+        boardPostFileCacheService.syncFromActiveFiles(apgFlLnkCtzNm);
     }
 
     /**
@@ -454,17 +454,17 @@ public class FileService {
      * <p>소유권 검증: 관리자가 아닌 경우 대상 파일이 모두 본인이 업로드한 파일일 때만 삭제할 수 있습니다. 하나라도 타인이 업로드한 파일이 섞여 있으면 {@link
      * AccessDeniedException}을 던집니다. 관리자는 소유권 검증만 우회하며, 보호 종류 차단은 우회하지 않습니다.
      *
-     * @param pkColNm 주식별자컬럼명 (예: 요구사항정의서)
-     * @param pkCone 주식별자내용 (예: PRJ-2026-0001)
+     * @param apgFlKdNm 주식별자컬럼명 (예: 요구사항정의서)
+     * @param apgFlLnkCtzNm 주식별자내용 (예: PRJ-2026-0001)
      * @param user 현재 사용자 — 비관리자는 본인 소유 파일만 일괄 삭제 가능
      * @return 논리 삭제된 파일 수
      * @throws AccessDeniedException 비관리자가 타인 소유 파일을 포함해 삭제를 시도한 경우, 또는 대상 파일 종류가 전용 writer만 관리하는 보호
      *     종류인 경우(관리자 포함)
      */
     @Transactional
-    public int deleteFilesByOrc(String pkColNm, String pkCone, CustomUserDetails user) {
-        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(pkColNm);
-        List<Cfilem> files = fileRepository.findAllByPkColNmAndPkConeAndDelYn(pkColNm, pkCone, "N");
+    public int deleteFilesByOrc(String apgFlKdNm, String apgFlLnkCtzNm, CustomUserDetails user) {
+        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(apgFlKdNm);
+        List<Cfilem> files = fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(apgFlKdNm, apgFlLnkCtzNm, "N");
 
         // 인증 정보가 없으면 대상 목록이 비어 있어도 즉시 거부 — 빈 목록에 기대지 않는 서비스 계약
         if (user == null) {

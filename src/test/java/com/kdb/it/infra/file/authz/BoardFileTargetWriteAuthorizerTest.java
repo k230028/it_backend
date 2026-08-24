@@ -72,7 +72,7 @@ class BoardFileTargetWriteAuthorizerTest {
     @Test
     @DisplayName("공통게시판 종류만 담당한다")
     void supportsOnlyBoardKind() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("공통게시판");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("공통게시판");
     }
 
     @Test

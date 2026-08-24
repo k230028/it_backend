@@ -24,7 +24,7 @@ public class FileTargetWriteAuthorizerRegistry {
         this.kindRegistry = kindRegistry;
         Map<String, FileTargetWriteAuthorizer> map = new HashMap<>();
         for (FileTargetWriteAuthorizer authorizer : authorizers) {
-            for (String kind : authorizer.supportedPkColNms()) {
+            for (String kind : authorizer.supportedApgFlKdNms()) {
                 FileTargetWriteAuthorizer previous = map.put(kind, authorizer);
                 if (previous != null) {
                     throw new IllegalStateException("첨부 대상 쓰기 authorizer 중복 등록: " + kind);
@@ -38,21 +38,21 @@ public class FileTargetWriteAuthorizerRegistry {
      * 첨부 대상 쓰기 권한을 검증합니다.
      *
      * <p>먼저 <b>아는 종류인지</b>를 봅니다(SEC-14). 이 검사가 없으면 클라이언트가 임의의 새 종류 이름으로 첨부를 만들 수 있고, 그 종류에는 아래 부모
-     * 권한 검사가 아예 붙지 않습니다. {@code pkColNm}이 {@code null}이면 이 검사를 건너뜁니다 — 메타 수정에서 종류를 바꾸지 않는다는 뜻이기
+     * 권한 검사가 아예 붙지 않습니다. {@code apgFlKdNm}이 {@code null}이면 이 검사를 건너뜁니다 — 메타 수정에서 종류를 바꾸지 않는다는 뜻이기
      * 때문입니다(업로드 경로는 {@code @RequestPart}가 필수로 강제합니다).
      *
-     * @param pkColNm 파일 종류. 메타 수정에서 종류를 바꾸지 않으면 null
-     * @param pkCone 부모 식별자
+     * @param apgFlKdNm 파일 종류. 메타 수정에서 종류를 바꾸지 않으면 null
+     * @param apgFlLnkCtzNm 부모 식별자
      * @param user 현재 사용자
      * @throws AccessDeniedException 알 수 없는 종류이거나, 등록 종류의 부모가 없거나 쓰기 권한이 없는 경우
      */
-    public void verifyTargetWriteAccess(String pkColNm, String pkCone, CustomUserDetails user) {
-        if (pkColNm != null && !kindRegistry.isKnown(pkColNm)) {
+    public void verifyTargetWriteAccess(String apgFlKdNm, String apgFlLnkCtzNm, CustomUserDetails user) {
+        if (apgFlKdNm != null && !kindRegistry.isKnown(apgFlKdNm)) {
             // 값 자체는 응답에 싣지 않는다 — 클라이언트가 통제하는 문자열이다.
             throw new AccessDeniedException("알 수 없는 파일 종류입니다.");
         }
-        FileTargetWriteAuthorizer authorizer = pkColNm == null ? null : byKind.get(pkColNm);
-        if (authorizer != null && !authorizer.canWrite(pkCone, user)) {
+        FileTargetWriteAuthorizer authorizer = apgFlKdNm == null ? null : byKind.get(apgFlKdNm);
+        if (authorizer != null && !authorizer.canWrite(apgFlLnkCtzNm, user)) {
             throw new AccessDeniedException("첨부 대상 쓰기 권한이 없습니다.");
         }
     }
@@ -60,13 +60,13 @@ public class FileTargetWriteAuthorizerRegistry {
     /**
      * 파일 종류가 generic 수정·삭제를 허용하는지 검증합니다.
      *
-     * @param pkColNm 현재 또는 변경 후 파일 종류
+     * @param apgFlKdNm 현재 또는 변경 후 파일 종류
      * @throws AccessDeniedException 전용 writer만 관리할 수 있는 종류인 경우
      */
-    public void verifyGenericMutationAllowed(String pkColNm) {
-        FileTargetWriteAuthorizer authorizer = pkColNm == null ? null : byKind.get(pkColNm);
+    public void verifyGenericMutationAllowed(String apgFlKdNm) {
+        FileTargetWriteAuthorizer authorizer = apgFlKdNm == null ? null : byKind.get(apgFlKdNm);
         if (authorizer != null && !authorizer.allowsGenericMutation()) {
-            throw new AccessDeniedException("보호된 파일 종류는 generic 파일 API로 변경할 수 없습니다: " + pkColNm);
+            throw new AccessDeniedException("보호된 파일 종류는 generic 파일 API로 변경할 수 없습니다: " + apgFlKdNm);
         }
     }
 }

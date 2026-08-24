@@ -433,11 +433,8 @@ public class CapitalOverviewReader {
 
         String name = labelReader.value(sheet, "전결권자");
         if (!hasText(name)) return;
-        // 부점은 `수석부행장` 같은 통칭을 쓰고 코드표는 직명(`전무이사`)을 쓴다
-        String canonicalName =
-                SheetAnchorScanner.normalize(name).contains("본부장")
-                        ? "지역본부장"
-                        : FormLexicon.canonicalOptionName(name);
+        // 부점은 `수석부행장`·`부서장` 같은 통칭이나 소관 직책을 쓰고 코드표는 직명(`전무이사`·`부점장`)을 쓴다
+        String canonicalName = FormLexicon.canonicalEdrtName(name);
         String code = lookup(catalogs.edrtCapitalCodeByName(), canonicalName);
         if (code != null) {
             project.setEdrtTc(code);

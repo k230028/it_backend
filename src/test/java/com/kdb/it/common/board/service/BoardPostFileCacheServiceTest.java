@@ -71,7 +71,7 @@ class BoardPostFileCacheServiceTest {
                         .build();
         given(boardPostRepository.findByNacMngNoAndDelYnForUpdate("NAC-001", "N"))
                 .willReturn(Optional.of(post));
-        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
+        given(fileRepository.countByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("공통게시판", "NAC-001", "N"))
                 .willReturn(2L);
 
         fileCacheService.syncFromActiveFiles("NAC-001");
@@ -133,7 +133,7 @@ class BoardPostFileCacheServiceTest {
                         .build();
         given(boardPostRepository.findByNacMngNoAndDelYnForUpdate("NAC-001", "N"))
                 .willReturn(Optional.of(post));
-        given(fileRepository.countByPkColNmAndPkConeAndDelYn("공통게시판", "NAC-001", "N"))
+        given(fileRepository.countByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("공통게시판", "NAC-001", "N"))
                 .willReturn(0L);
 
         fileCacheService.syncFromActiveFiles("NAC-001");

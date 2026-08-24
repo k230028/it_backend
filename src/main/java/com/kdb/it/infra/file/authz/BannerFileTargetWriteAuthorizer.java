@@ -8,7 +8,7 @@ import org.springframework.util.StringUtils;
 /**
  * 배너 첨부 대상 쓰기 판정기 — 관리자만 허용합니다.
  *
- * <p>배너는 도메인 부모 레코드가 없고 {@code PK_CONE}이 노출 위치(예: {@code /info})를 담는다. 따라서 부모 존재 검사 대신 위치 값이 비어 있지
+ * <p>배너는 도메인 부모 레코드가 없고 {@code APG_FL_LNK_CTZ_NM}이 노출 위치(예: {@code /info})를 담는다. 따라서 부모 존재 검사 대신 위치 값이 비어 있지
  * 않은지와 관리자 여부만 판정한다.
  *
  * <p>{@link #allowsGenericMutation()}을 {@code false}로 두어 범용 {@code /api/files} PUT·DELETE가 배너 행을
@@ -18,7 +18,7 @@ import org.springframework.util.StringUtils;
 public class BannerFileTargetWriteAuthorizer implements FileTargetWriteAuthorizer {
 
     @Override
-    public Set<String> supportedPkColNms() {
+    public Set<String> supportedApgFlKdNms() {
         return Set.of(BannerFileReadAuthorizer.BANNER_KIND);
     }
 
@@ -31,13 +31,13 @@ public class BannerFileTargetWriteAuthorizer implements FileTargetWriteAuthorize
     /**
      * 배너 노출 위치에 이미지를 붙일 수 있는지 판정합니다.
      *
-     * @param pkCone 배너 노출 위치 (예: {@code /info})
+     * @param apgFlLnkCtzNm 배너 노출 위치 (예: {@code /info})
      * @param user 현재 사용자
      * @return 위치 값이 있고 관리자이면 {@code true}
      */
     @Override
-    public boolean canWrite(String pkCone, CustomUserDetails user) {
-        if (user == null || !StringUtils.hasText(pkCone)) {
+    public boolean canWrite(String apgFlLnkCtzNm, CustomUserDetails user) {
+        if (user == null || !StringUtils.hasText(apgFlLnkCtzNm)) {
             return false;
         }
         return user.isAdmin();

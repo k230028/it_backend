@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>기본 URL: {@code /api/guide-documents}
  *
- * <p>첨부파일 연동: 공통 첨부파일 API({@code /api/files})에서 {@code pkColNm=가이드문서}, {@code pkCone={docMngNo}}로
+ * <p>첨부파일 연동: 공통 첨부파일 API({@code /api/files})에서 {@code apgFlKdNm=가이드문서}, {@code apgFlLnkCtzNm={docMngNo}}로
  * 파일을 관리합니다.
  *
  * <p>보안: JWT 토큰 인증 필요
@@ -75,7 +75,7 @@ public class GuideDocController {
      *
      * <p>채번 규칙: {@code GDOC-{연도}-{4자리 시퀀스}} (예: GDOC-2026-0001) {@code docMngNo}를 미입력 시 자동 채번됩니다.
      *
-     * <p>생성 후 첨부파일 등록은 {@code POST /api/files}에서 {@code pkColNm=가이드문서}, {@code pkCone={docMngNo}}로
+     * <p>생성 후 첨부파일 등록은 {@code POST /api/files}에서 {@code apgFlKdNm=가이드문서}, {@code apgFlLnkCtzNm={docMngNo}}로
      * 요청합니다.
      *
      * @param request 가이드 문서 생성 요청
@@ -86,7 +86,7 @@ public class GuideDocController {
             summary = "가이드 문서 생성",
             description =
                     "신규 가이드 문서를 생성합니다. docMngNo 미입력 시 자동 채번됩니다. "
-                            + "첨부파일은 생성 후 POST /api/files (pkColNm=가이드문서, pkCone={docMngNo})로 별도 등록합니다.")
+                            + "첨부파일은 생성 후 POST /api/files (apgFlKdNm=가이드문서, apgFlLnkCtzNm={docMngNo})로 별도 등록합니다.")
     public ResponseEntity<String> createDocument(
             @Valid @RequestBody GuideDocDto.CreateRequest request) {
         String docMngNo = guideDocService.createDocument(request);
@@ -123,7 +123,7 @@ public class GuideDocController {
             summary = "가이드 문서 삭제",
             description =
                     "가이드 문서를 논리 삭제합니다 (DEL_YN='Y'). "
-                            + "연결된 첨부파일은 DELETE /api/files/bulk (pkColNm=가이드문서, pkCone={docMngNo})로 별도 정리합니다.")
+                            + "연결된 첨부파일은 DELETE /api/files/bulk (apgFlKdNm=가이드문서, apgFlLnkCtzNm={docMngNo})로 별도 정리합니다.")
     public ResponseEntity<Void> deleteDocument(@PathVariable("docMngNo") String docMngNo) {
         guideDocService.deleteDocument(docMngNo);
         return ResponseEntity.noContent().build();

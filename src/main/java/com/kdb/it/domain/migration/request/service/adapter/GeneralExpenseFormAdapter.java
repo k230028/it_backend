@@ -102,6 +102,8 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         Optional<GeneralExpenseRow> unitTypoSource =
                 rows.stream()
                         .filter(row -> "KRW".equals(currencies.get(row.excelRow())))
+                        // 칸이 단위를 밝힌 행은 오타 판정 대상이 아니다 — 그 금액은 이미 확정이다
+                        .filter(row -> row.amountUnit() == null)
                         .filter(row -> isOversizedGeneralItExpense(row, unit.toWon(amountOf(row))))
                         .findFirst();
         boolean adjustSheetUnit = unitTypoSource.isPresent();
@@ -389,8 +391,10 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         if (amount == null) return;
 
         if ("KRW".equals(currency)) {
-            BigDecimal won = unit.toWon(amount);
-            if (adjustSheetUnit) won = won.divide(UNIT_TYPO_DIVISOR);
+            // 칸이 스스로 단위를 밝혔으면(`41,868,816원`) 시트 배수보다 그 값이 정확하다.
+            // 시트 단위 오타 보정도 그 행에는 걸지 않는다 — 보정 대상이 아닌 값을 1/1000로 깎는다
+            BigDecimal won = effectiveUnit(row, unit).toWon(amount);
+            if (adjustSheetUnit && row.amountUnit() == null) won = won.divide(UNIT_TYPO_DIVISOR);
             request.setCostTotXpAmt(won);
             request.setFcAmt(null);
             return;
@@ -402,6 +406,17 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         request.setFcAmt(foreignAmount);
         request.setCostTotXpAmt(null);
         request.setXcr(null);
+    }
+
+    /**
+     * 이 행에 적용할 금액 단위를 정합니다.
+     *
+     * @param row 데이터 행
+     * @param sheetUnit 시트 전체에 적용할 단위
+     * @return 칸이 밝힌 단위가 있으면 그것, 없으면 시트 단위
+     */
+    private static AmountUnit effectiveUnit(GeneralExpenseRow row, AmountUnit sheetUnit) {
+        return row.amountUnit() != null ? row.amountUnit() : sheetUnit;
     }
 
     private static boolean isOversizedGeneralItExpense(GeneralExpenseRow row, BigDecimal won) {
@@ -452,11 +467,17 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                 candidates);
     }
 
+    /**
+     * 시트 단위를 추정할 원화 금액 표본을 모읍니다.
+     *
+     * <p>칸이 스스로 단위를 밝힌 행은 표본에서 뺍니다. 그 행의 금액은 시트 배수와 무관하게 확정되므로, 표본에 넣으면 자릿수가 다른 값이 섞여 추정을 흐립니다 (실측:
+     * `단위 천원` 시트에 `41,868,816원`이 한 줄 섞임).
+     */
     private static List<BigDecimal> krwAnnualAmounts(
             List<GeneralExpenseRow> rows, Map<Integer, String> currencies) {
         List<BigDecimal> amounts = new ArrayList<>();
         for (GeneralExpenseRow row : rows) {
-            if ("KRW".equals(currencies.get(row.excelRow()))) {
+            if ("KRW".equals(currencies.get(row.excelRow())) && row.amountUnit() == null) {
                 BigDecimal amount = row.annual() != null ? row.annual() : row.monthly();
                 if (amount != null) amounts.add(amount);
             }

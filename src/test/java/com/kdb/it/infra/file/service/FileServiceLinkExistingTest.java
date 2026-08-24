@@ -38,8 +38,8 @@ class FileServiceLinkExistingTest {
     private FileDto.UploadRequest request() {
         return FileDto.UploadRequest.builder()
                 .flTpCone("첨부파일")
-                .pkColNm("편성요청서반입")
-                .pkCone("APF-2026-00000002")
+                .apgFlKdNm("편성요청서반입")
+                .apgFlLnkCtzNm("APF-2026-00000002")
                 .build();
     }
 
@@ -54,8 +54,8 @@ class FileServiceLinkExistingTest {
                         .flKpnPth("/data/files/편성요청서반입/2026/08")
                         .flTpCone("첨부파일")
                         .apgFlSz(2048L)
-                        .pkColNm("편성요청서반입")
-                        .pkCone("APF-2026-00000001")
+                        .apgFlKdNm("편성요청서반입")
+                        .apgFlLnkCtzNm("APF-2026-00000001")
                         .build();
         Cfilem linked = Cfilem.builder().flMpnId("FL-00000002").build();
 

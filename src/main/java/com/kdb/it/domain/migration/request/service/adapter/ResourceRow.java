@@ -1,5 +1,6 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import java.math.BigDecimal;
 
 /**
@@ -9,9 +10,10 @@ import java.math.BigDecimal;
  * @param group 구분·중분류 (`기계장치(HW)`, `전산제비` 등). 병합이면 위 행에서 이어받은 값
  * @param itemName 항목명
  * @param qty 수량. 비어 있으면 null
- * @param unitPrice 단가. 적재하지 않고 `수량 × 단가 = 소요예산` 대사에만 씁니다
+ * @param unitPrice 단가. 소요예산 칸이 비면 `수량 × 단가`로 대신 채우고, 아니면 대사에만 씁니다
  * @param currency 통화
  * @param amount 소요예산 (원 단위 또는 통화 기본 단위)
+ * @param amountUnit 소요예산 칸이 스스로 밝힌 단위(`2,122백만원` 등). 표기가 없으면 null이고 어댑터 기본 단위를 씁니다
  * @param basis 산정근거
  * @param timing 도입시기 또는 대금지급주기
  * @param infoSec 정보보호여부 원문
@@ -26,6 +28,7 @@ public record ResourceRow(
         BigDecimal unitPrice,
         String currency,
         BigDecimal amount,
+        AmountUnit amountUnit,
         String basis,
         String timing,
         String infoSec,

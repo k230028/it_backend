@@ -29,7 +29,7 @@ class ReviewCommentFileReadAuthorizerTest {
 
     private Cfilem file(String commentId) {
         Cfilem file = mock(Cfilem.class);
-        given(file.getPkCone()).willReturn(commentId);
+        given(file.getApgFlLnkCtzNm()).willReturn(commentId);
         return file;
     }
 
@@ -56,7 +56,7 @@ class ReviewCommentFileReadAuthorizerTest {
     @Test
     @DisplayName("검토의견 파일 종류를 담당한다")
     void supportsReviewComment() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("검토의견");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("검토의견");
     }
 
     @Test

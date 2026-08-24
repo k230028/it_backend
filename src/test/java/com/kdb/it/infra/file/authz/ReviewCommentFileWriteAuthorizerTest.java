@@ -25,8 +25,8 @@ class ReviewCommentFileWriteAuthorizerTest {
     private Cfilem file(String commentId, String uploader) {
         return Cfilem.builder()
                 .flMpnId("FL-1")
-                .pkColNm(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND)
-                .pkCone(commentId)
+                .apgFlKdNm(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND)
+                .apgFlLnkCtzNm(commentId)
                 .fstEnrUsid(uploader)
                 .build();
     }

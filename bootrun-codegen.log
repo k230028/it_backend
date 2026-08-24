@@ -1,0 +1,188 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :resolveMainClassName
+
+> Task :bootRun
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-08-24T15:31:39.785+09:00  INFO 28264 --- [it] [  restartedMain] com.kdb.it.ItApplication                 : Starting ItApplication using Java 25.0.2 with PID 28264 (C:\it\it_backend\build\classes\java\main started by KDB in C:\it\it_backend)
+2026-08-24T15:31:39.790+09:00  INFO 28264 --- [it] [  restartedMain] com.kdb.it.ItApplication                 : The following 1 profile is active: "local-ext"
+2026-08-24T15:31:39.848+09:00  INFO 28264 --- [it] [  restartedMain] o.s.b.devtools.restart.ChangeableUrls    : The Class-Path manifest attribute in C:\maven-repo\com\oracle\database\jdbc\ojdbc11\23.26.2.0.0\ojdbc11-23.26.2.0.0.jar referenced one or more files that do not exist: file:/C:/maven-repo/com/oracle/database/jdbc/ojdbc11/23.26.2.0.0/oraclepki.jar
+2026-08-24T15:31:39.848+09:00  INFO 28264 --- [it] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-08-24T15:31:39.849+09:00  INFO 28264 --- [it] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-08-24T15:31:46.961+09:00  INFO 28264 --- [it] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-08-24T15:31:50.157+09:00  INFO 28264 --- [it] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 3163 ms. Found 54 JPA repository interfaces.
+2026-08-24T15:31:54.771+09:00  INFO 28264 --- [it] [  restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 28080 (http)
+2026-08-24T15:31:54.819+09:00  INFO 28264 --- [it] [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-08-24T15:31:54.820+09:00  INFO 28264 --- [it] [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-08-24T15:31:55.227+09:00  INFO 28264 --- [it] [  restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 15378 ms
+2026-08-24T15:32:05.141+09:00  INFO 28264 --- [it] [  restartedMain] org.flywaydb.core.FlywayExecutor         : Database: jdbc:oracle:thin:@127.0.0.1:11521/XEPDB1 (Oracle 21.3)
+2026-08-24T15:32:05.429+09:00  INFO 28264 --- [it] [  restartedMain] o.f.c.i.resource.ResourceNameValidator   : 5 SQL migrations were detected but not run because they did not follow the filename convention.
+2026-08-24T15:32:05.429+09:00  INFO 28264 --- [it] [  restartedMain] o.f.c.i.resource.ResourceNameValidator   : Set 'validateMigrationNaming' to true to fail fast and see a list of the invalid file names.
+2026-08-24T15:32:07.495+09:00  INFO 28264 --- [it] [  restartedMain] o.f.core.internal.command.DbValidate     : Successfully validated 110 migrations (execution time 00:00.257s)
+2026-08-24T15:32:07.686+09:00  INFO 28264 --- [it] [  restartedMain] o.f.core.internal.command.DbMigrate      : Current version of schema "ITPOWN": 20260824.003
+2026-08-24T15:32:07.698+09:00  INFO 28264 --- [it] [  restartedMain] o.f.core.internal.command.DbMigrate      : Schema "ITPOWN" is up to date. No migration necessary.
+2026-08-24T15:32:08.929+09:00  INFO 28264 --- [it] [  restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-08-24T15:32:09.323+09:00  INFO 28264 --- [it] [  restartedMain] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.4.1.Final
+2026-08-24T15:32:12.407+09:00  INFO 28264 --- [it] [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-08-24T15:32:12.576+09:00  INFO 28264 --- [it] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-08-24T15:32:12.816+09:00  INFO 28264 --- [it] [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection oracle.jdbc.driver.T4CConnection@14f1d634
+2026-08-24T15:32:12.822+09:00  INFO 28264 --- [it] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-08-24T15:32:12.970+09:00  WARN 28264 --- [it] [  restartedMain] org.hibernate.orm.deprecation            : HHH90000025: OracleDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-08-24T15:32:13.078+09:00  WARN 28264 --- [it] [  restartedMain] org.hibernate.orm.jdbc                   : HHH100123: Low default JDBC fetch size: 10 (consider setting 'hibernate.jdbc.fetch_size')
+2026-08-24T15:32:13.105+09:00  INFO 28264 --- [it] [  restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:oracle:thin:@127.0.0.1:11521/XEPDB1]
+	Database driver: Oracle JDBC driver
+	Database dialect: OracleDialect
+	Database version: 21.3
+	Default catalog/schema: undefined/ITPOWN
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 10
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-08-24T15:32:37.514+09:00  INFO 28264 --- [it] [  restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-08-24T15:32:37.549+09:00  INFO 28264 --- [it] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-08-24T15:32:37.931+09:00  INFO 28264 --- [it] [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-08-24T15:32:47.666+09:00  WARN 28264 --- [it] [  restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-08-24T15:32:49.052+09:00  INFO 28264 --- [it] [  restartedMain] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name customUserDetailsService
+2026-08-24T15:32:51.168+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'codesByType' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.179+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'menuAuthMap' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.179+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'notificationUnreadCount' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.180+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'codesByCid' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.180+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'tiptapMetadata' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.180+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'budgetPeriod' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.182+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'codesByType' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.183+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'menuAuthMap' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.184+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'notificationUnreadCount' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.185+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'codesByCid' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.185+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'tiptapMetadata' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:51.186+09:00  WARN 28264 --- [it] [  restartedMain] i.m.c.i.b.cache.CaffeineCacheMetrics     : The cache 'budgetPeriod' is not recording statistics. No meters except 'cache.size' will be registered. Call 'Caffeine#recordStats()' prior to building the cache for metrics to be recorded.
+2026-08-24T15:32:54.804+09:00  INFO 28264 --- [it] [  restartedMain] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoints beneath base path '/actuator'
+2026-08-24T15:32:54.936+09:00  INFO 28264 --- [it] [  restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 28080 (http) with context path '/'
+2026-08-24T15:32:54.957+09:00  INFO 28264 --- [it] [  restartedMain] com.kdb.it.ItApplication                 : Started ItApplication in 75.933 seconds (process running for 76.719)
+2026-08-24T15:32:54.968+09:00  WARN 28264 --- [it] [  restartedMain] o.s.core.events.SpringDocAppInitializer  : SpringDoc /v3/api-docs endpoint is enabled by default. To disable it in production, set the property 'springdoc.api-docs.enabled=false'
+2026-08-24T15:32:54.969+09:00  WARN 28264 --- [it] [  restartedMain] o.s.core.events.SpringDocAppInitializer  : SpringDoc /swagger-ui.html endpoint is enabled by default. To disable it in production, set the property 'springdoc.swagger-ui.enabled=false'
+Hibernate: 
+    delete 
+    from
+        tprmpp_cmfatm mte1_0 
+    where
+        mte1_0.end_dtm<? 
+        or mte1_0.end_dtm is null
+Hibernate: 
+    select
+        c1_0.infm_msg_no 
+    from
+        tprmpp_cinfmm c1_0 
+    where
+        c1_0.del_yn='N' 
+        and c1_0.infm_sd_sts_c in (?, ?) 
+        and c1_0.re_try_not<? 
+        and (
+            c1_0.infm_sd_sts_c='03' 
+            or c1_0.fst_enr_dtm<=?
+        ) 
+    order by
+        coalesce(c1_0.sd_dtm, c1_0.fst_enr_dtm) 
+    fetch
+        first ? rows only
+Hibernate: 
+    delete 
+    from
+        tprmpp_cmfadm lpte1_0 
+    where
+        lpte1_0.end_dtm<? 
+        or lpte1_0.end_dtm is null
+2026-08-24T15:32:56.746+09:00  INFO 28264 --- [it] [io-28080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-08-24T15:32:56.748+09:00  INFO 28264 --- [it] [io-28080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-08-24T15:32:56.755+09:00  INFO 28264 --- [it] [io-28080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 4 ms
+Hibernate: 
+    select
+        c1_0.infm_msg_no,
+        c1_0.it_ptl_infm_svc_tc,
+        c1_0.ttl,
+        c1_0.infm_msg_cone,
+        c1_0.infm_rcd_url,
+        c1_0.inq_yn,
+        c1_0.inq_dtm,
+        c1_0.fst_enr_dtm 
+    from
+        tprmpp_cinfmm c1_0 
+    where
+        c1_0.rms_eno=? 
+        and c1_0.del_yn=? 
+    order by
+        c1_0.fst_enr_dtm desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+Hibernate: 
+    select
+        count(c1_0.infm_msg_no) 
+    from
+        tprmpp_cinfmm c1_0 
+    where
+        c1_0.rms_eno=? 
+        and c1_0.del_yn=?
+Hibernate: 
+    select
+        count(c1_0.infm_msg_no) 
+    from
+        tprmpp_cinfmm c1_0 
+    where
+        c1_0.rms_eno=? 
+        and c1_0.del_yn=? 
+        and c1_0.inq_yn=?
+Hibernate: 
+    select
+        count(*) 
+    from
+        tprmpp_bprojm b1_0 
+    where
+        b1_0.del_yn=? 
+        and not exists(select
+            1 from tprmpp_cappla c1_0, tprmpp_capplm c2_0 
+        where
+            c1_0.apf_dcm_no=c2_0.apf_dcm_no 
+            and c1_0.fnt_tb_nm=? 
+            and c1_0.pk_col_nm=b1_0.abus_mng_no 
+            and c1_0.fnt_tb_cry_sno=b1_0.sno 
+            and c2_0.it_ptl_apf_prg_sts_c in (?, ?)) 
+        and b1_0.bse_yy=?
+Hibernate: 
+    select
+        count(*) 
+    from
+        tprmpp_bcostm b1_0 
+    where
+        b1_0.del_yn=? 
+        and not exists(select
+            1 from tprmpp_cappla c1_0, tprmpp_capplm c2_0 
+        where
+            c1_0.apf_dcm_no=c2_0.apf_dcm_no 
+            and c1_0.fnt_tb_nm=? 
+            and c1_0.pk_col_nm=b1_0.bg_no 
+            and c1_0.fnt_tb_cry_sno=b1_0.bg_sno 
+            and c2_0.it_ptl_apf_prg_sts_c in (?, ?)) 
+        and b1_0.bse_yy=?
+2026-08-24T15:33:05.317+09:00  WARN 28264 --- [it] [io-28080-exec-7] ration$PageModule$WarningLoggingModifier : Serializing PageImpl instances as-is is not supported, meaning that there is no guarantee about the stability of the resulting JSON structure!
+	For a stable JSON structure, please use Spring Data's PagedModel (globally via @EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO))
+	or Spring HATEOAS and Spring Data's PagedResourcesAssembler as documented in https://docs.spring.io/spring-data/commons/reference/repositories/core-extensions.html#core.web.pageables.
+
+2026-08-24T15:33:09.115+09:00  INFO 28264 --- [it] [io-28080-exec-1] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 12190 ms
+2026-08-24T15:33:24.982+09:00  INFO 28264 --- [it] [io-28080-exec-9] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 8998 ms
+
+> Task :bootRun FAILED
+4 actionable tasks: 2 executed, 2 up-to-date

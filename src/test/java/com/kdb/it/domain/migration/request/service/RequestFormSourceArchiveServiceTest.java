@@ -83,8 +83,8 @@ class RequestFormSourceArchiveServiceTest {
                 ArgumentCaptor.forClass(FileDto.SearchCondition.class);
         verify(fileService)
                 .getFiles(conditionCaptor.capture(), org.mockito.ArgumentMatchers.same(USER));
-        assertThat(conditionCaptor.getValue().getPkColNm()).isEqualTo("편성요청서반입");
-        assertThat(conditionCaptor.getValue().getPkCone()).isEqualTo("APF-1");
+        assertThat(conditionCaptor.getValue().getApgFlKdNm()).isEqualTo("편성요청서반입");
+        assertThat(conditionCaptor.getValue().getApgFlLnkCtzNm()).isEqualTo("APF-1");
     }
 
     @Test
@@ -360,8 +360,8 @@ class RequestFormSourceArchiveServiceTest {
                 .flMpnId(id)
                 .flNm(fileName)
                 .relativePath(relativePath)
-                .pkColNm("편성요청서반입")
-                .pkCone("APF-1")
+                .apgFlKdNm("편성요청서반입")
+                .apgFlLnkCtzNm("APF-1")
                 .build();
     }
 

@@ -42,8 +42,8 @@ class BannerServiceTest {
                         .flNm(flMpnId + ".png")
                         .flTpCone("이미지")
                         .apgFlSz(1024L)
-                        .pkColNm("배너")
-                        .pkCone("/info")
+                        .apgFlKdNm("배너")
+                        .apgFlLnkCtzNm("/info")
                         .build();
         if ("Y".equals(delYn)) {
             file.delete();
@@ -56,7 +56,7 @@ class BannerServiceTest {
     @Test
     @DisplayName("활성 배너만 파일매핑ID 오름차순으로 반환한다")
     void getActiveBanners_sortedAscending() {
-        given(fileRepository.findAllByPkColNmAndPkConeAndDelYn("배너", "/info", "N"))
+        given(fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("배너", "/info", "N"))
                 .willReturn(List.of(banner("FL-00000003", "N"), banner("FL-00000001", "N")));
 
         List<BannerDto.Response> result = bannerService.getActiveBanners();
@@ -71,7 +71,7 @@ class BannerServiceTest {
     @Test
     @DisplayName("관리자 목록은 비활성 배너도 active=false로 함께 반환한다")
     void getAllBanners_includesInactive() {
-        given(fileRepository.findAllByPkColNmAndPkConeOrderByFlMpnIdAsc("배너", "/info"))
+        given(fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmOrderByFlMpnIdAsc("배너", "/info"))
                 .willReturn(List.of(banner("FL-00000001", "N"), banner("FL-00000002", "Y")));
 
         List<BannerDto.Response> result = bannerService.getAllBanners();
@@ -80,7 +80,7 @@ class BannerServiceTest {
     }
 
     @Test
-    @DisplayName("업로드는 배너 규약(pkColNm·pkCone·flTpCone)을 서버가 고정한다")
+    @DisplayName("업로드는 배너 규약(apgFlKdNm·apgFlLnkCtzNm·flTpCone)을 서버가 고정한다")
     void upload_forcesBannerContract() {
         MockMultipartFile file =
                 new MockMultipartFile("file", "hero.png", "image/png", new byte[] {1});
@@ -98,8 +98,8 @@ class BannerServiceTest {
         ArgumentCaptor<FileDto.UploadRequest> captor =
                 ArgumentCaptor.forClass(FileDto.UploadRequest.class);
         verify(fileService).uploadFileAndGet(any(), captor.capture());
-        assertThat(captor.getValue().getPkColNm()).isEqualTo("배너");
-        assertThat(captor.getValue().getPkCone()).isEqualTo("/info");
+        assertThat(captor.getValue().getApgFlKdNm()).isEqualTo("배너");
+        assertThat(captor.getValue().getApgFlLnkCtzNm()).isEqualTo("/info");
         assertThat(captor.getValue().getFlTpCone()).isEqualTo("이미지");
         assertThat(result.isActive()).isTrue();
         assertThat(result.getFlMpnId()).isEqualTo("FL-00000009");
@@ -175,7 +175,7 @@ class BannerServiceTest {
     @DisplayName("배너가 아닌 파일은 토글을 거부한다 — 배너 API로 다른 파일을 복원할 수 없다")
     void setActive_nonBannerFile_throws() {
         Cfilem other =
-                Cfilem.builder().flMpnId("FL-00000007").pkColNm("공통게시판").pkCone("NAC-1").build();
+                Cfilem.builder().flMpnId("FL-00000007").apgFlKdNm("공통게시판").apgFlLnkCtzNm("NAC-1").build();
         other.delete();
         given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
 
@@ -216,7 +216,7 @@ class BannerServiceTest {
     @DisplayName("배너가 아닌 파일은 관리자 미리보기를 거부한다")
     void getAdminPreviewImage_nonBannerFile_throws() {
         Cfilem other =
-                Cfilem.builder().flMpnId("FL-00000007").pkColNm("공통게시판").pkCone("NAC-1").build();
+                Cfilem.builder().flMpnId("FL-00000007").apgFlKdNm("공통게시판").apgFlLnkCtzNm("NAC-1").build();
         other.delete();
         given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
 

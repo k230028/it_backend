@@ -18,24 +18,24 @@ public class BoardFileTargetWriteAuthorizer implements FileTargetWriteAuthorizer
     private final BoardPostRepository boardPostRepository;
 
     @Override
-    public Set<String> supportedPkColNms() {
+    public Set<String> supportedApgFlKdNms() {
         return Set.of(BOARD_KIND);
     }
 
     /**
      * 공통게시판 첨부 대상 쓰기 가능 여부를 판정합니다.
      *
-     * @param pkCone 게시물관리번호
+     * @param apgFlLnkCtzNm 게시물관리번호
      * @param user 현재 사용자
      * @return 활성 게시물이 존재하고 게시물 작성자 또는 관리자이면 {@code true}
      */
     @Override
-    public boolean canWrite(String pkCone, CustomUserDetails user) {
-        if (user == null || !StringUtils.hasText(pkCone)) {
+    public boolean canWrite(String apgFlLnkCtzNm, CustomUserDetails user) {
+        if (user == null || !StringUtils.hasText(apgFlLnkCtzNm)) {
             return false;
         }
         return boardPostRepository
-                .findByNacMngNoAndDelYn(pkCone, "N")
+                .findByNacMngNoAndDelYn(apgFlLnkCtzNm, "N")
                 .map(post -> user.isAdmin() || Objects.equals(user.getEno(), post.getFstEnrUsid()))
                 .orElse(false);
     }

@@ -18,7 +18,7 @@ class BannerFileTargetWriteAuthorizerTest {
     @Test
     @DisplayName("배너 종류를 담당한다")
     void supports_banner() {
-        assertThat(authorizer.supportedPkColNms()).containsExactly("배너");
+        assertThat(authorizer.supportedApgFlKdNms()).containsExactly("배너");
     }
 
     @Test
@@ -42,8 +42,8 @@ class BannerFileTargetWriteAuthorizerTest {
     }
 
     @Test
-    @DisplayName("배너 위치(pkCone)가 비면 쓰기 불가")
-    void blankPkCone_cannotWrite() {
+    @DisplayName("배너 위치(apgFlLnkCtzNm)가 비면 쓰기 불가")
+    void blankApgFlLnkCtzNm_cannotWrite() {
         CustomUserDetails admin = new CustomUserDetails("E001", List.of(ADMIN_ATH), "IT001");
         assertThat(authorizer.canWrite("  ", admin)).isFalse();
         assertThat(authorizer.canWrite(null, admin)).isFalse();

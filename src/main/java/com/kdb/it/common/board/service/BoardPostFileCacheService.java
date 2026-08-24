@@ -57,7 +57,7 @@ public class BoardPostFileCacheService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 게시물입니다. 게시물관리번호: " + nacMngNo));
         long activeFileCount =
-                fileRepository.countByPkColNmAndPkConeAndDelYn(BOARD_FILE_TYPE, nacMngNo, "N");
+                fileRepository.countByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(BOARD_FILE_TYPE, nacMngNo, "N");
         post.updateFileCache(activeFileCount > 0, Math.toIntExact(activeFileCount));
     }
 }

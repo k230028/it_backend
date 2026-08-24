@@ -35,6 +35,18 @@ public class IoeHierarchyIndex {
     private static final Map<String, String> DEFAULT_NAME_BY_DETAIL =
             Map.of("전산용역비 외주용역", "외주용역(외주운영/관제 등)");
 
+    /**
+     * 국외 부점이 중분류만 적었을 때 쓸 기본 코드값명입니다.
+     *
+     * <p>국외 부점(`9**`)의 전산제비는 세부를 나누지 않고 `국외전산제비` 한 항목으로 편성합니다. 국외 세부가 회선사용료·유지보수료·기타제비로 갈려 있어 중분류만
+     * 적힌 행이 늘 중의적으로 남던 자리입니다.
+     *
+     * <p>코드값이 아니라 <b>코드값명</b>으로 적는 이유는 같은 비목의 코드값이 환경마다 다를 수 있기 때문입니다({@link
+     * #DEFAULT_CODE_BY_GROUP}는 자본예산 계열이라 코드값이 고정되어 있습니다).
+     */
+    private static final Map<String, String> FOREIGN_DEFAULT_NAME_BY_GROUP =
+            Map.of("전산제비", "국외전산제비");
+
     /** 계층 문자열의 구분자. `대분류 - 중분류 - 세부` 형태입니다. */
     private static final String HIERARCHY_DELIMITER = "\\s*-\\s*";
 
@@ -100,15 +112,9 @@ public class IoeHierarchyIndex {
             List<Ccodem> matches = byDetail.get(group + KEY_DELIMITER + detail);
             if (matches == null || matches.isEmpty()) return Resolution.unresolved(detailName);
             if (matches.size() == 1) return Resolution.of(matches.get(0));
-            String defaultName = DEFAULT_NAME_BY_DETAIL.get(group + KEY_DELIMITER + detail);
-            if (defaultName != null) {
-                String normalizedDefault = SheetAnchorScanner.normalize(defaultName);
-                for (Ccodem match : matches) {
-                    if (normalizedDefault.equals(SheetAnchorScanner.normalize(match.getCdvaNm()))) {
-                        return Resolution.of(match);
-                    }
-                }
-            }
+            Ccodem defaulted =
+                    findByName(matches, DEFAULT_NAME_BY_DETAIL.get(group + KEY_DELIMITER + detail));
+            if (defaulted != null) return Resolution.of(defaulted);
             return Resolution.ambiguous(detailName, matches);
         }
 
@@ -139,6 +145,12 @@ public class IoeHierarchyIndex {
             }
             if (narrowed.isEmpty()) narrowed = matches;
             if (narrowed.size() == 1) return Resolution.of(narrowed.get(0));
+
+            if (!domestic) {
+                Ccodem foreignDefault =
+                        findByName(narrowed, FOREIGN_DEFAULT_NAME_BY_GROUP.get(group));
+                if (foreignDefault != null) return Resolution.withDefault(foreignDefault, narrowed);
+            }
 
             String defaultCode = DEFAULT_CODE_BY_GROUP.get(group);
             if (defaultCode != null) {
@@ -180,6 +192,24 @@ public class IoeHierarchyIndex {
                 if (!out.contains(candidate)) out.add(candidate);
             }
             return List.copyOf(out);
+        }
+
+        /**
+         * 후보 중 코드값명이 일치하는 코드를 찾습니다.
+         *
+         * @param candidates 좁혀진 후보
+         * @param codeName 찾을 코드값명. null이면 찾지 않습니다
+         * @return 일치하는 코드. 없으면 null
+         */
+        private static Ccodem findByName(List<Ccodem> candidates, String codeName) {
+            if (codeName == null) return null;
+            String normalized = SheetAnchorScanner.normalize(codeName);
+            for (Ccodem candidate : candidates) {
+                if (normalized.equals(SheetAnchorScanner.normalize(candidate.getCdvaNm()))) {
+                    return candidate;
+                }
+            }
+            return null;
         }
 
         private static String[] splitHierarchy(String hierarchy) {

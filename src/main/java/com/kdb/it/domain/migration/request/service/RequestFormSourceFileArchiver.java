@@ -34,7 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class RequestFormSourceFileArchiver {
 
     /** 공통첨부파일 주식별자컬럼명. 이 값이 반입 원본 파일 종류의 단일 출처입니다. */
-    public static final String PK_COL_NM = "편성요청서반입";
+    public static final String APG_FL_KD_NM = "편성요청서반입";
 
     /** 공통첨부파일 파일유형내용. 반입 원본은 이미지가 아니라 첨부파일입니다. */
     private static final String FL_TP_CONE = "첨부파일";
@@ -163,8 +163,8 @@ public class RequestFormSourceFileArchiver {
     private FileDto.UploadRequest uploadRequest(String apfMngNo, String relativePath) {
         return FileDto.UploadRequest.builder()
                 .flTpCone(FL_TP_CONE)
-                .pkColNm(PK_COL_NM)
-                .pkCone(apfMngNo)
+                .apgFlKdNm(APG_FL_KD_NM)
+                .apgFlLnkCtzNm(apfMngNo)
                 .relativePath(relativePath)
                 .build();
     }

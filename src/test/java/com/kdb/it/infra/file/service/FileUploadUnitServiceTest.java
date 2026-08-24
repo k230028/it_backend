@@ -55,7 +55,7 @@ class FileUploadUnitServiceTest {
     }
 
     private FileDto.UploadRequest request() {
-        return FileDto.UploadRequest.builder().pkColNm("첨부").flTpCone("첨부파일").build();
+        return FileDto.UploadRequest.builder().apgFlKdNm("첨부").flTpCone("첨부파일").build();
     }
 
     // ───────────────────────────────────────────────────────
@@ -101,8 +101,8 @@ class FileUploadUnitServiceTest {
         FileDto.UploadRequest request =
                 FileDto.UploadRequest.builder()
                         .flTpCone("첨부파일")
-                        .pkColNm("편성요청서반입")
-                        .pkCone("APF-1")
+                        .apgFlKdNm("편성요청서반입")
+                        .apgFlLnkCtzNm("APF-1")
                         .relativePath("2026/IT부(D01)/01. 사업/근거.pdf")
                         .build();
         MockMultipartFile file =
@@ -129,14 +129,14 @@ class FileUploadUnitServiceTest {
                         .flKpnPth("/data/files/편성요청서반입/2026/08")
                         .apgFlSz(2048L)
                         .apgFlPth("2026/IT부(D01)/01. 사업/근거.pdf")
-                        .pkColNm("편성요청서반입")
-                        .pkCone("APF-2026-00000001")
+                        .apgFlKdNm("편성요청서반입")
+                        .apgFlLnkCtzNm("APF-2026-00000001")
                         .build();
         FileDto.UploadRequest request =
                 FileDto.UploadRequest.builder()
                         .flTpCone("첨부파일")
-                        .pkColNm("편성요청서반입")
-                        .pkCone("APF-2026-00000002")
+                        .apgFlKdNm("편성요청서반입")
+                        .apgFlLnkCtzNm("APF-2026-00000002")
                         .build();
         given(fileRepository.getNextSequenceValue()).willReturn(2L);
 
@@ -149,8 +149,8 @@ class FileUploadUnitServiceTest {
         assertThat(linked.getApgFlSz()).isEqualTo(2048L);
         assertThat(linked.getApgFlPth()).isEqualTo(source.getApgFlPth());
         assertThat(linked.getFlTpCone()).isEqualTo("첨부파일");
-        assertThat(linked.getPkColNm()).isEqualTo("편성요청서반입");
-        assertThat(linked.getPkCone()).isEqualTo("APF-2026-00000002");
+        assertThat(linked.getApgFlKdNm()).isEqualTo("편성요청서반입");
+        assertThat(linked.getApgFlLnkCtzNm()).isEqualTo("APF-2026-00000002");
         verify(entityManager).persist(linked);
         verify(entityManager).flush();
     }
@@ -228,20 +228,20 @@ class FileUploadUnitServiceTest {
         // Assert
         assertThat(result.getFlPysNm()).endsWith(".pdf");
         assertThat(result.getFlMpnId()).isEqualTo("FL-00000004");
-        assertThat(result.getPkColNm()).isEqualTo("첨부");
+        assertThat(result.getApgFlKdNm()).isEqualTo("첨부");
         assertThat(result.getFlTpCone()).isEqualTo("첨부파일");
         assertThat(result.getApgFlSz()).isEqualTo(7L);
     }
 
     // ───────────────────────────────────────────────────────
-    // buildStorageDir — pkColNm 경로 정화 (SEC-14)
+    // buildStorageDir — apgFlKdNm 경로 정화 (SEC-14)
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("uploadFileInNewTransaction: pkColNm에 상위 이동이 섞이면 저장 없이 거부한다")
-    void uploadFileInNewTransaction_상위이동_pkColNm이면_거부() {
+    @DisplayName("uploadFileInNewTransaction: apgFlKdNm에 상위 이동이 섞이면 저장 없이 거부한다")
+    void uploadFileInNewTransaction_상위이동_apgFlKdNm이면_거부() {
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder().pkColNm("../../etc").flTpCone("첨부파일").build();
+                FileDto.UploadRequest.builder().apgFlKdNm("../../etc").flTpCone("첨부파일").build();
         MockMultipartFile file =
                 new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
 
@@ -253,14 +253,14 @@ class FileUploadUnitServiceTest {
     }
 
     @Test
-    @DisplayName("uploadFileInNewTransaction: pkColNm에 경로 구분자가 섞이면 거부한다")
-    void uploadFileInNewTransaction_경로구분자_pkColNm이면_거부() {
+    @DisplayName("uploadFileInNewTransaction: apgFlKdNm에 경로 구분자가 섞이면 거부한다")
+    void uploadFileInNewTransaction_경로구분자_apgFlKdNm이면_거부() {
         MockMultipartFile file =
                 new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
 
         for (String kind : new String[] {"a/b", "a\b", "C:", "..", "  ", ""}) {
             FileDto.UploadRequest request =
-                    FileDto.UploadRequest.builder().pkColNm(kind).flTpCone("첨부파일").build();
+                    FileDto.UploadRequest.builder().apgFlKdNm(kind).flTpCone("첨부파일").build();
             assertThatThrownBy(
                             () -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
                     .as("종류=%s", kind)
@@ -270,10 +270,10 @@ class FileUploadUnitServiceTest {
     }
 
     @Test
-    @DisplayName("uploadFileInNewTransaction: pkColNm이 null이면 NPE가 아니라 업무 예외로 거부한다")
-    void uploadFileInNewTransaction_pkColNm이null이면_업무예외() {
+    @DisplayName("uploadFileInNewTransaction: apgFlKdNm이 null이면 NPE가 아니라 업무 예외로 거부한다")
+    void uploadFileInNewTransaction_apgFlKdNm이null이면_업무예외() {
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder().pkColNm(null).flTpCone("첨부파일").build();
+                FileDto.UploadRequest.builder().apgFlKdNm(null).flTpCone("첨부파일").build();
         MockMultipartFile file =
                 new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
 
@@ -288,7 +288,7 @@ class FileUploadUnitServiceTest {
         ReflectionTestUtils.setField(fileUploadUnitService, "basePath", tempDir.toString());
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder().pkColNm("편성요청서반입").flTpCone("첨부파일").build();
+                FileDto.UploadRequest.builder().apgFlKdNm("편성요청서반입").flTpCone("첨부파일").build();
         MockMultipartFile file =
                 new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
 

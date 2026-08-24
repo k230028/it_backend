@@ -4,6 +4,13 @@
 > [파일 보안 가이드](../guides/security/file-security.md)와
 > [데이터 접근 범위 가이드](../guides/security/data-scope.md)를 따릅니다.
 
+> **컬럼명 안내**: 이 문서가 기록하는 배포는 `PK_COL_NM`·`PK_CONE`라는 이름이 쓰이던
+> 시점(2026-07-19)의 실행 기록이며, 아래 SQL·수치는 그 당시 실행된 그대로의 검증
+> 기록이므로 이후에도 바꾸지 않는다. 이 두 컬럼은 이후
+> `V20260824_003__RenameAndResizeCfilemParentKeyColumns.sql`로 각각
+> `APG_FL_KD_NM`(첨부파일종류명)·`APG_FL_LNK_CTZ_NM`(첨부파일연결콘텐츠명)으로
+> 개명되었다.
+
 업무 파일(`TPRMPP_CFILEM`)의 뒤바뀐 레거시 부모 키(`PK_COL_NM` ↔ `PK_CONE`)를 정규화하는
 Flyway migration `V20260719_001__NormalizeCfilemParentKeys.sql`의 배포 기록이다.
 SEC-05 파일 읽기 인가 전환은 `PK_COL_NM`(종류) → authorizer, `PK_CONE`(부모 ID) → 부모 권한

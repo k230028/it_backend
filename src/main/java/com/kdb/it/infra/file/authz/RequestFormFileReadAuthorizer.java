@@ -19,7 +19,7 @@ import org.springframework.util.StringUtils;
 /**
  * 편성요청서 반입 원본 파일 읽기 판정기.
  *
- * <p>{@code PK_CONE}가 반입받은 신청서번호이므로, 그 신청서가 가리키는 원장({@code TPRMPP_CAPPLA})의 주관부서({@code
+ * <p>{@code APG_FL_LNK_CTZ_NM}가 반입받은 신청서번호이므로, 그 신청서가 가리키는 원장({@code TPRMPP_CAPPLA})의 주관부서({@code
  * SVN_DPM_C})를 사용자 부서({@code bbrC})와 비교합니다.
  *
  * <ul>
@@ -31,7 +31,7 @@ import org.springframework.util.StringUtils;
  * <p>매핑과 원장 모두 {@code DEL_YN='N'}인 것만 봅니다. 권한 판정은 실패 시 거부여야 하므로, 논리 삭제나 재매핑 뒤에도 구 부서 사용자가 원본을 계속
  * 열람하는 경로를 남기지 않습니다(SEC-15).
  *
- * <p>판정은 {@code (PK_COL_NM, PK_CONE, user)}의 순수 함수라는 {@link FileReadAuthorizer}의 불변식을 지킵니다. 개별 파일의
+ * <p>판정은 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, user)}의 순수 함수라는 {@link FileReadAuthorizer}의 불변식을 지킵니다. 개별 파일의
  * 다른 속성을 보지 않습니다.
  */
 @Component
@@ -52,14 +52,14 @@ public class RequestFormFileReadAuthorizer implements FileReadAuthorizer {
     private final CostRepository costRepository;
 
     @Override
-    public Set<String> supportedPkColNms() {
-        return Set.of(RequestFormSourceFileArchiver.PK_COL_NM);
+    public Set<String> supportedApgFlKdNms() {
+        return Set.of(RequestFormSourceFileArchiver.APG_FL_KD_NM);
     }
 
     /**
      * 반입 원본 파일 읽기 가능 여부를 판정합니다.
      *
-     * @param file 대상 파일. 부모는 {@code PK_CONE}의 반입받은 신청서번호입니다
+     * @param file 대상 파일. 부모는 {@code APG_FL_LNK_CTZ_NM}의 반입받은 신청서번호입니다
      * @param user 현재 사용자. null이면 비인증으로 거부합니다
      * @return 관리자이거나 연결 원장의 주관부서가 사용자 부서와 같으면 true, 그 외에는 false
      */
@@ -75,7 +75,7 @@ public class RequestFormFileReadAuthorizer implements FileReadAuthorizer {
             return false;
         }
 
-        String apfMngNo = file.getPkCone();
+        String apfMngNo = file.getApgFlLnkCtzNm();
         if (!StringUtils.hasText(apfMngNo) || !StringUtils.hasText(user.getBbrC())) {
             return false;
         }
