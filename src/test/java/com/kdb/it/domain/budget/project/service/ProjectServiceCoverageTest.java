@@ -557,6 +557,47 @@ class ProjectServiceCoverageTest {
                 .hasMessage("예정금액은 0 이상이어야 합니다.");
     }
 
+    @Test
+    @DisplayName("updateProject: 기존과 요청의 예정금액이 모두 null이면 0으로 정규화한다")
+    void updateProject_normalizesExistingAndRequestedNullPlannedAmount() {
+        String prjMngNo = "PRJ-MPL-NULL";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+        Bitemm existing = baseExistingItem(prjMngNo, "GCL-MPL-NULL");
+        org.springframework.test.util.ReflectionTestUtils.setField(existing, "mplAmt", null);
+        ProjectDto.BitemmDto dto = baseDtoBuilder("GCL-MPL-NULL").mplAmt(null).build();
+        setupUpdateMocks(prjMngNo, project, List.of(existing));
+
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
+
+        assertThat(existing.getMplAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("updateProject: 기존과 요청의 예정금액이 같은 음수여도 거부한다")
+    void updateProject_rejectsMatchingNegativePlannedAmount() {
+        String prjMngNo = "PRJ-MPL-MATCHING-NEGATIVE";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+        Bitemm existing = baseExistingItem(prjMngNo, "GCL-MPL-MATCHING-NEGATIVE");
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                existing, "mplAmt", BigDecimal.valueOf(-1));
+        ProjectDto.BitemmDto dto =
+                baseDtoBuilder("GCL-MPL-MATCHING-NEGATIVE").mplAmt(BigDecimal.valueOf(-1)).build();
+        setupUpdateMocks(prjMngNo, project, List.of(existing));
+
+        assertThatThrownBy(
+                        () ->
+                                projectService.updateProject(
+                                        prjMngNo,
+                                        ProjectDto.UpdateRequest.builder()
+                                                .abusNm("사업")
+                                                .items(List.of(dto))
+                                                .build()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("예정금액은 0 이상이어야 합니다.");
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // isItemChanged — 각 필드별 변경 탐지 (updateProject 경로)
     // ═══════════════════════════════════════════════════════════════════════

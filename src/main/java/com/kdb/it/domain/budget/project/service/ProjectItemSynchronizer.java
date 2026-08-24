@@ -133,6 +133,10 @@ final class ProjectItemSynchronizer {
             return;
         }
 
+        // 비교 전에 정규화해 기존 NULL은 0으로 보정하고, 기존 값과 같은 음수도 검증을 우회하지 못하게 한다.
+        BigDecimal normalizedPlannedAmount = normalizePlannedAmount(itemDto.getMplAmt());
+        itemDto.setMplAmt(normalizedPlannedAmount);
+
         // 변경된 필드가 있을 때만 제자리 수정 (변경 없으면 UPDATE·로그 생성 생략)
         if (isItemChanged(existingItem, itemDto)) {
             BigDecimal[] reconciled = resolveXcrAndReconcile(itemDto);
@@ -153,7 +157,7 @@ final class ProjectItemSynchronizer {
                     itemDto.getItrInfrYn(), // 통합인프라여부(미기재는 null 유지)
                     reconciled[0], // 당해 요청금액(원화, 서버 재계산)
                     reconciled[1], // 당해 외화 원금(외화 행에서만 유효)
-                    normalizePlannedAmount(itemDto.getMplAmt())); // 내년 이후 요청금액(당해 금액과 독립)
+                    normalizedPlannedAmount); // 내년 이후 요청금액(당해 금액과 독립)
         }
         processedGclMngNos.add(existingItem.getGclMngNo()); // 변경 여부와 무관하게 처리 완료 표시
     }
