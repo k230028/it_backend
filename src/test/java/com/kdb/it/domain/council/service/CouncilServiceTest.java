@@ -406,7 +406,7 @@ class CouncilServiceTest {
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(overview));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
-        // 품목 파생 당해예산: 배치 조회 후 applyBudgetSummary가 totRqmAmt=3000 설정 시뮬레이션
+        // 활성 품목 중앙 계산 경로: 배치 조회 후 applyBudgetSummaryViews가 tyyBgAmt=3000 설정 시뮬레이션
         ProjectItemRepository.ProjectItemBudgetView bitemm =
                 mock(ProjectItemRepository.ProjectItemBudgetView.class);
         given(bitemm.getAbusMngNo()).willReturn("PRJ-2026-0001");
@@ -430,7 +430,7 @@ class CouncilServiceTest {
                             assertThat(item.abusNm()).isEqualTo("사업개요명");
                             assertThat(item.prjYy()).isEqualTo("2026");
                             assertThat(item.prjTp()).isEqualTo("신규");
-                            // 당해예산은 품목 파생값(∑AMT − ∑MPL_AMT)으로 산출됨
+                            // 당해 요청금액은 모든 활성 품목의 AMT 합계로 산출됨
                             assertThat(item.prjBg()).isEqualByComparingTo("3000");
                             assertThat(item.sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
                             assertThat(item.endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
