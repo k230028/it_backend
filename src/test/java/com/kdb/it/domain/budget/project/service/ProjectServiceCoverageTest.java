@@ -607,6 +607,12 @@ class ProjectServiceCoverageTest {
 
     /** 기본 기존 품목(변경 없음 기준선)을 생성하는 헬퍼. 각 테스트에서 단일 필드만 변경하여 isItemChanged 분기를 격리 검증한다. */
     private Bitemm baseExistingItem(String prjMngNo, String gclMngNo) {
+        return baseExistingItem(prjMngNo, gclMngNo, "KRW", null);
+    }
+
+    /** 통화별 금액 불변식을 지키는 기존 품목 기준선을 생성한다. */
+    private Bitemm baseExistingItem(
+            String prjMngNo, String gclMngNo, String curC, BigDecimal fcAmt) {
         return Bitemm.builder()
                 .gclMngNo(gclMngNo)
                 .sno(1)
@@ -615,7 +621,7 @@ class ProjectServiceCoverageTest {
                 .ioeC("IOE-BASE")
                 .gclNm("기준품목")
                 .qty(BigDecimal.ONE)
-                .curC("KRW")
+                .curC(curC)
                 .xcr(BigDecimal.ONE)
                 .xcrBseDt("20260101")
                 .cncdFdtnCone("기준근거")
@@ -625,7 +631,7 @@ class ProjectServiceCoverageTest {
                 .itrInfrYn("N")
                 .amt(BigDecimal.valueOf(1000))
                 .mplAmt(BigDecimal.valueOf(500))
-                .fcAmt(null)
+                .fcAmt(fcAmt)
                 .delYn("N")
                 .build();
     }
@@ -754,10 +760,12 @@ class ProjectServiceCoverageTest {
     void isItemChanged_curC_변경탐지() {
         String prjMngNo = "PRJ-IC-003";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        Bitemm existing = baseExistingItem(prjMngNo, "GCL-IC-003");
-        ProjectDto.BitemmDto dto = baseDtoBuilder("GCL-IC-003").curC("USD").build();
+        Bitemm existing = baseExistingItem(prjMngNo, "GCL-IC-003", "USD", BigDecimal.valueOf(100));
+        ProjectDto.BitemmDto dto =
+                baseDtoBuilder("GCL-IC-003").curC("EUR").fcAmt(BigDecimal.valueOf(100)).build();
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
+        given(xcrLookupService.resolveXcr(eq("EUR"), any())).willReturn(BigDecimal.ONE);
 
         projectService.updateProject(
                 prjMngNo,
@@ -875,14 +883,15 @@ class ProjectServiceCoverageTest {
     @Test
     @DisplayName("isItemChanged: fcAmt만 변경되면 변경으로 탐지한다")
     void isItemChanged_fcAmt_변경탐지() {
-        // 기존 fcAmt=null, DTO fcAmt=100 → bigDecimalChanged=true
+        // 외화 품목에서 기존 fcAmt=50, DTO fcAmt=100 → bigDecimalChanged=true
         String prjMngNo = "PRJ-IC-010";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        Bitemm existing = baseExistingItem(prjMngNo, "GCL-IC-010");
+        Bitemm existing = baseExistingItem(prjMngNo, "GCL-IC-010", "USD", BigDecimal.valueOf(50));
         ProjectDto.BitemmDto dto =
-                baseDtoBuilder("GCL-IC-010").fcAmt(BigDecimal.valueOf(100)).build();
+                baseDtoBuilder("GCL-IC-010").curC("USD").fcAmt(BigDecimal.valueOf(100)).build();
 
         setupUpdateMocks(prjMngNo, project, List.of(existing));
+        given(xcrLookupService.resolveXcr(eq("USD"), any())).willReturn(BigDecimal.ONE);
 
         projectService.updateProject(
                 prjMngNo,

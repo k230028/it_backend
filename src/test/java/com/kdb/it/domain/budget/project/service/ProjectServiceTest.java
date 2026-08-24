@@ -2851,11 +2851,12 @@ class ProjectServiceTest {
                         .ioeC("IOE-001")
                         .gclNm("동일")
                         .qty(BigDecimal.ONE)
-                        .curC("KRW") // 기존 KRW
+                        .curC("USD") // 기존 USD
                         .xcr(BigDecimal.ONE)
                         .sectSysUtzYn("N")
                         .itrInfrYn("N")
                         .amt(BigDecimal.valueOf(100))
+                        .fcAmt(BigDecimal.valueOf(100))
                         .delYn("N")
                         .build();
 
@@ -2874,14 +2875,15 @@ class ProjectServiceTest {
                         .ioeC("IOE-001")
                         .gclNm("동일")
                         .qty(BigDecimal.ONE)
-                        .curC("USD") // curC 변경
+                        .curC("EUR") // curC 변경
                         .xcr(BigDecimal.ONE)
                         .sectSysUtzYn(null)
                         .itrInfrYn(null)
                         .amt(BigDecimal.valueOf(100))
+                        .fcAmt(BigDecimal.valueOf(100))
                         .build();
 
-        given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+        given(xcrLookupService.resolveXcr(eq("EUR"), any(java.time.LocalDate.class)))
                 .willReturn(BigDecimal.ONE);
 
         // when
@@ -2890,7 +2892,7 @@ class ProjectServiceTest {
 
         // then: 변경 감지 → 제자리 수정 (삭제·신규 save 없음)
         assertThat(existingItem.getDelYn()).isEqualTo("N");
-        assertThat(existingItem.getCurC()).isEqualTo("USD");
+        assertThat(existingItem.getCurC()).isEqualTo("EUR");
         verify(bitemmRepository, org.mockito.Mockito.never()).save(any(Bitemm.class));
     }
 
