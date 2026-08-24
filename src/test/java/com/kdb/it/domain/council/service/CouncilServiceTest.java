@@ -20,6 +20,7 @@ import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -27,6 +28,7 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
+import com.kdb.it.domain.budget.project.service.ProjectAmountCalculator;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
@@ -84,6 +86,8 @@ class CouncilServiceTest {
     @Mock private ProjectItemRepository projectItemRepository;
 
     @Mock private ProjectBudgetSummaryService projectBudgetSummaryService;
+
+    @Mock private CodeService codeService;
 
     @Mock private BprojaSyncService bprojaSyncService;
 
@@ -580,16 +584,18 @@ class CouncilServiceTest {
         ProjectItemRepository.ProjectItemBudgetView item =
                 mock(ProjectItemRepository.ProjectItemBudgetView.class);
         given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
+        given(item.getIoeC()).willReturn("IOE-UNCLASSIFIED");
+        given(item.getAmt()).willReturn(new BigDecimal("2000"));
+        given(item.getMplAmt()).willReturn(new BigDecimal("800"));
+        given(item.getCurC()).willReturn("KRW");
+        given(item.getXcr()).willReturn(BigDecimal.ONE);
         given(projectItemRepository.findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
                 .willReturn(List.of(item));
-        doAnswer(
-                        inv -> {
-                            ProjectDto.Response resp = inv.getArgument(0);
-                            resp.setTyyBgAmt(new BigDecimal("2000"));
-                            return null;
-                        })
-                .when(projectBudgetSummaryService)
-                .applyBudgetSummaryViews(any(ProjectDto.Response.class), anyList());
+        given(codeService.findCodeEntitiesByCIdWithoutCache(anyString())).willReturn(List.of());
+        ReflectionTestUtils.setField(
+                councilService,
+                "projectBudgetSummaryService",
+                new ProjectBudgetSummaryService(codeService, new ProjectAmountCalculator()));
 
         CouncilDto.DetailResponse result = councilService.getCouncil(ASCT_ID);
 
