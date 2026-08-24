@@ -215,8 +215,8 @@ class BudgetProjectSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("getProjectSummary: BITEMM 요청금액은 품목 예정금액을 제외한다")
-    void getProjectSummary_BITEMM요청금액은_예정금액제외() {
+    @DisplayName("getProjectSummary: BITEMM 당해 요청액과 편성액은 품목 예정금액을 제외하지 않는다")
+    void getProjectSummary_BITEMM당해금액은_예정금액을제외하지않는다() {
         Ccodem dupCode = Ccodem.builder().cNm("임차료").cdvaDes("임차료").cdva("237").build();
         Ccodem ioeCode =
                 Ccodem.builder()
@@ -233,14 +233,6 @@ class BudgetProjectSummaryServiceTest {
                         .bgDupAmt(BigDecimal.valueOf(1600))
                         .asgRt(new BigDecimal("80"))
                         .build();
-        Bbugtm secondItemBudget =
-                Bbugtm.builder()
-                        .fntTbNm("BITEMM")
-                        .pkColNm("GCL-MPL-002")
-                        .ioeC("101")
-                        .bgDupAmt(BigDecimal.valueOf(800))
-                        .asgRt(new BigDecimal("80"))
-                        .build();
         Bitemm item =
                 Bitemm.builder()
                         .gclMngNo("GCL-MPL-001")
@@ -248,21 +240,14 @@ class BudgetProjectSummaryServiceTest {
                         .amt(BigDecimal.valueOf(2000))
                         .mplAmt(BigDecimal.valueOf(800))
                         .build();
-        Bitemm secondItem =
-                Bitemm.builder()
-                        .gclMngNo("GCL-MPL-002")
-                        .abusMngNo("PRJ-MPL-001")
-                        .amt(BigDecimal.valueOf(1000))
-                        .mplAmt(BigDecimal.valueOf(400))
-                        .build();
-        Bprojm project = Bprojm.builder().abusMngNo("PRJ-MPL-001").abusNm("예정금액 제외 사업").build();
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-MPL-001").abusNm("예정금액 포함 사업").build();
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
-                .willReturn(List.of(itemBudget, secondItemBudget));
+                .willReturn(List.of(itemBudget));
         given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
-                .willReturn(List.of(item, secondItem));
+                .willReturn(List.of(item));
         given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
                 .willReturn(List.of(project));
 
@@ -270,12 +255,12 @@ class BudgetProjectSummaryServiceTest {
 
         BudgetWorkDto.ProjectSummaryItem summaryItem = result.data().get(0);
         BudgetWorkDto.CategoryAmount categoryAmount = summaryItem.categoryAmounts().get("237");
-        assertThat(summaryItem.requestAmount()).isEqualByComparingTo("1800.00");
-        assertThat(summaryItem.dupAmount()).isEqualByComparingTo("1440.0");
-        assertThat(categoryAmount.requestAmount()).isEqualByComparingTo("1800.00");
-        assertThat(categoryAmount.dupAmount()).isEqualByComparingTo("1440.0");
-        assertThat(result.totals().requestAmount()).isEqualByComparingTo("1800.00");
-        assertThat(result.totals().dupAmount()).isEqualByComparingTo("1440.0");
+        assertThat(summaryItem.requestAmount()).isEqualByComparingTo("2000.00");
+        assertThat(summaryItem.dupAmount()).isEqualByComparingTo("1600.0");
+        assertThat(categoryAmount.requestAmount()).isEqualByComparingTo("2000.00");
+        assertThat(categoryAmount.dupAmount()).isEqualByComparingTo("1600.0");
+        assertThat(result.totals().requestAmount()).isEqualByComparingTo("2000.00");
+        assertThat(result.totals().dupAmount()).isEqualByComparingTo("1600.0");
     }
 
     @Test

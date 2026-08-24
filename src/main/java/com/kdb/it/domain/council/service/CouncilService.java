@@ -71,10 +71,10 @@ public class CouncilService {
     /** 정보화사업 리포지토리 — 사업명/전결권자 조회용 */
     private final ProjectRepository projectRepository;
 
-    /** 품목 리포지토리 — 협의회 당해예산(파생) 계산용 */
+    /** 품목 리포지토리 — 협의회 당해예산 원화 합계 계산용 */
     private final ProjectItemRepository projectItemRepository;
 
-    /** 품목 기준 예산 합계 계산 서비스 — 협의회 당해예산(파생) 계산용 */
+    /** 품목 기준 예산 합계 계산 서비스 — 협의회 당해예산 원화 합계 계산용 */
     private final ProjectBudgetSummaryService projectBudgetSummaryService;
 
     /** 정보화사업관계(BPROJA) 동기화 서비스: 협의회 단계 상태 갱신용 */
@@ -156,7 +156,7 @@ public class CouncilService {
                     councilRepository.findProjectRowsForCouncilAll(
                             PRJ_STS_COUNCIL_IN_PROGRESS, PRJ_STS_COUNCIL_TARGET);
             log.debug("[CouncilList] admin query result count={}", rows.size());
-            // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
+            // 당해예산을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
             Map<String, BigDecimal> budgetMap =
                     deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
             List<CouncilDto.ListResponse> result =
@@ -207,7 +207,7 @@ public class CouncilService {
             // 평가위원: 배정된 협의회만 조회
             List<Basctm> councils =
                     councilRepository.findByCommitteeMember(userDetails.getEno(), "N");
-            // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
+            // 당해예산을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
             Map<String, BigDecimal> budgetMap =
                     deriveCurrentYearBudgets(
                             councils.stream().map(council -> council.getAbusMngNo()).toList());
@@ -222,7 +222,7 @@ public class CouncilService {
                 "[CouncilList] user query bbrC={}, result count={}",
                 userDetails.getBbrC(),
                 rows.size());
-        // 당해예산(파생)을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
+        // 당해예산을 품목 1회 배치 조회로 미리 계산 (행별 N+1 제거)
         Map<String, BigDecimal> budgetMap =
                 deriveCurrentYearBudgets(rows.stream().map(row -> row.abusMngNo()).toList());
         return rows.stream()
@@ -532,34 +532,12 @@ public class CouncilService {
     // =========================================================================
 
     /**
-     * 협의회 화면 표시용 당해예산(파생) 계산.
+     * 협의회 목록의 모든 사업관리번호에 대한 당해예산을 1회 배치 조회로 계산.
      *
-     * <p>프로젝트 활성 품목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반으로 산출한다. TOT_RQM_AMT 컬럼이 제거됨에 따라 협의회 목록/상세에서
-     * 사용하는 당해예산을 품목 단위 파생값으로 대체한다.
-     *
-     * <p><strong>N+1 주의</strong>: 현재 협의회 목록 각 행마다 호출되므로 사업 수가 많을 때 다수의 품목 조회가 발생한다. 추후 배치 조회 방식으로
-     * 개선 대상(TASK.md 등록).
-     *
-     * @param abusMngNo 프로젝트관리번호 (null 또는 빈 값이면 null 반환)
-     * @return 당해예산(파생값), 프로젝트 품목이 없으면 0
-     */
-    private BigDecimal deriveCurrentYearBudget(String abusMngNo) {
-        if (abusMngNo == null || abusMngNo.isBlank()) return null;
-        var items = projectItemRepository.findByAbusMngNoAndDelYn(abusMngNo, "N");
-        var tmp = ProjectDto.Response.builder().build();
-        projectBudgetSummaryService.applyBudgetSummary(tmp, items);
-        return tmp.getTyyBgAmt();
-    }
-
-    /**
-     * 협의회 목록의 모든 사업관리번호에 대한 당해예산(파생)을 1회 배치 조회로 계산.
-     *
-     * <p>행마다 {@link #deriveCurrentYearBudget(String)}를 호출하면 사업 수만큼 품목 조회가 발생(N+1)한다. 본 메서드는 전체
-     * 사업관리번호의 활성 품목(DEL_YN='N')을 1회 배치 조회한 뒤 메모리에서 사업관리번호별로 그룹핑하여 동일한 합산 로직(applyBudgetSummary +
-     * getTotRqmAmt)을 적용한다. 따라서 행별 단건 조회와 값이 동일하게 보존된다.
+     * <p>전체 사업관리번호의 활성 품목(DEL_YN='N')을 1회 배치 조회한 뒤 메모리에서 사업관리번호별로 그룹핑하여 AMT 원화 합계 로직을 적용한다.
      *
      * @param abusMngNos 사업관리번호 목록 (null·빈 값은 무시)
-     * @return 사업관리번호 → 당해예산(파생) 맵. 요청된 모든 사업관리번호에 대해 값이 채워지며, 품목이 없는 사업관리번호도 빈 품목 목록으로 동일 합산 로직을
+     * @return 사업관리번호 → 당해예산 맵. 요청된 모든 사업관리번호에 대해 값이 채워지며, 품목이 없는 사업관리번호도 빈 품목 목록으로 동일 합산 로직을
      *     적용한 값(예: 0)을 가진다
      */
     private Map<String, BigDecimal> deriveCurrentYearBudgets(Collection<String> abusMngNos) {
@@ -574,7 +552,7 @@ public class CouncilService {
                         .collect(Collectors.groupingBy(item -> item.getAbusMngNo()));
         Map<String, BigDecimal> result = new HashMap<>();
         // 요청된 모든 키를 순회한다(itemsByAbus가 아님). 품목이 없는 키도 빈 목록으로
-        // applyBudgetSummary를 호출해 행별 단건 조회(deriveCurrentYearBudget)와 값이 동일하게 보존된다.
+        // Task 3의 원화 스냅샷 계약을 적용한다. AMT는 이미 당해금액이므로 MPL을 다시 차감하지 않는다.
         for (String abusMngNo : keys) {
             List<ProjectItemRepository.ProjectItemBudgetView> items =
                     itemsByAbus.getOrDefault(abusMngNo, List.of());
@@ -692,7 +670,7 @@ public class CouncilService {
                 council,
                 projectOpt.orElse(null),
                 resolveListTitle(council, projectOpt),
-                // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT − ∑MPL_AMT 기반 파생값 (배치 조회 결과 사용)
+                // 당해예산: 품목 활성 항목(DEL_YN='N')의 ∑AMT 원화 합계 (배치 조회 결과 사용)
                 budgetMap.get(council.getAbusMngNo()),
                 hasInfoSecResource);
     }
@@ -741,7 +719,7 @@ public class CouncilService {
             sttDt = p.getSttDtm();
             endDt = p.getEndDtm();
             ncs = p.getAbusNcsCone();
-            prjBg = deriveCurrentYearBudget(p.getAbusMngNo()); // 당해예산: 품목 ∑AMT − ∑MPL_AMT 파생값
+            prjBg = deriveCurrentYearBudgets(List.of(p.getAbusMngNo())).get(p.getAbusMngNo());
             prjDes = p.getAbusCone();
             xptEff = p.getDgogPpoCone();
             svnDpm = p.getSvnDpmC();

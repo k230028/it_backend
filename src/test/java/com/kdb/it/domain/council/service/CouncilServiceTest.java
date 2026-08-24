@@ -576,9 +576,12 @@ class CouncilServiceTest {
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(council));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
-        // 품목 파생 당해예산: 활성 품목 조회 후 applyBudgetSummary가 totRqmAmt=2000 설정 시뮬레이션
-        given(projectItemRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(List.of(mock(Bitemm.class)));
+        // Task 3 원화 스냅샷 계약: AMT=2000, MPL=800이어도 당해예산은 2000이다.
+        ProjectItemRepository.ProjectItemBudgetView item =
+                mock(ProjectItemRepository.ProjectItemBudgetView.class);
+        given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
+        given(projectItemRepository.findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(item));
         doAnswer(
                         inv -> {
                             ProjectDto.Response resp = inv.getArgument(0);
@@ -586,13 +589,13 @@ class CouncilServiceTest {
                             return null;
                         })
                 .when(projectBudgetSummaryService)
-                .applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+                .applyBudgetSummaryViews(any(ProjectDto.Response.class), anyList());
 
         CouncilDto.DetailResponse result = councilService.getCouncil(ASCT_ID);
 
         assertThat(result.abusNm()).isEqualTo("정보화사업");
         assertThat(result.edrt()).isEqualTo("전결권자");
-        // 당해예산은 품목 파생값(∑AMT − ∑MPL_AMT)으로 산출되어야 한다
+        // MPL을 다시 차감한 1200이 아닌 AMT 원본 2000이어야 한다.
         assertThat(result.prjBg()).isEqualByComparingTo("2000");
     }
 
