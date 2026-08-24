@@ -3462,6 +3462,34 @@ class ProjectServiceTest {
     }
 
     @Test
+    @DisplayName("구 이관 경로도 음수 DFR을 거부하고 기존 금액 스냅샷을 유지한다")
+    void assignDeclaredAmounts_rejectsNegativePaidAmountWithoutChangingSnapshot() {
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .sno(1)
+                        .totRqmAmt(new BigDecimal("420.000"))
+                        .mplAmt(new BigDecimal("300.000"))
+                        .dfrAmt(new BigDecimal("20.000"))
+                        .build();
+        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+                .willReturn(Optional.of(project));
+
+        assertThatThrownBy(
+                        () ->
+                                projectService.assignDeclaredAmounts(
+                                        "PRJ-2026-0001",
+                                        new BigDecimal("999"),
+                                        new BigDecimal("888"),
+                                        new BigDecimal("-1")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("지급금액은 0 이상이어야 합니다.");
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("420.000");
+        assertThat(project.getMplAmt()).isEqualByComparingTo("300.000");
+        assertThat(project.getDfrAmt()).isEqualByComparingTo("20.000");
+    }
+
+    @Test
     @DisplayName("이관 경로가 사업을 못 찾으면 실패한다")
     void assignDeclaredAmounts_failsWhenProjectMissing() {
         given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-9999", "N"))

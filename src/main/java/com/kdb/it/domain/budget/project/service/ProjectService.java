@@ -460,9 +460,7 @@ public class ProjectService {
                         .findByAbusMngNoAndDelYn(abusMngNo, "N")
                         .orElseThrow(
                                 () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
-        ProjectAmountSummary snapshot = sumActiveItems(project, dfrAmt);
-        project.assignAmountSnapshot(
-                snapshot.totalRequiredAmt(), snapshot.plannedAmt(), snapshot.paidAmt());
+        applyAmountSnapshot(project, dfrAmt);
     }
 
     /** 공백·null이 아닌 첫 값을 반환합니다. 둘 다 비었으면 null. */
