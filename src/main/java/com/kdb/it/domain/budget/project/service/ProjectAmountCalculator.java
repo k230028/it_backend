@@ -10,6 +10,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProjectAmountCalculator {
 
+    private static final int AMOUNT_SCALE = 3;
+    private static final BigDecimal MAX_AMOUNT = new BigDecimal("999999999999999.999");
+
     /**
      * 현재 요청금액, 예정금액, 지급금액과 총소요금액을 계산합니다.
      *
@@ -27,12 +30,13 @@ public class ProjectAmountCalculator {
             plannedAmt = plannedAmt.add(toPlannedKrw(item));
         }
 
-        BigDecimal normalizedPaidAmt = orZero(paidAmt);
+        currentRequestAmt = normalizeAmount(currentRequestAmt, "당해 요청금액");
+        plannedAmt = normalizeAmount(plannedAmt, "예정금액");
+        BigDecimal normalizedPaidAmt = normalizeAmount(paidAmt, "지급금액");
+        BigDecimal totalRequiredAmt =
+                normalizeAmount(currentRequestAmt.add(plannedAmt).add(normalizedPaidAmt), "총소요금액");
         return new ProjectAmountSummary(
-                currentRequestAmt,
-                plannedAmt,
-                normalizedPaidAmt,
-                currentRequestAmt.add(plannedAmt).add(normalizedPaidAmt));
+                currentRequestAmt, plannedAmt, normalizedPaidAmt, totalRequiredAmt);
     }
 
     /**
@@ -45,14 +49,14 @@ public class ProjectAmountCalculator {
     BigDecimal toPlannedKrw(Bitemm item) {
         BigDecimal plannedAmt = orZero(item.getMplAmt());
         if (!isForeignCurrency(item)) {
-            return plannedAmt;
+            return normalizeAmount(plannedAmt, "예정금액");
         }
 
         BigDecimal xcr = item.getXcr();
         if (xcr == null || xcr.signum() <= 0) {
             throw new IllegalArgumentException("외화 품목의 유효한 환율이 필요합니다.");
         }
-        return plannedAmt.multiply(xcr).setScale(3, RoundingMode.HALF_UP);
+        return normalizeAmount(plannedAmt.multiply(xcr), "예정금액");
     }
 
     private boolean isForeignCurrency(Bitemm item) {
@@ -61,5 +65,13 @@ public class ProjectAmountCalculator {
 
     private BigDecimal orZero(BigDecimal amount) {
         return amount != null ? amount : BigDecimal.ZERO;
+    }
+
+    private BigDecimal normalizeAmount(BigDecimal amount, String fieldLabel) {
+        BigDecimal normalized = orZero(amount).setScale(AMOUNT_SCALE, RoundingMode.HALF_UP);
+        if (normalized.abs().compareTo(MAX_AMOUNT) > 0) {
+            throw new IllegalArgumentException(fieldLabel + "이 저장 가능한 NUMBER(18,3) 범위를 넘습니다.");
+        }
+        return normalized;
     }
 }

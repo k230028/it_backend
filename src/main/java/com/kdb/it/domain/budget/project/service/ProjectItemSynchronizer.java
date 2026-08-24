@@ -61,6 +61,7 @@ final class ProjectItemSynchronizer {
         }
         int gclSno = 0; // 품목일련번호 (1부터 시작)
         for (ProjectDto.BitemmDto itemDto : items) {
+            validateItemAmounts(itemDto);
             String gclMngNo = nextGclMngNo();
             BigDecimal[] reconciled = resolveXcrAndReconcile(itemDto);
             itemRepository.save(buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
@@ -93,6 +94,7 @@ final class ProjectItemSynchronizer {
 
         // 2. 요청 품목 처리 (수정 또는 신규 추가)
         for (ProjectDto.BitemmDto itemDto : items) {
+            validateItemAmounts(itemDto);
             if (itemDto.getGclMngNo() != null && !itemDto.getGclMngNo().isEmpty()) {
                 updateExisting(existingItems, itemDto, processedGclMngNos);
             } else {
@@ -251,5 +253,25 @@ final class ProjectItemSynchronizer {
             throw new IllegalArgumentException("예정금액은 0 이상이어야 합니다.");
         }
         return mplAmt;
+    }
+
+    /** 공용 금액 폴백 전에 사업 품목의 통화별 입력 불변식을 검증합니다. */
+    private static void validateItemAmounts(ProjectDto.BitemmDto item) {
+        if (item.getAmt() != null && item.getAmt().signum() < 0) {
+            throw new IllegalArgumentException("당해 요청금액은 0 이상이어야 합니다.");
+        }
+        if (item.getFcAmt() != null && item.getFcAmt().signum() < 0) {
+            throw new IllegalArgumentException("외화금액은 0 이상이어야 합니다.");
+        }
+
+        String currency = item.getCurC();
+        boolean foreign =
+                currency != null && !currency.isBlank() && !"KRW".equalsIgnoreCase(currency);
+        if (foreign && item.getFcAmt() == null) {
+            throw new IllegalArgumentException("외화 품목은 외화금액이 필요합니다.");
+        }
+        if (!foreign && item.getFcAmt() != null) {
+            throw new IllegalArgumentException("원화 품목에는 외화금액을 입력할 수 없습니다.");
+        }
     }
 }
