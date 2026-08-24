@@ -54,8 +54,13 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param delYn 삭제 여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 맞는 품목 엔티티 목록
      */
-    List<Bitemm> findByAbusMngNoAndFntTbCrySnoAndDelYn(
-            String prjMngNo, Integer prjSno, String delYn);
+    default List<Bitemm> findByAbusMngNoAndFntTbCrySnoAndDelYn(
+            String prjMngNo, Integer prjSno, String delYn) {
+        return findByAbusMngNoAndFntTbCrySnoAndDelYnAndLstYn(prjMngNo, prjSno, delYn, "Y");
+    }
+
+    List<Bitemm> findByAbusMngNoAndFntTbCrySnoAndDelYnAndLstYn(
+            String prjMngNo, Integer prjSno, String delYn, String lstYn);
 
     /**
      * Oracle 시퀀스(SQ_TPRMPP_BITEMM_1) 다음 값 조회
@@ -96,7 +101,9 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param delYn 삭제 여부 ('N'=미삭제)
      * @return 해당 프로젝트의 유효 품목 목록
      */
-    List<Bitemm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn);
+    default List<Bitemm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn) {
+        return findByAbusMngNoAndDelYnAndLstYn(prjMngNo, delYn, "Y");
+    }
 
     /**
      * 프로젝트 관리번호 집합과 삭제여부로 품목 일괄 조회 (목록 파생 합산용, N+1 제거)
@@ -108,7 +115,13 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param delYn 삭제 여부 ('N'=미삭제)
      * @return 조건에 맞는 품목 목록
      */
-    List<Bitemm> findByAbusMngNoInAndDelYn(java.util.Collection<String> prjMngNos, String delYn);
+    default List<Bitemm> findByAbusMngNoInAndDelYn(
+            java.util.Collection<String> prjMngNos, String delYn) {
+        return findByAbusMngNoInAndDelYnAndLstYn(prjMngNos, delYn, "Y");
+    }
+
+    List<Bitemm> findByAbusMngNoInAndDelYnAndLstYn(
+            java.util.Collection<String> prjMngNos, String delYn, String lstYn);
 
     /**
      * 사업관리번호 집합의 활성 품목을 예산 합산 전용 프로젝션으로 조회합니다.
@@ -117,8 +130,13 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param delYn 삭제여부
      * @return 예산 합산용 품목 행
      */
-    List<ProjectItemBudgetView> findBudgetViewsByAbusMngNoInAndDelYn(
-            java.util.Collection<String> abusMngNos, String delYn);
+    default List<ProjectItemBudgetView> findBudgetViewsByAbusMngNoInAndDelYn(
+            java.util.Collection<String> abusMngNos, String delYn) {
+        return findBudgetViewsByAbusMngNoInAndDelYnAndLstYn(abusMngNos, delYn, "Y");
+    }
+
+    List<ProjectItemBudgetView> findBudgetViewsByAbusMngNoInAndDelYnAndLstYn(
+            java.util.Collection<String> abusMngNos, String delYn, String lstYn);
 
     /**
      * 프로젝트 관리번호의 최신 버전 품목 목록 조회
@@ -149,6 +167,12 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 정보보호 품목 존재 여부
      */
-    boolean existsByAbusMngNoAndSectSysUtzYnAndDelYn(
-            String abusMngNo, String sectSysUtzYn, String delYn);
+    default boolean existsByAbusMngNoAndSectSysUtzYnAndDelYn(
+            String abusMngNo, String sectSysUtzYn, String delYn) {
+        return existsByAbusMngNoAndSectSysUtzYnAndDelYnAndLstYn(
+                abusMngNo, sectSysUtzYn, delYn, "Y");
+    }
+
+    boolean existsByAbusMngNoAndSectSysUtzYnAndDelYnAndLstYn(
+            String abusMngNo, String sectSysUtzYn, String delYn, String lstYn);
 }
