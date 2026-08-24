@@ -196,8 +196,8 @@ public class ProjectDto {
         @Schema(description = "관련프로젝트관리번호")
         private String cncdRfrNo;
 
-        /** 기 지급예산: 이미 지급한 예산 금액. 미전송이면 0으로 저장한다. */
-        @Schema(description = "기 지급예산", nullable = true)
+        /** 원화 지급금액: 이미 지급한 금액. 미전송이면 0으로 저장한다. */
+        @Schema(description = "원화 지급금액", nullable = true)
         private BigDecimal dfrAmt;
 
         /**
@@ -402,8 +402,8 @@ public class ProjectDto {
         @Schema(description = "관련프로젝트관리번호")
         private String cncdRfrNo;
 
-        /** 기 지급예산: 이미 지급한 예산 금액. 미전송이면 0으로 저장한다. */
-        @Schema(description = "기 지급예산", nullable = true)
+        /** 원화 지급금액: 이미 지급한 금액. 미전송이면 0으로 저장한다. */
+        @Schema(description = "원화 지급금액", nullable = true)
         private BigDecimal dfrAmt;
 
         /**
@@ -456,8 +456,8 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 당년예산금액=당해예산 (파생값: 총 AMT − 총 MPL_AMT, 음수면 0). prjBgAmt = 이 값 + mplAmt (BE-36) */
-        @Schema(description = "당년예산금액 — 당해예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        /** 당해 요청금액: 활성 품목의 원화 AMT 합계. */
+        @Schema(description = "당해 요청금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal tyyBgAmt;
 
         /** 예정자본금액 (파생값: 품목 mplAmt 자본예산 합산) */
@@ -468,17 +468,17 @@ public class ProjectDto {
         @Schema(description = "예정관리비금액 (파생값)")
         private BigDecimal mplMngcAmt;
 
-        /** 총 예산 (파생값: 활성 품목 AMT 합계). DB TOT_RQM_AMT와 같은 의미이며 tyyBgAmt(당해예산)와 다르다. */
-        @Schema(description = "총 예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        /** 총소요금액: 당해 요청금액+원화 환산 예정금액+원화 지급금액. */
+        @Schema(description = "총소요금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal prjBgAmt;
 
-        /** 예산연도+1 이후 예산 (파생값: 활성 품목 MPL_AMT 합계) */
-        @Schema(description = "익년 이후 예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        /** 원화 환산 예정금액: 활성 품목 MPL_AMT를 통화별 환율로 환산한 합계. */
+        @Schema(description = "원화 환산 예정금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal mplAmt;
 
-        /** 기 지급예산 (BPROJM.DFR_AMT 컬럼값) */
+        /** 원화 지급금액 (BPROJM.DFR_AMT 컬럼값). */
         @Schema(
-                description = "기 지급예산",
+                description = "원화 지급금액",
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 nullable = true)
         private BigDecimal dfrAmt;

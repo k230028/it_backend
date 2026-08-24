@@ -272,7 +272,8 @@ class ProjectServiceTest {
                         invocation -> {
                             ProjectDto.Response response = invocation.getArgument(0);
                             List<Bitemm> items = invocation.getArgument(1);
-                            new ProjectBudgetSummaryService(codeService)
+                            new ProjectBudgetSummaryService(
+                                            codeService, new ProjectAmountCalculator())
                                     .applyBudgetSummary(response, items);
                             return null;
                         })
@@ -283,11 +284,13 @@ class ProjectServiceTest {
         doAnswer(
                         invocation -> {
                             List<Bitemm> items = invocation.getArgument(0);
-                            return new ProjectBudgetSummaryService(codeService)
-                                    .calculateAmountSnapshot(items);
+                            BigDecimal paidAmt = invocation.getArgument(1);
+                            return new ProjectBudgetSummaryService(
+                                            codeService, new ProjectAmountCalculator())
+                                    .calculateAmountSnapshot(items, paidAmt);
                         })
                 .when(projectBudgetSummaryService)
-                .calculateAmountSnapshot(anyList());
+                .calculateAmountSnapshot(anyList(), any(BigDecimal.class));
         // 기본 조직명 스냅샷: 미등록 코드로 간주해 null 반환 (기존 테스트 무영향)
         org.mockito.Mockito.lenient()
                 .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
@@ -2878,6 +2881,9 @@ class ProjectServiceTest {
                         .amt(BigDecimal.valueOf(100))
                         .build();
 
+        given(xcrLookupService.resolveXcr(eq("USD"), any(java.time.LocalDate.class)))
+                .willReturn(BigDecimal.ONE);
+
         // when
         projectService.updateProject(
                 prjMngNo, ProjectDto.UpdateRequest.builder().items(List.of(changedItem)).build());
@@ -3185,32 +3191,32 @@ class ProjectServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // applyAmountSnapshot — 저장 시 금액 스냅샷 기록 및 기 지급예산(dfrAmt) 검증
+    // applyAmountSnapshot — 저장 시 금액 스냅샷 기록 및 지급금액(dfrAmt) 검증
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("생성 시 품목 재조회 합계를 금액 스냅샷으로 기록한다 (요청 합계와 다르게 스텁해 누적 구현을 배제)")
+    @DisplayName("생성 시 중앙 계산기로 현재·예정·지급 금액을 합산한 스냅샷을 기록한다")
     void createProject_recordsAmountSnapshot() {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L, 2L);
-        // 재조회(findByAbusMngNoAndFntTbCrySnoAndDelYn) 결과 합계(1500/500)를 요청 품목 합계(300/100)와
-        // 일부러 다르게 둔다. 저장 루프 중 요청 품목을 누적하는(브리프가 금지한) 구현이었다면 1500이 아닌
-        // 300이 기록되어 이 단언이 실패한다 — applyAmountSnapshot이 반드시 재조회 결과를 쓰는지 검증한다.
         stubActiveItems(
                 Bitemm.builder()
                         .ioeC("A01")
-                        .amt(new BigDecimal("1000"))
-                        .mplAmt(new BigDecimal("300"))
+                        .curC("KRW")
+                        .amt(new BigDecimal("100"))
+                        .mplAmt(new BigDecimal("500"))
                         .build(),
                 Bitemm.builder()
                         .ioeC("B01")
-                        .amt(new BigDecimal("500"))
-                        .mplAmt(new BigDecimal("200"))
+                        .curC("USD")
+                        .amt(new BigDecimal("140000"))
+                        .mplAmt(new BigDecimal("50"))
+                        .xcr(new BigDecimal("1400"))
                         .build());
 
         ProjectDto.CreateRequest request = validCreateRequest();
-        request.setDfrAmt(new BigDecimal("400"));
+        request.setDfrAmt(new BigDecimal("20"));
         request.setItems(
                 List.of(
                         itemDto("A01", new BigDecimal("200"), new BigDecimal("50")),
@@ -3221,13 +3227,13 @@ class ProjectServiceTest {
         ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
         verify(projectRepository, atLeastOnce()).save(captor.capture());
         Bprojm saved = captor.getValue();
-        assertThat(saved.getTotRqmAmt()).isEqualByComparingTo("1500");
-        assertThat(saved.getMplAmt()).isEqualByComparingTo("500");
-        assertThat(saved.getDfrAmt()).isEqualByComparingTo("400");
+        assertThat(saved.getTotRqmAmt()).isEqualByComparingTo("210620");
+        assertThat(saved.getMplAmt()).isEqualByComparingTo("70500");
+        assertThat(saved.getDfrAmt()).isEqualByComparingTo("20");
     }
 
     @Test
-    @DisplayName("기 지급예산이 음수면 400으로 거부한다")
+    @DisplayName("지급금액이 음수면 400으로 거부한다")
     void createProject_rejectsNegativeDfrAmt() {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
@@ -3243,16 +3249,14 @@ class ProjectServiceTest {
         request.setDfrAmt(new BigDecimal("-1"));
         request.setItems(List.of(itemDto("A01", new BigDecimal("1000"), BigDecimal.ZERO)));
 
-        // "기 지급예산" 부분 문자열은 음수·초과 두 메시지에 모두 포함되므로, 실제로 어느 분기가
-        // 던졌는지 구분되도록 각 메시지의 고유한 절로 단언한다.
         assertThatThrownBy(() -> projectService.createProject(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("0 이상");
     }
 
     @Test
-    @DisplayName("기 지급예산이 총 예산을 넘으면 400으로 거부한다")
-    void createProject_rejectsDfrAmtOverTotal() {
+    @DisplayName("기 지급금액은 현재 요청금액보다 커도 총소요금액에 합산해 저장한다")
+    void createProject_allowsPaidAmountGreaterThanCurrentRequest() {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
@@ -3267,14 +3271,16 @@ class ProjectServiceTest {
         request.setDfrAmt(new BigDecimal("1001"));
         request.setItems(List.of(itemDto("A01", new BigDecimal("1000"), BigDecimal.ZERO)));
 
-        assertThatThrownBy(() -> projectService.createProject(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("초과할 수 없습니다");
+        assertThatCode(() -> projectService.createProject(request)).doesNotThrowAnyException();
+
+        ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
+        verify(projectRepository, atLeastOnce()).save(captor.capture());
+        assertThat(captor.getValue().getTotRqmAmt()).isEqualByComparingTo("2001");
     }
 
     @Test
-    @DisplayName("기 지급예산이 총 예산과 같으면 통과한다")
-    void createProject_allowsDfrAmtEqualToTotal() {
+    @DisplayName("지급금액이 현재 요청금액과 같아도 총소요금액에 합산한다")
+    void createProject_includesPaidAmountEqualToCurrentRequest() {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
@@ -3289,11 +3295,15 @@ class ProjectServiceTest {
         request.setDfrAmt(new BigDecimal("1000"));
         request.setItems(List.of(itemDto("A01", new BigDecimal("1000"), BigDecimal.ZERO)));
 
-        assertThatCode(() -> projectService.createProject(request)).doesNotThrowAnyException();
+        projectService.createProject(request);
+
+        ArgumentCaptor<Bprojm> captor = ArgumentCaptor.forClass(Bprojm.class);
+        verify(projectRepository, atLeastOnce()).save(captor.capture());
+        assertThat(captor.getValue().getTotRqmAmt()).isEqualByComparingTo("2000");
     }
 
     @Test
-    @DisplayName("기 지급예산 미전송(null)은 0으로 저장한다")
+    @DisplayName("지급금액 미전송(null)은 0으로 저장한다")
     void createProject_nullDfrAmtBecomesZero() {
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(projectRepository.save(any(Bprojm.class))).willAnswer(inv -> inv.getArgument(0));
@@ -3380,14 +3390,14 @@ class ProjectServiceTest {
         projectService.updateProject(prjMngNo, request);
 
         assertThat(removedItem.getDelYn()).isEqualTo("Y");
-        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("500");
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("800");
         assertThat(project.getMplAmt()).isEqualByComparingTo("100");
         assertThat(project.getDfrAmt()).isEqualByComparingTo("200");
     }
 
     @Test
-    @DisplayName("updateProject: 기 지급예산이 총 예산을 넘으면 400으로 거부한다")
-    void updateProject_rejectsDfrAmtOverTotal() {
+    @DisplayName("updateProject: 지급금액 상한 없이 총소요금액에 합산한다")
+    void updateProject_includesPaidAmountWithoutLegacyCeiling() {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
         given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
@@ -3396,8 +3406,7 @@ class ProjectServiceTest {
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
                 .willReturn(false);
-        // items=null → 품목 CUD 동기화는 건너뛰지만, 스냅샷 재계산(applyAmountSnapshot)은
-        // 항상 수행되므로 재조회 결과(총 예산 1000) 기준으로 dfrAmt 검증이 이뤄진다.
+        // items=null이어도 스냅샷 재계산은 항상 수행되어 재조회 현재 요청금액에 지급금액을 합산한다.
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
                 .willReturn(
                         List.of(
@@ -3413,9 +3422,9 @@ class ProjectServiceTest {
                         .dfrAmt(new BigDecimal("1001"))
                         .build();
 
-        assertThatThrownBy(() -> projectService.updateProject(prjMngNo, request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("초과할 수 없습니다");
+        assertThatCode(() -> projectService.updateProject(prjMngNo, request))
+                .doesNotThrowAnyException();
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("2001");
     }
 
     // ───────────────────────────────────────────────────────
@@ -3423,22 +3432,21 @@ class ProjectServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("이관 경로는 선언 금액을 검증 없이 그대로 기록한다")
-    void assignDeclaredAmounts_writesWithoutValidation() {
+    @DisplayName("이관 경로는 신규 원화 계약의 선언 금액을 그대로 기록한다")
+    void assignDeclaredAmounts_writesNewKrwContract() {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").build();
         given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
                 .willReturn(Optional.of(project));
 
-        // 기 지급예산이 총 예산보다 큰 조합도 그대로 기록한다 — 선언값이 원본이다
         projectService.assignDeclaredAmounts(
                 "PRJ-2026-0001",
-                new BigDecimal("2000000000"),
-                new BigDecimal("0"),
-                new BigDecimal("734375300"));
+                new BigDecimal("620"),
+                new BigDecimal("500"),
+                new BigDecimal("20"));
 
-        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("2000000000");
-        assertThat(project.getMplAmt()).isEqualByComparingTo("0");
-        assertThat(project.getDfrAmt()).isEqualByComparingTo("734375300");
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("620");
+        assertThat(project.getMplAmt()).isEqualByComparingTo("500");
+        assertThat(project.getDfrAmt()).isEqualByComparingTo("20");
     }
 
     @Test
@@ -3459,10 +3467,8 @@ class ProjectServiceTest {
     }
 
     @Test
-    @DisplayName("반입으로 들어온 기 지급예산은 같은 값으로 다시 저장할 수 있다")
-    void updateProject_allowsResavingImportedDfrAmt() {
-        // 반입 사업은 DFR_AMT가 1-1 전체기간 총액 기준이라 품목 합계(1,000)보다 크다.
-        // 수정 화면이 그 값을 그대로 되돌려 보내므로, 상한이 품목 합계면 저장이 막힌다.
+    @DisplayName("기존 지급금액은 품목 현재 요청금액과 비교하지 않고 다시 저장할 수 있다")
+    void updateProject_allowsResavingPaidAmount() {
         Bprojm project = existingProjectWithDfrAmt(new BigDecimal("734375300"));
         ProjectDto.UpdateRequest request = validUpdateRequest();
         request.setDfrAmt(new BigDecimal("734375300"));
@@ -3473,16 +3479,17 @@ class ProjectServiceTest {
     }
 
     @Test
-    @DisplayName("기존 기 지급예산보다 늘리는 수정은 여전히 거부한다")
-    void updateProject_stillRejectsIncreaseBeyondCeiling() {
+    @DisplayName("기존 지급금액보다 늘리는 수정도 총소요금액에 합산한다")
+    void updateProject_allowsIncreasingPaidAmount() {
         Bprojm project = existingProjectWithDfrAmt(new BigDecimal("734375300"));
         ProjectDto.UpdateRequest request = validUpdateRequest();
         request.setDfrAmt(new BigDecimal("734375301"));
         request.setItems(List.of(itemDto("A01", new BigDecimal("1000"), BigDecimal.ZERO)));
 
-        assertThatThrownBy(() -> projectService.updateProject(project.getAbusMngNo(), request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("기 지급예산");
+        assertThatCode(() -> projectService.updateProject(project.getAbusMngNo(), request))
+                .doesNotThrowAnyException();
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("734375301");
+        assertThat(project.getDfrAmt()).isEqualByComparingTo("734375301");
     }
 
     /** 필수 필드만 채운 생성 요청. 개별 테스트가 필요한 필드만 덮어쓴다. */
@@ -3504,14 +3511,14 @@ class ProjectServiceTest {
     }
 
     /**
-     * 이미 기 지급예산이 기록된 기존 사업. 반입으로 들어온 사업을 재현한다.
+     * 이미 지급금액이 기록된 기존 사업을 재현한다.
      *
      * <p>{@code updateProject}의 다른 테스트와 같은 방식으로 {@code projectRepository.findByAbusMngNoAndDelYn}을
      * 스텁해, 이 헬퍼가 반환한 사업을 곧바로 수정 대상으로 조회할 수 있게 한다.
      */
     private Bprojm existingProjectWithDfrAmt(BigDecimal dfrAmt) {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").build();
-        project.assignAmountSnapshot(new BigDecimal("2000000000"), BigDecimal.ZERO, dfrAmt);
+        project.assignAmountSnapshot(dfrAmt, BigDecimal.ZERO, dfrAmt);
         given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
                 .willReturn(Optional.of(project));
         return project;

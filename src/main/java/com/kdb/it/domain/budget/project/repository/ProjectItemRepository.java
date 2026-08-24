@@ -27,6 +27,10 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
         java.math.BigDecimal getAmt();
 
         java.math.BigDecimal getMplAmt();
+
+        String getCurC();
+
+        java.math.BigDecimal getXcr();
     }
 
     /**

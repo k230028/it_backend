@@ -43,10 +43,12 @@ class ProjectItemBudgetProjectionIt extends AbstractOracleRepositoryTest {
                             assertThat(view.getIoeC()).isEqualTo("101");
                             assertThat(view.getAmt()).isEqualByComparingTo("123.000");
                             assertThat(view.getMplAmt()).isEqualByComparingTo("23.000");
+                            assertThat(view.getCurC()).isEqualTo("KRW");
+                            assertThat(view.getXcr()).isNull();
                         });
         assertThat(views).extracting(view -> view.getGclMngNo()).doesNotContain(deletedGcl);
         assertThat(declaredMethodNames(ProjectItemRepository.ProjectItemBudgetView.class))
-                .hasSize(5);
+                .hasSize(7);
     }
 
     private Bitemm item(
@@ -65,6 +67,7 @@ class ProjectItemBudgetProjectionIt extends AbstractOracleRepositoryTest {
                 .dfrCleC("0")
                 .ioeC(ioeC)
                 .lstYn("Y")
+                .curC("KRW")
                 .amt(new BigDecimal(amt))
                 .mplAmt(new BigDecimal(mplAmt))
                 .delYn(delYn)

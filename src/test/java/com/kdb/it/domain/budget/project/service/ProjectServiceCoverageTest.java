@@ -211,7 +211,8 @@ class ProjectServiceCoverageTest {
                         invocation -> {
                             ProjectDto.Response response = invocation.getArgument(0);
                             List<Bitemm> items = invocation.getArgument(1);
-                            new ProjectBudgetSummaryService(codeService)
+                            new ProjectBudgetSummaryService(
+                                            codeService, new ProjectAmountCalculator())
                                     .applyBudgetSummary(response, items);
                             return null;
                         })
@@ -222,11 +223,13 @@ class ProjectServiceCoverageTest {
         doAnswer(
                         invocation -> {
                             List<Bitemm> items = invocation.getArgument(0);
-                            return new ProjectBudgetSummaryService(codeService)
-                                    .calculateAmountSnapshot(items);
+                            BigDecimal paidAmt = invocation.getArgument(1);
+                            return new ProjectBudgetSummaryService(
+                                            codeService, new ProjectAmountCalculator())
+                                    .calculateAmountSnapshot(items, paidAmt);
                         })
                 .when(projectBudgetSummaryService)
-                .calculateAmountSnapshot(anyList());
+                .calculateAmountSnapshot(anyList(), any(BigDecimal.class));
         // 작성자 조직 스냅샷 기본값: 생성 경로 NPE 방지용 빈 스냅샷
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())

@@ -241,7 +241,7 @@ public class ProjectService {
         // 신규 등록 시 요청에 포함된 모든 품목은 신규 추가 대상
         itemSynchronizer().createAll(project, request.getItems());
 
-        // 품목 저장이 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
+        // 품목 저장이 끝난 뒤 사업 단위 금액 스냅샷(총소요·예정·지급금액) 기록
         applyAmountSnapshot(project, request.getDfrAmt());
 
         // 정보화사업관계(BPROJA) 적재: 예산편성 요청 작성중(IT_PTL_STS_TC='01').
@@ -397,7 +397,7 @@ public class ProjectService {
         // ===== 품목 정보 동기화 (CUD) =====
         itemSynchronizer().sync(project, request.getItems());
 
-        // 품목 동기화가 끝난 뒤 사업 단위 금액 스냅샷(총 예산·익년 이후 예산·기 지급예산) 기록
+        // 품목 동기화가 끝난 뒤 사업 단위 금액 스냅샷(총소요·예정·지급금액) 기록
         applyAmountSnapshot(project, request.getDfrAmt());
 
         return project.getAbusMngNo(); // 수정된 관리번호 반환
@@ -410,55 +410,46 @@ public class ProjectService {
      * 엔티티에 바로 반영하며, Dirty Checking으로 UPDATE가 실행됩니다.
      *
      * @param project 대상 사업 엔티티 (영속 상태)
-     * @param requestedDfrAmt 요청이 보낸 기 지급예산 (null이면 0)
-     * @throws IllegalArgumentException 기 지급예산이 음수이거나, 총 예산과 기존 저장값 중 큰 값을 초과하는 경우
+     * @param requestedDfrAmt 요청이 보낸 원화 지급금액 (null이면 0)
+     * @throws IllegalArgumentException 지급금액이 음수인 경우
      */
     private void applyAmountSnapshot(Bprojm project, BigDecimal requestedDfrAmt) {
-        ProjectBudgetSummaryService.AmountSnapshot snapshot = sumActiveItems(project);
         BigDecimal dfrAmt = requestedDfrAmt == null ? BigDecimal.ZERO : requestedDfrAmt;
         if (dfrAmt.signum() < 0) {
-            throw new IllegalArgumentException("기 지급예산은 0 이상이어야 합니다.");
+            throw new IllegalArgumentException("지급금액은 0 이상이어야 합니다.");
         }
-        // 반입된 사업은 DFR_AMT가 1-1 전체기간 총액 기준이라 품목 합계보다 크다. 기존 저장값까지
-        // 상한으로 허용해, 반입 사업을 수정 화면에서 그대로 저장할 때 400으로 막히지 않게 한다.
-        // 신규 등록은 DFR_AMT가 null이라 상한이 품목 합계 그대로다.
-        BigDecimal existing = project.getDfrAmt() == null ? BigDecimal.ZERO : project.getDfrAmt();
-        BigDecimal ceiling = snapshot.totRqmAmt().max(existing);
-        if (dfrAmt.compareTo(ceiling) > 0) {
-            throw new IllegalArgumentException("기 지급예산은 총 예산을 초과할 수 없습니다.");
-        }
-        project.assignAmountSnapshot(snapshot.totRqmAmt(), snapshot.mplAmt(), dfrAmt);
+        ProjectAmountSummary snapshot = sumActiveItems(project, dfrAmt);
+        project.assignAmountSnapshot(
+                snapshot.totalRequiredAmt(), snapshot.plannedAmt(), snapshot.paidAmt());
     }
 
     /**
      * 활성 품목을 다시 조회해 사업 단위 금액 합계를 계산합니다.
      *
-     * <p>{@link #applyAmountSnapshot}(사용자 입력 기 지급예산을 검증하는 저장 경로)이 쓰는 합산 단계입니다. 활성 품목 집합의 조회 조건을 이
-     * 메서드 하나로 고정해, 합계를 다시 계산하는 경로가 늘어도 같은 집합을 보게 합니다.
+     * <p>{@link #applyAmountSnapshot}(사용자 입력 지급금액을 검증하는 저장 경로)이 쓰는 합산 단계입니다. 활성 품목 집합의 조회 조건을 이 메서드
+     * 하나로 고정해, 합계를 다시 계산하는 경로가 늘어도 같은 집합을 보게 합니다.
      *
      * @param project 대상 사업 엔티티 (영속 상태)
-     * @return 활성 품목 기준 총 예산·익년 이후 예산 합계
+     * @param paidAmt 원화 지급금액
+     * @return 활성 품목과 지급금액 기준 사업 금액 합계
      */
-    private ProjectBudgetSummaryService.AmountSnapshot sumActiveItems(Bprojm project) {
+    private ProjectAmountSummary sumActiveItems(Bprojm project, BigDecimal paidAmt) {
         List<Bitemm> activeItems =
                 bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
                         project.getAbusMngNo(), project.getSno(), "N");
-        return budgetSummaryService.calculateAmountSnapshot(activeItems);
+        return budgetSummaryService.calculateAmountSnapshot(activeItems, paidAmt);
     }
 
     /**
      * 이관 전용 — 편성요청서가 선언한 사업 단위 금액을 그대로 기록합니다.
      *
-     * <p>{@link #createProject}가 남긴 품목 합계 스냅샷을 1-1 선언값으로 덮어씁니다. 반입 경로에서 {@code createProject} 직후에만
-     * 부르며, 일반 등록·수정 흐름은 이 메서드를 타지 않습니다.
-     *
-     * <p><b>검증하지 않습니다.</b> 총 예산은 사업 전체기간 기준이고 기 지급예산은 그 총액에서 예산연도 이후 계획분을 뺀 값이라, 예산연도 품목만 담은 합계보다 큰
-     * 것이 정상입니다. {@code applyAmountSnapshot}의 "기 지급예산 ≤ 총 예산" 상한을 여기에 걸면 정상 파일이 전부 예외로 롤백됩니다.
+     * <p>신규 원화 계약만 받습니다. {@code totRqmAmt=currentRequestAmt+mplAmt+dfrAmt}이며 세 인자는 모두 원화입니다. 기존
+     * 선언값을 새 의미로 바꾸는 마이그레이션은 이 메서드에서 수행하지 않습니다.
      *
      * @param abusMngNo 사업관리번호
-     * @param totRqmAmt 총소요금액 (1-1 총 사업금액, 원 단위)
-     * @param mplAmt 예정금액 (1-1 예산연도 이후 합계, 원 단위)
-     * @param dfrAmt 지급금액 (기 지급예산, 원 단위)
+     * @param totRqmAmt 총소요금액 (원 단위)
+     * @param mplAmt 원화 환산 예정금액
+     * @param dfrAmt 원화 지급금액
      * @throws IllegalArgumentException 사업관리번호에 해당하는 활성 사업이 없는 경우
      */
     @Transactional

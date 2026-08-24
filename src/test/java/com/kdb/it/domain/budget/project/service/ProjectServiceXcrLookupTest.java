@@ -95,10 +95,13 @@ class ProjectServiceXcrLookupTest {
         // (Mock 기본 응답은 record 타입에 대해 null이라 스텁하지 않으면 금액 스냅샷 기록에서 NPE 발생)
         doAnswer(
                         invocation ->
-                                new ProjectBudgetSummaryService(codeService)
-                                        .calculateAmountSnapshot(invocation.getArgument(0)))
+                                new ProjectBudgetSummaryService(
+                                                codeService, new ProjectAmountCalculator())
+                                        .calculateAmountSnapshot(
+                                                invocation.getArgument(0),
+                                                invocation.getArgument(1)))
                 .when(projectBudgetSummaryService)
-                .calculateAmountSnapshot(anyList());
+                .calculateAmountSnapshot(anyList(), any(BigDecimal.class));
     }
 
     @AfterEach
