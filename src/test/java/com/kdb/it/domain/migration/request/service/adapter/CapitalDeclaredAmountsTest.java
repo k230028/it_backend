@@ -1,12 +1,28 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.service.ProjectAmountCalculator;
+import com.kdb.it.domain.budget.project.service.ProjectAmountSummary;
+import com.kdb.it.domain.budget.project.service.ProjectService;
+import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
+import com.kdb.it.domain.migration.request.service.RequestFormFileImporter;
+import com.kdb.it.domain.migration.request.service.RequestFormValidator;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.support.FormDiagnostics;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
+import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.io.ByteArrayInputStream;
@@ -25,7 +41,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -104,16 +122,17 @@ class CapitalDeclaredAmountsTest {
     }
 
     @Test
-    @DisplayName("1-1 합성 품목의 전체 금액은 당해와 이후 금액을 모두 포함한다")
-    void includesLaterAmountInSyntheticItemTotal() {
+    @DisplayName("1-1 합성 품목은 당해 AMT와 이후 MPL을 독립적으로 저장한다")
+    void keepsSyntheticCurrentAndPlannedAmountsIndependent() {
         FormAdapterOutput output = adapt(overviewWithSummaryItem(100d, 300d, "400 백만원"));
 
+        var item = output.projects().get(0).getItems().getFirst();
         assertThat(output.projects().get(0).getItems())
                 .singleElement()
                 .satisfies(
-                        item -> {
-                            assertThat(item.getAmt()).isEqualByComparingTo("400000000");
-                            assertThat(item.getMplAmt()).isEqualByComparingTo("300000000");
+                        actual -> {
+                            assertThat(actual.getAmt()).isEqualByComparingTo("100000000");
+                            assertThat(actual.getMplAmt()).isEqualByComparingTo("300000000");
                         });
         assertThat(output.projectAmounts())
                 .singleElement()
@@ -123,6 +142,8 @@ class CapitalDeclaredAmountsTest {
                             assertThat(amounts.totRqmAmt()).isEqualByComparingTo("400000000");
                             assertThat(amounts.mplAmt()).isEqualByComparingTo("300000000");
                             assertThat(amounts.dfrAmt()).isEqualByComparingTo("0");
+                            assertThat(item.getAmt().add(item.getMplAmt()).add(amounts.dfrAmt()))
+                                    .isEqualByComparingTo(amounts.totRqmAmt());
                         });
     }
 
@@ -319,6 +340,50 @@ class CapitalDeclaredAmountsTest {
                 .contains("필요예산 편성요청")
                 .doesNotContain("어느 단위로도 맞지 않습니다");
         assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
+    }
+
+    @Test
+    @DisplayName("1-1/1-2 불일치 파일은 품목 계산값과 선언 DFR로 master 공식을 유지한다")
+    void importerKeepsItemFormulaWhenActualAdapterTablesDisagree() {
+        FormAdapterOutput output = fundingDeskSample("1,211백만원");
+        ProjectService projectService = Mockito.mock(ProjectService.class);
+        CostService costService = Mockito.mock(CostService.class);
+        MigrationApprovalStamper stamper = Mockito.mock(MigrationApprovalStamper.class);
+        RequestFormValidator validator = Mockito.mock(RequestFormValidator.class);
+        given(validator.validate(any(), anyString())).willReturn(java.util.List.of());
+        given(projectService.createProject(any(), eq(true))).willReturn("PRJ-2026-0001");
+        RequestFormFileImporter importer =
+                new RequestFormFileImporter(costService, projectService, stamper, validator);
+
+        importer.apply(
+                output,
+                new RequestFormDto.FileEntry("부서/파일.xls", "폴더부서", null, AmountUnit.WON, "0999"),
+                "2026",
+                "12345678");
+
+        ArgumentCaptor<ProjectDto.CreateRequest> captor =
+                ArgumentCaptor.forClass(ProjectDto.CreateRequest.class);
+        verify(projectService).createProject(captor.capture(), eq(true));
+        ProjectDto.CreateRequest request = captor.getValue();
+        ProjectDto.BitemmDto item = request.getItems().getFirst();
+        Bitemm storedItem =
+                Bitemm.builder()
+                        .curC(item.getCurC())
+                        .amt(item.getAmt())
+                        .mplAmt(item.getMplAmt())
+                        .xcr(item.getXcr())
+                        .build();
+        ProjectAmountSummary snapshot =
+                new ProjectAmountCalculator()
+                        .calculate(java.util.List.of(storedItem), request.getDfrAmt());
+
+        assertThat(snapshot.currentRequestAmt()).isEqualByComparingTo("1217727960");
+        assertThat(snapshot.plannedAmt()).isEqualByComparingTo("0");
+        assertThat(snapshot.paidAmt()).isEqualByComparingTo("585835340");
+        assertThat(snapshot.totalRequiredAmt())
+                .isEqualByComparingTo("1803563300")
+                .isNotEqualByComparingTo(output.projectAmounts().getFirst().totRqmAmt());
+        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
     }
 
     @Test

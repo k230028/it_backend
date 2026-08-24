@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class ProjectBudgetSummaryService {
 
     /** 자본예산 세부 코드타입: 개발비 */
@@ -41,6 +43,9 @@ public class ProjectBudgetSummaryService {
     /** 공통코드 서비스: IOE 코드 분류 조회용 */
     private final CodeService codeService;
 
+    /** 사업 금액 중앙 계산기: 현재·예정·지급·총소요금액 계산과 외화 예정금액 환산용 */
+    private final ProjectAmountCalculator amountCalculator;
+
     /**
      * 품목 목록으로부터 자본예산/일반관리비 합계를 계산하여 응답 DTO에 설정합니다.
      *
@@ -51,11 +56,9 @@ public class ProjectBudgetSummaryService {
         applyBudgetSummaryValues(
                 response,
                 bitemms.stream()
-                        .map(
-                                item ->
-                                        new BudgetValues(
-                                                item.getIoeC(), item.getAmt(), item.getMplAmt()))
-                        .toList());
+                        .map(item -> new BudgetValues(item.getIoeC(), item.getAmt(), item))
+                        .toList(),
+                amountCalculator.calculate(bitemms, response.getDfrAmt()));
     }
 
     /**
@@ -67,20 +70,27 @@ public class ProjectBudgetSummaryService {
      */
     public void applyBudgetSummaryViews(
             ProjectDto.Response response, List<ProjectItemRepository.ProjectItemBudgetView> items) {
-        applyBudgetSummaryValues(
-                response,
+        List<BudgetValues> budgetValues =
                 items.stream()
                         .map(
                                 item ->
                                         new BudgetValues(
-                                                item.getIoeC(), item.getAmt(), item.getMplAmt()))
-                        .toList());
+                                                item.getIoeC(), item.getAmt(), toAmountItem(item)))
+                        .toList();
+        applyBudgetSummaryValues(
+                response,
+                budgetValues,
+                amountCalculator.calculate(
+                        budgetValues.stream().map(BudgetValues::amountItem).toList(),
+                        response.getDfrAmt()));
     }
 
     // 주의: 이 파생 합계는 비목 분류에 걸린 품목만 더한다. 저장 스냅샷(calculateAmountSnapshot)은
     // 미분류 비목도 포함하므로, 미분류 비목이 있는 사업은 두 값이 다를 수 있다.
     private void applyBudgetSummaryValues(
-            ProjectDto.Response response, List<BudgetValues> bitemms) {
+            ProjectDto.Response response,
+            List<BudgetValues> bitemms,
+            ProjectAmountSummary amountSummary) {
         List<Ccodem> allIoeCodes =
                 codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE);
         List<Ccodem> assetCodes =
@@ -143,48 +153,34 @@ public class ProjectBudgetSummaryService {
 
         response.setBudgetAmounts(assetBg, dvcBg, hwBg, swBg, costBg);
 
-        // === 예정금액(MPL_AMT) 파생 합산 (Bprojm 3개 컬럼 대체) ===
-        // MPL_AMT도 저장 시점 금액을 그대로 사용해 AMT와 동일한 집계 기준을 유지합니다.
         Function<BudgetValues, BigDecimal> calcMpl =
-                i -> {
-                    if (i.mplAmt() == null) return BigDecimal.ZERO;
-                    return i.mplAmt();
-                };
+                item -> amountCalculator.toPlannedKrw(item.amountItem());
         List<BudgetValues> mplItems = bitemms.stream().filter(i -> i.ioeC() != null).toList();
         BigDecimal mplCpit = sumByIoe(mplItems, assetTypes, calcMpl);
         BigDecimal mplMngc = sumByIoe(mplItems, costTypes, calcMpl);
-        // 당해예산 = 비목 합계(AMT) - 비목 합계(MPL_AMT), 음수이면 0으로 보정
-        BigDecimal totalAmt = assetBg.add(costBg);
-        BigDecimal totalMpl = mplCpit.add(mplMngc);
-        BigDecimal currentYear = totalAmt.subtract(totalMpl);
-        if (currentYear.signum() < 0) currentYear = BigDecimal.ZERO;
 
         response.setMplCpitAmt(mplCpit);
         response.setMplMngcAmt(mplMngc);
-        response.setTyyBgAmt(currentYear);
-        // 총 예산·익년 이후 예산 파생값 (DB 스냅샷 컬럼과 같은 의미, 조회는 파생값을 쓴다)
-        response.setPrjBgAmt(totalAmt);
-        response.setMplAmt(totalMpl);
+        response.setTyyBgAmt(amountSummary.currentRequestAmt());
+        response.setPrjBgAmt(amountSummary.totalRequiredAmt());
+        response.setMplAmt(amountSummary.plannedAmt());
     }
 
     /**
-     * 저장된 사업 단위 금액 스냅샷으로 총 예산·익년 이후 예산·당해예산을 덮어씁니다.
+     * 저장된 사업 단위 금액 스냅샷으로 총소요금액·예정금액·지급금액·당해 요청금액을 덮어씁니다.
      *
-     * <p>{@link #applyBudgetSummary}·{@link #applyBudgetSummaryViews} 다음에 부릅니다. 파생 합계는 <b>예산연도 품목 중
-     * 비목 분류에 걸린 것</b>만 더하므로, 사업 전체기간 금액이 따로 선언된 편성요청서 반입 사업은 화면이 선언값을 보여주지 못합니다(실측: 총 사업금액
-     * 2,000백만원인 사업이 품목 합계 1,217백만원으로 표시).
+     * <p>{@link #applyBudgetSummary}·{@link #applyBudgetSummaryViews} 다음에 부릅니다. 자본예산·일반관리비 분류 합계와
+     * 달리 파생 사업 금액은 비목 분류 여부와 무관하게 모든 활성 품목을 중앙 계산기로 합산합니다.
      *
-     * <p>당해예산은 {@code 총 예산 − 익년 이후 − 기 지급예산}(0 하한)으로 다시 셉니다. 기 지급예산은 총 예산 안에 든 과거 지급분이므로({@code
-     * ProjectService.applyAmountSnapshot}이 `기 지급예산 ≤ 총 예산`을 검증합니다) 빼야 세 값의 합이 총 예산과 맞습니다. 기 지급예산이
-     * 없는 사업은 종전 파생식({@code ∑AMT − ∑MPL_AMT})과 같은 값입니다.
+     * <p>당해 요청금액은 {@code 총소요금액 − 예정금액 − 지급금액}으로 복원합니다. 저장 불변식이 깨진 경우 음수를 0으로 숨기지 않고 그대로 노출합니다.
      *
-     * <p>일반 등록·수정 경로는 저장할 때마다 두 컬럼을 품목 합계로 갱신하므로({@code ProjectService.applyAmountSnapshot}) 보통
+     * <p>일반 등록·수정 경로는 저장할 때마다 세 컬럼을 중앙 계산 결과로 갱신하므로({@code ProjectService.applyAmountSnapshot}) 보통
      * 파생값과 같습니다. 다른 경우는 저장 컬럼이 정본입니다.
      *
      * @param response 파생 합계가 이미 채워진 응답
      * @param totRqmAmt 저장된 총소요금액. null이면 세 값을 모두 파생 합계로 둡니다
-     * @param mplAmt 저장된 예정금액. null이면 파생 합계를 그대로 씁니다
-     * @param dfrAmt 저장된 기 지급예산. null이면 0으로 봅니다
+     * @param mplAmt 저장된 예정금액. null이면 0으로 봅니다
+     * @param dfrAmt 저장된 원화 지급금액. null이면 0으로 봅니다
      * @throws NullPointerException 응답이 null인 경우
      */
     public void applyStoredAmountSnapshot(
@@ -194,11 +190,19 @@ public class ProjectBudgetSummaryService {
             BigDecimal dfrAmt) {
         if (totRqmAmt == null) return;
 
+        BigDecimal storedPlannedAmt = nvl(mplAmt);
+        BigDecimal storedPaidAmt = nvl(dfrAmt);
+        BigDecimal storedCurrentRequestAmt =
+                totRqmAmt.subtract(storedPlannedAmt).subtract(storedPaidAmt);
+        warnSnapshotDiff(response, "tyyBgAmt", response.getTyyBgAmt(), storedCurrentRequestAmt);
+        warnSnapshotDiff(response, "prjBgAmt", response.getPrjBgAmt(), totRqmAmt);
+        warnSnapshotDiff(response, "mplAmt", response.getMplAmt(), storedPlannedAmt);
+        warnSnapshotDiff(response, "dfrAmt", nvl(response.getDfrAmt()), storedPaidAmt);
+
         response.setPrjBgAmt(totRqmAmt);
-        if (mplAmt != null) response.setMplAmt(mplAmt);
-        BigDecimal currentYear =
-                totRqmAmt.subtract(nvl(response.getMplAmt())).subtract(nvl(dfrAmt));
-        response.setTyyBgAmt(currentYear.signum() < 0 ? BigDecimal.ZERO : currentYear);
+        response.setMplAmt(storedPlannedAmt);
+        response.setDfrAmt(dfrAmt);
+        response.setTyyBgAmt(storedCurrentRequestAmt);
     }
 
     /**
@@ -231,37 +235,50 @@ public class ProjectBudgetSummaryService {
         return item.amt() == null ? BigDecimal.ZERO : item.amt();
     }
 
-    private record BudgetValues(String ioeC, BigDecimal amt, BigDecimal mplAmt) {}
+    private Bitemm toAmountItem(ProjectItemRepository.ProjectItemBudgetView item) {
+        return Bitemm.builder()
+                .curC(item.getCurC())
+                .amt(item.getAmt())
+                .mplAmt(item.getMplAmt())
+                .xcr(item.getXcr())
+                .build();
+    }
 
-    /**
-     * 사업 단위 금액 스냅샷.
-     *
-     * @param totRqmAmt 총 예산 (활성 품목 AMT 합계)
-     * @param mplAmt 예산연도+1 이후 예산 (활성 품목 MPL_AMT 합계)
-     */
-    public record AmountSnapshot(BigDecimal totRqmAmt, BigDecimal mplAmt) {}
+    private record BudgetValues(String ioeC, BigDecimal amt, Bitemm amountItem) {}
 
     /**
      * 활성 품목으로 사업 단위 금액 스냅샷을 계산합니다.
      *
-     * <p>화면 [총 예산]은 모든 품목 소계의 합이므로 비목 분류를 적용하지 않고 전체를 더합니다. 자본/관리비로 나누는 {@code applyBudgetSummary}와
-     * 달리, 어느 비목 집합에도 없는 품목도 합계에 포함됩니다.
+     * <p>현재 요청금액은 모든 품목 AMT 합계이므로 비목 분류를 적용하지 않습니다. 자본/관리비로 나누는 {@code applyBudgetSummary}와 달리, 어느
+     * 비목 집합에도 없는 품목도 합계에 포함됩니다.
      *
      * @param bitemms 활성 품목 목록 (null 금액은 0으로 취급, 빈 목록 허용)
-     * @return 총 예산과 익년 이후 예산 합계 (항상 non-null, 최소 0)
+     * @param paidAmt 원화 지급금액 (null이면 0)
+     * @return 현재 요청금액·원화 예정금액·원화 지급금액·총소요금액
      * @throws NullPointerException 품목 목록이 null인 경우
      */
-    public AmountSnapshot calculateAmountSnapshot(List<Bitemm> bitemms) {
-        BigDecimal totRqmAmt = BigDecimal.ZERO;
-        BigDecimal mplAmt = BigDecimal.ZERO;
-        for (Bitemm item : bitemms) {
-            totRqmAmt = totRqmAmt.add(nvl(item.getAmt()));
-            mplAmt = mplAmt.add(nvl(item.getMplAmt()));
-        }
-        return new AmountSnapshot(totRqmAmt, mplAmt);
+    public ProjectAmountSummary calculateAmountSnapshot(List<Bitemm> bitemms, BigDecimal paidAmt) {
+        return amountCalculator.calculate(bitemms, paidAmt);
     }
 
     private static BigDecimal nvl(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private static void warnSnapshotDiff(
+            ProjectDto.Response response,
+            String field,
+            BigDecimal derivedAmount,
+            BigDecimal storedAmount) {
+        BigDecimal derived = nvl(derivedAmount);
+        BigDecimal stored = nvl(storedAmount);
+        if (derived.compareTo(stored) == 0) return;
+
+        log.warn(
+                "정보화사업 금액 스냅샷 불일치: projectKey={}, field={}, derived={}, stored={}",
+                response.getAbusMngNo(),
+                field,
+                derived.toPlainString(),
+                stored.toPlainString());
     }
 }

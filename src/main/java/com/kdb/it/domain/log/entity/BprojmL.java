@@ -56,13 +56,13 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "END_DTM", comment = "종료일자")
     private LocalDate endDtm;
 
-    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "총소요금액")
+    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "총소요금액 (현재+예정+지급)")
     private BigDecimal totRqmAmt;
 
-    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "예정금액")
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "원화 환산 예정금액")
     private BigDecimal mplAmt;
 
-    @Column(name = "DFR_AMT", precision = 18, scale = 3, comment = "지급금액")
+    @Column(name = "DFR_AMT", precision = 18, scale = 3, comment = "원화 지급금액")
     private BigDecimal dfrAmt;
 
     @Column(name = "USID", length = 14, comment = "주관부서담당자")

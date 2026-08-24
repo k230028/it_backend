@@ -100,20 +100,19 @@ public class Bprojm extends BaseEntity {
     private LocalDate endDtm;
 
     /**
-     * 총소요금액: 활성 품목 AMT 합계 스냅샷 (화면 [총 예산]).
+     * 총소요금액: 현재 요청금액+원화 환산 예정금액+원화 지급금액 스냅샷.
      *
-     * <p>조회는 품목 합산 파생값을 쓰므로 이 컬럼은 저장 시점 기록용이다. 드롭 전(V20260622_007) 같은 이름의 컬럼은 당해예산을 담았으나 지금은 총
-     * 예산이다.
+     * <p>조회는 이 저장 스냅샷을 우선 사용합니다. 드롭 전(V20260622_007) 같은 이름의 컬럼은 당해예산을 담았으나 지금은 총소요금액입니다.
      */
-    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "총소요금액 (총 예산 스냅샷)")
+    @Column(name = "TOT_RQM_AMT", precision = 18, scale = 3, comment = "총소요금액 스냅샷")
     private BigDecimal totRqmAmt;
 
-    /** 예정금액: 활성 품목 MPL_AMT 합계 스냅샷 (화면 [예산연도+1년 이후 예산]). */
-    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "예정금액 (익년 이후 예산 스냅샷)")
+    /** 예정금액: 활성 품목 MPL_AMT를 원화로 환산한 합계 스냅샷. */
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "원화 환산 예정금액 스냅샷")
     private BigDecimal mplAmt;
 
-    /** 지급금액: 사용자가 입력하는 기 지급예산. 이 컬럼이 유일한 출처다. */
-    @Column(name = "DFR_AMT", precision = 18, scale = 3, comment = "지급금액 (기 지급예산)")
+    /** 지급금액: 사용자가 입력하는 원화 지급금액. 이 컬럼이 유일한 출처다. */
+    @Column(name = "DFR_AMT", precision = 18, scale = 3, comment = "원화 지급금액")
     private BigDecimal dfrAmt;
 
     /** 주관부서담당자: 주관부서 담당자 사번 또는 이름 (최대 14자) */
@@ -613,11 +612,11 @@ public class Bprojm extends BaseEntity {
     /**
      * 사업 단위 금액 스냅샷 설정.
      *
-     * <p>총 예산·익년 이후 예산은 품목 저장이 끝난 뒤의 합계이고, 기 지급예산은 사용자 입력값이다. 세 값이 항상 같은 시점을 가리키도록 한 번에 설정한다.
+     * <p>총소요금액·원화 환산 예정금액·원화 지급금액이 항상 같은 시점을 가리키도록 한 번에 설정한다.
      *
-     * @param totRqmAmt 총 예산 (활성 품목 AMT 합계)
-     * @param mplAmt 예산연도+1 이후 예산 (활성 품목 MPL_AMT 합계)
-     * @param dfrAmt 기 지급예산 (검증을 통과한 값)
+     * @param totRqmAmt 총소요금액 (현재 요청금액+예정금액+지급금액)
+     * @param mplAmt 원화 환산 예정금액
+     * @param dfrAmt 원화 지급금액 (검증을 통과한 값)
      */
     public void assignAmountSnapshot(BigDecimal totRqmAmt, BigDecimal mplAmt, BigDecimal dfrAmt) {
         this.totRqmAmt = totRqmAmt;

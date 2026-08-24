@@ -67,13 +67,15 @@ public class BitemmL extends BaseLogEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    @Column(name = "AMT", precision = 18, scale = 3, comment = "품목금액")
+    /** 당해 요청금액: 원화 금액 (외화 품목은 서버 환율 적용값) */
+    @Column(name = "AMT", precision = 18, scale = 3, comment = "당해 요청금액(원화)")
     private BigDecimal amt;
 
-    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "예정금액")
+    /** 내년 이후 요청금액: 원화 품목은 원화 원금, 외화 품목은 외화 원금이며 AMT와 독립 */
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "내년 이후 요청금액(통화별 원금)")
     private BigDecimal mplAmt;
 
-    /** 외화금액 (이력 거울 — @LogTarget AOP가 마스터 fcAmt를 동명 매핑) */
-    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    /** 당해 외화 원금 (원화 품목은 null; 이력 거울이 마스터 값을 동명 매핑) */
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "당해 외화 원금")
     private BigDecimal fcAmt;
 }

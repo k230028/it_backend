@@ -25,6 +25,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -215,8 +216,8 @@ class RequestFormFileImporterTest {
     }
 
     @Test
-    @DisplayName("선언 금액이 있으면 원장 생성 직후 그 값으로 덮어쓴다")
-    void assignsDeclaredAmountsAfterCreate() {
+    @DisplayName("선언 금액이 있으면 DFR만 생성 요청에 전달하고 master를 다시 덮어쓰지 않는다")
+    void passesOnlyDeclaredPaidAmountIntoCreateRequest() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
         ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
@@ -236,12 +237,48 @@ class RequestFormFileImporterTest {
 
         importer().apply(output, ENTRY, "2026", "12345678");
 
-        verify(projectService)
-                .assignDeclaredAmounts(
-                        eq("PRJ-2026-0001"),
-                        eq(new BigDecimal("2000000000")),
-                        eq(BigDecimal.ZERO),
-                        eq(new BigDecimal("734375300")));
+        ArgumentCaptor<ProjectDto.CreateRequest> projectCaptor =
+                ArgumentCaptor.forClass(ProjectDto.CreateRequest.class);
+        verify(projectService).createProject(projectCaptor.capture(), eq(true));
+        assertThat(projectCaptor.getValue().getDfrAmt()).isEqualByComparingTo("734375300");
+        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("선언 master가 품목과 달라도 품목 current/planned와 선언 paid의 공식을 유지한다")
+    void keepsItemSnapshotWhenDeclaredMasterAmountsDisagree() {
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
+        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+        item.setAmt(new BigDecimal("100"));
+        item.setMplAmt(new BigDecimal("300"));
+        ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
+        project.setAbusNm("합성 품목 사업");
+        project.setItems(List.of(item));
+        ProjectAmounts amounts =
+                new ProjectAmounts(
+                        new BigDecimal("999"), new BigDecimal("888"), new BigDecimal("20"));
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(project), List.of(), List.of(), null, List.of(amounts));
+
+        importer().apply(output, ENTRY, "2026", "12345678");
+
+        ArgumentCaptor<ProjectDto.CreateRequest> projectCaptor =
+                ArgumentCaptor.forClass(ProjectDto.CreateRequest.class);
+        verify(projectService).createProject(projectCaptor.capture(), eq(true));
+        ProjectDto.BitemmDto importedItem = projectCaptor.getValue().getItems().getFirst();
+        assertThat(importedItem.getAmt()).isEqualByComparingTo("100");
+        assertThat(importedItem.getMplAmt()).isEqualByComparingTo("300");
+        assertThat(projectCaptor.getValue().getDfrAmt()).isEqualByComparingTo("20");
+        assertThat(
+                        importedItem
+                                .getAmt()
+                                .add(importedItem.getMplAmt())
+                                .add(projectCaptor.getValue().getDfrAmt()))
+                .isEqualByComparingTo("420")
+                .isNotEqualByComparingTo(amounts.totRqmAmt());
+        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
     }
 
     @Test

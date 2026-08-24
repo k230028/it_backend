@@ -61,9 +61,10 @@ final class ProjectItemSynchronizer {
         }
         int gclSno = 0; // 품목일련번호 (1부터 시작)
         for (ProjectDto.BitemmDto itemDto : items) {
+            validateItemAmounts(itemDto);
+            StoredAmounts amounts = normalizeForStorage(itemDto);
             String gclMngNo = nextGclMngNo();
-            BigDecimal[] reconciled = resolveXcrAndReconcile(itemDto);
-            itemRepository.save(buildBitemm(itemDto, gclMngNo, ++gclSno, project, reconciled));
+            itemRepository.save(buildBitemm(itemDto, gclMngNo, ++gclSno, project, amounts));
         }
     }
 
@@ -93,15 +94,15 @@ final class ProjectItemSynchronizer {
 
         // 2. 요청 품목 처리 (수정 또는 신규 추가)
         for (ProjectDto.BitemmDto itemDto : items) {
+            validateItemAmounts(itemDto);
             if (itemDto.getGclMngNo() != null && !itemDto.getGclMngNo().isEmpty()) {
                 updateExisting(existingItems, itemDto, processedGclMngNos);
             } else {
+                StoredAmounts amounts = normalizeForStorage(itemDto);
                 String gclMngNo = nextGclMngNo();
-                BigDecimal[] reconciled = resolveXcrAndReconcile(itemDto);
                 // 조립은 buildBitemm 한 곳으로 모은다 — 생성 경로와 필드가 조용히 갈라지지 않도록.
                 // project는 prjMngNo로 조회한 엔티티이므로 abusMngNo 스냅샷도 동일하다.
-                itemRepository.save(
-                        buildBitemm(itemDto, gclMngNo, ++maxGclSno, project, reconciled));
+                itemRepository.save(buildBitemm(itemDto, gclMngNo, ++maxGclSno, project, amounts));
             }
         }
 
@@ -133,9 +134,11 @@ final class ProjectItemSynchronizer {
             return;
         }
 
+        normalizeStoredInputs(itemDto);
+
         // 변경된 필드가 있을 때만 제자리 수정 (변경 없으면 UPDATE·로그 생성 생략)
         if (isItemChanged(existingItem, itemDto)) {
-            BigDecimal[] reconciled = resolveXcrAndReconcile(itemDto);
+            StoredAmounts amounts = normalizeForStorage(itemDto);
             // 기존 활성 레코드를 제자리 수정 (버저닝 폐기 — 새 레코드를 추가하지 않는다).
             // PK(GCL_MNG_NO, SNO)와 연관 필드(ABUS_MNG_NO, FNT_TB_CRY_SNO)는 유지하고 업무 필드만 갱신.
             // Dirty Checking으로 트랜잭션 종료 시 UPDATE가 실행된다.
@@ -151,9 +154,9 @@ final class ProjectItemSynchronizer {
                     itemDto.getDfrCleC(), // 지급주기
                     itemDto.getSectSysUtzYn(), // 정보보호여부(미기재는 null 유지)
                     itemDto.getItrInfrYn(), // 통합인프라여부(미기재는 null 유지)
-                    reconciled[0], // 품목금액 (서버 재계산)
-                    reconciled[1], // 외화금액 (외화 행에서만 유효)
-                    clampMpl(itemDto.getMplAmt(), reconciled[0])); // 예정금액 (0 ≤ mplAmt ≤ amt)
+                    amounts.amt(), // 당해 요청금액(원화, 서버 재계산)
+                    amounts.fcAmt(), // 당해 외화 원금(외화 행에서만 유효)
+                    amounts.mplAmt()); // 내년 이후 요청금액(당해 금액과 독립)
         }
         processedGclMngNos.add(existingItem.getGclMngNo()); // 변경 여부와 무관하게 처리 완료 표시
     }
@@ -170,12 +173,33 @@ final class ProjectItemSynchronizer {
      * <p>클라이언트가 보낸 xcr은 무시하고 Ccodem 단일 원천으로 덮어씁니다(CONTEXT.md 결정 E / R3.7). 그 환율로 {@code gclAmt =
      * fcAmt × xcr}을 정규화합니다(결정 C). 덮어쓴 xcr은 {@code itemDto}에 남으므로 이후 엔티티 조립·수정이 같은 값을 씁니다.
      *
-     * @return {@link BudgetAmountCalculator#reconcileAmount}의 결과 [금액, 외화금액]
+     * @return NUMBER(18,3) 저장 정책을 적용한 품목 금액
      */
-    private BigDecimal[] resolveXcrAndReconcile(ProjectDto.BitemmDto itemDto) {
+    private StoredAmounts normalizeForStorage(ProjectDto.BitemmDto itemDto) {
+        normalizeStoredInputs(itemDto);
+        BigDecimal normalizedFcAmt = itemDto.getFcAmt();
+        BigDecimal normalizedMplAmt = itemDto.getMplAmt();
         itemDto.setXcr(xcrLookupService.resolveXcr(itemDto.getCurC(), LocalDate.now()));
-        return BudgetAmountCalculator.reconcileAmount(
-                itemDto.getFcAmt(), itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
+        BigDecimal[] reconciled =
+                BudgetAmountCalculator.reconcileAmount(
+                        normalizedFcAmt, itemDto.getAmt(), itemDto.getCurC(), itemDto.getXcr());
+        BigDecimal normalizedAmt = ProjectAmountPolicy.normalize(reconciled[0], "당해 요청금액");
+        itemDto.setAmt(normalizedAmt);
+        return new StoredAmounts(normalizedAmt, reconciled[1], normalizedMplAmt);
+    }
+
+    /** 외부 환율 조회 없이 요청의 DB 저장 필드만 먼저 정규화합니다. */
+    private static void normalizeStoredInputs(ProjectDto.BitemmDto itemDto) {
+        BigDecimal normalizedFcAmt =
+                itemDto.getFcAmt() == null
+                        ? null
+                        : ProjectAmountPolicy.normalize(itemDto.getFcAmt(), "외화금액");
+        BigDecimal normalizedMplAmt = ProjectAmountPolicy.normalize(itemDto.getMplAmt(), "예정금액");
+        itemDto.setFcAmt(normalizedFcAmt);
+        itemDto.setMplAmt(normalizedMplAmt);
+        if (!BudgetAmountCalculator.isForeignRow(itemDto.getCurC())) {
+            itemDto.setAmt(ProjectAmountPolicy.normalize(itemDto.getAmt(), "당해 요청금액"));
+        }
     }
 
     /**
@@ -188,7 +212,7 @@ final class ProjectItemSynchronizer {
      * @param gclMngNo 채번된 품목관리번호
      * @param gclSno 품목일련번호
      * @param project 소속 사업 (abusMngNo·sno 스냅샷용)
-     * @param reconciled {@link BudgetAmountCalculator#reconcileAmount}의 결과 [금액, 외화금액]
+     * @param amounts NUMBER(18,3) 저장 정책을 적용한 품목 금액
      * @return 조립된 품목 엔티티 (아직 저장하지 않음)
      */
     private static Bitemm buildBitemm(
@@ -196,7 +220,7 @@ final class ProjectItemSynchronizer {
             String gclMngNo,
             int gclSno,
             Bprojm project,
-            BigDecimal[] reconciled) {
+            StoredAmounts amounts) {
         return Bitemm.builder()
                 .gclMngNo(gclMngNo) // 품목관리번호
                 .sno(gclSno) // 품목일련번호
@@ -214,9 +238,9 @@ final class ProjectItemSynchronizer {
                 .sectSysUtzYn(itemDto.getSectSysUtzYn()) // 정보보호여부(미기재는 null 유지)
                 .itrInfrYn(itemDto.getItrInfrYn()) // 통합인프라여부(미기재는 null 유지)
                 .lstYn("Y") // 최종여부
-                .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
+                .amt(amounts.amt()) // 당해 요청금액(원화, 서버 재계산)
+                .fcAmt(amounts.fcAmt()) // 당해 외화 원금(외화 행에서만 유효)
+                .mplAmt(amounts.mplAmt()) // 내년 이후 요청금액(당해 금액과 독립)
                 .build();
     }
 
@@ -232,17 +256,29 @@ final class ProjectItemSynchronizer {
         return normalized.length() > 6 ? normalized.substring(0, 6) : normalized;
     }
 
-    /**
-     * 예정금액을 유효 범위 [0, amt]로 보정한다.
-     *
-     * @param mplAmt 입력 예정금액(null이면 0)
-     * @param amt 품목금액(서버 재계산값, null이면 상한 미적용)
-     * @return 0 이상, amt 이하로 클램프된 예정금액
-     */
-    private static BigDecimal clampMpl(BigDecimal mplAmt, BigDecimal amt) {
-        BigDecimal v = (mplAmt == null) ? BigDecimal.ZERO : mplAmt;
-        if (v.signum() < 0) v = BigDecimal.ZERO;
-        if (amt != null && v.compareTo(amt) > 0) v = amt;
-        return v;
+    /** 공용 금액 폴백 전에 사업 품목의 통화별 입력 불변식을 검증합니다. */
+    private static void validateItemAmounts(ProjectDto.BitemmDto item) {
+        if (item.getAmt() != null && item.getAmt().signum() < 0) {
+            throw new IllegalArgumentException("당해 요청금액은 0 이상이어야 합니다.");
+        }
+        if (item.getFcAmt() != null && item.getFcAmt().signum() < 0) {
+            throw new IllegalArgumentException("외화금액은 0 이상이어야 합니다.");
+        }
+        if (item.getMplAmt() != null && item.getMplAmt().signum() < 0) {
+            throw new IllegalArgumentException("예정금액은 0 이상이어야 합니다.");
+        }
+
+        String currency = item.getCurC();
+        boolean foreign =
+                currency != null && !currency.isBlank() && !"KRW".equalsIgnoreCase(currency);
+        if (foreign && item.getFcAmt() == null) {
+            throw new IllegalArgumentException("외화 품목은 외화금액이 필요합니다.");
+        }
+        if (!foreign && item.getFcAmt() != null) {
+            throw new IllegalArgumentException("원화 품목에는 외화금액을 입력할 수 없습니다.");
+        }
     }
+
+    /** 저장 직전 정규화가 끝난 품목 금액입니다. */
+    private record StoredAmounts(BigDecimal amt, BigDecimal fcAmt, BigDecimal mplAmt) {}
 }

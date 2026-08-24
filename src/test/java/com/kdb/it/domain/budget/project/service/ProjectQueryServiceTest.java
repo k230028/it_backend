@@ -49,7 +49,7 @@ class ProjectQueryServiceTest {
                         codeRepository,
                         mock(BbugtmRepository.class),
                         codeService,
-                        new ProjectBudgetSummaryService(codeService),
+                        new ProjectBudgetSummaryService(codeService, new ProjectAmountCalculator()),
                         mock(BprojaRepository.class),
                         new CodeNameMapBuilder(codeRepository),
                         projectRepository);

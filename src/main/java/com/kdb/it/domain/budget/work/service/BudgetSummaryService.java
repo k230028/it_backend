@@ -2,38 +2,52 @@ package com.kdb.it.domain.budget.work.service;
 
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.entity.Ccodem;
-import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import com.kdb.it.domain.budget.project.service.ItemRepresentativeSelector;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.domain.budget.work.repository.BudgetReadView;
 import com.kdb.it.domain.budget.work.repository.BudgetWorkQueryRepository;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 비목 목록과 예산연도별 편성 요약을 조립합니다. */
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BudgetSummaryService {
 
     private final BbugtmRepository bbugtmRepository;
     private final BudgetWorkQueryRepository budgetWorkQueryRepository;
-    private final ProjectRepository projectRepository;
-    private final ProjectItemRepository projectItemRepository;
     private final BudgetIoeCatalog ioeCatalog;
+
+    @Autowired
+    public BudgetSummaryService(
+            BbugtmRepository bbugtmRepository,
+            BudgetWorkQueryRepository budgetWorkQueryRepository,
+            BudgetIoeCatalog ioeCatalog) {
+        this.bbugtmRepository = bbugtmRepository;
+        this.budgetWorkQueryRepository = budgetWorkQueryRepository;
+        this.ioeCatalog = ioeCatalog;
+    }
+
+    /** 직접 생성하는 기존 테스트와의 생성자 호환성을 유지합니다. */
+    @Deprecated(forRemoval = true)
+    public BudgetSummaryService(
+            BbugtmRepository bbugtmRepository,
+            BudgetWorkQueryRepository budgetWorkQueryRepository,
+            ProjectRepository ignoredProjectRepository,
+            ProjectItemRepository ignoredProjectItemRepository,
+            BudgetIoeCatalog ioeCatalog) {
+        this(bbugtmRepository, budgetWorkQueryRepository, ioeCatalog);
+    }
 
     /**
      * 편성비목별 요청금액과 최신 편성률을 조회합니다.
@@ -144,9 +158,6 @@ public class BudgetSummaryService {
             }
         }
 
-        Map<String, BigDecimal> mplRequestAdjustment = new LinkedHashMap<>();
-        Map<String, BigDecimal> mplBudgetAdjustment = new LinkedHashMap<>();
-        computeMplAdjustment(budgets, capitalByIoe, mplRequestAdjustment, mplBudgetAdjustment);
         Map<String, BigDecimal> approvedCosts =
                 budgetWorkQueryRepository.findApprovedCostAmountByIoeC(bgYy, srcPks);
         Map<String, BigDecimal> approvedItems =
@@ -202,16 +213,8 @@ public class BudgetSummaryService {
                     requestAmount =
                             requestAmount
                                     .add(approvedCosts.getOrDefault(ioeC, BigDecimal.ZERO))
-                                    .add(approvedItems.getOrDefault(ioeC, BigDecimal.ZERO))
-                                    .subtract(
-                                            mplRequestAdjustment.getOrDefault(
-                                                    ioeC, BigDecimal.ZERO));
-                    budgetAmount =
-                            budgetAmount.subtract(
-                                    mplBudgetAdjustment.getOrDefault(ioeC, BigDecimal.ZERO));
+                                    .add(approvedItems.getOrDefault(ioeC, BigDecimal.ZERO));
                 }
-                if (requestAmount.signum() < 0) requestAmount = BigDecimal.ZERO;
-                if (budgetAmount.signum() < 0) budgetAmount = BigDecimal.ZERO;
                 String itemGroupName = groupNameByIoe.get(representativeIoe);
                 if (itemGroupName == null || itemGroupName.isBlank()) itemGroupName = groupName;
                 responseItems.add(
@@ -258,89 +261,6 @@ public class BudgetSummaryService {
                                 budget.getPkColNm() != null
                                         && approvedSourcePks.contains(budget.getPkColNm()))
                 .toList();
-    }
-
-    private void computeMplAdjustment(
-            List<BudgetReadView> budgets,
-            Map<String, Boolean> capitalByIoe,
-            Map<String, BigDecimal> requestAdjustments,
-            Map<String, BigDecimal> budgetAdjustments) {
-        Map<String, List<BudgetReadView>> budgetsByItem = new LinkedHashMap<>();
-        for (BudgetReadView budget : budgets) {
-            if ("BITEMM".equals(budget.getFntTbNm())
-                    && budget.getPkColNm() != null
-                    && budget.getIoeC() != null) {
-                budgetsByItem
-                        .computeIfAbsent(budget.getPkColNm(), ignored -> new ArrayList<>())
-                        .add(budget);
-            }
-        }
-        if (budgetsByItem.isEmpty()) return;
-
-        Map<String, List<Bitemm>> itemHistories = new LinkedHashMap<>();
-        for (Bitemm item :
-                projectItemRepository.findByGclMngNoInAndDelYn(budgetsByItem.keySet(), "N")) {
-            itemHistories
-                    .computeIfAbsent(item.getGclMngNo(), ignored -> new ArrayList<>())
-                    .add(item);
-        }
-        Map<String, Bitemm> itemsByNo = new LinkedHashMap<>();
-        itemHistories.forEach(
-                (key, histories) -> itemsByNo.put(key, ItemRepresentativeSelector.pick(histories)));
-        Set<String> projectNos =
-                itemsByNo.values().stream()
-                        .map(Bitemm::getAbusMngNo)
-                        .filter(java.util.Objects::nonNull)
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
-        Set<String> existingProjectNos = new LinkedHashSet<>();
-        if (!projectNos.isEmpty()) {
-            projectRepository
-                    .findKeyViewsByAbusMngNoInAndLstYnAndDelYn(projectNos, "Y", "N")
-                    .forEach(view -> existingProjectNos.add(view.getAbusMngNo()));
-        }
-
-        record ItemContribution(String ioeC, BigDecimal request, BigDecimal budget) {}
-        Map<String, List<ItemContribution>> contributionsByGroup = new LinkedHashMap<>();
-        Map<String, BigDecimal> requestByGroup = new LinkedHashMap<>();
-        Map<String, BigDecimal> mplByGroup = new LinkedHashMap<>();
-        for (Map.Entry<String, List<BudgetReadView>> entry : budgetsByItem.entrySet()) {
-            Bitemm item = itemsByNo.get(entry.getKey());
-            if (item == null
-                    || item.getAbusMngNo() == null
-                    || !existingProjectNos.contains(item.getAbusMngNo())) continue;
-            String ioeC = BudgetRepresentativeSelector.pickView(entry.getValue()).getIoeC();
-            String groupKey =
-                    item.getAbusMngNo() + "|" + Boolean.TRUE.equals(capitalByIoe.get(ioeC));
-            BigDecimal request = item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO;
-            BigDecimal budget = sumBudgetAmount(entry.getValue());
-            contributionsByGroup
-                    .computeIfAbsent(groupKey, ignored -> new ArrayList<>())
-                    .add(new ItemContribution(ioeC, request, budget));
-            requestByGroup.merge(groupKey, request, BigDecimal::add);
-            mplByGroup.merge(
-                    groupKey,
-                    item.getMplAmt() != null ? item.getMplAmt() : BigDecimal.ZERO,
-                    BigDecimal::add);
-        }
-        for (Map.Entry<String, List<ItemContribution>> entry : contributionsByGroup.entrySet()) {
-            BigDecimal mpl = mplByGroup.getOrDefault(entry.getKey(), BigDecimal.ZERO);
-            BigDecimal requestSum = requestByGroup.getOrDefault(entry.getKey(), BigDecimal.ZERO);
-            if (mpl.signum() <= 0 || requestSum.signum() <= 0) continue;
-            BigDecimal factor =
-                    mpl.compareTo(requestSum) >= 0
-                            ? BigDecimal.ONE
-                            : mpl.divide(requestSum, 10, RoundingMode.HALF_UP);
-            for (ItemContribution contribution : entry.getValue()) {
-                requestAdjustments.merge(
-                        contribution.ioeC(),
-                        contribution.request().multiply(factor),
-                        BigDecimal::add);
-                budgetAdjustments.merge(
-                        contribution.ioeC(),
-                        contribution.budget().multiply(factor),
-                        BigDecimal::add);
-            }
-        }
     }
 
     private BigDecimal sumBudgetAmount(List<BudgetReadView> budgets) {

@@ -53,10 +53,8 @@ public class BudgetProjectSummaryService {
                         bbugtmRepository.findReadViewsByBseYyAndDelYn(bgYy, "N"), bgYy);
         List<Ccodem> detailCodes = ioeCatalog.findCodes(CommonCodeGroups.IOE);
         Map<String, String> hierarchyByIoe = new LinkedHashMap<>();
-        Map<String, Boolean> capitalByIoe = new LinkedHashMap<>();
         for (Ccodem code : detailCodes) {
             hierarchyByIoe.put(code.getCdva(), code.getCdvaDtlC());
-            capitalByIoe.put(code.getCdva(), ioeCatalog.isCapitalCTp(code.getCTp()));
         }
 
         Map<String, List<BudgetReadView>> budgetsByPrefix = new LinkedHashMap<>();
@@ -102,15 +100,11 @@ public class BudgetProjectSummaryService {
         Map<String, String> itemToProject = new LinkedHashMap<>();
         itemByPk.forEach((key, item) -> itemToProject.put(key, item.getAbusMngNo()));
 
-        Map<String, BigDecimal> mplFactorByGroup =
-                computeMplFactors(budgets, itemByPk, capitalByIoe);
         Map<SourceKey, Map<String, BigDecimal[]>> amountsBySource = new LinkedHashMap<>();
         for (BudgetReadView budget : budgets) {
             if (budget.getPkColNm() == null) continue;
-            Bitemm sourceItem = null;
             SourceKey sourceKey;
             if ("BITEMM".equals(budget.getFntTbNm())) {
-                sourceItem = itemByPk.get(budget.getPkColNm());
                 sourceKey =
                         new SourceKey(
                                 "BPROJM",
@@ -130,16 +124,6 @@ public class BudgetProjectSummaryService {
             BigDecimal requestAmount = reverseRequestAmount(budget);
             BigDecimal budgetAmount =
                     budget.getBgDupAmt() != null ? budget.getBgDupAmt() : BigDecimal.ZERO;
-            if (sourceItem != null && sourceItem.getAbusMngNo() != null) {
-                boolean capital = Boolean.TRUE.equals(capitalByIoe.get(budget.getIoeC()));
-                BigDecimal factor = mplFactorByGroup.get(sourceItem.getAbusMngNo() + "|" + capital);
-                if (factor != null) {
-                    requestAmount = requestAmount.subtract(requestAmount.multiply(factor));
-                    budgetAmount = budgetAmount.subtract(budgetAmount.multiply(factor));
-                    if (requestAmount.signum() < 0) requestAmount = BigDecimal.ZERO;
-                    if (budgetAmount.signum() < 0) budgetAmount = BigDecimal.ZERO;
-                }
-            }
             amounts[0] = amounts[0].add(requestAmount);
             amounts[1] = amounts[1].add(budgetAmount);
         }
@@ -190,51 +174,6 @@ public class BudgetProjectSummaryService {
         Map<String, Bitemm> result = new LinkedHashMap<>();
         historiesByPk.forEach(
                 (key, values) -> result.put(key, ItemRepresentativeSelector.pick(values)));
-        return result;
-    }
-
-    private Map<String, BigDecimal> computeMplFactors(
-            List<BudgetReadView> budgets,
-            Map<String, Bitemm> itemByPk,
-            Map<String, Boolean> capitalByIoe) {
-        Map<String, List<BudgetReadView>> budgetsByItem = new LinkedHashMap<>();
-        for (BudgetReadView budget : budgets) {
-            if ("BITEMM".equals(budget.getFntTbNm())
-                    && budget.getPkColNm() != null
-                    && budget.getIoeC() != null) {
-                budgetsByItem
-                        .computeIfAbsent(budget.getPkColNm(), ignored -> new ArrayList<>())
-                        .add(budget);
-            }
-        }
-        Map<String, BigDecimal> requests = new LinkedHashMap<>();
-        Map<String, BigDecimal> planned = new LinkedHashMap<>();
-        for (Map.Entry<String, List<BudgetReadView>> entry : budgetsByItem.entrySet()) {
-            Bitemm item = itemByPk.get(entry.getKey());
-            if (item == null || item.getAbusMngNo() == null) continue;
-            BudgetReadView representative = BudgetRepresentativeSelector.pickView(entry.getValue());
-            String key =
-                    item.getAbusMngNo()
-                            + "|"
-                            + Boolean.TRUE.equals(capitalByIoe.get(representative.getIoeC()));
-            requests.merge(
-                    key, item.getAmt() != null ? item.getAmt() : BigDecimal.ZERO, BigDecimal::add);
-            planned.merge(
-                    key,
-                    item.getMplAmt() != null ? item.getMplAmt() : BigDecimal.ZERO,
-                    BigDecimal::add);
-        }
-        Map<String, BigDecimal> result = new LinkedHashMap<>();
-        for (Map.Entry<String, BigDecimal> entry : requests.entrySet()) {
-            BigDecimal request = entry.getValue();
-            BigDecimal mpl = planned.getOrDefault(entry.getKey(), BigDecimal.ZERO);
-            if (request.signum() <= 0 || mpl.signum() <= 0) continue;
-            result.put(
-                    entry.getKey(),
-                    mpl.compareTo(request) >= 0
-                            ? BigDecimal.ONE
-                            : mpl.divide(request, 10, RoundingMode.HALF_UP));
-        }
         return result;
     }
 

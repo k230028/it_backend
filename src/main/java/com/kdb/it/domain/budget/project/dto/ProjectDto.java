@@ -6,8 +6,8 @@ import com.kdb.it.common.system.validation.NotBlankUnlessAdmin;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -196,8 +196,8 @@ public class ProjectDto {
         @Schema(description = "관련프로젝트관리번호")
         private String cncdRfrNo;
 
-        /** 기 지급예산: 이미 지급한 예산 금액. 미전송이면 0으로 저장한다. */
-        @Schema(description = "기 지급예산", nullable = true)
+        /** 원화 지급금액: 이미 지급한 금액. 미전송이면 0으로 저장한다. */
+        @Schema(description = "원화 지급금액", nullable = true)
         private BigDecimal dfrAmt;
 
         /**
@@ -389,18 +389,21 @@ public class ProjectDto {
         /** 경상여부 ('Y'=경상사업, 'N'=일반 정보화사업) */
         @Schema(description = "경상여부")
         private String odnYn;
+
         /** 사업구분 — 생성과 같은 규칙. 수정으로 값을 비우거나 '0'으로 되돌리는 구멍을 막는다 (BE-19). */
         @Schema(description = "사업구분 (10=신규, 20=계속)")
         @NotBlankUnlessAdmin(
-                message = "사업구분은 필수입니다.", pattern = "10|20", patternMessage = "사업구분은 신규(10) 또는 계속(20)만 가능합니다.")
+                message = "사업구분은 필수입니다.",
+                pattern = "10|20",
+                patternMessage = "사업구분은 신규(10) 또는 계속(20)만 가능합니다.")
         private String abusTc;
 
         /** 관련프로젝트관리번호 (계속사업인 경우 전년도 사업의 관리번호) */
         @Schema(description = "관련프로젝트관리번호")
         private String cncdRfrNo;
 
-        /** 기 지급예산: 이미 지급한 예산 금액. 미전송이면 0으로 저장한다. */
-        @Schema(description = "기 지급예산", nullable = true)
+        /** 원화 지급금액: 이미 지급한 금액. 미전송이면 0으로 저장한다. */
+        @Schema(description = "원화 지급금액", nullable = true)
         private BigDecimal dfrAmt;
 
         /**
@@ -453,8 +456,7 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 당년예산금액=당해예산 (파생값: 총 AMT − 총 MPL_AMT, 음수면 0). prjBgAmt = 이 값 + mplAmt (BE-36) */
-        @Schema(description = "당년예산금액 — 당해예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "당해 요청금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal tyyBgAmt;
 
         /** 예정자본금액 (파생값: 품목 mplAmt 자본예산 합산) */
@@ -465,17 +467,15 @@ public class ProjectDto {
         @Schema(description = "예정관리비금액 (파생값)")
         private BigDecimal mplMngcAmt;
 
-        /** 총 예산 (파생값: 활성 품목 AMT 합계). DB TOT_RQM_AMT와 같은 의미이며 tyyBgAmt(당해예산)와 다르다. */
-        @Schema(description = "총 예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "총소요금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal prjBgAmt;
 
-        /** 예산연도+1 이후 예산 (파생값: 활성 품목 MPL_AMT 합계) */
-        @Schema(description = "익년 이후 예산 (파생값)", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "원화 환산 예정금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal mplAmt;
 
-        /** 기 지급예산 (BPROJM.DFR_AMT 컬럼값) */
+        /** 원화 지급금액 (BPROJM.DFR_AMT 컬럼값). */
         @Schema(
-                description = "기 지급예산",
+                description = "원화 지급금액",
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 nullable = true)
         private BigDecimal dfrAmt;
@@ -864,16 +864,16 @@ public class ProjectDto {
         @Schema(description = "최종여부")
         private String lstYn;
 
-        /** 외화금액(품목 외화 원금 — 원화 행은 null. Service에서 amt = fcAmt × xcr 재계산) */
-        @Schema(description = "외화금액 (외화 원금. 원화 행은 null. 서버에서 amt 재계산)", example = "1000")
+        /** 당해 외화 원금 (외화 품목만 입력, 원화 품목은 null) */
+        @Schema(description = "당해 외화 원금 (외화 품목만 입력, 원화 품목은 null)", example = "1000")
         private BigDecimal fcAmt;
 
-        /** 품목금액 (단가 × 수량) */
-        @Schema(description = "품목금액")
+        /** 당해 요청금액 (원화, 외화 품목은 서버 환율로 환산) */
+        @Schema(description = "당해 요청금액 (원화)")
         private BigDecimal amt;
 
-        /** 예정금액 (품목금액 중 익년 이후 예정분, 0 ≤ mplAmt ≤ amt, 기본 0) */
-        @Schema(description = "예정금액 (익년 이후 예정분)")
+        /** 내년 이후 요청금액 (원화 품목은 원화, 외화 품목은 외화 원금; 당해 요청금액과 독립, 기본 0) */
+        @Schema(description = "내년 이후 요청금액 (통화별 원금)")
         private BigDecimal mplAmt;
 
         /**
@@ -898,9 +898,9 @@ public class ProjectDto {
                     .sectSysUtzYn(bitemm.getSectSysUtzYn()) // 정보보호여부
                     .itrInfrYn(bitemm.getItrInfrYn()) // 통합인프라여부
                     .lstYn(bitemm.getLstYn()) // 최종여부
-                    .amt(bitemm.getAmt()) // 품목금액
-                    .fcAmt(bitemm.getFcAmt()) // 외화금액
-                    .mplAmt(bitemm.getMplAmt()) // 예정금액
+                    .amt(bitemm.getAmt()) // 당해 요청금액(원화)
+                    .fcAmt(bitemm.getFcAmt()) // 당해 외화 원금
+                    .mplAmt(bitemm.getMplAmt()) // 내년 이후 요청금액
                     .build();
         }
     }

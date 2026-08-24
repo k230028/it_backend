@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.code.entity.Ccodem;
@@ -34,7 +33,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.data.domain.AuditorAware;
 
-/** 비목 목록·편성 요약과 승인 원본·MPL·대표행 계약을 검증합니다. */
+/** 비목 목록·편성 요약과 승인 원본·대표행 계약을 검증합니다. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class BudgetSummaryServiceTest {
@@ -63,27 +62,9 @@ class BudgetSummaryServiceTest {
                                         .stream()
                                         .map(ReadProjectionStubs::budget)
                                         .toList());
-        given(
-                        projectRepository.findKeyViewsByAbusMngNoInAndLstYnAndDelYn(
-                                anyCollection(), anyString(), anyString()))
-                .willAnswer(
-                        invocation ->
-                                projectRepository
-                                        .findByAbusMngNoInAndDelYn(
-                                                invocation.getArgument(0),
-                                                invocation.getArgument(2))
-                                        .stream()
-                                        .filter(project -> !"N".equals(project.getLstYn()))
-                                        .map(ReadProjectionStubs::project)
-                                        .toList());
         ioeCatalog = new BudgetIoeCatalog(codeRepository);
         budgetWorkService =
-                new BudgetSummaryService(
-                        bbugtmRepository,
-                        budgetWorkQueryRepository,
-                        projectRepository,
-                        projectItemRepository,
-                        ioeCatalog);
+                new BudgetSummaryService(bbugtmRepository, budgetWorkQueryRepository, ioeCatalog);
     }
 
     @Test
@@ -366,8 +347,8 @@ class BudgetSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("getSummary: 사업 예정금액을 품목 비율로 차감한다")
-    void getSummary_예정금액_비율차감() {
+    @DisplayName("getSummary: 사업 예정금액과 무관하게 승인 원본과 편성액을 그대로 합산한다")
+    void getSummary_예정금액이있어도_원본금액그대로합산() {
         Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
         Ccodem detailCode =
                 Ccodem.builder()
@@ -413,8 +394,8 @@ class BudgetSummaryServiceTest {
 
         assertThat(result.data()).hasSize(1);
         assertThat(result.data().get(0).requestAmount())
-                .isEqualByComparingTo(BigDecimal.valueOf(500));
-        assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(400));
+                .isEqualByComparingTo(BigDecimal.valueOf(1000));
+        assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(800));
     }
 
     @Test
@@ -561,15 +542,11 @@ class BudgetSummaryServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("예산작업 - 편성요청액은 품목 예정금액(mplAmt)만큼 차감된다")
-    void 예산작업_편성요청액은_품목_예정금액만큼_차감된다() {
+    @DisplayName("예산작업 - 품목 예정금액이 있어도 당해 요청액과 편성액을 차감하지 않는다")
+    void 예산작업_품목예정금액이있어도_당해금액을차감하지않는다() {
         // 시나리오:
         //   - 품목 AMT = 2000, MPL_AMT(예정금액) = 800
-        //   - BITEMM → 그룹 합산: groupReqSum = 2000, groupMplSum = 800
-        //   - factor = 800/2000 = 0.4
-        //   - 비목별 req 차감 = 2000 × 0.4 = 800
-        //   - 최종 requestAmount = 원시집계(2000) − 차감(800) = 1200
-        //   - 만약 MPL_AMT 를 제외하지 않았다면 requestAmount = 2000 (차이 800 이 명확)
+        //   - AMT는 이미 당해 원화이므로 MPL_AMT를 다시 차감하지 않는다.
         Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
         Ccodem detailCode =
                 Ccodem.builder()
@@ -604,7 +581,7 @@ class BudgetSummaryServiceTest {
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
         given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
                 .willReturn(java.util.Map.of());
-        // 결재완료 원본 집계: 비목 "101" → 2000 (raw, MPL_AMT 차감 전)
+        // 결재완료 원본 집계: 비목 "101" → 당해 요청액 2000
         given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
                 .willReturn(java.util.Map.of("101", BigDecimal.valueOf(2000)));
         // Phase 4 T12 배치 조회
@@ -618,29 +595,24 @@ class BudgetSummaryServiceTest {
         assertThat(result.data()).hasSize(1);
         BudgetWorkDto.SummaryItem summaryItem = result.data().get(0);
 
-        // 편성요청액 = 원시집계(2000) − 예정금액비례차감(800) = 1200
-        // 만약 차감이 없었다면 2000이 반환되었을 것임 → 명시적 음성 검증
+        // MPL_AMT=800을 재차 빼면 1200이 되는 이중 차감을 막는다.
         assertThat(summaryItem.requestAmount())
-                .as("예산작업 편성요청액은 품목 예정금액(800)만큼 차감되어 1200이어야 한다")
-                .isEqualByComparingTo(BigDecimal.valueOf(1200));
+                .as("예산작업 편성요청액은 AMT 원본 2000이어야 한다")
+                .isEqualByComparingTo(BigDecimal.valueOf(2000));
         assertThat(summaryItem.requestAmount())
-                .as("예정금액 차감이 적용되지 않은 원시 AMT 합계(2000)면 버그")
-                .isNotEqualByComparingTo(BigDecimal.valueOf(2000));
+                .as("MPL 800을 다시 차감한 1200이면 이중 차감 버그")
+                .isNotEqualByComparingTo(BigDecimal.valueOf(1200));
 
-        // 편성액 = 1600 − (1600 × 0.4) = 960
         assertThat(summaryItem.dupAmount())
-                .as("편성액도 동일 비율(0.4)로 차감되어 960이어야 한다")
-                .isEqualByComparingTo(BigDecimal.valueOf(960));
+                .as("저장 당해 편성액도 1600 원본을 유지해야 한다")
+                .isEqualByComparingTo(BigDecimal.valueOf(1600));
     }
 
     @Test
-    @DisplayName(
-            "getSummary - MPL 차감(computeMplAdjustment)도 BITEMM 구버전 행이 앞에 와도 LST_YN='Y' 대표행 기준으로 계산한다")
-    void getSummary_MPL차감_BITEMM대표행_lstYnY기준() {
+    @DisplayName("getSummary - BITEMM 구버전 행이 앞에 와도 당해 원본 금액을 유지한다")
+    void getSummary_BITEMM구버전행이앞이어도_당해원본금액유지() {
         // 시나리오: 같은 gclMngNo(GCL-MPL-002)의 구버전(N, PRJ-OLD)이 리스트 앞, 최신(Y, PRJ-MPL-002)이 뒤.
-        // projectRepository는 PRJ-MPL-002만 존재 응답 → 구버전(PRJ-OLD)이 대표로 뽑히면
-        // prjByNo에 없어 해당 품목의 MPL 차감 자체가 스킵되고 requestAmount는 원시집계(2000) 그대로 남는다.
-        // 최신 행(PRJ-MPL-002, mplAmt=800)이 대표로 뽑혀야 factor=800/2000=0.4가 적용되어 1200이 된다.
+        // 어느 이력 행이 대표가 되더라도 AMT 원본을 MPL로 다시 차감하지 않는다.
         Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
         Ccodem detailCode =
                 Ccodem.builder()
@@ -688,13 +660,13 @@ class BudgetSummaryServiceTest {
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(detailCode));
         given(budgetWorkQueryRepository.findApprovedCostAmountByIoeC(eq("2026"), any()))
                 .willReturn(java.util.Map.of());
-        // 결재완료 원본 집계: 비목 "101" → 2000 (raw, MPL_AMT 차감 전, 대표행 선택과 무관하게 동일)
+        // 결재완료 원본 집계: 비목 "101" → 당해 요청액 2000
         given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
                 .willReturn(java.util.Map.of("101", BigDecimal.valueOf(2000)));
         // 배치 조회: 구버전이 앞, 최신이 뒤 순서로 반환 (encounter order 함정 재현)
         given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
                 .willReturn(List.of(oldVersion, latest));
-        // 사업 마스터는 최신 행의 사업번호(PRJ-MPL-002)만 존재
+        // 사업 마스터는 최신 행의 사업번호(PRJ-MPL-002)만 존재한다.
         given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))
                 .willReturn(List.of(project));
 
@@ -703,14 +675,12 @@ class BudgetSummaryServiceTest {
         assertThat(result.data()).hasSize(1);
         BudgetWorkDto.SummaryItem summaryItem = result.data().get(0);
 
-        // 편성요청액 = 원시집계(2000) − 최신행 기준 예정금액비례차감(800) = 1200
         assertThat(summaryItem.requestAmount())
-                .as("MPL 차감은 LST_YN='Y' 최신행(PRJ-MPL-002, mplAmt 800) 기준으로 1200이어야 한다")
-                .isEqualByComparingTo(BigDecimal.valueOf(1200));
-        // 만약 구버전(PRJ-OLD)이 대표로 채택됐다면 prjByNo에 없어 차감이 스킵되고 2000이 반환된다.
+                .as("AMT 2000은 MPL 800과 무관하게 그대로여야 한다")
+                .isEqualByComparingTo(BigDecimal.valueOf(2000));
         assertThat(summaryItem.requestAmount())
-                .as("구버전(PRJ-OLD) 대표 채택 시 차감이 스킵된 원시 AMT 합계(2000)면 버그")
-                .isNotEqualByComparingTo(BigDecimal.valueOf(2000));
+                .as("MPL을 차감한 1200이면 이중 차감 버그")
+                .isNotEqualByComparingTo(BigDecimal.valueOf(1200));
     }
 
     @Test
@@ -827,13 +797,12 @@ class BudgetSummaryServiceTest {
     }
 
     // =========================================================================
-    // applyItemRates — findCodes("IOE_C") 람다 커버 (lambda$applyItemRates$0)
+    // getSummary — 품목 예정금액과 무관한 승인 원본·편성액 집계
     // =========================================================================
 
     @Test
-    @DisplayName("computeMplAdjustment(getSummary 경유): 품목/사업 조회를 In-쿼리로 배치하고 단건 finder를 호출하지 않는다")
-    void computeMplAdjustment_batchesLookups() {
-        // getSummary는 내부적으로 computeMplAdjustment를 호출한다.
+    @DisplayName("getSummary: 예정금액이 있어도 품목·사업 조회 없이 승인 원본과 편성액을 합산한다")
+    void getSummary_예정금액이있어도_원본금액을합산한다() {
         Ccodem dupCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
         Ccodem detailCode =
                 Ccodem.builder()
@@ -852,15 +821,6 @@ class BudgetSummaryServiceTest {
                         .bgDupAmt(BigDecimal.valueOf(800))
                         .asgRt(new BigDecimal("80"))
                         .build();
-        Bitemm item =
-                Bitemm.builder()
-                        .gclMngNo("GCL-1")
-                        .abusMngNo("PRJ-1")
-                        .amt(BigDecimal.valueOf(1000))
-                        .xcr(BigDecimal.ONE)
-                        .mplAmt(BigDecimal.valueOf(500)) // 예정금액: 품목 단위로 관리 (Bprojm.mplMngcAmt 제거 후)
-                        .build();
-        Bprojm project = Bprojm.builder().abusMngNo("PRJ-1").build();
 
         given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(bbugtm));
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
@@ -869,22 +829,16 @@ class BudgetSummaryServiceTest {
                 .willReturn(java.util.Map.of());
         given(budgetWorkQueryRepository.findApprovedItemAmountByGclDtt(eq("2026"), any()))
                 .willReturn(java.util.Map.of("101", BigDecimal.valueOf(1000)));
-        given(projectItemRepository.findByGclMngNoInAndDelYn(anyCollection(), eq("N")))
-                .willReturn(List.of(item));
-        given(projectRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
-                .willReturn(List.of(project));
 
         BudgetWorkDto.SummaryResponse result = budgetWorkService.getSummary("2026");
 
-        // 동작 동치: 예정금액 비율 차감 결과가 리팩터 전과 동일 (req 500, dup 400)
         assertThat(result.data()).hasSize(1);
         assertThat(result.data().get(0).requestAmount())
-                .isEqualByComparingTo(BigDecimal.valueOf(500));
-        assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(400));
+                .isEqualByComparingTo(BigDecimal.valueOf(1000));
+        assertThat(result.data().get(0).dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(800));
 
-        // computeMplAdjustment 경로의 단건 finder 미호출 검증
-        verify(projectItemRepository, times(1)).findByGclMngNoInAndDelYn(anyCollection(), eq("N"));
-        verify(projectRepository, times(1)).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectItemRepository, never()).findByGclMngNoInAndDelYn(anyCollection(), eq("N"));
+        verify(projectRepository, never()).findByAbusMngNoInAndDelYn(anyCollection(), eq("N"));
         verify(projectRepository, never())
                 .findNameViewByAbusMngNoAndLstYnAndDelYn(anyString(), anyString(), anyString());
         verify(projectItemRepository, never()).findByGclMngNoAndDelYn(anyString(), anyString());
@@ -892,8 +846,8 @@ class BudgetSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("getSummary - 품목 예정금액이 요청금액 이상이면 요청·편성금액을 0으로 제한한다")
-    void getSummary_예정금액이요청금액이상이면전액차감() {
+    @DisplayName("getSummary - 품목 예정금액이 요청금액 이상이어도 당해 원본 금액을 유지한다")
+    void getSummary_예정금액이요청금액이상이어도_원본금액유지() {
         Ccodem duplicateCode = Ccodem.builder().cNm("전산임차료").cdvaDes("전산임차료").cdva("237").build();
         Ccodem detailCode =
                 Ccodem.builder()
@@ -933,7 +887,7 @@ class BudgetSummaryServiceTest {
 
         BudgetWorkDto.SummaryItem result = budgetWorkService.getSummary("2026").data().get(0);
 
-        assertThat(result.requestAmount()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(result.dupAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.requestAmount()).isEqualByComparingTo(BigDecimal.valueOf(1000));
+        assertThat(result.dupAmount()).isEqualByComparingTo(BigDecimal.valueOf(800));
     }
 }

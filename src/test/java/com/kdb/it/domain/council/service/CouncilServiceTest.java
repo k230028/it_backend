@@ -16,17 +16,18 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
-import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
+import com.kdb.it.domain.budget.project.service.ProjectAmountCalculator;
 import com.kdb.it.domain.budget.project.service.ProjectBudgetSummaryService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
@@ -84,6 +85,8 @@ class CouncilServiceTest {
     @Mock private ProjectItemRepository projectItemRepository;
 
     @Mock private ProjectBudgetSummaryService projectBudgetSummaryService;
+
+    @Mock private CodeService codeService;
 
     @Mock private BprojaSyncService bprojaSyncService;
 
@@ -402,7 +405,7 @@ class CouncilServiceTest {
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(overview));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
-        // 품목 파생 당해예산: 배치 조회 후 applyBudgetSummary가 totRqmAmt=3000 설정 시뮬레이션
+        // 활성 품목 중앙 계산 경로: 배치 조회 후 applyBudgetSummaryViews가 tyyBgAmt=3000 설정 시뮬레이션
         ProjectItemRepository.ProjectItemBudgetView bitemm =
                 mock(ProjectItemRepository.ProjectItemBudgetView.class);
         given(bitemm.getAbusMngNo()).willReturn("PRJ-2026-0001");
@@ -426,7 +429,7 @@ class CouncilServiceTest {
                             assertThat(item.abusNm()).isEqualTo("사업개요명");
                             assertThat(item.prjYy()).isEqualTo("2026");
                             assertThat(item.prjTp()).isEqualTo("신규");
-                            // 당해예산은 품목 파생값(∑AMT − ∑MPL_AMT)으로 산출됨
+                            // 당해 요청금액은 모든 활성 품목의 AMT 합계로 산출됨
                             assertThat(item.prjBg()).isEqualByComparingTo("3000");
                             assertThat(item.sttDt()).isEqualTo(LocalDate.of(2026, 1, 1));
                             assertThat(item.endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
@@ -576,23 +579,28 @@ class CouncilServiceTest {
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(council));
         given(projectRepository.findById(any())).willReturn(Optional.of(project));
-        // 품목 파생 당해예산: 활성 품목 조회 후 applyBudgetSummary가 totRqmAmt=2000 설정 시뮬레이션
-        given(projectItemRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(List.of(mock(Bitemm.class)));
-        doAnswer(
-                        inv -> {
-                            ProjectDto.Response resp = inv.getArgument(0);
-                            resp.setTyyBgAmt(new BigDecimal("2000"));
-                            return null;
-                        })
-                .when(projectBudgetSummaryService)
-                .applyBudgetSummary(any(ProjectDto.Response.class), anyList());
+        // Task 3 원화 스냅샷 계약: AMT=2000, MPL=800이어도 당해예산은 2000이다.
+        ProjectItemRepository.ProjectItemBudgetView item =
+                mock(ProjectItemRepository.ProjectItemBudgetView.class);
+        given(item.getAbusMngNo()).willReturn("PRJ-2026-0001");
+        given(item.getIoeC()).willReturn("IOE-UNCLASSIFIED");
+        given(item.getAmt()).willReturn(new BigDecimal("2000"));
+        given(item.getMplAmt()).willReturn(new BigDecimal("800"));
+        given(item.getCurC()).willReturn("KRW");
+        given(item.getXcr()).willReturn(BigDecimal.ONE);
+        given(projectItemRepository.findBudgetViewsByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(item));
+        given(codeService.findCodeEntitiesByCIdWithoutCache(anyString())).willReturn(List.of());
+        ReflectionTestUtils.setField(
+                councilService,
+                "projectBudgetSummaryService",
+                new ProjectBudgetSummaryService(codeService, new ProjectAmountCalculator()));
 
         CouncilDto.DetailResponse result = councilService.getCouncil(ASCT_ID);
 
         assertThat(result.abusNm()).isEqualTo("정보화사업");
         assertThat(result.edrt()).isEqualTo("전결권자");
-        // 당해예산은 품목 파생값(∑AMT − ∑MPL_AMT)으로 산출되어야 한다
+        // MPL을 다시 차감한 1200이 아닌 AMT 원본 2000이어야 한다.
         assertThat(result.prjBg()).isEqualByComparingTo("2000");
     }
 

@@ -617,6 +617,10 @@ class ApiResponseOpenApiContractTest {
         assertThat(Boolean.TRUE.equals(property(schema, "mplAmt").getNullable())).isFalse();
         assertThat(Boolean.TRUE.equals(property(schema, "tyyBgAmt").getNullable())).isFalse();
         assertThat(Boolean.TRUE.equals(property(schema, "dfrAmt").getNullable())).isTrue();
+        assertThat(property(schema, "tyyBgAmt").getDescription()).contains("당해 요청금액");
+        assertThat(property(schema, "mplAmt").getDescription()).contains("원화 환산");
+        assertThat(property(schema, "dfrAmt").getDescription()).contains("원화 지급금액");
+        assertThat(property(schema, "prjBgAmt").getDescription()).contains("총소요금액");
     }
 
     private static void assertContract(Class<?> type, Set<String> required, Set<String> nullable) {

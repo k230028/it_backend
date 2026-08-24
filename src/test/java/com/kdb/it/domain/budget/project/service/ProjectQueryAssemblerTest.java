@@ -168,7 +168,13 @@ class ProjectQueryAssemblerTest {
     }
 
     private record ItemBudgetView(
-            String gclMngNo, String abusMngNo, String ioeC, BigDecimal amt, BigDecimal mplAmt)
+            String gclMngNo,
+            String abusMngNo,
+            String ioeC,
+            BigDecimal amt,
+            BigDecimal mplAmt,
+            String curC,
+            BigDecimal xcr)
             implements ProjectItemRepository.ProjectItemBudgetView {
         @Override
         public String getGclMngNo() {
@@ -193,6 +199,16 @@ class ProjectQueryAssemblerTest {
         @Override
         public BigDecimal getMplAmt() {
             return mplAmt;
+        }
+
+        @Override
+        public String getCurC() {
+            return curC;
+        }
+
+        @Override
+        public BigDecimal getXcr() {
+            return xcr;
         }
     }
 
@@ -233,7 +249,7 @@ class ProjectQueryAssemblerTest {
                         codeRepository,
                         budgetRepository,
                         codeService,
-                        new ProjectBudgetSummaryService(codeService),
+                        new ProjectBudgetSummaryService(codeService, new ProjectAmountCalculator()),
                         bprojaRepository,
                         new CodeNameMapBuilder(codeRepository),
                         projectRepository);
@@ -392,7 +408,9 @@ class ProjectQueryAssemblerTest {
         assertThat(result.getAssetBg()).isEqualByComparingTo("100");
         assertThat(result.getDvcBg()).isEqualByComparingTo("100");
         assertThat(result.getMplCpitAmt()).isEqualByComparingTo("30");
-        assertThat(result.getTyyBgAmt()).isEqualByComparingTo("70");
+        assertThat(result.getTyyBgAmt()).isEqualByComparingTo("100");
+        assertThat(result.getMplAmt()).isEqualByComparingTo("30");
+        assertThat(result.getPrjBgAmt()).isEqualByComparingTo("130");
     }
 
     @Test
@@ -477,7 +495,9 @@ class ProjectQueryAssemblerTest {
                                         projectId,
                                         "101",
                                         BigDecimal.valueOf(100),
-                                        BigDecimal.valueOf(30))));
+                                        BigDecimal.valueOf(30),
+                                        "KRW",
+                                        null)));
         given(projectRepository.findBizplanScheduleRange(List.of(projectId))).willReturn(List.of());
         given(organizationRepository.findNameViewByPrlmOgzCCone("D001"))
                 .willReturn(Optional.of(new OrgNameView("D001", "IT부")));
