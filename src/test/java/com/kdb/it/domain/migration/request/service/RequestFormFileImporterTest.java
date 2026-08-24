@@ -25,6 +25,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -242,6 +243,39 @@ class RequestFormFileImporterTest {
                         eq(new BigDecimal("2000000000")),
                         eq(BigDecimal.ZERO),
                         eq(new BigDecimal("734375300")));
+    }
+
+    @Test
+    @DisplayName("합성 품목과 선언 master 금액은 current+planned+paid 불변식을 유지한다")
+    void preservesSyntheticItemAndMasterAmountInvariant() {
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
+        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+        item.setAmt(new BigDecimal("100"));
+        item.setMplAmt(new BigDecimal("300"));
+        ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
+        project.setAbusNm("합성 품목 사업");
+        project.setItems(List.of(item));
+        ProjectAmounts amounts =
+                new ProjectAmounts(
+                        new BigDecimal("420"), new BigDecimal("300"), new BigDecimal("20"));
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(project), List.of(), List.of(), null, List.of(amounts));
+
+        importer().apply(output, ENTRY, "2026", "12345678");
+
+        ArgumentCaptor<ProjectDto.CreateRequest> projectCaptor =
+                ArgumentCaptor.forClass(ProjectDto.CreateRequest.class);
+        verify(projectService).createProject(projectCaptor.capture(), eq(true));
+        ProjectDto.BitemmDto importedItem = projectCaptor.getValue().getItems().getFirst();
+        assertThat(importedItem.getAmt()).isEqualByComparingTo("100");
+        assertThat(importedItem.getMplAmt()).isEqualByComparingTo("300");
+        assertThat(importedItem.getAmt().add(importedItem.getMplAmt()).add(amounts.dfrAmt()))
+                .isEqualByComparingTo(amounts.totRqmAmt());
+        verify(projectService)
+                .assignDeclaredAmounts(
+                        "PRJ-2026-0001", amounts.totRqmAmt(), amounts.mplAmt(), amounts.dfrAmt());
     }
 
     @Test

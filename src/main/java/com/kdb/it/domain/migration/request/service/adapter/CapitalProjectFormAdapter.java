@@ -81,10 +81,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 readItems(context, read.amounts(), project.getAbusNm(), diagnostics);
         project.setItems(items);
 
-        boolean synthesizedFromOverview =
-                context.sheets().get(FormSheetKind.CAPITAL_RESOURCE) == null;
-        BigDecimal itemTotal =
-                synthesizedFromOverview ? sumCurrentItemAmounts(items) : sumItemAmounts(items);
+        BigDecimal itemTotal = sumItemAmounts(items);
         Optional<AmountUnit> itemUnit =
                 AmountUnitResolver.inferUnit(read.amounts().yearTotalRaw(), itemTotal);
         // 1-2 품목 합계로 대사되지 않으면 1-1이 스스로 적은 `'26년도 필요예산 편성요청`을 두 번째 기준점으로 쓴다.
@@ -200,7 +197,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             item.setCurC("KRW");
             item.setXcrBseDt(context.bseYy() + "0101");
             item.setLstYn("Y");
-            item.setAmt(declared.summaryUnit().toWon(row.amountRaw().add(row.laterAmountRaw())));
+            item.setAmt(declared.summaryUnit().toWon(row.amountRaw()));
             item.setMplAmt(declared.summaryUnit().toWon(row.laterAmountRaw()));
             items.add(item);
         }
@@ -313,17 +310,6 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         BigDecimal total = BigDecimal.ZERO;
         for (ProjectDto.BitemmDto item : items) {
             if (item.getAmt() != null) total = total.add(item.getAmt());
-        }
-        return total;
-    }
-
-    /** 합성 품목의 전체 금액에서 익년 이후 예정분을 빼 예산연도 금액만 합산합니다. */
-    private static BigDecimal sumCurrentItemAmounts(List<ProjectDto.BitemmDto> items) {
-        BigDecimal total = BigDecimal.ZERO;
-        for (ProjectDto.BitemmDto item : items) {
-            if (item.getAmt() == null) continue;
-            BigDecimal later = item.getMplAmt() == null ? BigDecimal.ZERO : item.getMplAmt();
-            total = total.add(item.getAmt().subtract(later));
         }
         return total;
     }

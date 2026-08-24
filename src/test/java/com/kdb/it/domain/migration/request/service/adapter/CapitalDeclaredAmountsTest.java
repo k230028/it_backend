@@ -104,16 +104,17 @@ class CapitalDeclaredAmountsTest {
     }
 
     @Test
-    @DisplayName("1-1 합성 품목의 전체 금액은 당해와 이후 금액을 모두 포함한다")
-    void includesLaterAmountInSyntheticItemTotal() {
+    @DisplayName("1-1 합성 품목은 당해 AMT와 이후 MPL을 독립적으로 저장한다")
+    void keepsSyntheticCurrentAndPlannedAmountsIndependent() {
         FormAdapterOutput output = adapt(overviewWithSummaryItem(100d, 300d, "400 백만원"));
 
+        var item = output.projects().get(0).getItems().getFirst();
         assertThat(output.projects().get(0).getItems())
                 .singleElement()
                 .satisfies(
-                        item -> {
-                            assertThat(item.getAmt()).isEqualByComparingTo("400000000");
-                            assertThat(item.getMplAmt()).isEqualByComparingTo("300000000");
+                        actual -> {
+                            assertThat(actual.getAmt()).isEqualByComparingTo("100000000");
+                            assertThat(actual.getMplAmt()).isEqualByComparingTo("300000000");
                         });
         assertThat(output.projectAmounts())
                 .singleElement()
@@ -123,6 +124,8 @@ class CapitalDeclaredAmountsTest {
                             assertThat(amounts.totRqmAmt()).isEqualByComparingTo("400000000");
                             assertThat(amounts.mplAmt()).isEqualByComparingTo("300000000");
                             assertThat(amounts.dfrAmt()).isEqualByComparingTo("0");
+                            assertThat(item.getAmt().add(item.getMplAmt()).add(amounts.dfrAmt()))
+                                    .isEqualByComparingTo(amounts.totRqmAmt());
                         });
     }
 
