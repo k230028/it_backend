@@ -203,6 +203,29 @@ class ProjectBudgetSummaryServiceTest {
     }
 
     @Test
+    @DisplayName("외화 프로젝션 예정금액은 환율을 적용한 원화 금액으로 합산한다")
+    void applyBudgetSummaryViews_convertsForeignPlannedAmount() {
+        when(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .thenReturn(List.of(code("C1", "IOE_DVC")));
+        ProjectDto.Response response = ProjectDto.Response.builder().build();
+
+        service.applyBudgetSummaryViews(
+                response,
+                List.of(
+                        new BudgetView(
+                                "G1",
+                                "P1",
+                                "C1",
+                                new BigDecimal("140000"),
+                                new BigDecimal("50"),
+                                "USD",
+                                new BigDecimal("1400"))));
+
+        assertThat(response.getMplCpitAmt()).isEqualByComparingTo("70000");
+        assertThat(response.getMplAmt()).isEqualByComparingTo("70000");
+    }
+
+    @Test
     @DisplayName("프로젝션 합산 입력이 null이면 실패한다")
     void rejectsNullProjectionInputs() {
         assertThatThrownBy(

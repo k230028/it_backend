@@ -167,9 +167,8 @@ public class ProjectBudgetSummaryService {
     /**
      * 저장된 사업 단위 금액 스냅샷으로 총소요금액·예정금액·지급금액·당해 요청금액을 덮어씁니다.
      *
-     * <p>{@link #applyBudgetSummary}·{@link #applyBudgetSummaryViews} 다음에 부릅니다. 파생 합계는 <b>예산연도 품목 중
-     * 비목 분류에 걸린 것</b>만 더하므로, 사업 전체기간 금액이 따로 선언된 편성요청서 반입 사업은 화면이 선언값을 보여주지 못합니다(실측: 총 사업금액
-     * 2,000백만원인 사업이 품목 합계 1,217백만원으로 표시).
+     * <p>{@link #applyBudgetSummary}·{@link #applyBudgetSummaryViews} 다음에 부릅니다. 자본예산·일반관리비 분류 합계와
+     * 달리 파생 사업 금액은 비목 분류 여부와 무관하게 모든 활성 품목을 중앙 계산기로 합산합니다.
      *
      * <p>당해 요청금액은 {@code 총소요금액 − 예정금액 − 지급금액}으로 복원합니다. 저장 불변식이 깨진 경우 음수를 0으로 숨기지 않고 그대로 노출합니다.
      *
@@ -178,7 +177,7 @@ public class ProjectBudgetSummaryService {
      *
      * @param response 파생 합계가 이미 채워진 응답
      * @param totRqmAmt 저장된 총소요금액. null이면 세 값을 모두 파생 합계로 둡니다
-     * @param mplAmt 저장된 예정금액. null이면 파생 합계를 그대로 씁니다
+     * @param mplAmt 저장된 예정금액. null이면 0으로 봅니다
      * @param dfrAmt 저장된 원화 지급금액. null이면 0으로 봅니다
      * @throws NullPointerException 응답이 null인 경우
      */
