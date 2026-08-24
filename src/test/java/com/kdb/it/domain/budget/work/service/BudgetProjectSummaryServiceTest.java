@@ -244,8 +244,7 @@ class BudgetProjectSummaryServiceTest {
 
         given(codeRepository.findByCIdWithValidDate("DUP_IOE", null)).willReturn(List.of(dupCode));
         given(codeRepository.findByCIdWithValidDate("IOE_C", null)).willReturn(List.of(ioeCode));
-        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
-                .willReturn(List.of(itemBudget));
+        given(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).willReturn(List.of(itemBudget));
         given(projectItemRepository.findByGclMngNoInAndDelYn(any(), eq("N")))
                 .willReturn(List.of(item));
         given(projectRepository.findByAbusMngNoInAndDelYn(any(), eq("N")))

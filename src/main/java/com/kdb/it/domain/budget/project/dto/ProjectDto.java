@@ -456,7 +456,6 @@ public class ProjectDto {
         @Schema(description = "IT부서")
         private String dvmDpmC;
 
-        /** 당해 요청금액: 활성 품목의 원화 AMT 합계. */
         @Schema(description = "당해 요청금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal tyyBgAmt;
 
@@ -468,11 +467,9 @@ public class ProjectDto {
         @Schema(description = "예정관리비금액 (파생값)")
         private BigDecimal mplMngcAmt;
 
-        /** 총소요금액: 당해 요청금액+원화 환산 예정금액+원화 지급금액. */
         @Schema(description = "총소요금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal prjBgAmt;
 
-        /** 원화 환산 예정금액: 활성 품목 MPL_AMT를 통화별 환율로 환산한 합계. */
         @Schema(description = "원화 환산 예정금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal mplAmt;
 

@@ -537,8 +537,8 @@ public class CouncilService {
      * <p>전체 사업관리번호의 활성 품목(DEL_YN='N')을 1회 배치 조회한 뒤 메모리에서 사업관리번호별로 그룹핑하여 AMT 원화 합계 로직을 적용한다.
      *
      * @param abusMngNos 사업관리번호 목록 (null·빈 값은 무시)
-     * @return 사업관리번호 → 당해예산 맵. 요청된 모든 사업관리번호에 대해 값이 채워지며, 품목이 없는 사업관리번호도 빈 품목 목록으로 동일 합산 로직을
-     *     적용한 값(예: 0)을 가진다
+     * @return 사업관리번호 → 당해예산 맵. 요청된 모든 사업관리번호에 대해 값이 채워지며, 품목이 없는 사업관리번호도 빈 품목 목록으로 동일 합산 로직을 적용한
+     *     값(예: 0)을 가진다
      */
     private Map<String, BigDecimal> deriveCurrentYearBudgets(Collection<String> abusMngNos) {
         List<String> keys =
