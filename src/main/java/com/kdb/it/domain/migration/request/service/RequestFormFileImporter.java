@@ -27,9 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>편성행({@code BBUGTM})은 만들지 않습니다. {@code BudgetRateApplicationService.applyItemRates}가 연도 전량을
  * 논리삭제한 뒤 재삽입하는 구조라, 파일마다 부르면 앞서 반입한 편성행이 전부 사라집니다. 편성은 반입을 마친 뒤 예산작업 화면에서 한 번에 적용합니다.
  *
- * <p>정보화사업의 사업 단위 금액은 {@code createProject}가 독립된 품목 AMT(당해)·MPL(예정) 합계로 한 번 기록한 뒤, 1-1이 금액을 선언한 파일에
- * 한해 {@code assignDeclaredAmounts}로 덮어씁니다. 순서를 뒤집을 수 없습니다 — 채번이 끝나야 사업관리번호가 정해지고, 품목 저장이 끝나야 {@code
- * createProject}의 스냅샷 기록이 끝나기 때문입니다.
+ * <p>정보화사업의 당해·예정·총소요금액은 {@code createProject}가 품목 AMT·MPL을 중앙 계산한 값을 정본으로 기록합니다. 1-1 선언값에서는 품목으로 알
+ * 수 없는 지급금액(DFR)만 생성 요청에 전달하며, 생성 뒤 선언 total/MPL로 스냅샷을 덮어쓰지 않습니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -84,14 +83,11 @@ public class RequestFormFileImporter {
         for (int index = 0; index < projects.size(); index++) {
             ProjectDto.CreateRequest project = projects.get(index);
             project.setBseYy(bseYy);
-            String abusMngNo = projectService.createProject(project, true);
-            // 1-1이 금액을 선언했으면 품목 합계 스냅샷을 그 값으로 덮어쓴다. 선언이 없으면
-            // createProject가 남긴 품목 합계를 그대로 둔다
             ProjectAmounts amounts = output.projectAmounts().get(index);
             if (amounts.isPresent()) {
-                projectService.assignDeclaredAmounts(
-                        abusMngNo, amounts.totRqmAmt(), amounts.mplAmt(), amounts.dfrAmt());
+                project.setDfrAmt(amounts.dfrAmt());
             }
+            String abusMngNo = projectService.createProject(project, true);
             String apfMngNo = stamp(TABLE_PROJECT, abusMngNo, project.getAbusNm(), actorEno, bseYy);
             created.add(
                     new RequestFormDto.CreatedRecord(

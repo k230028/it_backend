@@ -441,14 +441,14 @@ public class ProjectService {
     }
 
     /**
-     * 이관 전용 — 편성요청서가 선언한 사업 단위 금액을 그대로 기록합니다.
+     * 구 이관 호출의 선언 지급금액을 품목 중앙 계산 스냅샷에 반영합니다.
      *
-     * <p>신규 원화 계약만 받습니다. {@code totRqmAmt=currentRequestAmt+mplAmt+dfrAmt}이며 세 인자는 모두 원화입니다. 기존
-     * 선언값을 새 의미로 바꾸는 마이그레이션은 이 메서드에서 수행하지 않습니다.
+     * <p>호환 시그니처의 선언 total/MPL은 신뢰하지 않습니다. 활성 최신 품목의 AMT/MPL을 다시 계산하고 선언 DFR만 더해 저장하므로 1-1과 1-2가
+     * 불일치해도 master 스냅샷이 품목 정본에서 벗어나지 않습니다. 신규 importer는 이 메서드를 호출하지 않고 생성 요청에 DFR만 전달합니다.
      *
      * @param abusMngNo 사업관리번호
-     * @param totRqmAmt 총소요금액 (원 단위)
-     * @param mplAmt 원화 환산 예정금액
+     * @param totRqmAmt 호환용 선언 총소요금액(저장에는 사용하지 않음)
+     * @param mplAmt 호환용 선언 예정금액(저장에는 사용하지 않음)
      * @param dfrAmt 원화 지급금액
      * @throws IllegalArgumentException 사업관리번호에 해당하는 활성 사업이 없는 경우
      */
@@ -460,7 +460,9 @@ public class ProjectService {
                         .findByAbusMngNoAndDelYn(abusMngNo, "N")
                         .orElseThrow(
                                 () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
-        project.assignAmountSnapshot(totRqmAmt, mplAmt, dfrAmt);
+        ProjectAmountSummary snapshot = sumActiveItems(project, dfrAmt);
+        project.assignAmountSnapshot(
+                snapshot.totalRequiredAmt(), snapshot.plannedAmt(), snapshot.paidAmt());
     }
 
     /** 공백·null이 아닌 첫 값을 반환합니다. 둘 다 비었으면 null. */

@@ -3430,24 +3430,34 @@ class ProjectServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // assignDeclaredAmounts — 이관 전용 선언 금액 기록 (검증 없음)
+    // assignDeclaredAmounts — 구 이관 호출도 품목 중앙 계산 불변식 유지
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("이관 경로는 신규 원화 계약의 선언 금액을 그대로 기록한다")
-    void assignDeclaredAmounts_writesNewKrwContract() {
-        Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").build();
+    @DisplayName("구 이관 경로도 선언 total/MPL을 무시하고 품목 합계와 DFR로 스냅샷을 기록한다")
+    void assignDeclaredAmounts_keepsItemCalculatedSnapshot() {
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).build();
+        Bitemm item =
+                Bitemm.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .fntTbCrySno(1)
+                        .curC("KRW")
+                        .amt(new BigDecimal("100"))
+                        .mplAmt(new BigDecimal("300"))
+                        .build();
         given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
                 .willReturn(Optional.of(project));
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-2026-0001", 1, "N"))
+                .willReturn(List.of(item));
 
         projectService.assignDeclaredAmounts(
                 "PRJ-2026-0001",
-                new BigDecimal("620"),
-                new BigDecimal("500"),
+                new BigDecimal("999"),
+                new BigDecimal("888"),
                 new BigDecimal("20"));
 
-        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("620");
-        assertThat(project.getMplAmt()).isEqualByComparingTo("500");
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("420");
+        assertThat(project.getMplAmt()).isEqualByComparingTo("300");
         assertThat(project.getDfrAmt()).isEqualByComparingTo("20");
     }
 
