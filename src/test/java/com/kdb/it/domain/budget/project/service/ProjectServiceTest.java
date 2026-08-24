@@ -1190,9 +1190,9 @@ class ProjectServiceTest {
     }
 
     @Test
-    @DisplayName("createProject: 품목 mplAmt가 amt를 초과하면 amt로 클램프된다")
-    void createClampsItemMplAmt() {
-        // given: amt=1,000 / mplAmt=1,500 (초과) → 저장 시 mplAmt는 1,000으로 보정
+    @DisplayName("createProject: 품목의 당해와 예정 금액은 독립적으로 저장된다")
+    void createPreservesIndependentItemPlannedAmount() {
+        // given: 당해 요청금액 100원, 내년 이후 요청금액 500원
         given(projectRepository.getNextSequenceValue()).willReturn(1L);
         given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
         given(xcrLookupService.resolveXcr(any(), any())).willReturn(java.math.BigDecimal.ONE);
@@ -1201,12 +1201,12 @@ class ProjectServiceTest {
         ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
         item.setIoeC("IOE-237-0700");
         item.setGclNm("소프트웨어 구매");
-        item.setAmt(java.math.BigDecimal.valueOf(1_000));
-        item.setMplAmt(java.math.BigDecimal.valueOf(1_500)); // amt 초과값
+        item.setAmt(java.math.BigDecimal.valueOf(100));
+        item.setMplAmt(java.math.BigDecimal.valueOf(500));
 
         ProjectDto.CreateRequest request =
                 ProjectDto.CreateRequest.builder()
-                        .abusNm("clamp 테스트 사업")
+                        .abusNm("독립 예정금액 테스트 사업")
                         .bseYy("2026")
                         .items(List.of(item))
                         .build();
@@ -1214,11 +1214,39 @@ class ProjectServiceTest {
         // when
         projectService.createProject(request);
 
-        // then: 저장된 품목의 mplAmt는 amt(1,000)로 클램프되어야 함
+        // then: AMT와 MPL_AMT를 각각 입력값 그대로 보존한다.
         ArgumentCaptor<Bitemm> itemCaptor = ArgumentCaptor.forClass(Bitemm.class);
         org.mockito.Mockito.verify(bitemmRepository).save(itemCaptor.capture());
+        assertThat(itemCaptor.getValue().getAmt())
+                .isEqualByComparingTo(java.math.BigDecimal.valueOf(100));
         assertThat(itemCaptor.getValue().getMplAmt())
-                .isEqualByComparingTo(java.math.BigDecimal.valueOf(1_000));
+                .isEqualByComparingTo(java.math.BigDecimal.valueOf(500));
+    }
+
+    @Test
+    @DisplayName("createProject: 품목 예정금액이 음수면 거부한다")
+    void createRejectsNegativeItemPlannedAmount() {
+        given(projectRepository.getNextSequenceValue()).willReturn(1L);
+        given(bitemmRepository.getNextSequenceValue()).willReturn(1L);
+        given(xcrLookupService.resolveXcr(any(), any())).willReturn(java.math.BigDecimal.ONE);
+        given(codeService.findCodeEntitiesByCId(any())).willReturn(List.of());
+
+        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
+        item.setIoeC("IOE-237-0700");
+        item.setGclNm("소프트웨어 구매");
+        item.setAmt(java.math.BigDecimal.valueOf(100));
+        item.setMplAmt(java.math.BigDecimal.valueOf(-1));
+
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("음수 예정금액 테스트 사업")
+                        .bseYy("2026")
+                        .items(List.of(item))
+                        .build();
+
+        assertThatThrownBy(() -> projectService.createProject(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("예정금액은 0 이상이어야 합니다.");
     }
 
     // ───────────────────────────────────────────────────────

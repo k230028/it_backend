@@ -151,9 +151,9 @@ final class ProjectItemSynchronizer {
                     itemDto.getDfrCleC(), // 지급주기
                     itemDto.getSectSysUtzYn(), // 정보보호여부(미기재는 null 유지)
                     itemDto.getItrInfrYn(), // 통합인프라여부(미기재는 null 유지)
-                    reconciled[0], // 품목금액 (서버 재계산)
-                    reconciled[1], // 외화금액 (외화 행에서만 유효)
-                    clampMpl(itemDto.getMplAmt(), reconciled[0])); // 예정금액 (0 ≤ mplAmt ≤ amt)
+                    reconciled[0], // 당해 요청금액(원화, 서버 재계산)
+                    reconciled[1], // 당해 외화 원금(외화 행에서만 유효)
+                    normalizePlannedAmount(itemDto.getMplAmt())); // 내년 이후 요청금액(당해 금액과 독립)
         }
         processedGclMngNos.add(existingItem.getGclMngNo()); // 변경 여부와 무관하게 처리 완료 표시
     }
@@ -214,9 +214,9 @@ final class ProjectItemSynchronizer {
                 .sectSysUtzYn(itemDto.getSectSysUtzYn()) // 정보보호여부(미기재는 null 유지)
                 .itrInfrYn(itemDto.getItrInfrYn()) // 통합인프라여부(미기재는 null 유지)
                 .lstYn("Y") // 최종여부
-                .amt(reconciled[0]) // 품목금액 (서버 재계산)
-                .fcAmt(reconciled[1]) // 외화금액 (외화 행에서만 유효)
-                .mplAmt(clampMpl(itemDto.getMplAmt(), reconciled[0])) // 예정금액 (0 ≤ mplAmt ≤ amt)
+                .amt(reconciled[0]) // 당해 요청금액(원화, 서버 재계산)
+                .fcAmt(reconciled[1]) // 당해 외화 원금(외화 행에서만 유효)
+                .mplAmt(normalizePlannedAmount(itemDto.getMplAmt())) // 내년 이후 요청금액(당해 금액과 독립)
                 .build();
     }
 
@@ -233,16 +233,19 @@ final class ProjectItemSynchronizer {
     }
 
     /**
-     * 예정금액을 유효 범위 [0, amt]로 보정한다.
+     * 내년 이후 요청금액을 저장 가능한 값으로 정규화한다.
      *
      * @param mplAmt 입력 예정금액(null이면 0)
-     * @param amt 품목금액(서버 재계산값, null이면 상한 미적용)
-     * @return 0 이상, amt 이하로 클램프된 예정금액
+     * @return 0 이상의 예정금액
+     * @throws IllegalArgumentException 예정금액이 음수일 때
      */
-    private static BigDecimal clampMpl(BigDecimal mplAmt, BigDecimal amt) {
-        BigDecimal v = (mplAmt == null) ? BigDecimal.ZERO : mplAmt;
-        if (v.signum() < 0) v = BigDecimal.ZERO;
-        if (amt != null && v.compareTo(amt) > 0) v = amt;
-        return v;
+    private static BigDecimal normalizePlannedAmount(BigDecimal mplAmt) {
+        if (mplAmt == null) {
+            return BigDecimal.ZERO;
+        }
+        if (mplAmt.signum() < 0) {
+            throw new IllegalArgumentException("예정금액은 0 이상이어야 합니다.");
+        }
+        return mplAmt;
     }
 }

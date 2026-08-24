@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -57,7 +58,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
  *
  * <ul>
  *   <li>{@code bigDecimalChanged}: null/null=false, 한쪽만null=true, 스케일 다른 동일값=false, 값 다름=true
- *   <li>{@code clampMpl}: null→0, 음수→0, amt 초과→amt, 범위 내→그대로, amt=null→상한 없음
+ *   <li>{@code normalizePlannedAmount}: null→0, 음수 거부, AMT와 독립한 예정금액 보존
  *   <li>{@code isItemChanged}: 각 필드별 변경
  *       탐지(ioeC·gclNm·curC·xcr·xcrBseDt·cncdFdtnCone·bseYm·dfrCleC·sectSysUtzYn·itrInfrYn·fcAmt·mplAmt)
  *   <li>{@code setCodeNames}: rprStsTc·exePttYn·abusTc 코드명 조회; null이면 skip
@@ -480,12 +481,12 @@ class ProjectServiceCoverageTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // clampMpl 분기 — createProject 경로로 간접 커버
+    // normalizePlannedAmount 분기 — createProject/updateProject 경로로 간접 커버
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("clampMpl: mplAmt=null이면 0으로 저장된다")
-    void clampMpl_null_을_0으로() {
+    @DisplayName("normalizePlannedAmount: mplAmt=null이면 0으로 저장된다")
+    void normalizePlannedAmount_null_을_0으로() {
         // Arrange: mplAmt=null, amt=1000
         given(projectRepository.getNextSequenceValue()).willReturn(20L);
         given(bitemmRepository.getNextSequenceValue()).willReturn(20L);
@@ -499,7 +500,7 @@ class ProjectServiceCoverageTest {
 
         ProjectDto.CreateRequest req =
                 ProjectDto.CreateRequest.builder()
-                        .abusNm("clamp null 테스트")
+                        .abusNm("예정금액 null 테스트")
                         .bseYy("2026")
                         .items(List.of(item))
                         .build();
@@ -514,93 +515,46 @@ class ProjectServiceCoverageTest {
     }
 
     @Test
-    @DisplayName("clampMpl: mplAmt가 음수이면 0으로 클램프된다")
-    void clampMpl_음수_를_0으로() {
-        // Arrange: mplAmt=-500, amt=1000
-        given(projectRepository.getNextSequenceValue()).willReturn(21L);
-        given(bitemmRepository.getNextSequenceValue()).willReturn(21L);
-        given(xcrLookupService.resolveXcr(any(), any())).willReturn(BigDecimal.ONE);
-
-        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
-        item.setIoeC("IOE-001");
-        item.setGclNm("품목음수");
-        item.setAmt(BigDecimal.valueOf(1000));
-        item.setMplAmt(BigDecimal.valueOf(-500)); // 음수 → 0
-
-        ProjectDto.CreateRequest req =
-                ProjectDto.CreateRequest.builder()
-                        .abusNm("clamp 음수 테스트")
-                        .bseYy("2026")
-                        .items(List.of(item))
+    @DisplayName("updateProject: 기존 품목의 당해와 예정 금액은 독립적으로 저장된다")
+    void updateProject_preservesIndependentItemPlannedAmount() {
+        String prjMngNo = "PRJ-MPL-UPDATE";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+        Bitemm existing = baseExistingItem(prjMngNo, "GCL-MPL-UPDATE");
+        ProjectDto.BitemmDto dto =
+                baseDtoBuilder("GCL-MPL-UPDATE")
+                        .amt(BigDecimal.valueOf(100))
+                        .mplAmt(BigDecimal.valueOf(500))
                         .build();
+        setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        // Act
-        projectService.createProject(req);
+        projectService.updateProject(
+                prjMngNo,
+                ProjectDto.UpdateRequest.builder().abusNm("사업").items(List.of(dto)).build());
 
-        // Assert
-        ArgumentCaptor<Bitemm> cap = ArgumentCaptor.forClass(Bitemm.class);
-        verify(bitemmRepository).save(cap.capture());
-        assertThat(cap.getValue().getMplAmt()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(existing.getAmt()).isEqualByComparingTo(BigDecimal.valueOf(100));
+        assertThat(existing.getMplAmt()).isEqualByComparingTo(BigDecimal.valueOf(500));
     }
 
     @Test
-    @DisplayName("clampMpl: mplAmt가 범위 내(0 < mplAmt < amt)이면 그대로 유지된다")
-    void clampMpl_범위내_그대로유지() {
-        // Arrange: mplAmt=500, amt=1000 → 500 그대로
-        given(projectRepository.getNextSequenceValue()).willReturn(22L);
-        given(bitemmRepository.getNextSequenceValue()).willReturn(22L);
-        given(xcrLookupService.resolveXcr(any(), any())).willReturn(BigDecimal.ONE);
+    @DisplayName("updateProject: 기존 품목의 예정금액이 음수면 거부한다")
+    void updateProject_rejectsNegativeItemPlannedAmount() {
+        String prjMngNo = "PRJ-MPL-NEGATIVE";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
+        Bitemm existing = baseExistingItem(prjMngNo, "GCL-MPL-NEGATIVE");
+        ProjectDto.BitemmDto dto =
+                baseDtoBuilder("GCL-MPL-NEGATIVE").mplAmt(BigDecimal.valueOf(-1)).build();
+        setupUpdateMocks(prjMngNo, project, List.of(existing));
 
-        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
-        item.setIoeC("IOE-001");
-        item.setGclNm("품목범위내");
-        item.setAmt(BigDecimal.valueOf(1000));
-        item.setMplAmt(BigDecimal.valueOf(500)); // 범위 내
-
-        ProjectDto.CreateRequest req =
-                ProjectDto.CreateRequest.builder()
-                        .abusNm("clamp 범위 테스트")
-                        .bseYy("2026")
-                        .items(List.of(item))
-                        .build();
-
-        // Act
-        projectService.createProject(req);
-
-        // Assert: 500 그대로
-        ArgumentCaptor<Bitemm> cap = ArgumentCaptor.forClass(Bitemm.class);
-        verify(bitemmRepository).save(cap.capture());
-        assertThat(cap.getValue().getMplAmt()).isEqualByComparingTo(BigDecimal.valueOf(500));
-    }
-
-    @Test
-    @DisplayName("clampMpl: amt=null이면 상한 클램프 없이 mplAmt 양수값이 그대로 저장된다")
-    void clampMpl_amt가null_상한없음() {
-        // Arrange: mplAmt=9999, amt=null → 상한 없음 → 9999 그대로
-        given(projectRepository.getNextSequenceValue()).willReturn(23L);
-        given(bitemmRepository.getNextSequenceValue()).willReturn(23L);
-        given(xcrLookupService.resolveXcr(any(), any())).willReturn(BigDecimal.ONE);
-
-        ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
-        item.setIoeC("IOE-001");
-        item.setGclNm("품목amt없음");
-        item.setAmt(null); // amt=null → reconciled[0]=null
-        item.setMplAmt(BigDecimal.valueOf(9999)); // clampMpl(9999, null) → 9999
-
-        ProjectDto.CreateRequest req =
-                ProjectDto.CreateRequest.builder()
-                        .abusNm("clamp amt null 테스트")
-                        .bseYy("2026")
-                        .items(List.of(item))
-                        .build();
-
-        // Act
-        projectService.createProject(req);
-
-        // Assert: 상한 없이 9999 그대로
-        ArgumentCaptor<Bitemm> cap = ArgumentCaptor.forClass(Bitemm.class);
-        verify(bitemmRepository).save(cap.capture());
-        assertThat(cap.getValue().getMplAmt()).isEqualByComparingTo(BigDecimal.valueOf(9999));
+        assertThatThrownBy(
+                        () ->
+                                projectService.updateProject(
+                                        prjMngNo,
+                                        ProjectDto.UpdateRequest.builder()
+                                                .abusNm("사업")
+                                                .items(List.of(dto))
+                                                .build()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("예정금액은 0 이상이어야 합니다.");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

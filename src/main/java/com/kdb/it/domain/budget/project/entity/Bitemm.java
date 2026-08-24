@@ -106,21 +106,20 @@ public class Bitemm extends BaseEntity {
     @Column(name = "LST_YN", length = 1, comment = "최종여부")
     private String lstYn;
 
-    /** 품목금액: 이 품목의 총 금액 (수량 × 단가, 최대 15자리) */
-    @Column(name = "AMT", precision = 18, scale = 3, comment = "품목금액 (물리컬럼 AMT=금액)")
+    /** 당해 요청금액: 원화 금액 (외화 품목은 서버 환율 적용값) */
+    @Column(name = "AMT", precision = 18, scale = 3, comment = "당해 요청금액(원화)")
     private BigDecimal amt;
 
-    /** 예정금액: 이 품목 금액 중 익년(예산연도+1) 이후로 예정된 금액 (AMT의 일부, 0 ≤ MPL_AMT ≤ AMT) */
-    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "예정금액")
+    /** 내년 이후 요청금액: 원화 품목은 원화 원금, 외화 품목은 외화 원금이며 AMT와 독립 */
+    @Column(name = "MPL_AMT", precision = 18, scale = 3, comment = "내년 이후 요청금액(통화별 원금)")
     private BigDecimal mplAmt;
 
     /**
-     * 외화금액(품목 외화 원금 — 환율 적용 전).
+     * 당해 외화 원금(환율 적용 전).
      *
-     * <p>원화(KRW) 행은 NULL. 외화 행은 사용자 입력 외화 원금이며, Service에서 {@code gclAmt = fcAmt × xcr}로 재계산한다 (수량
-     * 무관). 참고: CONTEXT.md 결정 B/C.
+     * <p>원화(KRW) 품목은 NULL이며, 외화 품목의 당해 요청금액은 Service에서 {@code amt = fcAmt × xcr}로 원화 환산한다.
      */
-    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "외화금액")
+    @Column(name = "FC_AMT", precision = 18, scale = 3, comment = "당해 외화 원금")
     private BigDecimal fcAmt;
 
     /**
@@ -130,7 +129,7 @@ public class Bitemm extends BaseEntity {
      * 유지하고 업무 필드만 갱신합니다. 수정 시 새 레코드를 추가하지 않고 기존 활성 레코드를 그대로 수정하기 위한 메서드입니다 (JPA Dirty Checking으로
      * 트랜잭션 종료 시 UPDATE 실행). 최종여부({@code LST_YN})는 'Y'로 유지합니다.
      *
-     * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 서버 재계산 전 원금)
+     * @param fcAmt 당해 외화 원금 (원화 품목은 null)
      */
     public void update(
             String ioeC,
