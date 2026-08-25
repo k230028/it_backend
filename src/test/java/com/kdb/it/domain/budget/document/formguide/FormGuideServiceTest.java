@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
@@ -50,6 +51,30 @@ class FormGuideServiceTest {
 
         assertThat(result)
                 .containsExactly(new FormGuideDto.PublicResponse(GUIDE_ID, "사업명", "<p>사업명 안내</p>"));
+    }
+
+    @Test
+    @DisplayName("공개 조회는 저장소 계약을 우회한 null 또는 공백 본문을 방어적으로 제외한다")
+    void getPublished_null또는공백본문_제외() {
+        Bgdocm nullContent =
+                Bgdocm.builder()
+                        .docMngNo("FDOC-2026-0001")
+                        .docTtlCone(GUIDE_ID)
+                        .nacTxtInf(null)
+                        .build();
+        Bgdocm blankContent =
+                Bgdocm.builder()
+                        .docMngNo("FDOC-2026-0002")
+                        .docTtlCone("info.basic.bgYy")
+                        .nacTxtInf(" \t\n")
+                        .build();
+        given(guideDocRepository.findActiveFormGuides("FDOC-", "info."))
+                .willReturn(List.of(nullContent, blankContent));
+
+        List<FormGuideDto.PublicResponse> result =
+                formGuideService.getPublished(FormGuideScope.INFO);
+
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -121,6 +146,20 @@ class FormGuideServiceTest {
                                         "info.unknown", new FormGuideDto.SaveRequest("<p>안내</p>")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("지원하지 않는");
+    }
+
+    @Test
+    @DisplayName("정화 결과가 빈 HTML인 저장 요청은 400 대상의 잘못된 인자 예외를 던진다")
+    void save_정화후빈본문_잘못된인자예외() {
+        assertThatThrownBy(
+                        () ->
+                                formGuideService.save(
+                                        GUIDE_ID,
+                                        new FormGuideDto.SaveRequest("<script>안전하지 않음</script>")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("본문");
+
+        verifyNoInteractions(guideDocRepository);
     }
 
     @Test

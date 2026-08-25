@@ -37,7 +37,11 @@ public class FormGuideService {
     public List<FormGuideDto.PublicResponse> getPublished(FormGuideScope scope) {
         Map<String, Bgdocm> documents = activeDocuments(scope);
         return FormGuideCatalog.entries(scope).stream()
-                .filter(entry -> documents.containsKey(entry.guideId()))
+                .filter(
+                        entry -> {
+                            Bgdocm document = documents.get(entry.guideId());
+                            return document != null && hasContent(document.getNacTxtInf());
+                        })
                 .map(
                         entry -> {
                             Bgdocm document = documents.get(entry.guideId());
@@ -87,6 +91,9 @@ public class FormGuideService {
             throw new IllegalArgumentException("길라잡이 저장 요청이 없습니다");
         }
         String contentHtml = HtmlSanitizer.sanitize(request.contentHtml());
+        if (!hasContent(contentHtml)) {
+            throw new IllegalArgumentException("길라잡이 본문을 입력해야 합니다");
+        }
 
         return guideDocRepository
                 .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
@@ -157,5 +164,9 @@ public class FormGuideService {
         if (scope == null) {
             throw new IllegalArgumentException("사업 유형을 입력해야 합니다");
         }
+    }
+
+    private static boolean hasContent(String contentHtml) {
+        return contentHtml != null && !contentHtml.isBlank();
     }
 }
