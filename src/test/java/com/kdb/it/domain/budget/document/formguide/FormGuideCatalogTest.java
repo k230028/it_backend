@@ -21,6 +21,12 @@ class FormGuideCatalogTest {
     }
 
     @Test
+    void require_returnsTheOrdinaryProjectProblemLabelForItsStableGuideId() {
+        assertThat(FormGuideCatalog.require("cost.overview.plm").fieldLabel())
+                .isEqualTo("미추진 시 문제점");
+    }
+
+    @Test
     void require_rejectsAnIdOutsideTheFixedCatalog() {
         assertThatThrownBy(() -> FormGuideCatalog.require("info.unknown"))
                 .isInstanceOf(IllegalArgumentException.class)

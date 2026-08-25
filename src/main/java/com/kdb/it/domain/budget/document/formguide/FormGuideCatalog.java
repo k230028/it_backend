@@ -220,7 +220,7 @@ public final class FormGuideCatalog {
                                                     "cost.overview.plm",
                                                     FormGuideScope.COST,
                                                     "사업 개요",
-                                                    "필요성",
+                                                    "미추진 시 문제점",
                                                     "Textarea"),
                                             entry(
                                                     "cost.scope.prjRng",
