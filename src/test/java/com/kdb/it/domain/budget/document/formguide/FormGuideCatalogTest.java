@@ -28,25 +28,89 @@ class FormGuideCatalogTest {
     }
 
     @Test
-    void entries_separatesInformationAndOrdinaryProjectFieldsIncludingSharedResourceColumns() {
+    void entries_returnsTheExactInformationProjectFieldSet() {
         assertThat(guideIds(FormGuideScope.INFO))
-                .contains(
+                .containsExactlyInAnyOrder(
+                        "info.basic.bgYy",
+                        "info.basic.pulDtt",
                         "info.basic.abusNm",
                         "info.overview.prjDes",
+                        "info.overview.saf",
+                        "info.overview.ncs",
+                        "info.overview.xptEff",
+                        "info.overview.plm",
+                        "info.scope.prjRng",
+                        "info.progress.pulPsg",
+                        "info.progress.hrfPln",
                         "info.classification.bzDtt",
+                        "info.classification.prjTp",
+                        "info.classification.tchnTp",
+                        "info.classification.mnUsr",
+                        "info.criteria.dplYn",
                         "info.criteria.lblFsgTlm",
+                        "info.department.svnHdq",
+                        "info.department.svnDpm",
+                        "info.department.svnDpmTlr",
+                        "info.department.svnDpmCgpr",
+                        "info.department.itDpm",
+                        "info.department.itDpmTlr",
+                        "info.department.itDpmCgpr",
+                        "info.schedule.dfrAmt",
+                        "info.schedule.rprSts",
                         "info.schedule.sttDt",
+                        "info.schedule.endDt",
+                        "info.schedule.prjPulPtt",
                         "info.resource.ioe",
-                        "info.resource.introDate");
+                        "info.resource.item",
+                        "info.resource.quantity",
+                        "info.resource.currency",
+                        "info.resource.gclAmt",
+                        "info.resource.laterAmt",
+                        "info.resource.basis",
+                        "info.resource.introDate",
+                        "info.resource.paymentCycle",
+                        "info.resource.infoProtection",
+                        "info.resource.integratedInfra");
+    }
+
+    @Test
+    void entries_returnsTheExactOrdinaryProjectFieldSet() {
         assertThat(guideIds(FormGuideScope.COST))
-                .contains(
+                .containsExactlyInAnyOrder(
+                        "cost.basic.bgYy",
+                        "cost.basic.pulDtt",
                         "cost.basic.abusNm",
                         "cost.overview.plm",
+                        "cost.overview.prjDes",
+                        "cost.overview.saf",
+                        "cost.scope.prjRng",
+                        "cost.department.svnHdq",
+                        "cost.department.svnDpm",
+                        "cost.department.svnDpmTlr",
                         "cost.department.svnDpmCgpr",
                         "cost.resource.ioe",
-                        "cost.resource.paymentCycle");
+                        "cost.resource.item",
+                        "cost.resource.quantity",
+                        "cost.resource.currency",
+                        "cost.resource.gclAmt",
+                        "cost.resource.laterAmt",
+                        "cost.resource.basis",
+                        "cost.resource.introDate",
+                        "cost.resource.paymentCycle",
+                        "cost.resource.infoProtection",
+                        "cost.resource.integratedInfra");
+    }
+
+    @Test
+    void resourceEntries_doNotContainDynamicRowNumbers() {
         assertThat(guideIds(FormGuideScope.INFO)).allMatch(id -> id.startsWith("info."));
         assertThat(guideIds(FormGuideScope.COST)).allMatch(id -> id.startsWith("cost."));
+        assertThat(guideIds(FormGuideScope.INFO))
+                .filteredOn(id -> id.startsWith("info.resource."))
+                .noneMatch(id -> id.matches("info\\.resource\\.\\d+\\..+"));
+        assertThat(guideIds(FormGuideScope.COST))
+                .filteredOn(id -> id.startsWith("cost.resource."))
+                .noneMatch(id -> id.matches("cost\\.resource\\.\\d+\\..+"));
     }
 
     private Set<String> guideIds(FormGuideScope scope) {

@@ -25,7 +25,8 @@ class FormGuideRepositoryIt extends AbstractOracleRepositoryTest {
                         document("FDOC-FG-COST", "cost.basic.abusNm", "<p>경상 사업명 안내</p>", "N"),
                         document("GDOC-FG-INFO", "info.basic.abusNm", "<p>기존 단계 가이드</p>", "N"),
                         document("FDOC-FG-DELETED", "info.overview.prjDes", "<p>삭제됨</p>", "Y"),
-                        document("FDOC-FG-BLANK", "info.resource.ioe", "   ", "N")));
+                        document("FDOC-FG-BLANK", "info.resource.ioe", "   ", "N"),
+                        document("FDOC-FG-WHITE", "info.resource.item", "\t\n\r", "N")));
         guideDocRepository.flush();
 
         assertThat(guideDocRepository.findActiveFormGuides("FDOC-", "info."))

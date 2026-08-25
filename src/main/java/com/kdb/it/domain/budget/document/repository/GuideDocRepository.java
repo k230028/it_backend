@@ -52,7 +52,7 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
                        and DOC_TTL_CONE like :guideIdPrefix || '%'
                        and DEL_YN = 'N'
                        and NAC_TXT_INF is not null
-                       and DBMS_LOB.GETLENGTH(TRIM(NAC_TXT_INF)) > 0
+                       and REGEXP_LIKE(NAC_TXT_INF, '[^[:space:]]')
                     """,
             nativeQuery = true)
     List<Bgdocm> findActiveFormGuides(
