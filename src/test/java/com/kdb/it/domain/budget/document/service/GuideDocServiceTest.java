@@ -59,29 +59,35 @@ class GuideDocServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("getDocumentList: 삭제되지 않은 문서 목록을 본문 없는 DTO로 반환한다")
-    void getDocumentList_문서있음_본문없는DTO목록반환() {
+    @DisplayName("getDocumentList: GDOC 문서만 본문 없는 DTO로 반환한다")
+    void getDocumentList_GDOC문서만_본문없는DTO목록반환() {
         // given
         GuideDocListView view1 = mockListView("GDOC-2026-0001", "가이드문서1");
-        GuideDocListView view2 = mockListView("GDOC-2026-0002", "가이드문서2");
-        given(guideDocRepository.findListViewsByDelYn("N")).willReturn(List.of(view1, view2));
+        given(
+                        guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn(
+                                "GDOC-", "N"))
+                .willReturn(List.of(view1));
 
         // when
         List<GuideDocDto.ListResponse> result = guideDocService.getDocumentList();
 
         // then: 목록 응답에는 본문(nacTxtInf) 필드 자체가 존재하지 않는다
-        assertThat(result).hasSize(2);
+        assertThat(result).hasSize(1);
         assertThat(result.get(0).docMngNo()).isEqualTo("GDOC-2026-0001");
         assertThat(result.get(0).docTtlCone()).isEqualTo("가이드문서1");
         assertThat(declaredMethodNames(GuideDocDto.ListResponse.class)).doesNotContain("nacTxtInf");
-        verify(guideDocRepository).findListViewsByDelYn("N");
+        verify(guideDocRepository)
+                .findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N");
     }
 
     @Test
     @DisplayName("getDocumentList: 문서가 없으면 빈 목록을 반환한다")
     void getDocumentList_문서없음_빈목록반환() {
         // given
-        given(guideDocRepository.findListViewsByDelYn("N")).willReturn(List.of());
+        given(
+                        guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn(
+                                "GDOC-", "N"))
+                .willReturn(List.of());
 
         // when
         List<GuideDocDto.ListResponse> result = guideDocService.getDocumentList();
@@ -99,7 +105,9 @@ class GuideDocServiceTest {
     void getDocument_존재하는문서_DTO반환() {
         // given
         Bgdocm doc = mockDocument("GDOC-2026-0001", "가이드문서");
-        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "GDOC-2026-0001", "GDOC-", "N"))
                 .willReturn(Optional.of(doc));
 
         // when
@@ -110,10 +118,25 @@ class GuideDocServiceTest {
     }
 
     @Test
+    @DisplayName("getDocument: FDOC 문서는 존재해도 존재하지 않는 문서로 처리한다")
+    void getDocument_FDOC문서_IllegalArgumentException발생() {
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "FDOC-2026-0001", "GDOC-", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> guideDocService.getDocument("FDOC-2026-0001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("FDOC-2026-0001");
+    }
+
+    @Test
     @DisplayName("getDocument: 존재하지 않는 문서관리번호이면 IllegalArgumentException을 던진다")
     void getDocument_존재하지않는문서_IllegalArgumentException발생() {
         // given
-        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N"))
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "INVALID", "GDOC-", "N"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -170,7 +193,9 @@ class GuideDocServiceTest {
     @DisplayName("updateDocument: 존재하지 않는 문서관리번호이면 IllegalArgumentException을 던진다")
     void updateDocument_존재하지않는문서_IllegalArgumentException발생() {
         // given
-        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N"))
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "INVALID", "GDOC-", "N"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -190,7 +215,9 @@ class GuideDocServiceTest {
     @DisplayName("deleteDocument: 존재하지 않는 문서관리번호이면 IllegalArgumentException을 던진다")
     void deleteDocument_존재하지않는문서_IllegalArgumentException발생() {
         // given
-        given(guideDocRepository.findByDocMngNoAndDelYn("INVALID", "N"))
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "INVALID", "GDOC-", "N"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -204,7 +231,9 @@ class GuideDocServiceTest {
     void deleteDocument_존재하는문서_논리삭제수행() {
         // given
         Bgdocm doc = mockDocument("GDOC-2026-0001", "가이드문서");
-        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "GDOC-2026-0001", "GDOC-", "N"))
                 .willReturn(Optional.of(doc));
 
         // when
@@ -223,7 +252,9 @@ class GuideDocServiceTest {
     void updateDocument_존재하는문서_수정성공() {
         // given: 실제 Bgdocm 엔티티 사용 (update() 호출 후 필드 변경 검증)
         Bgdocm doc = Bgdocm.builder().docMngNo("GDOC-2026-0001").docTtlCone("기존 가이드문서").build();
-        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "GDOC-2026-0001", "GDOC-", "N"))
                 .willReturn(Optional.of(doc));
 
         GuideDocDto.UpdateRequest req = new GuideDocDto.UpdateRequest();
@@ -242,7 +273,9 @@ class GuideDocServiceTest {
     void updateDocument_save호출없음_DirtyChecking() {
         // given
         Bgdocm doc = mockDocument("GDOC-2026-0001", "가이드문서");
-        given(guideDocRepository.findByDocMngNoAndDelYn("GDOC-2026-0001", "N"))
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "GDOC-2026-0001", "GDOC-", "N"))
                 .willReturn(Optional.of(doc));
 
         // when
@@ -273,5 +306,48 @@ class GuideDocServiceTest {
         // then: 저장 호출 및 지정한 번호 반환
         assertThat(result).isEqualTo("GDOC-2026-9999");
         verify(guideDocRepository).save(any(Bgdocm.class));
+    }
+
+    @Test
+    @DisplayName("createDocument: 비GDOC 문서관리번호 직접 지정은 거부한다")
+    void createDocument_비GDOC번호직접지정_IllegalArgumentException발생() {
+        GuideDocDto.CreateRequest request =
+                GuideDocDto.CreateRequest.builder()
+                        .docMngNo("FDOC-2026-0001")
+                        .docTtlCone("입력 길라잡이")
+                        .build();
+
+        assertThatThrownBy(() -> guideDocService.createDocument(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("GDOC-");
+    }
+
+    @Test
+    @DisplayName("updateDocument: FDOC 문서는 존재해도 존재하지 않는 문서로 처리한다")
+    void updateDocument_FDOC문서_IllegalArgumentException발생() {
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "FDOC-2026-0001", "GDOC-", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                guideDocService.updateDocument(
+                                        "FDOC-2026-0001", new GuideDocDto.UpdateRequest()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("FDOC-2026-0001");
+    }
+
+    @Test
+    @DisplayName("deleteDocument: FDOC 문서는 존재해도 존재하지 않는 문서로 처리한다")
+    void deleteDocument_FDOC문서_IllegalArgumentException발생() {
+        given(
+                        guideDocRepository.findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                "FDOC-2026-0001", "GDOC-", "N"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> guideDocService.deleteDocument("FDOC-2026-0001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("FDOC-2026-0001");
     }
 }

@@ -18,13 +18,15 @@ import org.springframework.data.repository.query.Param;
 public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
 
     /**
-     * 문서관리번호와 삭제여부로 단건 조회
+     * GDOC 접두사의 문서관리번호와 삭제여부로 단건 조회
      *
      * @param docMngNo 문서관리번호
+     * @param docMngNoPrefix 단계별 가이드 문서관리번호 접두사
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 가이드 문서
      */
-    Optional<Bgdocm> findByDocMngNoAndDelYn(String docMngNo, String delYn);
+    Optional<Bgdocm> findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+            String docMngNo, String docMngNoPrefix, String delYn);
 
     /**
      * 삭제여부로 전체 목록 조회
@@ -70,14 +72,16 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
             String docTtlCone, String docMngNoPrefix, String delYn);
 
     /**
-     * 삭제여부로 목록 조회용 경량 프로젝션 조회
+     * GDOC 접두사와 삭제여부로 목록 조회용 경량 프로젝션 조회
      *
      * <p>본문({@code nacTxtInf}, CLOB)을 제외한 목록 화면 전용 필드만 조회하여 불필요한 CLOB 로딩을 방지합니다.
      *
+     * @param docMngNoPrefix 단계별 가이드 문서관리번호 접두사
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 가이드 문서 목록 프로젝션
      */
-    List<GuideDocListView> findListViewsByDelYn(String delYn);
+    List<GuideDocListView> findListViewsByDocMngNoStartingWithAndDelYn(
+            String docMngNoPrefix, String delYn);
 
     /** 가이드 문서 목록 조회용 경량 프로젝션 (본문 {@code nacTxtInf} 제외) */
     interface GuideDocListView {

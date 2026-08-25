@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class GuideDocService {
 
+    private static final String GUIDE_DOCUMENT_PREFIX = "GDOC-";
+
     /** 가이드 문서 데이터 접근 리포지토리 (TPRMPP_BGDOCM) */
     private final GuideDocRepository guideDocRepository;
 
@@ -37,7 +39,9 @@ public class GuideDocService {
      * @return 가이드 문서 목록 응답 DTO 목록 (본문 제외)
      */
     public List<GuideDocDto.ListResponse> getDocumentList() {
-        return guideDocRepository.findListViewsByDelYn("N").stream()
+        return guideDocRepository
+                .findListViewsByDocMngNoStartingWithAndDelYn(GUIDE_DOCUMENT_PREFIX, "N")
+                .stream()
                 .map(GuideDocDto.ListResponse::fromView)
                 .toList();
     }
@@ -54,7 +58,8 @@ public class GuideDocService {
     public GuideDocDto.Response getDocument(String docMngNo) {
         Bgdocm document =
                 guideDocRepository
-                        .findByDocMngNoAndDelYn(docMngNo, "N")
+                        .findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                docMngNo, GUIDE_DOCUMENT_PREFIX, "N")
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -86,6 +91,9 @@ public class GuideDocService {
             docMngNo = String.format("GDOC-%s-%04d", year, nextVal);
             request.setDocMngNo(docMngNo);
         } else {
+            if (!docMngNo.startsWith(GUIDE_DOCUMENT_PREFIX)) {
+                throw new IllegalArgumentException("문서관리번호는 GDOC-로 시작해야 합니다: " + docMngNo);
+            }
             // 제공된 문서관리번호 중복 확인
             if (guideDocRepository.existsByDocMngNoAndDelYn(docMngNo, "N")) {
                 throw new IllegalArgumentException("이미 존재하는 문서관리번호입니다: " + docMngNo);
@@ -114,7 +122,8 @@ public class GuideDocService {
     public String updateDocument(String docMngNo, GuideDocDto.UpdateRequest request) {
         Bgdocm document =
                 guideDocRepository
-                        .findByDocMngNoAndDelYn(docMngNo, "N")
+                        .findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                docMngNo, GUIDE_DOCUMENT_PREFIX, "N")
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -141,7 +150,8 @@ public class GuideDocService {
     public void deleteDocument(String docMngNo) {
         Bgdocm document =
                 guideDocRepository
-                        .findByDocMngNoAndDelYn(docMngNo, "N")
+                        .findByDocMngNoAndDocMngNoStartingWithAndDelYn(
+                                docMngNo, GUIDE_DOCUMENT_PREFIX, "N")
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(

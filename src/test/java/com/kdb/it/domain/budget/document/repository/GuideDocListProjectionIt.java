@@ -23,21 +23,27 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
     @Autowired private GuideDocRepository guideDocRepository;
 
     @Test
-    @DisplayName("목록 프로젝션은 findAllByDelYn 엔티티 조회와 7개 필드가 동등하고 본문(CLOB)은 포함하지 않는다")
-    void findListViewsByDelYn_matchesEntityQueryWithoutBody() {
+    @DisplayName("GDOC 목록 프로젝션은 엔티티 조회와 7개 필드가 동등하고 FDOC·본문(CLOB)은 포함하지 않는다")
+    void findGdocListViews_matchesEntityQueryWithoutBodyOrFormGuide() {
         guideDocRepository.saveAll(
                 List.of(
                         document("GDOC-BE03LIST-01", "첫번째 가이드문서", "N"),
                         document("GDOC-BE03LIST-02", "두번째 가이드문서", "N"),
+                        document("FDOC-BE03LIST-01", "입력 길라잡이", "N"),
                         document("GDOC-BE03LIST-DL", "삭제된 가이드문서", "Y")));
         guideDocRepository.flush();
+
+        List<GuideDocRepository.GuideDocListView> allActiveViews =
+                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N");
+        assertThat(allActiveViews)
+                .noneMatch(view -> view.getDocMngNo().equals("FDOC-BE03LIST-01"));
 
         List<Bgdocm> activeEntities =
                 guideDocRepository.findAllByDelYn("N").stream()
                         .filter(e -> e.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
         List<GuideDocRepository.GuideDocListView> activeViews =
-                guideDocRepository.findListViewsByDelYn("N").stream()
+                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N").stream()
                         .filter(v -> v.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
 
@@ -62,7 +68,7 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
 
         // delYn='Y' 필터는 삭제된 문서만 반환한다 (본문 없는 프로젝션 필터 동등성)
         List<GuideDocRepository.GuideDocListView> deletedViews =
-                guideDocRepository.findListViewsByDelYn("Y").stream()
+                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "Y").stream()
                         .filter(v -> v.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
         assertThat(deletedViews)

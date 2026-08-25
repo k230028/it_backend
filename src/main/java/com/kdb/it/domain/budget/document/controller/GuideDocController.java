@@ -9,6 +9,7 @@ import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,8 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>기본 URL: {@code /api/guide-documents}
  *
- * <p>첨부파일 연동: 공통 첨부파일 API({@code /api/files})에서 {@code apgFlKdNm=가이드문서}, {@code apgFlLnkCtzNm={docMngNo}}로
- * 파일을 관리합니다.
+ * <p>첨부파일 연동: 공통 첨부파일 API({@code /api/files})에서 {@code apgFlKdNm=가이드문서}, {@code
+ * apgFlLnkCtzNm={docMngNo}}로 파일을 관리합니다.
  *
  * <p>보안: JWT 토큰 인증 필요
  */
@@ -75,12 +76,13 @@ public class GuideDocController {
      *
      * <p>채번 규칙: {@code GDOC-{연도}-{4자리 시퀀스}} (예: GDOC-2026-0001) {@code docMngNo}를 미입력 시 자동 채번됩니다.
      *
-     * <p>생성 후 첨부파일 등록은 {@code POST /api/files}에서 {@code apgFlKdNm=가이드문서}, {@code apgFlLnkCtzNm={docMngNo}}로
-     * 요청합니다.
+     * <p>생성 후 첨부파일 등록은 {@code POST /api/files}에서 {@code apgFlKdNm=가이드문서}, {@code
+     * apgFlLnkCtzNm={docMngNo}}로 요청합니다.
      *
      * @param request 가이드 문서 생성 요청
      * @return HTTP 201 Created + 생성된 문서관리번호 (Location 헤더 포함)
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @Operation(
             summary = "가이드 문서 생성",
@@ -101,6 +103,7 @@ public class GuideDocController {
      * @param request 수정 요청 데이터
      * @return HTTP 200 + 수정된 문서관리번호
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{docMngNo}")
     @Operation(summary = "가이드 문서 수정", description = "가이드 문서 정보를 수정합니다.")
     public ResponseEntity<String> updateDocument(
@@ -118,6 +121,7 @@ public class GuideDocController {
      * @param docMngNo 삭제할 문서관리번호
      * @return HTTP 204 No Content
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{docMngNo}")
     @Operation(
             summary = "가이드 문서 삭제",
