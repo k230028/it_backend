@@ -178,6 +178,14 @@ public class FormGuideService {
         if (!document.select("img, table, math-field, [data-file-id], [data-latex]").isEmpty()) {
             return true;
         }
-        return !document.text().replaceAll("[\\s\\u200B-\\u200D\\u2060\\uFEFF]", "").isEmpty();
+        return document.text().codePoints().anyMatch(FormGuideService::isVisibleCodePoint);
+    }
+
+    private static boolean isVisibleCodePoint(int codePoint) {
+        return !Character.isWhitespace(codePoint)
+                && !Character.isSpaceChar(codePoint)
+                && (codePoint < 0x200B || codePoint > 0x200D)
+                && codePoint != 0x2060
+                && codePoint != 0xFEFF;
     }
 }

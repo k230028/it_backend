@@ -88,7 +88,15 @@ class FormGuideServiceTest {
                         guide(
                                 "FDOC-2026-0004",
                                 "info.scope.prjRng",
-                                "<table><tbody></tbody></table>"));
+                                "<table><tbody></tbody></table>"),
+                        guide(
+                                "FDOC-2026-0005",
+                                "info.basic.pulDtt",
+                                "<span data-latex=\"x^2\"></span>"),
+                        guide(
+                                "FDOC-2026-0006",
+                                "info.overview.saf",
+                                "<span data-file-id=\"FILE-1\"></span>"));
         given(guideDocRepository.findActiveFormGuides("FDOC-", "info.")).willReturn(documents);
 
         List<FormGuideDto.PublicResponse> result =
@@ -96,7 +104,11 @@ class FormGuideServiceTest {
 
         assertThat(result)
                 .extracting(FormGuideDto.PublicResponse::guideId)
-                .containsExactlyInAnyOrder("info.overview.prjDes", "info.scope.prjRng");
+                .containsExactlyInAnyOrder(
+                        "info.overview.prjDes",
+                        "info.scope.prjRng",
+                        "info.basic.pulDtt",
+                        "info.overview.saf");
     }
 
     @Test
@@ -203,7 +215,13 @@ class FormGuideServiceTest {
     @Test
     @DisplayName("구조만 있거나 제로폭 문자뿐인 본문은 저장하지 않는다")
     void save_의미없는HTML_잘못된인자예외() {
-        for (String content : List.of("<p></p>", "<p><br></p>", "<p>\u200B\uFEFF</p>")) {
+        for (String content :
+                List.of(
+                        "<p></p>",
+                        "<p><br></p>",
+                        "<p>\u200B\uFEFF</p>",
+                        "<p>\u202F</p>",
+                        "<p>\u3000</p>")) {
             assertThatThrownBy(
                             () ->
                                     formGuideService.save(
