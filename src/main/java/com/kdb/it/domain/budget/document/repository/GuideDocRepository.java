@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * 가이드 문서(Bgdocm) 데이터 접근 리포지토리
@@ -32,6 +33,41 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
      * @return 조건에 맞는 가이드 문서 목록
      */
     List<Bgdocm> findAllByDelYn(String delYn);
+
+    /**
+     * 사업 유형에 맞는 본문이 있는 활성 입력 길라잡이를 조회합니다.
+     *
+     * <p>기존 단계별 가이드와 섞이지 않도록 {@code FDOC-} 접두사를 받고, 공백뿐인 본문은 사용자 패널에 표시하지 않습니다.
+     *
+     * @param prefix 입력 길라잡이 문서관리번호 접두사
+     * @param guideIdPrefix 사업 유형별 길라잡이 ID 접두사
+     * @return 활성·본문 보유 길라잡이 목록
+     */
+    @Query(
+            value =
+                    """
+                    select *
+                      from TPRMPP_BGDOCM
+                     where DOC_MNG_NO like :prefix || '%'
+                       and DOC_TTL_CONE like :guideIdPrefix || '%'
+                       and DEL_YN = 'N'
+                       and NAC_TXT_INF is not null
+                       and DBMS_LOB.GETLENGTH(TRIM(NAC_TXT_INF)) > 0
+                    """,
+            nativeQuery = true)
+    List<Bgdocm> findActiveFormGuides(
+            @Param("prefix") String prefix, @Param("guideIdPrefix") String guideIdPrefix);
+
+    /**
+     * 고정 ID로 활성 입력 길라잡이 하나를 찾습니다.
+     *
+     * @param docTtlCone 고정 길라잡이 ID
+     * @param docMngNoPrefix 입력 길라잡이 문서관리번호 접두사
+     * @param delYn 삭제여부
+     * @return 조건에 맞는 입력 길라잡이
+     */
+    Optional<Bgdocm> findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+            String docTtlCone, String docMngNoPrefix, String delYn);
 
     /**
      * 삭제여부로 목록 조회용 경량 프로젝션 조회
