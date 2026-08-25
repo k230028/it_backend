@@ -63,9 +63,7 @@ class GuideDocServiceTest {
     void getDocumentList_GDOC문서만_본문없는DTO목록반환() {
         // given
         GuideDocListView view1 = mockListView("GDOC-2026-0001", "가이드문서1");
-        given(
-                        guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn(
-                                "GDOC-", "N"))
+        given(guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N"))
                 .willReturn(List.of(view1));
 
         // when
@@ -76,17 +74,14 @@ class GuideDocServiceTest {
         assertThat(result.get(0).docMngNo()).isEqualTo("GDOC-2026-0001");
         assertThat(result.get(0).docTtlCone()).isEqualTo("가이드문서1");
         assertThat(declaredMethodNames(GuideDocDto.ListResponse.class)).doesNotContain("nacTxtInf");
-        verify(guideDocRepository)
-                .findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N");
+        verify(guideDocRepository).findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N");
     }
 
     @Test
     @DisplayName("getDocumentList: 문서가 없으면 빈 목록을 반환한다")
     void getDocumentList_문서없음_빈목록반환() {
         // given
-        given(
-                        guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn(
-                                "GDOC-", "N"))
+        given(guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N"))
                 .willReturn(List.of());
 
         // when

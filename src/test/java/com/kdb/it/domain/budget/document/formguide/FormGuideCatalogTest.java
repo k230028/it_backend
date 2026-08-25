@@ -3,9 +3,8 @@ package com.kdb.it.domain.budget.document.formguide;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.jupiter.api.Test;
-
 import java.util.Set;
+import org.junit.jupiter.api.Test;
 
 class FormGuideCatalogTest {
 

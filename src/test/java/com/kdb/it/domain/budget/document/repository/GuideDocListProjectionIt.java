@@ -35,15 +35,16 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
 
         List<GuideDocRepository.GuideDocListView> allActiveViews =
                 guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N");
-        assertThat(allActiveViews)
-                .noneMatch(view -> view.getDocMngNo().equals("FDOC-BE03LIST-01"));
+        assertThat(allActiveViews).noneMatch(view -> view.getDocMngNo().equals("FDOC-BE03LIST-01"));
 
         List<Bgdocm> activeEntities =
                 guideDocRepository.findAllByDelYn("N").stream()
                         .filter(e -> e.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
         List<GuideDocRepository.GuideDocListView> activeViews =
-                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N").stream()
+                guideDocRepository
+                        .findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N")
+                        .stream()
                         .filter(v -> v.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
 
@@ -68,7 +69,9 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
 
         // delYn='Y' 필터는 삭제된 문서만 반환한다 (본문 없는 프로젝션 필터 동등성)
         List<GuideDocRepository.GuideDocListView> deletedViews =
-                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "Y").stream()
+                guideDocRepository
+                        .findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "Y")
+                        .stream()
                         .filter(v -> v.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
         assertThat(deletedViews)

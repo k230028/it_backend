@@ -78,6 +78,28 @@ class FormGuideServiceTest {
     }
 
     @Test
+    @DisplayName("공개 조회는 구조만 있는 빈 HTML을 제외하고 미디어와 표는 보존한다")
+    void getPublished_의미없는HTML제외_미디어표보존() {
+        List<Bgdocm> documents =
+                List.of(
+                        guide("FDOC-2026-0001", GUIDE_ID, "<p><br></p>"),
+                        guide("FDOC-2026-0002", "info.basic.bgYy", "<p>\u200B</p>"),
+                        guide("FDOC-2026-0003", "info.overview.prjDes", "<p><img src=\"x\"></p>"),
+                        guide(
+                                "FDOC-2026-0004",
+                                "info.scope.prjRng",
+                                "<table><tbody></tbody></table>"));
+        given(guideDocRepository.findActiveFormGuides("FDOC-", "info.")).willReturn(documents);
+
+        List<FormGuideDto.PublicResponse> result =
+                formGuideService.getPublished(FormGuideScope.INFO);
+
+        assertThat(result)
+                .extracting(FormGuideDto.PublicResponse::guideId)
+                .containsExactlyInAnyOrder("info.overview.prjDes", "info.scope.prjRng");
+    }
+
+    @Test
     @DisplayName("관리 카탈로그 조회는 미등록 항목도 현재 문서번호 없이 반환한다")
     void getCatalog_미등록항목_전체카탈로그반환() {
         given(guideDocRepository.findActiveFormGuides("FDOC-", "info.")).willReturn(List.of());
@@ -93,6 +115,22 @@ class FormGuideServiceTest {
                             assertThat(guide.docMngNo()).isNull();
                             assertThat(guide.contentHtml()).isNull();
                         });
+    }
+
+    @Test
+    @DisplayName("관리 카탈로그는 의미 없는 활성 문서를 미등록 상태로 반환한다")
+    void getCatalog_의미없는HTML_미등록상태() {
+        given(guideDocRepository.findActiveFormGuides("FDOC-", "info."))
+                .willReturn(List.of(guide("FDOC-2026-0001", GUIDE_ID, "<p><br></p>")));
+
+        FormGuideDto.CatalogResponse result =
+                formGuideService.getCatalog(FormGuideScope.INFO).stream()
+                        .filter(item -> GUIDE_ID.equals(item.guideId()))
+                        .findFirst()
+                        .orElseThrow();
+
+        assertThat(result.docMngNo()).isNull();
+        assertThat(result.contentHtml()).isNull();
     }
 
     @Test
@@ -160,6 +198,28 @@ class FormGuideServiceTest {
                 .hasMessageContaining("본문");
 
         verifyNoInteractions(guideDocRepository);
+    }
+
+    @Test
+    @DisplayName("구조만 있거나 제로폭 문자뿐인 본문은 저장하지 않는다")
+    void save_의미없는HTML_잘못된인자예외() {
+        for (String content : List.of("<p></p>", "<p><br></p>", "<p>\u200B\uFEFF</p>")) {
+            assertThatThrownBy(
+                            () ->
+                                    formGuideService.save(
+                                            GUIDE_ID, new FormGuideDto.SaveRequest(content)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("본문");
+        }
+        verifyNoInteractions(guideDocRepository);
+    }
+
+    private static Bgdocm guide(String docMngNo, String guideId, String contentHtml) {
+        return Bgdocm.builder()
+                .docMngNo(docMngNo)
+                .docTtlCone(guideId)
+                .nacTxtInf(contentHtml)
+                .build();
     }
 
     @Test

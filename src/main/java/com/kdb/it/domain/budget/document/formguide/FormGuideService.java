@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -64,13 +66,15 @@ public class FormGuideService {
                 .map(
                         entry -> {
                             Bgdocm document = documents.get(entry.guideId());
+                            boolean registered =
+                                    document != null && hasContent(document.getNacTxtInf());
                             return new FormGuideDto.CatalogResponse(
                                     entry.guideId(),
                                     entry.section(),
                                     entry.fieldLabel(),
                                     entry.controlType(),
-                                    document == null ? null : document.getDocMngNo(),
-                                    document == null ? null : document.getNacTxtInf());
+                                    registered ? document.getDocMngNo() : null,
+                                    registered ? document.getNacTxtInf() : null);
                         })
                 .toList();
     }
@@ -167,6 +171,13 @@ public class FormGuideService {
     }
 
     private static boolean hasContent(String contentHtml) {
-        return contentHtml != null && !contentHtml.isBlank();
+        if (contentHtml == null || contentHtml.isBlank()) {
+            return false;
+        }
+        Document document = Jsoup.parseBodyFragment(contentHtml);
+        if (!document.select("img, table, math-field, [data-file-id], [data-latex]").isEmpty()) {
+            return true;
+        }
+        return !document.text().replaceAll("[\\s\\u200B-\\u200D\\u2060\\uFEFF]", "").isEmpty();
     }
 }
