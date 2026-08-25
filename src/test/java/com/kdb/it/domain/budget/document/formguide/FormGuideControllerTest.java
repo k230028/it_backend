@@ -53,4 +53,20 @@ class FormGuideControllerTest {
                 .andExpect(jsonPath("$[0].fieldLabel").value("사업명"))
                 .andExpect(jsonPath("$[0].contentHtml").value("<p>안내</p>"));
     }
+
+    @Test
+    @DisplayName("공개 길라잡이 조회는 빈 사업 유형을 400으로 거부한다")
+    @WithMockUser(username = "10001")
+    void getPublished_빈사업유형_400() throws Exception {
+        mockMvc.perform(get("/api/form-guides").param("scope", " "))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("공개 길라잡이 조회는 지원하지 않는 사업 유형을 400으로 거부한다")
+    @WithMockUser(username = "10001")
+    void getPublished_지원하지않는사업유형_400() throws Exception {
+        mockMvc.perform(get("/api/form-guides").param("scope", "unknown"))
+                .andExpect(status().isBadRequest());
+    }
 }

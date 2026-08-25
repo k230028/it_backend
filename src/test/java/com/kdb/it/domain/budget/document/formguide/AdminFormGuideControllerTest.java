@@ -69,6 +69,22 @@ class AdminFormGuideControllerTest {
     }
 
     @Test
+    @DisplayName("관리 카탈로그 조회는 빈 사업 유형을 400으로 거부한다")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void getCatalog_빈사업유형_400() throws Exception {
+        mockMvc.perform(get("/api/admin/form-guides/catalog").param("scope", " "))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("관리 카탈로그 조회는 지원하지 않는 사업 유형을 400으로 거부한다")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void getCatalog_지원하지않는사업유형_400() throws Exception {
+        mockMvc.perform(get("/api/admin/form-guides/catalog").param("scope", "unknown"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("관리 길라잡이 저장은 일반 사용자 요청을 403으로 거부한다")
     @WithMockUser(username = "10001")
     void save_일반사용자_403() throws Exception {
