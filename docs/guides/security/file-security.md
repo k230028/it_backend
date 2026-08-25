@@ -25,6 +25,7 @@
 | `요구사항정의서` | `Brdocm`(`DOC_MNG_NO`, 최신 버전) | 관리자 OR 작성자(`FST_ENR_USID`) OR 주관부서(`SVN_DPM_C == 사용자 bbrC`) |
 | `사업계획서`·`타당성검토표`·`협의회관련자료` | 협의회(`IT_PTL_ASCT_ID`) | 관리자/정보보안관리자 OR 해당 협의회 위원 OR 관련부서(협의회 사업 `BPROJM.SVN_DPM_C == 사용자 bbrC`) |
 | `가이드문서` | `Bgdocm` | 인증 사용자 전체(전사 공개, default-deny의 명시적 예외) |
+| `정보화사업` | `Bprojm`(`ABUS_MNG_NO`, `DEL_YN='N'`) | 인증 사용자 전체(사업 상세 API와 같은 범위, default-deny의 명시적 예외). 사업이 없거나 삭제되었으면 거부. 경상사업도 같은 원장이라 종류를 공유 |
 | `편성요청서반입` | 반입받은 신청서번호 → `Cappla` 매핑이 가리키는 원장(`BPROJM`·`BCOSTM`) | 관리자 OR 연결 원장의 주관부서(`SVN_DPM_C == 사용자 bbrC`). 매핑·원장이 없으면 거부 |
 | (미등록·`null` 종류) | — | 관리자만(default-deny) |
 
@@ -45,6 +46,7 @@
 신규 첨부 대상 종류는 `FileTargetWriteAuthorizer`를 구현해 등록합니다. `FileTargetWriteAuthorizerRegistry`가 기동 시 수집하며 같은 종류 중복 등록은 `IllegalStateException`으로 기동이 실패합니다(읽기 레지스트리와 동일).
 
 - **읽기와 기본값이 다릅니다**: 읽기는 default-deny(미등록 종류는 관리자만), 쓰기는 미등록 레거시 종류의 기존 업로드 동작을 보존합니다. 등록된 종류만 부모 존재와 작성 권한(`canWrite`)을 강제합니다.
+- `정보화사업`은 사업 본문 수정과 같은 규칙(`OwnershipVerifier.verifyModifiable`: 관리자 OR 최초 작성자 OR 주관부서가 같은 기획통할담당자)을 씁니다. 본문을 못 고치는 사용자가 첨부만 바꿀 수 있는 틈을 만들지 않기 위해서입니다.
 - `allowsGenericMutation() == false`인 종류(현재 `편성요청서반입`)는 generic 파일 API의 신규 연결·수정·삭제가 모두 거부되고(관리자 포함), 전용 writer(`RequestFormSourceFileArchiver`)의 내부 경로만 파일을 만듭니다. 이 내부 경로는 컨트롤러의 대상 쓰기 레지스트리를 거치지 않습니다.
 
 ## 데이터 정합성
