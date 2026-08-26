@@ -2,6 +2,7 @@ package com.kdb.it.domain.migration.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
@@ -162,18 +163,19 @@ class RequestFormImportIt {
     }
 
     @Test
-    @DisplayName("같은 파일을 두 번 반영하면 중복으로 차단되고 원장이 늘지 않는다")
-    void rejectsReupload() {
+    @DisplayName("같은 파일을 두 번 반영하면 중복 사업은 경고하고 건너뛴다")
+    void warnsAndSkipsProjectsOnReupload() {
         commit(fullForm("요청서.xls"));
         int afterFirst = countOf("TPRMPP_BCOSTM");
 
         RequestFormDto.ImportResponse second = commit(fullForm("요청서.xls"));
 
-        assertThat(second.files().get(0).status()).isEqualTo(RequestFormDto.FileStatus.BLOCKED);
+        assertThat(second.files().get(0).status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
         assertThat(second.files().get(0).diagnostics())
-                .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.DUPLICATE_EXISTS);
-        assertThat(countOf("TPRMPP_BCOSTM")).isEqualTo(afterFirst);
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.DUPLICATE_EXISTS)
+                .extracting(RequestFormDto.FormDiagnostic::severity)
+                .containsOnly(MigrationDto.Severity.WARNING);
+        assertThat(countOf("TPRMPP_BCOSTM")).isGreaterThan(afterFirst);
     }
 
     @Test

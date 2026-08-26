@@ -548,7 +548,7 @@ class GeneralExpenseFormAdapterTest {
     }
 
     @Test
-    @DisplayName("소계·계 집계 행과 통화 칸 좌우가 빈 행은 읽지 않는다")
+    @DisplayName("계·소계·합계에 괄호 설명이 붙은 집계 행과 통화 칸 좌우가 빈 행은 읽지 않는다")
     void skipsSummaryRows() {
         FormAdapterOutput output =
                 adapter.adapt(

@@ -196,17 +196,18 @@ class FormAdapterResolutionPathTest {
     }
 
     @Test
-    @DisplayName("시트 ③ 정보보호 표기를 해석하지 못하면 미해석 진단을 낸다")
-    void generalExpenseInfoSecUnresolved() {
+    @DisplayName("시트 ③ 정보보호 표기를 해석하지 못하면 N으로 기본 처리하고 경고를 낸다")
+    void generalExpenseInfoSecDefaultsToNo() {
         GeneralExpenseFormAdapter adapter = generalExpenseAdapter();
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(generalExpenseSheet("해당없음", "GBP"), Map.of()));
 
-        assertThat(output.costs().get(0).getSectSysUtzYn()).isNull();
+        assertThat(output.costs().get(0).getSectSysUtzYn()).isEqualTo("N");
         assertThat(output.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.CODE_UNRESOLVED);
+                .contains(RequestFormDiagnosticCode.CODE_DEFAULTED)
+                .doesNotContain(RequestFormDiagnosticCode.CODE_UNRESOLVED);
     }
 
     @Test

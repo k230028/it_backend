@@ -156,11 +156,11 @@ class OrgIdentityResolverTest {
     }
 
     @Test
-    @DisplayName("조직에 없는 부서코드가 적혀 있으면 괄호를 뗀 이름으로 되돌아간다")
-    void 미등록_부서코드는_이름해석으로_되돌아간다() {
+    @DisplayName("조직에 없는 부서코드도 폴더의 코드와 부서명으로 확정한다")
+    void 미등록_부서코드는_폴더표기로_확정한다() {
         OrgIdentityResolver.Resolution result = index.resolveOrgFolder("IT기획부(9999)");
 
-        assertThat(result.code()).isEqualTo("0210");
+        assertThat(result.code()).isEqualTo("9999");
         assertThat(result.label()).isEqualTo("IT기획부");
     }
 

@@ -46,7 +46,8 @@ public final class FormLexicon {
             Set.of("O", "o", "○", "◯", "０", "0", "√", "∨", "V", "v", "Y", "y", "●", "◎");
 
     /** 부정 표기 집합. 런던 제출본의 `Ⅹ`는 알파벳 X가 아니라 로마숫자 10(U+2169)입니다. */
-    private static final Set<String> NEGATIVE = Set.of("X", "x", "Ⅹ", "✕", "✖", "ㄨ", "N", "n", "-");
+    private static final Set<String> NEGATIVE =
+            Set.of("X", "x", "Ⅹ", "✕", "✖", "×", "ㄨ", "N", "n", "-");
 
     /**
      * 국문 정본 라벨의 표기 목록을 만듭니다.
@@ -220,11 +221,22 @@ public final class FormLexicon {
      */
     public static String canonicalEdrtName(String raw) {
         if (raw == null) return "";
-        String exact = EDRT_CANONICAL.get(SheetAnchorScanner.normalize(raw));
+        String withoutExpectation =
+                raw.replaceFirst("\\s*[(（]\\s*예상\\s*[)）]\\s*$", "").trim();
+        String exact = EDRT_CANONICAL.get(SheetAnchorScanner.normalize(withoutExpectation));
         if (exact != null) return exact;
         // `IDT본부장`처럼 소관을 앞에 붙여 적는 표기. 코드표에 `본부장`으로 끝나는 직명은 지역본부장뿐이다
-        if (SheetAnchorScanner.normalize(raw).contains("본부장")) return "지역본부장";
-        return canonicalOptionName(raw);
+        String normalized = SheetAnchorScanner.normalize(withoutExpectation);
+        if (normalized.contains("본부장")) return "지역본부장";
+        // `디지털전략부장`처럼 부서명을 붙인 직책은 부서장과 같은 전결권인 부점장으로 접는다.
+        if (normalized.endsWith("부장")) return "부점장";
+        return canonicalOptionName(withoutExpectation);
+    }
+
+    /** 사업명 칸에 적은 `해당 없음` 계열 문구인지 판정합니다. */
+    public static boolean isNotApplicableProjectName(String raw) {
+        String normalized = SheetAnchorScanner.normalize(raw);
+        return normalized.endsWith("해당없음") || normalized.endsWith("해당사항없음");
     }
 
     private static Map<String, String> edrtCanonical() {

@@ -195,7 +195,13 @@ final class GeneralExpenseRowReader {
     }
 
     private static boolean isSummaryLabel(String value) {
-        return SUMMARY_LABELS.contains(SheetAnchorScanner.normalize(value));
+        String normalized = SheetAnchorScanner.normalize(value);
+        if (SUMMARY_LABELS.contains(normalized)) return true;
+        return SUMMARY_LABELS.stream()
+                .anyMatch(
+                        label ->
+                                normalized.startsWith(label + "(")
+                                        || normalized.startsWith(label + "（"));
     }
 
     /**

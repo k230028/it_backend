@@ -8,6 +8,7 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.AmountUnitResolver;
+import com.kdb.it.domain.migration.request.service.FormLexicon;
 import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -55,6 +57,9 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
      */
     private static final BigDecimal WHOLE_PERIOD_RATIO_LIMIT = BigDecimal.valueOf(100);
 
+    /** 1-1 요청예산을 품목 합계로 자동 보정하는 오차율 상한(배타). */
+    private static final BigDecimal CURRENT_AMOUNT_TOLERANCE_PERCENT = BigDecimal.valueOf(3);
+
     private final CapitalOverviewReader overviewReader;
     private final ResourceTableReader resourceTableReader;
     private final MigrationIoeCatalogReader catalogReader;
@@ -71,19 +76,37 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
 
         CapitalOverviewReader.Result read = overviewReader.read(overview, context, catalogs());
         ProjectDto.CreateRequest project = read.project();
-        if (project.getAbusNm() == null || project.getAbusNm().isBlank()) {
+        if (project.getAbusNm() == null
+                || project.getAbusNm().isBlank()
+                || FormLexicon.isNotApplicableProjectName(project.getAbusNm())) {
             // 1-1 시트가 빈 껍데기인 파일(경상사업·일반관리비만 낸 부점)이라 진단 없이 건너뛴다
             return FormAdapterOutput.empty();
         }
 
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>(read.diagnostics());
-        List<ProjectDto.BitemmDto> items =
+        ItemReadResult itemRead =
                 readItems(context, read.amounts(), project.getAbusNm(), diagnostics);
+        List<ProjectDto.BitemmDto> items = itemRead.items();
         project.setItems(items);
 
         BigDecimal itemTotal = sumItemAmounts(items);
+        BigDecimal declaredCurrent =
+                read.amounts().yearRequestWon() != null
+                        ? read.amounts().yearRequestWon()
+                        : read.amounts().summaryUnit() == null
+                                        || read.amounts().yearTotalRaw() == null
+                                ? null
+                                : read.amounts()
+                                        .summaryUnit()
+                                        .toWon(read.amounts().yearTotalRaw());
+        BigDecimal declaredCurrentBasis =
+                closestCurrentBasis(
+                        itemTotal,
+                        itemRead.generalExpenseAmounts(),
+                        read.amounts().yearTotalRaw(),
+                        declaredCurrent);
         Optional<AmountUnit> itemUnit =
-                AmountUnitResolver.inferUnit(read.amounts().yearTotalRaw(), itemTotal);
+                AmountUnitResolver.inferUnit(read.amounts().yearTotalRaw(), declaredCurrentBasis);
         // 1-2 품목 합계로 대사되지 않으면 1-1이 스스로 적은 `'26년도 필요예산 편성요청`을 두 번째 기준점으로 쓴다.
         // 같은 금액을 단위와 함께 한 번 더 적은 칸이라 1-2와 어긋난 파일에서도 요약표 배수를 확정할 수 있다
         Optional<AmountUnit> unit =
@@ -91,20 +114,27 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                         ? itemUnit
                         : AmountUnitResolver.inferUnit(
                                 read.amounts().yearTotalRaw(), read.amounts().yearRequestWon());
-        reconcileTotals(
-                read.amounts().yearTotalRaw(),
-                itemTotal,
-                itemUnit,
-                unit,
-                project.getAbusNm(),
-                diagnostics);
         ProjectAmounts amounts =
                 declaredAmounts(
                         read.amounts(),
                         unit,
+                        itemTotal,
+                        !itemRead.generalExpenseAmounts().isEmpty()
+                                && AmountUnitResolver.inferUnit(
+                                                read.amounts().yearTotalRaw(),
+                                                declaredCurrentBasis)
+                                        .isPresent(),
                         hasForeignCurrencyItem(items),
                         project.getAbusNm(),
                         diagnostics);
+        reconcileTotals(
+                read.amounts().yearTotalRaw(),
+                declaredCurrentBasis,
+                itemUnit,
+                unit,
+                amounts,
+                project.getAbusNm(),
+                diagnostics);
 
         return new FormAdapterOutput(
                 List.of(project), List.of(), List.copyOf(diagnostics), null, List.of(amounts));
@@ -139,7 +169,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
     }
 
     /** 1-2의 두 블록을 읽고, 시트가 없으면 1-1 비목별 요약 행으로 품목을 만듭니다. */
-    private List<ProjectDto.BitemmDto> readItems(
+    private ItemReadResult readItems(
             FormAdapterContext context,
             CapitalOverviewReader.DeclaredAmounts declared,
             String projectName,
@@ -147,7 +177,8 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         Sheet resource = context.sheets().get(FormSheetKind.CAPITAL_RESOURCE);
         List<ProjectDto.BitemmDto> items = new ArrayList<>();
         if (resource == null) {
-            return summaryItems(declared, projectName, context, diagnostics);
+            return new ItemReadResult(
+                    summaryItems(declared, projectName, context, diagnostics), List.of());
         }
 
         int sno = 1;
@@ -161,12 +192,70 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         int nextFrom = capital.map(result -> result.headerRow() + 1).orElse(0);
         Optional<ResourceTableReader.Result> general =
                 resourceTableReader.readCapitalResource(resource, nextFrom, true);
+        List<ProjectDto.BitemmDto> generalItems = new ArrayList<>();
         if (general.isPresent()) {
             for (ResourceRow row : general.get().rows()) {
-                items.add(toItem(row, context, sno++, diagnostics));
+                generalItems.add(toItem(row, context, sno++, diagnostics));
             }
         }
-        return items;
+        if (items.isEmpty()) {
+            items.addAll(summaryItems(declared, projectName, context, diagnostics));
+        }
+        moveExactPlannedItem(items, declared);
+        List<BigDecimal> generalExpenseAmounts =
+                generalItems.stream()
+                        .map(ProjectDto.BitemmDto::getAmt)
+                        .filter(Objects::nonNull)
+                        .toList();
+        return new ItemReadResult(List.copyOf(items), generalExpenseAmounts);
+    }
+
+    /** 일반관리비가 당해·예정 순으로 이어진 양식은 당해 선언액에 가장 가까운 앞쪽 행까지만 대사합니다. */
+    private static BigDecimal closestCurrentBasis(
+            BigDecimal capitalTotal,
+            List<BigDecimal> generalExpenseAmounts,
+            BigDecimal declaredRaw,
+            BigDecimal declaredCurrent) {
+        BigDecimal candidate = capitalTotal;
+        if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
+        for (BigDecimal amount : generalExpenseAmounts) {
+            candidate = candidate.add(amount);
+            if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
+        }
+        BigDecimal best = capitalTotal;
+        if (declaredCurrent == null) {
+            return candidate;
+        }
+        BigDecimal bestGap = declaredCurrent.subtract(best).abs();
+        candidate = capitalTotal;
+        for (BigDecimal amount : generalExpenseAmounts) {
+            candidate = candidate.add(amount);
+            BigDecimal gap = declaredCurrent.subtract(candidate).abs();
+            if (gap.compareTo(bestGap) < 0) {
+                best = candidate;
+                bestGap = gap;
+            }
+        }
+        return best;
+    }
+
+    /** 저장할 자본 품목과 1-1 금액 대사에만 쓸 일반관리비 행 금액을 함께 전달합니다. */
+    private record ItemReadResult(
+            List<ProjectDto.BitemmDto> items, List<BigDecimal> generalExpenseAmounts) {}
+
+    /** 1-1 예정금액과 정확히 같은 단일 자본 품목은 당해가 아니라 예정 품목으로 분리합니다. */
+    private void moveExactPlannedItem(
+            List<ProjectDto.BitemmDto> items, CapitalOverviewReader.DeclaredAmounts declared) {
+        if (declared.summaryUnit() == null || declared.laterTotalRaw() == null) return;
+        BigDecimal planned = declared.summaryUnit().toWon(declared.laterTotalRaw());
+        List<ProjectDto.BitemmDto> matches =
+                items.stream()
+                        .filter(item -> item.getAmt() != null)
+                        .filter(item -> item.getAmt().compareTo(planned) == 0)
+                        .toList();
+        if (matches.size() != 1) return;
+        matches.getFirst().setAmt(BigDecimal.ZERO);
+        matches.getFirst().setMplAmt(planned);
     }
 
     /** 1-2가 없는 단일 시트 양식의 1-1 비목별 합계를 합성 BITEMM DTO로 바꿉니다. */
@@ -344,18 +433,19 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             BigDecimal itemTotal,
             Optional<AmountUnit> itemUnit,
             Optional<AmountUnit> unit,
+            ProjectAmounts amounts,
             String projectName,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (declaredYearTotal == null || itemTotal.signum() == 0) return;
         if (itemUnit.isPresent()) return;
 
+        BigDecimal requested = unit.map(value -> value.toWon(declaredYearTotal)).orElse(null);
+        if (requested != null && isBelowCurrentAmountTolerance(requested, itemTotal)) return;
+
         String message =
                 unit.isPresent()
-                        ? "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 다릅니다. 요약표의 기재 단위는 `필요예산 편성요청` 칸과 대사해 %s으로 확정했습니다."
-                                .formatted(
-                                        declaredYearTotal.toPlainString(),
-                                        itemTotal.toPlainString(),
-                                        unit.get().label())
+                        ? amountMismatchMessage(
+                                requested, itemTotal, amounts, unit.get())
                         : "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
                                 .formatted(
                                         declaredYearTotal.toPlainString(),
@@ -390,6 +480,8 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
     private ProjectAmounts declaredAmounts(
             CapitalOverviewReader.DeclaredAmounts declared,
             Optional<AmountUnit> unit,
+            BigDecimal itemTotal,
+            boolean separateGeneralExpense,
             boolean foreignCurrencyItems,
             String projectName,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
@@ -424,6 +516,11 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 declared.laterTotalRaw() == null
                         ? BigDecimal.ZERO
                         : resolved.toWon(declared.laterTotalRaw());
+        if (itemTotal.signum() > 0
+                && (separateGeneralExpense || isBelowCurrentAmountTolerance(year, itemTotal))) {
+            BigDecimal adjustedPaid = whole.subtract(later).subtract(itemTotal);
+            if (adjustedPaid.signum() >= 0) year = itemTotal;
+        }
         BigDecimal paid = whole.subtract(later).subtract(year);
 
         // 조건 ⑥(모호): `총 사업금액(전체기간)`에 접미사가 없어 요약표 배수로 폴백한 경우에 한해,
@@ -482,6 +579,40 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                     diagnostics);
         }
         return new ProjectAmounts(whole, later, paid);
+    }
+
+    private static boolean isBelowCurrentAmountTolerance(
+            BigDecimal requested, BigDecimal itemTotal) {
+        if (requested == null || itemTotal == null || itemTotal.signum() <= 0) return false;
+        return requested
+                        .subtract(itemTotal)
+                        .abs()
+                        .multiply(BigDecimal.valueOf(100))
+                        .compareTo(itemTotal.multiply(CURRENT_AMOUNT_TOLERANCE_PERCENT))
+                < 0;
+    }
+
+    private static String amountMismatchMessage(
+            BigDecimal requested,
+            BigDecimal itemTotal,
+            ProjectAmounts amounts,
+            AmountUnit unit) {
+        BigDecimal gapPercent =
+                requested
+                        .subtract(itemTotal)
+                        .abs()
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(itemTotal, 2, java.math.RoundingMode.HALF_UP);
+        String planned = amounts.isPresent() ? amounts.mplAmt().toPlainString() : "산출 불가";
+        String paid = amounts.isPresent() ? amounts.dfrAmt().toPlainString() : "산출 불가";
+        return "1-1 요청금액(%s)과 1-2 품목 합계(%s)의 차이가 %s%%로 자동 보정 범위(3%% 미만)를 벗어납니다. 예정금액=%s, 기지급금액=%s입니다. 요약표 단위는 %s으로 확정했습니다."
+                .formatted(
+                        requested.toPlainString(),
+                        itemTotal.toPlainString(),
+                        gapPercent.toPlainString(),
+                        planned,
+                        paid,
+                        unit.label());
     }
 
     /**

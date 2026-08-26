@@ -251,6 +251,33 @@ class ResourceTableReaderTest {
     }
 
     @Test
+    @DisplayName("다음 연도 도입 품목은 당해가 아니라 예정금액으로 분리한다")
+    void routesNextYearItemToPlannedAmount() {
+        ProjectDto.BitemmDto item =
+                ResourceTableReader.toItem(
+                        row("KRW", new BigDecimal("202746300"), "27.1월"),
+                        "101",
+                        1,
+                        "2026");
+
+        assertThat(item.getAmt()).isZero();
+        assertThat(item.getMplAmt()).isEqualByComparingTo("202746300");
+    }
+
+    @Test
+    @DisplayName("한글과 기호로 적은 원화 통화는 KRW로 정규화한다")
+    void normalizesKoreanWonCurrencyAliases() {
+        for (String currency : List.of("원", "원화", "₩", "원화(KRW)", "KRW(원화)")) {
+            ProjectDto.BitemmDto item =
+                    toItem(row(currency, new BigDecimal("500"), "년"));
+
+            assertThat(item.getCurC()).as(currency).isEqualTo("KRW");
+            assertThat(item.getAmt()).as(currency).isEqualByComparingTo("500");
+            assertThat(item.getFcAmt()).as(currency).isNull();
+        }
+    }
+
+    @Test
     @DisplayName("국내 정보화사업의 통화 단위가 비면 KRW 백만원으로 본다")
     void defaultsBlankDomesticCapitalCurrencyToKrwMillions() {
         ProjectDto.BitemmDto item =

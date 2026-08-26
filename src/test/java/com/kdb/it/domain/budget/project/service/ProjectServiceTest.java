@@ -3430,12 +3430,12 @@ class ProjectServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // assignDeclaredAmounts — 구 이관 호출도 품목 중앙 계산 불변식 유지
+    // assignDeclaredAmounts — 요청서가 선언한 전체기간·예정·지급 금액 보존
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("구 이관 경로도 선언 total/MPL을 무시하고 품목 합계와 DFR로 스냅샷을 기록한다")
-    void assignDeclaredAmounts_keepsItemCalculatedSnapshot() {
+    @DisplayName("요청서의 전체기간·예정·지급 금액을 그대로 스냅샷에 기록한다")
+    void assignDeclaredAmounts_keepsDeclaredSnapshot() {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).build();
         Bitemm item =
                 Bitemm.builder()
@@ -3456,8 +3456,8 @@ class ProjectServiceTest {
                 new BigDecimal("888"),
                 new BigDecimal("20"));
 
-        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("420");
-        assertThat(project.getMplAmt()).isEqualByComparingTo("300");
+        assertThat(project.getTotRqmAmt()).isEqualByComparingTo("999");
+        assertThat(project.getMplAmt()).isEqualByComparingTo("888");
         assertThat(project.getDfrAmt()).isEqualByComparingTo("20");
     }
 

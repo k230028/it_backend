@@ -3,7 +3,9 @@ package com.kdb.it.domain.migration.request.service;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -97,7 +99,21 @@ public class WorkbookReader {
      * @throws WorkbookOpenException 어떤 시트의 행 수가 상한을 넘는 경우
      */
     public Map<FormSheetKind, Sheet> classify(Workbook workbook) {
-        Map<FormSheetKind, Sheet> classified = new EnumMap<>(FormSheetKind.class);
+        List<Map<FormSheetKind, Sheet>> groups = classifyGroups(workbook);
+        return groups.isEmpty() ? Map.of() : groups.getFirst();
+    }
+
+    /**
+     * 같은 종류의 시트가 여러 장인 워크북을 제출 순서별 요청서 묶음으로 분류합니다.
+     *
+     * <p>부점은 한 파일에 `1-1`·`1-2`·`일반관리비` 시트를 복제해 여러 요청서를 담기도 합니다. 종류별 n번째 시트를 같은 n번째
+     * 묶음으로 짝지어 모든 요청서를 보존합니다.
+     *
+     * @param workbook 열린 워크북
+     * @return 요청서 묶음 목록. 인식된 시트가 없으면 빈 목록
+     */
+    public List<Map<FormSheetKind, Sheet>> classifyGroups(Workbook workbook) {
+        Map<FormSheetKind, List<Sheet>> sheetsByKind = new EnumMap<>(FormSheetKind.class);
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
             Optional<FormSheetKind> kind = FormSheetKind.ofSheetName(sheet.getSheetName());
@@ -107,9 +123,20 @@ public class WorkbookReader {
                         "시트 `%s`의 행 수가 상한(%d행)을 넘습니다"
                                 .formatted(sheet.getSheetName(), maxRowsPerSheet));
             }
-            classified.putIfAbsent(kind.get(), sheet);
+            sheetsByKind.computeIfAbsent(kind.get(), ignored -> new ArrayList<>()).add(sheet);
         }
-        return classified;
+        int groupCount = sheetsByKind.values().stream().mapToInt(List::size).max().orElse(0);
+        List<Map<FormSheetKind, Sheet>> groups = new ArrayList<>(groupCount);
+        for (int groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+            Map<FormSheetKind, Sheet> group = new EnumMap<>(FormSheetKind.class);
+            for (Map.Entry<FormSheetKind, List<Sheet>> entry : sheetsByKind.entrySet()) {
+                if (groupIndex < entry.getValue().size()) {
+                    group.put(entry.getKey(), entry.getValue().get(groupIndex));
+                }
+            }
+            groups.add(Map.copyOf(group));
+        }
+        return List.copyOf(groups);
     }
 
     private static boolean startsWith(byte[] bytes, byte[] prefix) {

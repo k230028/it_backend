@@ -211,18 +211,17 @@ class CapitalOverviewReaderTest {
     }
 
     @Test
-    @DisplayName("담당자 이름이 컬럼 길이를 넘으면 잘라 담고 알린다")
-    void truncatesOverlongPersonName() {
-        // 영문 성명은 14자를 넘길 수 있다. 파일을 막는 대신 잘라 담는다
+    @DisplayName("영문 담당자 이름은 이름 컬럼 길이 안에서 그대로 담는다")
+    void keepsEnglishPersonNameForNameColumn() {
         Sheet sheet = overviewSheet(Map.of("사업명", "사업", "팀장", "Luke Buckingham-Brown"));
 
         CapitalOverviewReader.Result result =
                 reader.read(sheet, context(Map.of()), FormCatalogs.empty());
 
-        assertThat(result.project().getTlrUsid()).isEqualTo("Luke Buckingha").hasSize(14);
+        assertThat(result.project().getTlrUsid()).isEqualTo("Luke Buckingham-Brown");
         assertThat(result.diagnostics())
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
+                .doesNotContain(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
     }
 
     @Test

@@ -324,6 +324,21 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             return;
         }
 
+        // 실측 제출본에서 API 사용료 행은 비목 두 칸을 모두 비워 두었지만, 같은 제출본의 수정본은
+        // 국내전산임차료로 명시했다. 확인된 계약명 표기일 때만 그 중분류로 좁힌다.
+        String normalizedContract = SheetAnchorScanner.normalize(row.contractName());
+        if (!context.foreignBranch()
+                && row.midCategory().isBlank()
+                && row.detailName().isBlank()
+                && normalizedContract.contains("API사용")) {
+            IoeHierarchyIndex.Resolution apiUsage =
+                    context.ioeIndex().resolveByGroup("전산임차료", true);
+            if (apiUsage.code() != null) {
+                request.setIoeC(apiUsage.code());
+                return;
+            }
+        }
+
         // (중분류, 세부) 쌍이 빗나가면 A열·B열을 각각 중분류로 한 번 더 본다. 부점이 세부비목 칸에 중분류를
         // 그대로 적어 내는 경우가 있고(런던 실측: `Machinery`), 그때는 통화의 국내·국외 구분이 두 번째 열쇠가
         // 된다. B열을 먼저 보는 이유는 그쪽이 더 구체적이기 때문이다.
@@ -438,12 +453,14 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         if (infoSec.isPresent()) {
             request.setSectSysUtzYn(infoSec.get());
         } else {
+            request.setSectSysUtzYn("N");
             diagnostics.add(
                     diagnostic(
                             row,
                             "sectSysUtzYn",
-                            RequestFormDiagnosticCode.CODE_UNRESOLVED,
-                            "정보보호 여부 표기 `%s`를 해석하지 못했습니다.".formatted(row.infoSec()),
+                            RequestFormDiagnosticCode.CODE_DEFAULTED,
+                            "정보보호 여부 표기 `%s`를 해석하지 못해 일반 항목(N)으로 처리했습니다."
+                                    .formatted(row.infoSec()),
                             List.of()));
         }
         request.setAbusTc(

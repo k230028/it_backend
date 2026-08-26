@@ -252,6 +252,16 @@ public class ProjectService {
         return project.getAbusMngNo(); // 저장된 관리번호 반환
     }
 
+    /** 편성요청서 반입에서 사번을 추정하지 않고 양식의 이름만 스냅샷 컬럼에 기록합니다. */
+    @Transactional
+    public void assignImportedPersonNames(String abusMngNo, String tlrNm, String usrNm) {
+        Bprojm project =
+                projectRepository
+                        .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
+                        .orElseThrow(() -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
+        project.assignPersonNames(tlrNm, usrNm);
+    }
+
     /**
      * 품목 동기화 협력자를 만듭니다.
      *
@@ -441,14 +451,13 @@ public class ProjectService {
     }
 
     /**
-     * 구 이관 호출의 선언 지급금액을 품목 중앙 계산 스냅샷에 반영합니다.
+     * 편성요청서가 선언한 전체기간·예정·지급 금액을 사업 스냅샷에 반영합니다.
      *
-     * <p>호환 시그니처의 선언 total/MPL은 신뢰하지 않습니다. 활성 최신 품목의 AMT/MPL을 다시 계산하고 선언 DFR만 더해 저장하므로 1-1과 1-2가
-     * 불일치해도 master 스냅샷이 품목 정본에서 벗어나지 않습니다. 신규 importer는 이 메서드를 호출하지 않고 생성 요청에 DFR만 전달합니다.
+     * <p>일반 등록·수정은 품목 합계를 정본으로 쓰지만, 편성요청서 반입은 품목에 없는 전체기간 총액과 향후예산을 1-1에서 읽으므로 세 값을 함께 보존합니다.
      *
      * @param abusMngNo 사업관리번호
-     * @param totRqmAmt 호환용 선언 총소요금액(저장에는 사용하지 않음)
-     * @param mplAmt 호환용 선언 예정금액(저장에는 사용하지 않음)
+     * @param totRqmAmt 총소요금액
+     * @param mplAmt 예정금액
      * @param dfrAmt 원화 지급금액
      * @throws IllegalArgumentException 사업관리번호에 해당하는 활성 사업이 없는 경우
      */
@@ -460,7 +469,19 @@ public class ProjectService {
                         .findByAbusMngNoAndDelYn(abusMngNo, "N")
                         .orElseThrow(
                                 () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
-        applyAmountSnapshot(project, dfrAmt);
+        validateNonNegative("총소요금액", totRqmAmt);
+        validateNonNegative("예정금액", mplAmt);
+        validateNonNegative("지급금액", dfrAmt);
+        if (totRqmAmt.compareTo(mplAmt.add(dfrAmt)) < 0) {
+            throw new IllegalArgumentException("총소요금액은 예정금액과 지급금액의 합 이상이어야 합니다.");
+        }
+        project.assignAmountSnapshot(totRqmAmt, mplAmt, dfrAmt);
+    }
+
+    private static void validateNonNegative(String fieldName, BigDecimal amount) {
+        if (amount == null || amount.signum() < 0) {
+            throw new IllegalArgumentException(fieldName + "은 0 이상이어야 합니다.");
+        }
     }
 
     /** 공백·null이 아닌 첫 값을 반환합니다. 둘 다 비었으면 null. */

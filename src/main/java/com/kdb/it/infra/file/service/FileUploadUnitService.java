@@ -100,7 +100,11 @@ public class FileUploadUnitService {
         Cfilem cfilem =
                 Cfilem.builder()
                         .flMpnId(flMpnId)
-                        .flNm(originalFilename)
+                        .flNm(
+                                request.getDisplayFileName() == null
+                                                || request.getDisplayFileName().isBlank()
+                                        ? originalFilename
+                                        : request.getDisplayFileName())
                         .flPysNm(flPysNm)
                         .flKpnPth(flKpnPth)
                         .flTpCone(request.getFlTpCone())

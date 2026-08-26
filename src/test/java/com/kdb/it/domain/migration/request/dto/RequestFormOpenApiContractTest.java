@@ -73,6 +73,7 @@ class RequestFormOpenApiContractTest {
                 "REQUIRED_MISSING",
                 "DUPLICATE_EXISTS",
                 "LENGTH_EXCEEDED",
+                "TEXT_TRUNCATED",
                 "CODE_DEFAULTED",
                 "UNIT_UNCERTAIN",
                 "AMOUNT_MISMATCH",

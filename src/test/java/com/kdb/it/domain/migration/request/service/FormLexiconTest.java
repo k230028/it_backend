@@ -59,7 +59,7 @@ class FormLexiconTest {
     @DisplayName("N 표기와 로마숫자 X를 모두 N으로 접는다")
     void normalizesNegativeMarks() {
         // 런던 제출본의 Ⅹ는 알파벳 X가 아니라 로마숫자 10(U+2169)이다
-        for (String raw : new String[] {"X", "x", "Ⅹ", "✕", "N", "n", "", "  "}) {
+        for (String raw : new String[] {"X", "x", "Ⅹ", "✕", "×", "N", "n", "", "  "}) {
             assertThat(FormLexicon.toYn(raw)).as("raw=%s", raw).contains("N");
         }
     }
@@ -119,6 +119,21 @@ class FormLexiconTest {
     }
 
     @Test
+    @DisplayName("전결권 직명 뒤의 예상 주석을 제거해 공통코드명으로 되돌린다")
+    void canonicalizesExpectedApproverAnnotations() {
+        assertThat(FormLexicon.canonicalEdrtName("이사회(예상)")).isEqualTo("이사회");
+        assertThat(FormLexicon.canonicalEdrtName("전무이사 (예상)")).isEqualTo("전무이사");
+    }
+
+    @Test
+    @DisplayName("해당사항 없음이 붙은 사업명은 미작성 표기로 판정한다")
+    void detectsNotApplicableProjectNames() {
+        assertThat(FormLexicon.isNotApplicableProjectName("홍보실 해당사항 없음")).isTrue();
+        assertThat(FormLexicon.isNotApplicableProjectName("해당 없음")).isTrue();
+        assertThat(FormLexicon.isNotApplicableProjectName("해당사항 없음 개선 사업")).isFalse();
+    }
+
+    @Test
     @DisplayName("전결권자의 통칭·소관 직책을 전결권 코드값명으로 되돌린다")
     void canonicalizesDelegationNames() {
         // 부점은 직제상 직명이 아니라 소관 직책을 적는다
@@ -127,6 +142,7 @@ class FormLexiconTest {
         // 소관을 앞에 붙인 본부장 표기는 지역본부장으로 본다
         assertThat(FormLexicon.canonicalEdrtName("IDT본부장")).isEqualTo("지역본부장");
         assertThat(FormLexicon.canonicalEdrtName("동남권 본부장")).isEqualTo("지역본부장");
+        assertThat(FormLexicon.canonicalEdrtName("디지털전략부장")).isEqualTo("부점장");
         // 체크박스 대조표와 공유하는 통칭도 그대로 산다
         assertThat(FormLexicon.canonicalEdrtName("수석부행장")).isEqualTo("전무이사");
         // 코드값명 그대로 적어 낸 값과 대조표에 없는 값은 원문을 넘겨 코드 조회에서 걸러지게 한다

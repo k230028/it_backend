@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.cost.service;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.OrgNameResolver;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.UserNameResolver;
@@ -20,8 +21,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /** 전산업무비 변경 로직과 기존 공개 조회 진입점을 제공하는 호환 파사드입니다. */
 @Service
@@ -49,6 +52,24 @@ public class CostService {
     }
 
     /**
+     * 관리번호의 대표 전산업무비를 소속 부서 범위 검증과 함께 조회합니다.
+     *
+     * <p>시스템관리자가 아니면 담당부서(costSvnDpmC)가 인증 사용자의 부점코드와 같아야 합니다. 예산 작성 화면이 다른 부서 품목을 열지 못하게 하는 서버 측
+     * 최종 검증입니다.
+     *
+     * @param itMngcNo 전산업무비 관리번호
+     * @param user 인증 사용자. null이면 거부
+     * @return 연관 정보가 조립된 상세 응답
+     * @throws IllegalArgumentException 활성 비용이 없는 경우
+     * @throws AccessDeniedException 다른 부서 품목이거나 인증 정보가 없는 경우
+     */
+    public CostDto.Response getCost(String itMngcNo, CustomUserDetails user) {
+        CostDto.Response response = queryService.getCost(itMngcNo);
+        verifyDeptReadable(response.getCostSvnDpmC(), user);
+        return response;
+    }
+
+    /**
      * 삭제되지 않은 전산업무비 전체 목록을 조회합니다.
      *
      * @return 연관 정보가 조립된 목록
@@ -65,6 +86,52 @@ public class CostService {
      */
     public List<CostDto.Response> searchCostList(CostDto.SearchCondition condition) {
         return queryService.searchCostList(condition);
+    }
+
+    /**
+     * 검색 조건에 맞는 전산업무비 목록을 소속 부서 범위를 적용해 조회합니다.
+     *
+     * <p>{@code condition.myDeptOnly}가 true이고 시스템관리자가 아니면 담당부서 조건을 인증 사용자의 부점코드로 덮어씁니다. 클라이언트가 보낸
+     * 부서코드는 권한 근거로 쓰지 않으므로 다른 부서로 범위를 넓힐 수 없습니다.
+     *
+     * @param condition 검색 조건
+     * @param user 인증 사용자. null이면 부서 한정 요청을 거부
+     * @return 조건에 맞는 목록. 부서 한정인데 사용자 부점코드가 없으면 빈 목록
+     */
+    public List<CostDto.Response> searchCostList(
+            CostDto.SearchCondition condition, CustomUserDetails user) {
+        if (!Boolean.TRUE.equals(condition.getMyDeptOnly()) || (user != null && user.isAdmin())) {
+            return queryService.searchCostList(condition);
+        }
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
+        // SSO 미동기화 등으로 부점코드가 없는 계정에 전체 조회를 열지 않는다(데이터 접근 범위 가이드).
+        if (!StringUtils.hasText(user.getBbrC())) {
+            return List.of();
+        }
+        condition.setCostSvnDpmC(user.getBbrC());
+        return queryService.searchCostList(condition);
+    }
+
+    /**
+     * 전산업무비 한 건을 인증 사용자가 조회할 수 있는지 검증합니다.
+     *
+     * @param costSvnDpmC 대상 품목의 담당부서코드
+     * @param user 인증 사용자
+     * @throws AccessDeniedException 인증 정보가 없거나 다른 부서 품목인 경우
+     */
+    private void verifyDeptReadable(String costSvnDpmC, CustomUserDetails user) {
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
+        if (user.isAdmin()) {
+            return;
+        }
+        if (StringUtils.hasText(user.getBbrC()) && user.getBbrC().equals(costSvnDpmC)) {
+            return;
+        }
+        throw new AccessDeniedException("소속 부서의 전산업무비만 조회할 수 있습니다.");
     }
 
     /**
@@ -152,6 +219,16 @@ public class CostService {
             }
         }
         return cost.getCostBgNo();
+    }
+
+    /** 편성요청서 반입에서 사번을 추정하지 않고 양식의 작성자 이름만 스냅샷 컬럼에 기록합니다. */
+    @Transactional
+    public void assignImportedPersonName(String costBgNo, String cgprNm) {
+        Bcostm cost =
+                costRepository
+                        .findByCostBgNoAndLstYnAndDelYn(costBgNo, "Y", "N")
+                        .orElseThrow(() -> new IllegalArgumentException("전산업무비를 찾을 수 없습니다: " + costBgNo));
+        cost.assignCgprName(cgprNm);
     }
 
     /**

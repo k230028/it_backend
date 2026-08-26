@@ -36,6 +36,9 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
      */
     List<Bgdocm> findAllByDelYn(String delYn);
 
+    /** 문서관리번호 접두사와 삭제여부로 활성 문서를 조회합니다. */
+    List<Bgdocm> findAllByDocMngNoStartingWithAndDelYn(String docMngNoPrefix, String delYn);
+
     /**
      * 사업 유형에 맞는 본문이 있는 활성 입력 길라잡이를 조회합니다.
      *

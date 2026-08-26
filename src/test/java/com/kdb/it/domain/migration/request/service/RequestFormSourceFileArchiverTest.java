@@ -3,6 +3,7 @@ package com.kdb.it.domain.migration.request.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
@@ -455,6 +456,28 @@ class RequestFormSourceFileArchiverTest {
         then(fileService).should().uploadFile(any(), captor.capture());
         assertThat(captor.getValue().getApgFlKdNm()).isEqualTo("편성요청서반입");
         assertThat(captor.getValue().getFlTpCone()).isEqualTo("첨부파일");
+    }
+
+    @Test
+    @DisplayName("긴 원본 파일명과 상대경로는 DB 컬럼 길이에 맞춘다")
+    void archive_fitsLongMetadata() {
+        String longName = "가".repeat(120) + ".xlsx";
+        MultipartFile source = file(longName);
+        String fileKey = "상위/" + "긴폴더/".repeat(100) + longName;
+        RequestFormDto.FileResult applied =
+                result(fileKey, "IT부", RequestFormDto.FileStatus.APPLIED, List.of("APF-1"));
+        given(fileService.uploadFile(any(), any())).willReturn("FL-1");
+
+        archiver.archive(
+                List.of(
+                        new RequestFormSourceFileArchiver.ArchivePlanItem(
+                                source, fileKey, "상위", "D01", applied)));
+
+        ArgumentCaptor<FileDto.UploadRequest> captor =
+                ArgumentCaptor.forClass(FileDto.UploadRequest.class);
+        then(fileService).should().uploadFile(eq(source), captor.capture());
+        assertThat(captor.getValue().getDisplayFileName()).hasSize(100).endsWith(".xlsx");
+        assertThat(captor.getValue().getRelativePath()).hasSizeLessThanOrEqualTo(255);
     }
 
     @Test

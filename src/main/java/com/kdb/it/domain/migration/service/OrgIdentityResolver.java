@@ -184,7 +184,10 @@ public class OrgIdentityResolver {
                 String registeredName = orgNameByCode.get(code);
                 return Resolution.of(code, registeredName == null ? name : registeredName);
             }
-            return resolveOrg(name.isEmpty() ? folderName : name);
+            if (!name.isEmpty()) {
+                return Resolution.of(code, name);
+            }
+            return Resolution.unresolved(folderName);
         }
 
         /**

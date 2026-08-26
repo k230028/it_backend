@@ -82,13 +82,23 @@ class RequestFormRelativePathTest {
     }
 
     @Test
-    @DisplayName("정규화된 경로의 최대 길이 255자를 강제한다")
-    void normalize_enforcesMaximumLength() {
+    @DisplayName("정규화된 경로가 255자를 넘으면 가까운 경로만 보존한다")
+    void normalize_fitsMaximumLength() {
         String acceptedKey = "a".repeat(250) + "/x";
         String rejectedKey = "a".repeat(251) + "/x";
 
         assertThat(RequestFormRelativePath.normalize(acceptedKey, "name")).hasSize(255);
-        assertThatThrownBy(() -> RequestFormRelativePath.normalize(rejectedKey, "name"))
+        assertThat(RequestFormRelativePath.normalize(rejectedKey, "name"))
+                .hasSizeLessThanOrEqualTo(255)
+                .isEqualTo("…/name");
+    }
+
+    @Test
+    @DisplayName("공통첨부파일 컬럼을 넘는 101자 파일명을 거부한다")
+    void normalize_rejectsOverlongOriginalFilename() {
+        String fileName = "가".repeat(97) + ".xlsx";
+
+        assertThatThrownBy(() -> RequestFormRelativePath.normalize(fileName, fileName))
                 .isInstanceOf(CustomGeneralException.class);
     }
 }

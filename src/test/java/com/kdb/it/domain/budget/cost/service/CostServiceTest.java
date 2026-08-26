@@ -40,6 +40,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.security.access.AccessDeniedException;
 
 /**
  * CostService 단위 테스트
@@ -668,6 +669,77 @@ class CostServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
+    // searchCostList — 소속 부서 한정(myDeptOnly) 조회 범위
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("searchCostList: myDeptOnly=true인 일반 사용자는 담당부서 조건이 본인 부점코드로 강제된다")
+    void searchCostList_부서한정_일반사용자_본인부서로강제() {
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setMyDeptOnly(true);
+        // 클라이언트가 다른 부서를 보내도 인증 정보의 부점코드로 덮어써야 한다
+        condition.setCostSvnDpmC("999");
+        given(costRepository.searchByCondition(any())).willReturn(List.of());
+
+        costService.searchCostList(condition, user);
+
+        ArgumentCaptor<CostDto.SearchCondition> captor =
+                ArgumentCaptor.forClass(CostDto.SearchCondition.class);
+        verify(costRepository).searchByCondition(captor.capture());
+        assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("101");
+    }
+
+    @Test
+    @DisplayName("searchCostList: myDeptOnly=true라도 시스템관리자는 부서 조건이 강제되지 않는다")
+    void searchCostList_부서한정_관리자_전체조회() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "101");
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setMyDeptOnly(true);
+        given(costRepository.searchByCondition(any())).willReturn(List.of());
+
+        costService.searchCostList(condition, admin);
+
+        ArgumentCaptor<CostDto.SearchCondition> captor =
+                ArgumentCaptor.forClass(CostDto.SearchCondition.class);
+        verify(costRepository).searchByCondition(captor.capture());
+        assertThat(captor.getValue().getCostSvnDpmC()).isNull();
+    }
+
+    @Test
+    @DisplayName("searchCostList: myDeptOnly=true인데 부점코드가 없으면 전체 조회 대신 빈 목록을 반환한다")
+    void searchCostList_부서한정_부점코드없음_빈목록() {
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), null);
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setMyDeptOnly(true);
+
+        List<CostDto.Response> result = costService.searchCostList(condition, user);
+
+        assertThat(result).isEmpty();
+        verify(costRepository, never()).searchByCondition(any());
+    }
+
+    @Test
+    @DisplayName("searchCostList: myDeptOnly가 없으면 부서 조건을 건드리지 않는다")
+    void searchCostList_부서한정아님_조건유지() {
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setCostSvnDpmC("999");
+        given(costRepository.searchByCondition(any())).willReturn(List.of());
+
+        costService.searchCostList(condition, user);
+
+        ArgumentCaptor<CostDto.SearchCondition> captor =
+                ArgumentCaptor.forClass(CostDto.SearchCondition.class);
+        verify(costRepository).searchByCondition(captor.capture());
+        assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("999");
+    }
+
+    // ───────────────────────────────────────────────────────
     // getCost — 정상 조회
     // ───────────────────────────────────────────────────────
 
@@ -688,6 +760,61 @@ class CostServiceTest {
         CostDto.Response result = costService.getCost(IT_MNGC_NO);
 
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getCost(user): 담당부서가 본인 소속 부서이면 상세를 반환한다")
+    void getCost_부서일치_응답반환() {
+        givenDeptScopedCost("101");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+
+        assertThat(costService.getCost(IT_MNGC_NO, user)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getCost(user): 담당부서가 다르면 AccessDeniedException을 던진다")
+    void getCost_부서불일치_거부() {
+        givenDeptScopedCost("101");
+        CustomUserDetails other =
+                new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "999");
+
+        assertThatThrownBy(() -> costService.getCost(IT_MNGC_NO, other))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("getCost(user): 시스템관리자는 다른 부서 항목도 조회할 수 있다")
+    void getCost_관리자_타부서조회허용() {
+        givenDeptScopedCost("101");
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "999");
+
+        assertThat(costService.getCost(IT_MNGC_NO, admin)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getCost(user): 인증 정보가 없으면 AccessDeniedException을 던진다")
+    void getCost_인증정보없음_거부() {
+        givenDeptScopedCost("101");
+
+        assertThatThrownBy(() -> costService.getCost(IT_MNGC_NO, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    /** 담당부서코드만 지정한 단건 조회 스텁 — 부서 범위 검증 테스트 공용 */
+    private void givenDeptScopedCost(String costSvnDpmC) {
+        Bcostm cost = mock(Bcostm.class);
+        given(cost.getCostBgNo()).willReturn(IT_MNGC_NO);
+        given(cost.getBgSno()).willReturn(1);
+        given(cost.getCostSvnDpmC()).willReturn(costSvnDpmC);
+        given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                eq("BCOSTM"), eq(IT_MNGC_NO), eq(1)))
+                .willReturn(List.of());
+        given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                .willReturn(List.of());
     }
 
     @Test

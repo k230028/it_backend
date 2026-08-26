@@ -8,6 +8,7 @@ import java.util.List;
 public final class RequestFormRelativePath {
 
     private static final int MAX_LENGTH = 255;
+    private static final int FILE_NAME_MAX_LENGTH = 100;
 
     private RequestFormRelativePath() {}
 
@@ -51,7 +52,7 @@ public final class RequestFormRelativePath {
         segments.add(fileName);
         String relativePath = String.join("/", segments);
         if (relativePath.length() > MAX_LENGTH) {
-            throw invalidPath();
+            return RequestFormArchiveMetadata.fitRelativePath(relativePath);
         }
         return relativePath;
     }
@@ -59,6 +60,7 @@ public final class RequestFormRelativePath {
     private static void validateFileName(String fileName) {
         if (fileName == null
                 || fileName.isBlank()
+                || fileName.length() > FILE_NAME_MAX_LENGTH
                 || fileName.indexOf('/') >= 0
                 || fileName.indexOf('\\') >= 0
                 || fileName.contains("..")

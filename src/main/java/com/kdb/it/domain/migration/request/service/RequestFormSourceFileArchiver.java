@@ -129,7 +129,7 @@ public class RequestFormSourceFileArchiver {
         while (applicationNumbers.hasNext()) {
             String apfMngNo = applicationNumbers.next();
             try {
-                fileService.linkExistingFile(sourceFlMpnId, uploadRequest(apfMngNo, null));
+                fileService.linkExistingFile(sourceFlMpnId, uploadRequest(apfMngNo, null, null));
             } catch (RuntimeException e) {
                 // 보관 실패가 이미 커밋된 원장을 되돌리게 두지 않는다. 해당 건은 파일 0건 상태로 남는다
                 log.error(
@@ -144,10 +144,13 @@ public class RequestFormSourceFileArchiver {
     }
 
     private FileDto.UploadRequest request(String apfMngNo, ArchivePlanItem item) {
+        String displayFileName =
+                RequestFormArchiveMetadata.fitFileName(item.file().getOriginalFilename());
+        String relativePath = RequestFormRelativePath.normalize(item.fileKey(), displayFileName);
         return uploadRequest(
                 apfMngNo,
-                RequestFormRelativePath.normalize(
-                        item.fileKey(), item.file().getOriginalFilename()));
+                RequestFormArchiveMetadata.fitRelativePath(relativePath),
+                displayFileName);
     }
 
     /**
@@ -160,12 +163,14 @@ public class RequestFormSourceFileArchiver {
      * @param relativePath 원본 폴더 상대경로. 상대경로가 없는 재연결에는 {@code null}
      * @return 업로드 요청 DTO
      */
-    private FileDto.UploadRequest uploadRequest(String apfMngNo, String relativePath) {
+    private FileDto.UploadRequest uploadRequest(
+            String apfMngNo, String relativePath, String displayFileName) {
         return FileDto.UploadRequest.builder()
                 .flTpCone(FL_TP_CONE)
                 .apgFlKdNm(APG_FL_KD_NM)
                 .apgFlLnkCtzNm(apfMngNo)
                 .relativePath(relativePath)
+                .displayFileName(displayFileName)
                 .build();
     }
 }

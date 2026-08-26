@@ -39,6 +39,10 @@ public class ResourceTableReader {
     /** 도입시기 표기에서 월을 뽑는 패턴. `~26.2월`·`2분기 중` 등에서 씁니다. */
     private static final Pattern MONTH_PATTERN = Pattern.compile("(\\d{1,2})\\s*월");
 
+    /** 도입시기 표기에 연도까지 있으면 예산연도와 분리하기 위한 패턴입니다. */
+    private static final Pattern YEAR_MONTH_PATTERN =
+            Pattern.compile("(?:20)?(\\d{2})\\s*[./년-]\\s*(\\d{1,2})\\s*월");
+
     private final SheetAnchorScanner scanner;
 
     /**
@@ -230,7 +234,13 @@ public class ResourceTableReader {
                     row.amountUnit() != null
                             ? row.amountUnit()
                             : (applyDomesticUnit ? domesticDefaultUnit : null);
-            item.setAmt(unit == null ? row.amount() : unit.toWon(row.amount()));
+            BigDecimal won = unit == null ? row.amount() : unit.toWon(row.amount());
+            if (isAfterBudgetYear(item.getBseYm(), bseYy)) {
+                item.setAmt(BigDecimal.ZERO);
+                item.setMplAmt(won);
+            } else {
+                item.setAmt(won);
+            }
             item.setFcAmt(null);
         } else if (currency != null && !currency.isBlank()) {
             long multiplier = "JPY".equals(currency) ? JPY_MULTIPLIER : 1L;
@@ -239,6 +249,13 @@ public class ResourceTableReader {
             item.setXcr(null);
         }
         return item;
+    }
+
+    private static boolean isAfterBudgetYear(String bseYm, String bseYy) {
+        return bseYm != null
+                && bseYm.length() >= 4
+                && bseYy != null
+                && bseYm.substring(0, 4).compareTo(bseYy) > 0;
     }
 
     /**
@@ -263,6 +280,13 @@ public class ResourceTableReader {
     private static String normalizeCurrency(String currency) {
         if (currency == null) return null;
         String normalized = currency.replaceAll("[\\s\\p{Z}]+", "").toUpperCase(Locale.ROOT);
+        if ("원".equals(normalized)
+                || "원화".equals(normalized)
+                || "₩".equals(normalized)
+                || "원화(KRW)".equals(normalized)
+                || "KRW(원화)".equals(normalized)) {
+            return "KRW";
+        }
         return normalized.isBlank() ? null : normalized;
     }
 
@@ -294,7 +318,14 @@ public class ResourceTableReader {
 
     /** `~26.2월` 같은 표기에서 추진년월(`YYYYMM`)을 뽑습니다. 못 뽑으면 null. */
     private static String toBseYm(String timing, String bseYy) {
-        Matcher matcher = MONTH_PATTERN.matcher(timing == null ? "" : timing);
+        String value = timing == null ? "" : timing;
+        Matcher yearMonth = YEAR_MONTH_PATTERN.matcher(value);
+        if (yearMonth.find()) {
+            int month = Integer.parseInt(yearMonth.group(2));
+            if (month < 1 || month > 12) return null;
+            return "20" + yearMonth.group(1) + String.format("%02d", month);
+        }
+        Matcher matcher = MONTH_PATTERN.matcher(value);
         if (!matcher.find()) return null;
         int month = Integer.parseInt(matcher.group(1));
         if (month < 1 || month > 12) return null;

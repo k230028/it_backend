@@ -29,6 +29,11 @@ class RecurringProjectFormAdapterTest {
 
     private FormAdapterContext contextOf(byte[] bytes, Map<String, String> overrides) {
         Map<FormSheetKind, Sheet> sheets = reader.classify(reader.open(bytes, "픽스처.xls"));
+        return contextOf(sheets, overrides);
+    }
+
+    private FormAdapterContext contextOf(
+            Map<FormSheetKind, Sheet> sheets, Map<String, String> overrides) {
         return new FormAdapterContext(
                 sheets,
                 "2026",
@@ -39,6 +44,22 @@ class RecurringProjectFormAdapterTest {
                 TestIoeIndex.snapshot(),
                 overrides,
                 "12345678");
+    }
+
+    @Test
+    @DisplayName("해당사항 없음으로 표시한 경상사업 시트는 진단 없이 건너뛴다")
+    void skipsNotApplicableRecurringProject() {
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls"));
+        sheets.get(FormSheetKind.RECURRING)
+                .getRow(2)
+                .getCell(2)
+                .setCellValue("홍보실 해당사항 없음");
+
+        FormAdapterOutput output = adapter.adapt(contextOf(sheets, Map.of()));
+
+        assertThat(output.projects()).isEmpty();
+        assertThat(output.diagnostics()).isEmpty();
     }
 
     @Test
@@ -102,8 +123,8 @@ class RecurringProjectFormAdapterTest {
 
         // 픽스처는 `신원석 부부장` — 직책은 떼고 이름만 담는다
         assertThat(project.getTlrUsid()).isEqualTo("신원석");
-        // 영문 성명은 직책을 떼고도 컬럼(14자)을 넘어 잘린다
-        assertThat(project.getUsid()).isEqualTo("Luke Buckingha");
+        // 영문 성명도 이름 스냅샷 컬럼 길이 안이면 그대로 담는다
+        assertThat(project.getUsid()).isEqualTo("Luke Buckingham-Brown");
     }
 
     @Test

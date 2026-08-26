@@ -29,6 +29,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -328,18 +329,38 @@ class CapitalDeclaredAmountsTest {
         assertThat(amounts.isPresent()).isTrue();
         assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
         assertThat(amounts.mplAmt()).isEqualByComparingTo("202746300");
-        assertThat(amounts.dfrAmt()).isEqualByComparingTo("585835340");
+        assertThat(amounts.dfrAmt()).isEqualByComparingTo("579525740");
     }
 
     @Test
-    @DisplayName("폴백으로 단위를 확정해도 1-1과 1-2가 어긋난 사실은 경고로 남긴다")
-    void warnsAboutTableGapWhenFallbackResolvesUnit() {
+    @DisplayName("1-1 요청예산과 품목 합계의 차이가 3% 미만이면 품목 합계를 쓰고 경고하지 않는다")
+    void usesItemTotalWithoutWarningWhenGapIsBelowThreePercent() {
         FormAdapterOutput output = fundingDeskSample("1,211백만원");
 
-        assertThat(FormDiagnostics.messageOf(output.diagnostics(), "declaredYearTotal"))
-                .contains("필요예산 편성요청")
-                .doesNotContain("어느 단위로도 맞지 않습니다");
+        ProjectAmounts amounts = output.projectAmounts().getFirst();
+        assertThat(amounts.totRqmAmt().subtract(amounts.mplAmt()).subtract(amounts.dfrAmt()))
+                .isEqualByComparingTo("1217727960");
+        assertThat(FormDiagnostics.byField(output.diagnostics(), "declaredYearTotal")).isEmpty();
         assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
+    }
+
+    @Test
+    @DisplayName("1-1 요청예산과 품목 합계의 차이가 3% 이상이면 세 금액을 구분해 경고한다")
+    void warnsWithRequestedPlannedAndPaidWhenGapIsAtLeastThreePercent() {
+        FormAdapterOutput output =
+                adaptWithResource(
+                        "2,000백만원",
+                        "1,211백만원",
+                        1_211_418_360d,
+                        202_746_300d,
+                        "기계장치(HW)",
+                        1_300_000_000d);
+
+        assertThat(FormDiagnostics.messageOf(output.diagnostics(), "declaredYearTotal"))
+                .contains("1-1 요청금액(1211418360)")
+                .contains("1-2 품목 합계(1300000000)")
+                .contains("예정금액=202746300")
+                .contains("기지급금액=585835340");
     }
 
     @Test
@@ -351,6 +372,7 @@ class CapitalDeclaredAmountsTest {
         MigrationApprovalStamper stamper = Mockito.mock(MigrationApprovalStamper.class);
         RequestFormValidator validator = Mockito.mock(RequestFormValidator.class);
         given(validator.validate(any(), anyString())).willReturn(java.util.List.of());
+        given(validator.withoutDuplicateProjects(output, "2026")).willReturn(output);
         given(projectService.createProject(any(), eq(true))).willReturn("PRJ-2026-0001");
         RequestFormFileImporter importer =
                 new RequestFormFileImporter(costService, projectService, stamper, validator);
@@ -379,11 +401,16 @@ class CapitalDeclaredAmountsTest {
 
         assertThat(snapshot.currentRequestAmt()).isEqualByComparingTo("1217727960");
         assertThat(snapshot.plannedAmt()).isEqualByComparingTo("0");
-        assertThat(snapshot.paidAmt()).isEqualByComparingTo("585835340");
+        assertThat(snapshot.paidAmt()).isEqualByComparingTo("579525740");
         assertThat(snapshot.totalRequiredAmt())
-                .isEqualByComparingTo("1803563300")
+                .isEqualByComparingTo("1797253700")
                 .isNotEqualByComparingTo(output.projectAmounts().getFirst().totRqmAmt());
-        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
+        verify(projectService)
+                .assignDeclaredAmounts(
+                        "PRJ-2026-0001",
+                        new BigDecimal("2000000000"),
+                        new BigDecimal("202746300"),
+                        new BigDecimal("579525740"));
     }
 
     @Test
@@ -399,8 +426,8 @@ class CapitalDeclaredAmountsTest {
     /**
      * 실측 제출본(자금운용실)의 금액 구성을 재현합니다.
      *
-     * <p>1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계가 `'26년도 합계`보다 6,309,600원 큽니다. 상대 오차 0.518%로 허용치
-     * 0.5%를 넘어 품목 합계 대사는 실패하지만, 1-1이 스스로 적은 `'26년도 필요예산 편성요청`과는 원 단위로 맞습니다.
+     * <p>1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계가 `'26년도 합계`보다 6,309,600원 큽니다. 상대 오차 0.518%라
+     * 3% 미만 자동 보정 대상이며, 1-1이 스스로 적은 `'26년도 필요예산 편성요청`으로 원 단위 배수를 확정합니다.
      *
      * @param yearRequest `'26년도 필요예산 편성요청` 칸에 적을 문자열
      */

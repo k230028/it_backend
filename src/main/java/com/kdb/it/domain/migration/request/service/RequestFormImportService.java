@@ -179,8 +179,8 @@ public class RequestFormImportService {
         Workbook workbook = null;
         try {
             workbook = workbookReader.open(readBytes(file), entry.fileKey());
-            Map<FormSheetKind, Sheet> sheets = workbookReader.classify(workbook);
-            if (sheets.isEmpty()) {
+            List<Map<FormSheetKind, Sheet>> sheetGroups = workbookReader.classifyGroups(workbook);
+            if (sheetGroups.isEmpty()) {
                 return new ProcessedFile(skipped(entry), resolveDepartmentCode(entry, orgIndex));
             }
 
@@ -195,22 +195,24 @@ public class RequestFormImportService {
                 return new ProcessedFile(unresolvedDepartment(entry, deptResolution), null);
             }
 
-            FormAdapterContext context =
-                    new FormAdapterContext(
-                            sheets,
-                            bseYy,
-                            entry,
-                            deptCode,
-                            deptResolution.label(),
-                            orgIndex,
-                            ioeIndex,
-                            overrides,
-                            actorEno);
-
             FormAdapterOutput output = FormAdapterOutput.empty();
-            for (FormSheetAdapter adapter : adapters) {
-                if (sheets.containsKey(adapter.trigger()))
-                    output = output.merge(adapter.adapt(context));
+            for (Map<FormSheetKind, Sheet> sheets : sheetGroups) {
+                FormAdapterContext context =
+                        new FormAdapterContext(
+                                sheets,
+                                bseYy,
+                                entry,
+                                deptCode,
+                                deptResolution.label(),
+                                orgIndex,
+                                ioeIndex,
+                                overrides,
+                                actorEno);
+                for (FormSheetAdapter adapter : adapters) {
+                    if (sheets.containsKey(adapter.trigger())) {
+                        output = output.merge(adapter.adapt(context));
+                    }
+                }
             }
             FormResponsibleFallback.apply(output);
 
@@ -222,6 +224,18 @@ public class RequestFormImportService {
         } catch (WorkbookReader.WorkbookOpenException e) {
             return new ProcessedFile(
                     failed(entry, RequestFormDiagnosticCode.FILE_UNREADABLE, e.getMessage()), null);
+        } catch (IllegalStateException e) {
+            log.warn("편성요청서 반입 실패: fileKey={}", entry.fileKey(), e);
+            String reason =
+                    e.getMessage() == null || e.getMessage().isBlank()
+                            ? "알 수 없는 처리 오류"
+                            : e.getMessage();
+            return new ProcessedFile(
+                    failed(
+                            entry,
+                            RequestFormDiagnosticCode.FILE_UNREADABLE,
+                            "파일 처리 중 오류가 발생했습니다: " + reason),
+                    null);
         } catch (RuntimeException e) {
             // 파일 하나의 예외가 배치를 무너뜨리지 않게 잡는다. 파일명만 남기고 내용은 로그에 남기지 않는다.
             log.warn("편성요청서 반입 실패: fileKey={}", entry.fileKey(), e);

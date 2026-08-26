@@ -71,6 +71,14 @@ class RequestForm2026SampleSmokeTest {
 
     private static final String FUNDING_DESK_SAMPLE_SUFFIX = "편성 요청서(자금운용실).xls";
 
+    private static final String RISK_MANAGEMENT_SAMPLE_SUFFIX = "편성 요청서_리스크관리부.xls";
+
+    private static final String PROCESS_AUTOMATION_SAMPLE_SUFFIX =
+            "2026년 전산예산 편성 요청서_프로세스자동화팀.xls";
+
+    private static final String AI_PLATFORM_SAMPLE_SUFFIX =
+            "2026년 전산예산 편성 요청서_AI플랫폼팀.xls";
+
     private static final String SAMPLE_LOOKUP_FAILURE = "로컬 샘플 탐색에 실패했습니다";
 
     private static final String SAMPLE_READ_FAILURE = "로컬 샘플을 읽지 못했습니다";
@@ -153,8 +161,8 @@ class RequestForm2026SampleSmokeTest {
             if (classifySample(sampleRoot, path)) requestForms++;
         }
 
-        assertThat(excelFiles.size()).isEqualTo(49);
-        assertThat(requestForms).isEqualTo(37);
+        assertThat(excelFiles.size()).isEqualTo(67);
+        assertThat(requestForms).isEqualTo(55);
         assertThat(excelFiles.size() - requestForms).isEqualTo(12);
     }
 
@@ -298,6 +306,89 @@ class RequestForm2026SampleSmokeTest {
     }
 
     @Test
+    @DisplayName("프로세스자동화팀 요청서에서 정보화사업 2건과 일반관리비 2건을 읽는다")
+    void adaptsProcessAutomationSample() throws IOException {
+        Path sample = findUniqueSample(sampleRoot(), PROCESS_AUTOMATION_SAMPLE_SUFFIX);
+        SheetAnchorScanner scanner = new SheetAnchorScanner();
+        FormLabelReader labelReader = new FormLabelReader(scanner);
+        ResourceTableReader resourceReader = new ResourceTableReader(scanner);
+        MigrationIoeCatalogReader catalogReader = mock(MigrationIoeCatalogReader.class);
+        when(catalogReader.candidates(anyString(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(
+                        List.of(
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "KRW", "원화"),
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "USD", "달러")));
+        when(catalogReader.currencyCandidates())
+                .thenReturn(
+                        List.of(
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "KRW", "원화"),
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "USD", "달러")));
+        when(catalogReader.edrtCapitalCandidates()).thenReturn(List.of());
+        when(catalogReader.exePttCodeByName()).thenReturn(Map.of());
+        when(catalogReader.edrtCapitalCodeByName())
+                .thenReturn(Map.of("지역본부장", "23", "부점장", "24"));
+        when(catalogReader.reportStatusCodeByName()).thenReturn(Map.of());
+        List<FormSheetAdapter> adapters =
+                List.of(
+                        new CapitalProjectFormAdapter(
+                                new CapitalOverviewReader(
+                                        scanner, labelReader, new FormCheckboxReader()),
+                                resourceReader,
+                                catalogReader),
+                        new RecurringProjectFormAdapter(
+                                labelReader, resourceReader, new FormApproverReader(scanner)),
+                        new GeneralExpenseFormAdapter(
+                                scanner, catalogReader, new FormApproverReader(scanner)));
+        OrgIdentityResolver.Index orgIndex = mock(OrgIdentityResolver.Index.class);
+        when(orgIndex.parentOrgNameOf(anyString())).thenReturn("디지털전략부");
+
+        try (Workbook workbook = reader.open(readSampleBytes(sample), "sample.xls")) {
+            FormAdapterOutput output = FormAdapterOutput.empty();
+            for (Map<FormSheetKind, Sheet> sheets : reader.classifyGroups(workbook)) {
+                FormAdapterContext context =
+                        new FormAdapterContext(
+                                sheets,
+                                "2026",
+                                new RequestFormDto.FileEntry(
+                                        "sample.xls",
+                                        "디지털전략부(185)",
+                                        null,
+                                        AmountUnit.WON,
+                                        "571"),
+                                "185",
+                                "디지털전략부",
+                                orgIndex,
+                                TestIoeIndex.snapshot(),
+                                Map.of(),
+                                "00000000");
+                for (FormSheetAdapter adapter : adapters) {
+                    if (sheets.containsKey(adapter.trigger())) {
+                        output = output.merge(adapter.adapt(context));
+                    }
+                }
+            }
+
+            assertThat(output.projects()).hasSize(2);
+            assertThat(output.costs()).hasSize(2);
+            assertThat(output.diagnostics())
+                    .filteredOn(
+                            diagnostic ->
+                                    diagnostic.code().severity()
+                                            == com.kdb.it.domain.migration.dto.MigrationDto.Severity.BLOCKER)
+                    .extracting(
+                            RequestFormDto.FormDiagnostic::code,
+                            RequestFormDto.FormDiagnostic::field,
+                            RequestFormDto.FormDiagnostic::sheet,
+                            RequestFormDto.FormDiagnostic::excelRow)
+                    .isEmpty();
+        }
+    }
+
+    @Test
     @DisplayName("IT계약팀 샘플의 외주용역을 외주운영·관제 코드로 확정한다")
     void resolvesOutsourcingFromContractTeamSample() throws IOException {
         FormAdapterOutput output = adaptGeneralExpenseSample(OUTSOURCING_SAMPLE_SUFFIX);
@@ -355,12 +446,17 @@ class RequestForm2026SampleSmokeTest {
     }
 
     @Test
-    @DisplayName("자금운용실 샘플의 사업 단위 금액 3종을 1-1 선언값으로 적재한다")
+    @DisplayName("자금운용실 자본 블록은 당해 1,014,981,660원만 품목으로 읽는다")
     void adaptsFundingDeskDeclaredAmounts() throws IOException {
         // 1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계(1,217,727,960)가
         // `'26년도 합계`(1,211,418,360)보다 0.518% 크다. 품목 합계로는 요약표 배수를 확정하지 못하고
         // `'26년도 필요예산 편성요청`(1,211백만원)과 대사해야 원 단위로 확정된다
         FormAdapterOutput output = adaptCapitalSample(FUNDING_DESK_SAMPLE_SUFFIX);
+
+        assertThat(sumCurrentItems(output))
+                .as("items=%s", itemSummary(output))
+                .isEqualByComparingTo("1014981660");
+        assertThat(sumPlannedItems(output)).isZero();
 
         assertThat(output.projectAmounts())
                 .singleElement()
@@ -373,9 +469,71 @@ class RequestForm2026SampleSmokeTest {
                             assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
                             // '26년도 이후 총 계
                             assertThat(amounts.mplAmt()).isEqualByComparingTo("202746300");
-                            // 총 사업금액 − '26년도 이후 − '26년도 합계
-                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("585835340");
+                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("782272040");
                         });
+        assertThat(output.diagnostics())
+                .noneMatch(diagnostic -> "declaredYearTotal".equals(diagnostic.field()));
+    }
+
+    @Test
+    @DisplayName("리스크관리부 개발비는 당해 2,122백만원이고 예정 804백만원으로 분리한다")
+    void adaptsRiskManagementDeclaredAmounts() throws IOException {
+        FormAdapterOutput output = adaptCapitalSample(RISK_MANAGEMENT_SAMPLE_SUFFIX);
+
+        assertThat(sumCurrentItems(output))
+                .as("items=%s", itemSummary(output))
+                .isEqualByComparingTo("2122000000");
+        assertThat(sumPlannedItems(output)).isEqualByComparingTo("804000000");
+        assertThat(output.projectAmounts())
+                .singleElement()
+                .satisfies(
+                        amounts -> {
+                            assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2926000000");
+                            assertThat(amounts.mplAmt()).isEqualByComparingTo("804000000");
+                            assertThat(amounts.dfrAmt()).isZero();
+                        });
+    }
+
+    @Test
+    @DisplayName("AI플랫폼팀 라이선스 연장 사업의 당해 금액을 0원으로 바꾸지 않는다")
+    void keepsAiPlatformCurrentAmount() throws IOException {
+        FormAdapterOutput output = adaptCapitalSample(AI_PLATFORM_SAMPLE_SUFFIX, null);
+
+        assertThat(sumCurrentItems(output))
+                .as(
+                        "items=%s planned=%s diagnostics=%s",
+                        itemSummary(output), sumPlannedItems(output), output.diagnostics())
+                .isPositive();
+    }
+
+    private static BigDecimal sumCurrentItems(FormAdapterOutput output) {
+        return output.projects().stream()
+                .flatMap(project -> project.getItems().stream())
+                .map(ProjectDto.BitemmDto::getAmt)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal sumPlannedItems(FormAdapterOutput output) {
+        return output.projects().stream()
+                .flatMap(project -> project.getItems().stream())
+                .map(ProjectDto.BitemmDto::getMplAmt)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static List<String> itemSummary(FormAdapterOutput output) {
+        return output.projects().stream()
+                .flatMap(project -> project.getItems().stream())
+                .map(
+                        item ->
+                                "%s|amt=%s|mpl=%s|ym=%s"
+                                        .formatted(
+                                                item.getGclNm(),
+                                                item.getAmt(),
+                                                item.getMplAmt(),
+                                                item.getBseYm()))
+                .toList();
     }
 
     @Test
@@ -415,7 +573,7 @@ class RequestForm2026SampleSmokeTest {
         return adaptCapitalSample(suffix, true);
     }
 
-    private FormAdapterOutput adaptCapitalSample(String suffix, boolean requireResource)
+    private FormAdapterOutput adaptCapitalSample(String suffix, Boolean requireResource)
             throws IOException {
         Path root = sampleRoot();
         Path sample = findUniqueSample(root, suffix);
@@ -440,13 +598,13 @@ class RequestForm2026SampleSmokeTest {
         try (Workbook workbook = reader.open(readSampleBytes(sample), "sample.xls")) {
             Map<FormSheetKind, Sheet> sheets = reader.classify(workbook);
             Sheet resourceSheet = sheets.get(FormSheetKind.CAPITAL_RESOURCE);
-            if (requireResource) {
+            if (Boolean.TRUE.equals(requireResource)) {
                 ResourceTableReader.Result resources =
                         resourceReader.readCapitalResource(resourceSheet, 0, false).orElseThrow();
                 assertThat(resources.rows())
                         .as("resource header row=%s", resources.headerRow())
                         .isNotEmpty();
-            } else {
+            } else if (Boolean.FALSE.equals(requireResource)) {
                 assertThat(resourceSheet).isNull();
             }
             return adapter.adapt(
@@ -470,6 +628,13 @@ class RequestForm2026SampleSmokeTest {
         SheetAnchorScanner scanner = new SheetAnchorScanner();
         MigrationIoeCatalogReader catalogReader = mock(MigrationIoeCatalogReader.class);
         when(catalogReader.candidates(anyString(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(
+                        List.of(
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "KRW", "원화"),
+                                new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(
+                                        "USD", "달러")));
+        when(catalogReader.currencyCandidates())
                 .thenReturn(
                         List.of(
                                 new com.kdb.it.domain.migration.dto.MigrationDto.Candidate(

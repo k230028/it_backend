@@ -10,6 +10,7 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
+import com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,6 +40,11 @@ public class RequestFormValidator {
     private static final int INCREASE_REASON_LIMIT = 200;
     private static final int PROJECT_NAME_LIMIT = 100;
     private static final int ITEM_NAME_LIMIT = 100;
+    private static final int PROJECT_DESCRIPTION_LIMIT = 1000;
+    private static final int PROJECT_NECESSITY_LIMIT = 300;
+    private static final int PROJECT_LONG_TEXT_LIMIT = 4000;
+    private static final int PROJECT_SCOPE_LIMIT = 600;
+    private static final int PROJECT_PROGRESS_LIMIT = 2000;
 
     /** 비목코드 필드 id. 어댑터가 이미 보고한 대상은 여기서 다시 보지 않습니다. */
     private static final String IOE_FIELD = "ioeC";
@@ -91,6 +97,33 @@ public class RequestFormValidator {
         return List.copyOf(diagnostics);
     }
 
+    /**
+     * 기존 원장 또는 같은 파일 앞쪽에 이미 나온 사업을 저장 대상에서 제외합니다.
+     *
+     * <p>중복은 {@link RequestFormDiagnosticCode#DUPLICATE_EXISTS} WARNING으로 사용자에게 알리되, 실제 INSERT를 시도하면 DB
+     * 중복 오류가 날 수 있으므로 사업과 병렬 금액 목록을 함께 걸러 냅니다. 일반관리비는 그대로 남겨 같은 파일의 다른 자료가 계속 반입되게 합니다.
+     */
+    @Transactional(readOnly = true)
+    public FormAdapterOutput withoutDuplicateProjects(FormAdapterOutput output, String bseYy) {
+        Set<String> existing = existingProjectNames(bseYy);
+        Set<String> withinBatch = new HashSet<>();
+        List<ProjectDto.CreateRequest> projects = new ArrayList<>();
+        List<ProjectAmounts> amounts = new ArrayList<>();
+        for (int index = 0; index < output.projects().size(); index++) {
+            ProjectDto.CreateRequest project = output.projects().get(index);
+            String key = normalizeProjectName(project.getAbusNm());
+            if (!key.isEmpty() && (existing.contains(key) || !withinBatch.add(key))) continue;
+            projects.add(project);
+            amounts.add(output.projectAmounts().get(index));
+        }
+        return new FormAdapterOutput(
+                List.copyOf(projects),
+                output.costs(),
+                output.diagnostics(),
+                output.suggestedGeneralExpenseUnit(),
+                List.copyOf(amounts));
+    }
+
     /** 필드 id와 대상 이름(사업명·품목명·계약명)의 조합입니다. */
     private record FieldSubject(String field, String subject) {}
 
@@ -123,6 +156,33 @@ public class RequestFormValidator {
         if (costs.isEmpty()) return;
         for (CostDto.CreateRequest cost : costs) {
             String subject = subjectOf(cost.getCttNm(), "계약명 미기재");
+            cost.setCttNm(
+                    truncate(
+                            cost.getCttNm(),
+                            CONTRACT_NAME_LIMIT,
+                            FormSheetKind.GENERAL_EXPENSE,
+                            "cttNm",
+                            subject,
+                            "계약명",
+                            diagnostics));
+            cost.setCttOppNm(
+                    truncate(
+                            cost.getCttOppNm(),
+                            COUNTERPARTY_LIMIT,
+                            FormSheetKind.GENERAL_EXPENSE,
+                            "cttOppNm",
+                            subject,
+                            "상대처",
+                            diagnostics));
+            cost.setIndRsn(
+                    truncate(
+                            cost.getIndRsn(),
+                            INCREASE_REASON_LIMIT,
+                            FormSheetKind.GENERAL_EXPENSE,
+                            "indRsn",
+                            subject,
+                            "비고",
+                            diagnostics));
             String cttNm = nullSafe(cost.getCttNm());
             if (!alreadyReported.contains(new FieldSubject(IOE_FIELD, cttNm))) {
                 requireText(
@@ -209,10 +269,7 @@ public class RequestFormValidator {
             Set<FieldSubject> alreadyReported,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
         if (projects.isEmpty()) return;
-        Set<String> existing = new HashSet<>();
-        for (Bprojm project : projectRepository.findByBseYyAndLstYnAndDelYn(bseYy, "Y", "N")) {
-            existing.add(normalizeProjectName(project.getAbusNm()));
-        }
+        Set<String> existing = existingProjectNames(bseYy);
         Set<String> withinBatch = new HashSet<>();
 
         for (ProjectDto.CreateRequest project : projects) {
@@ -221,6 +278,87 @@ public class RequestFormValidator {
                             ? FormSheetKind.RECURRING
                             : FormSheetKind.CAPITAL_OVERVIEW;
             String subject = subjectOf(project.getAbusNm(), "사업명 미기재");
+            project.setAbusNm(
+                    truncate(
+                            project.getAbusNm(),
+                            PROJECT_NAME_LIMIT,
+                            sheet,
+                            "abusNm",
+                            subject,
+                            "사업명",
+                            diagnostics));
+            project.setAbusCone(
+                    truncate(
+                            project.getAbusCone(),
+                            PROJECT_DESCRIPTION_LIMIT,
+                            sheet,
+                            "abusCone",
+                            subject,
+                            "사업설명",
+                            diagnostics));
+            project.setCpnSafCone(
+                    truncate(
+                            project.getCpnSafCone(),
+                            PROJECT_DESCRIPTION_LIMIT,
+                            sheet,
+                            "cpnSafCone",
+                            subject,
+                            "현황",
+                            diagnostics));
+            project.setAbusNcsCone(
+                    truncate(
+                            project.getAbusNcsCone(),
+                            PROJECT_NECESSITY_LIMIT,
+                            sheet,
+                            "abusNcsCone",
+                            subject,
+                            "필요성",
+                            diagnostics));
+            project.setAbusRngCone(
+                    truncate(
+                            project.getAbusRngCone(),
+                            PROJECT_SCOPE_LIMIT,
+                            sheet,
+                            "abusRngCone",
+                            subject,
+                            "사업범위",
+                            diagnostics));
+            project.setDgogPpoCone(
+                    truncate(
+                            project.getDgogPpoCone(),
+                            PROJECT_LONG_TEXT_LIMIT,
+                            sheet,
+                            "dgogPpoCone",
+                            subject,
+                            "기대효과",
+                            diagnostics));
+            project.setPlmDes(
+                    truncate(
+                            project.getPlmDes(),
+                            PROJECT_LONG_TEXT_LIMIT,
+                            sheet,
+                            "plmDes",
+                            subject,
+                            "미추진시 문제점",
+                            diagnostics));
+            project.setMnPrgCone(
+                    truncate(
+                            project.getMnPrgCone(),
+                            PROJECT_PROGRESS_LIMIT,
+                            sheet,
+                            "mnPrgCone",
+                            subject,
+                            "추진경과",
+                            diagnostics));
+            project.setHrfPlnCone(
+                    truncate(
+                            project.getHrfPlnCone(),
+                            PROJECT_NECESSITY_LIMIT,
+                            sheet,
+                            "hrfPlnCone",
+                            subject,
+                            "향후계획",
+                            diagnostics));
             requireText(project.getAbusNm(), sheet, "abusNm", subject, "사업명", diagnostics);
             limit(
                     project.getAbusNm(),
@@ -229,6 +367,70 @@ public class RequestFormValidator {
                     "abusNm",
                     subject,
                     "사업명",
+                    diagnostics);
+            limit(
+                    project.getAbusCone(),
+                    PROJECT_DESCRIPTION_LIMIT,
+                    sheet,
+                    "abusCone",
+                    subject,
+                    "사업설명",
+                    diagnostics);
+            limit(
+                    project.getCpnSafCone(),
+                    PROJECT_DESCRIPTION_LIMIT,
+                    sheet,
+                    "cpnSafCone",
+                    subject,
+                    "현황",
+                    diagnostics);
+            limit(
+                    project.getAbusNcsCone(),
+                    PROJECT_NECESSITY_LIMIT,
+                    sheet,
+                    "abusNcsCone",
+                    subject,
+                    "필요성",
+                    diagnostics);
+            limit(
+                    project.getDgogPpoCone(),
+                    PROJECT_LONG_TEXT_LIMIT,
+                    sheet,
+                    "dgogPpoCone",
+                    subject,
+                    "기대효과",
+                    diagnostics);
+            limit(
+                    project.getPlmDes(),
+                    PROJECT_LONG_TEXT_LIMIT,
+                    sheet,
+                    "plmDes",
+                    subject,
+                    "미추진시 문제점",
+                    diagnostics);
+            limit(
+                    project.getAbusRngCone(),
+                    PROJECT_SCOPE_LIMIT,
+                    sheet,
+                    "abusRngCone",
+                    subject,
+                    "사업범위",
+                    diagnostics);
+            limit(
+                    project.getMnPrgCone(),
+                    PROJECT_PROGRESS_LIMIT,
+                    sheet,
+                    "mnPrgCone",
+                    subject,
+                    "추진경과",
+                    diagnostics);
+            limit(
+                    project.getHrfPlnCone(),
+                    PROJECT_NECESSITY_LIMIT,
+                    sheet,
+                    "hrfPlnCone",
+                    subject,
+                    "향후계획",
                     diagnostics);
             validateItems(project, sheet, subject, alreadyReported, diagnostics);
             if (hasZeroProjectAmount(project.getItems())) {
@@ -374,6 +576,36 @@ public class RequestFormValidator {
                         subject,
                         RequestFormDiagnosticCode.LENGTH_EXCEEDED,
                         "%s이(가) %d자를 넘습니다(%d자).".formatted(label, max, value.length())));
+    }
+
+    private Set<String> existingProjectNames(String bseYy) {
+        Set<String> existing = new HashSet<>();
+        for (Bprojm project : projectRepository.findByBseYyAndLstYnAndDelYn(bseYy, "Y", "N")) {
+            existing.add(normalizeProjectName(project.getAbusNm()));
+        }
+        return existing;
+    }
+
+    private String truncate(
+            String value,
+            int max,
+            FormSheetKind sheet,
+            String field,
+            String subject,
+            String label,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        if (value == null || value.length() <= max) return value;
+        diagnostics.add(
+                RequestFormDto.FormDiagnostic.about(
+                        sheet,
+                        null,
+                        field,
+                        subject,
+                        RequestFormDiagnosticCode.TEXT_TRUNCATED,
+                        "%s이(가) %d자를 넘어 앞 %d자만 반입합니다(%d자)."
+                                .formatted(label, max, max, value.length()),
+                        List.of()));
+        return value.substring(0, max);
     }
 
     private RequestFormDto.FormDiagnostic blocker(

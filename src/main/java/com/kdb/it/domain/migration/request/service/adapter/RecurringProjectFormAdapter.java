@@ -8,6 +8,7 @@ import com.kdb.it.domain.migration.request.dto.RequestFormDecisionKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
+import com.kdb.it.domain.migration.request.service.FormLexicon;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,10 @@ public class RecurringProjectFormAdapter implements FormSheetAdapter {
         Optional<ResourceTableReader.Result> table = resourceTableReader.readRecurring(sheet);
         boolean hasResources = table.isPresent() && !table.get().rows().isEmpty();
         String projectName = resolveProjectName(sheet, context);
+
+        if (FormLexicon.isNotApplicableProjectName(projectName)) {
+            return FormAdapterOutput.empty();
+        }
 
         // 사업명도 없고 소요자원도 없으면 부점이 이 시트를 쓰지 않은 것이다. 진단 없이 건너뛴다.
         if (projectName == null && !hasResources) return FormAdapterOutput.empty();

@@ -36,10 +36,12 @@ public enum RequestFormDiagnosticCode {
     CODE_AMBIGUOUS(MigrationDto.Severity.BLOCKER),
     /** 사업명·품목 금액 등 필수값 공백 */
     REQUIRED_MISSING(MigrationDto.Severity.BLOCKER),
-    /** 자연키로 기존 행이 이미 존재 (재업로드 거부) */
-    DUPLICATE_EXISTS(MigrationDto.Severity.BLOCKER),
+    /** 자연키로 기존 사업이 이미 존재해 해당 사업만 건너뜀 */
+    DUPLICATE_EXISTS(MigrationDto.Severity.WARNING),
     /** 물리 컬럼 길이 초과 */
     LENGTH_EXCEEDED(MigrationDto.Severity.BLOCKER),
+    /** 설명형 본문이 물리 컬럼 길이를 넘어 허용 길이까지 잘라 반입함 */
+    TEXT_TRUNCATED(MigrationDto.Severity.WARNING),
     /**
      * 코드를 기본값으로 정했고 대안이 있음 — 확인 요청.
      *

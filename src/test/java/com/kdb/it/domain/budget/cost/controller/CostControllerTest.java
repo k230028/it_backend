@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -50,7 +51,7 @@ class CostControllerTest {
     @DisplayName("GET /api/cost - 인증된 사용자 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
     void getCostList_인증_200() throws Exception {
-        given(costService.searchCostList(any())).willReturn(List.of());
+        given(costService.searchCostList(any(), any())).willReturn(List.of());
         mockMvc.perform(get("/api/cost"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
@@ -60,7 +61,7 @@ class CostControllerTest {
     @DisplayName("GET /api/cost/{itMngcNo} - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getCost_인증_200() throws Exception {
-        given(costService.getCost("COST_2026_0001")).willReturn(new CostDto.Response());
+        given(costService.getCost(eq("COST_2026_0001"), any())).willReturn(new CostDto.Response());
         mockMvc.perform(get("/api/cost/COST_2026_0001")).andExpect(status().isOk());
     }
 

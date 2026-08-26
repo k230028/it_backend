@@ -74,6 +74,10 @@ class CapitalProjectFormAdapterTest {
 
     private FormAdapterContext contextOf(byte[] bytes) {
         Map<FormSheetKind, Sheet> sheets = reader.classify(reader.open(bytes, "픽스처.xls"));
+        return contextOf(sheets);
+    }
+
+    private FormAdapterContext contextOf(Map<FormSheetKind, Sheet> sheets) {
         return new FormAdapterContext(
                 sheets,
                 "2026",
@@ -87,7 +91,23 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("1-1과 1-2를 합쳐 사업 1건과 품목 3건을 만든다")
+    @DisplayName("해당사항 없음으로 표시한 정보화사업 시트는 진단 없이 건너뛴다")
+    void skipsNotApplicableCapitalProject() {
+        Map<FormSheetKind, Sheet> sheets =
+                reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls"));
+        sheets.get(FormSheetKind.CAPITAL_OVERVIEW)
+                .getRow(2)
+                .getCell(2)
+                .setCellValue("홍보실 해당사항 없음");
+
+        FormAdapterOutput output = adapter.adapt(contextOf(sheets));
+
+        assertThat(output.projects()).isEmpty();
+        assertThat(output.diagnostics()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("1-1과 1-2를 합쳐 사업 1건과 자본 품목 2건을 만든다")
     void combinesOverviewAndResourceSheets() {
         FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
 
@@ -95,11 +115,10 @@ class CapitalProjectFormAdapterTest {
         ProjectDto.CreateRequest project = output.projects().get(0);
         assertThat(project.getAbusNm()).isEqualTo("국채전문유통시장 접속인프라 도입");
         assertThat(project.getOdnYn()).isEqualTo("N");
-        // 자본예산 블록 2건 + 일반관리비 블록 1건
-        assertThat(project.getItems()).hasSize(3);
+        assertThat(project.getItems()).hasSize(2);
         assertThat(project.getItems())
                 .extracting(ProjectDto.BitemmDto::getSno)
-                .containsExactly(1, 2, 3);
+                .containsExactly(1, 2);
     }
 
     @Test
@@ -217,14 +236,14 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("일반관리비 블록의 품목도 같은 사업의 BITEMM으로 담는다")
-    void putsGeneralExpenseItemsIntoSameProject() {
+    @DisplayName("일반관리비 블록은 정보화사업 BITEMM에 중복 적재하지 않는다")
+    void excludesGeneralExpenseItemsFromProject() {
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls())).projects().get(0);
 
         assertThat(project.getItems())
                 .extracting(ProjectDto.BitemmDto::getGclNm)
-                .contains("전용망 회선 이용료");
+                .doesNotContain("전용망 회선 이용료");
     }
 
     @Test
@@ -235,7 +254,6 @@ class CapitalProjectFormAdapterTest {
 
         assertThat(project.getItems().get(0).getIoeC()).isEqualTo("106");
         assertThat(project.getItems().get(1).getIoeC()).isEqualTo("101");
-        assertThat(project.getItems().get(2).getIoeC()).isEqualTo("001");
     }
 
     @Test
@@ -251,7 +269,7 @@ class CapitalProjectFormAdapterTest {
     @Test
     @DisplayName("1-1 선언 금액에서 금액 3종을 산출한다")
     void derivesDeclaredAmountsFromOverview() {
-        // 총 사업금액 2,000백만원, '26년도 합계 1,265,624,700원, '26년도 이후 없음(0)
+        // 총 사업금액 2,000백만원, 자본 당해 품목 1,077,000,000원, '26년도 이후 없음(0)
         FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
 
         assertThat(output.projectAmounts()).hasSize(1);
@@ -259,7 +277,7 @@ class CapitalProjectFormAdapterTest {
         assertThat(amounts.isPresent()).isTrue();
         assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
         assertThat(amounts.mplAmt()).isEqualByComparingTo("0");
-        assertThat(amounts.dfrAmt()).isEqualByComparingTo("734375300");
+        assertThat(amounts.dfrAmt()).isEqualByComparingTo("923000000");
     }
 
     @Test

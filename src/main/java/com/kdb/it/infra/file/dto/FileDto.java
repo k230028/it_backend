@@ -1,5 +1,6 @@
 package com.kdb.it.infra.file.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +43,11 @@ public class FileDto {
 
         @Schema(description = "첨부파일의 원본 폴더 상대경로", example = "2026/IT부(D01)/01. 사업/근거.pdf")
         private String relativePath;
+
+        /** 내부 반입 작업이 DB 표시명만 별도로 제한할 때 사용합니다. */
+        @JsonIgnore
+        @Schema(hidden = true)
+        private String displayFileName;
     }
 
     /** 파일 메타데이터 수정 요청 DTO */

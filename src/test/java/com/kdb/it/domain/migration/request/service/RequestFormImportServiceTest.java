@@ -556,6 +556,25 @@ class RequestFormImportServiceTest {
     }
 
     @Test
+    @DisplayName("파일 처리 중 발생한 도메인 오류는 원인을 진단에 표시한다")
+    void exposesDomainFailureReason() {
+        when(fileImporter.apply(any(), any(), anyString(), anyString()))
+                .thenThrow(new IllegalStateException("환율 미등록: 원 (기준일: 2026-08-26)"));
+
+        RequestFormDto.ImportResponse response =
+                service(50)
+                        .importBatch(
+                                List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                                manifest("자금운용실/요청서.xls"),
+                                "12345678",
+                                false);
+
+        assertThat(response.files().getFirst().diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::message)
+                .containsExactly("파일 처리 중 오류가 발생했습니다: 환율 미등록: 원 (기준일: 2026-08-26)");
+    }
+
+    @Test
     @DisplayName("인식할 시트가 없는 파일은 실패가 아니라 SKIPPED로 남긴다")
     void skipsFileWithoutRecognizableSheet() {
         RequestFormDto.ImportResponse response =

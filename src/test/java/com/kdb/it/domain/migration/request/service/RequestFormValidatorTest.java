@@ -132,19 +132,49 @@ class RequestFormValidatorTest {
     }
 
     @Test
-    @DisplayName("계약명이 100자를 넘으면 길이 초과로 막는다")
-    void blocksOverlongContractName() {
-        assertThat(
-                        validator()
-                                .validate(
-                                        costsOf(
-                                                cost(
-                                                        "010",
-                                                        "가".repeat(101),
-                                                        new BigDecimal("1000"))),
-                                        "2026"))
+    @DisplayName("계약명이 100자를 넘으면 잘라 넣고 경고한다")
+    void truncatesOverlongContractName() {
+        CostDto.CreateRequest cost = cost("010", "가".repeat(101), new BigDecimal("1000"));
+
+        assertThat(validator().validate(costsOf(cost), "2026"))
                 .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.LENGTH_EXCEEDED);
+                .contains(RequestFormDiagnosticCode.TEXT_TRUNCATED)
+                .doesNotContain(RequestFormDiagnosticCode.LENGTH_EXCEEDED);
+        assertThat(cost.getCttNm()).hasSize(100);
+    }
+
+    @Test
+    @DisplayName("현황·필요성·사업범위가 물리 컬럼 길이를 넘으면 잘라 넣고 경고한다")
+    void truncatesLongProjectNarrativesWithWarnings() {
+        ProjectDto.CreateRequest project = project("길이 검증 사업");
+        project.setCpnSafCone("현".repeat(1001));
+        project.setAbusNcsCone("가".repeat(301));
+        project.setAbusRngCone("범".repeat(601));
+
+        List<RequestFormDto.FormDiagnostic> diagnostics =
+                validator().validate(projectsOf(project), "2026");
+
+        assertThat(project.getCpnSafCone()).hasSize(1000);
+        assertThat(project.getAbusNcsCone()).hasSize(300);
+        assertThat(project.getAbusRngCone()).hasSize(600);
+        assertThat(diagnostics)
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.TEXT_TRUNCATED)
+                .extracting(RequestFormDto.FormDiagnostic::field)
+                .containsExactlyInAnyOrder("cpnSafCone", "abusNcsCone", "abusRngCone");
+        assertThat(diagnostics)
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.TEXT_TRUNCATED)
+                .extracting(RequestFormDto.FormDiagnostic::severity)
+                .containsOnly(MigrationDto.Severity.WARNING);
+    }
+
+    @Test
+    @DisplayName("양식 담당자 이름은 ID 길이로 차단하지 않는다")
+    void allowsPersonNameLongerThanIdColumn() {
+        ProjectDto.CreateRequest project = project("담당자 길이 검증 사업");
+        project.setDvmTlrUsid("A".repeat(15));
+
+        assertThat(validator().validate(projectsOf(project), "2026"))
+                .noneMatch(d -> "dvmTlrUsid".equals(d.field()));
     }
 
     @Test
@@ -207,21 +237,40 @@ class RequestFormValidatorTest {
 
     @Test
     @DisplayName("사업명은 공백을 무시하고 중복을 판정한다")
-    void blocksDuplicateProjectIgnoringWhitespace() {
+    void warnsDuplicateProjectIgnoringWhitespace() {
         when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
                 .thenReturn(List.of(Bprojm.builder().abusNm("국채전문유통시장  접속인프라 도입").build()));
 
         assertThat(validator().validate(projectsOf(project("국채전문유통시장 접속인프라 도입")), "2026"))
-                .extracting(RequestFormDto.FormDiagnostic::code)
-                .contains(RequestFormDiagnosticCode.DUPLICATE_EXISTS);
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.DUPLICATE_EXISTS)
+                .extracting(RequestFormDto.FormDiagnostic::severity)
+                .containsExactly(MigrationDto.Severity.WARNING);
     }
 
     @Test
-    @DisplayName("같은 배치 안에서 사업명이 겹쳐도 막는다")
-    void blocksDuplicateWithinSameBatch() {
+    @DisplayName("같은 배치 안에서 사업명이 겹치면 경고한다")
+    void warnsDuplicateWithinSameBatch() {
         assertThat(validator().validate(projectsOf(project("같은 사업"), project("같은 사업")), "2026"))
                 .filteredOn(d -> d.code() == RequestFormDiagnosticCode.DUPLICATE_EXISTS)
-                .hasSize(1);
+                .singleElement()
+                .extracting(RequestFormDto.FormDiagnostic::severity)
+                .isEqualTo(MigrationDto.Severity.WARNING);
+    }
+
+    @Test
+    @DisplayName("기존 및 배치 내 중복 사업은 저장 대상에서 제외한다")
+    void excludesDuplicateProjectsFromImportTarget() {
+        when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
+                .thenReturn(List.of(Bprojm.builder().abusNm("기존 사업").build()));
+        FormAdapterOutput output =
+                projectsOf(project("기존 사업"), project("신규 사업"), project("신규 사업"));
+
+        FormAdapterOutput filtered = validator().withoutDuplicateProjects(output, "2026");
+
+        assertThat(filtered.projects())
+                .extracting(ProjectDto.CreateRequest::getAbusNm)
+                .containsExactly("신규 사업");
+        assertThat(filtered.projectAmounts()).hasSize(1);
     }
 
     @Test

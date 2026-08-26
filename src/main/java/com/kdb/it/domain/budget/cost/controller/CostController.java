@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.controller;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -51,10 +53,17 @@ public class CostController {
      * <p>전산관리비 관리번호(IT_MNGC_NO)로 해당 전산관리비의 상세 정보를 조회합니다. 복합키 구조이므로 같은 관리번호에 여러 일련번호가 존재할 수 있으며, 이
      * 경우 LST_YN='Y'인 최신 항목을 반환합니다.
      *
+     * <p>시스템관리자가 아니면 담당부서(COST_SVN_DPM_C)가 본인 소속 부서인 항목만 열람할 수 있습니다.
+     *
      * @param itMngcNo 전산관리비 관리번호 (예: {@code COST_2026_0001})
-     * @return HTTP 200 + 전산관리비 상세 정보, HTTP 404 전산관리비가 없는 경우
+     * @param user 인증 사용자
+     * @return HTTP 200 + 전산관리비 상세 정보, HTTP 403 다른 부서 항목, HTTP 404 전산관리비가 없는 경우
      */
-    @Operation(summary = "특정 전산관리비 조회", description = "전산관리비 관리번호(IT_MNGC_NO)로 전산관리비 상세 정보를 조회합니다.")
+    @Operation(
+            summary = "특정 전산관리비 조회",
+            description =
+                    "전산관리비 관리번호(IT_MNGC_NO)로 전산관리비 상세 정보를 조회합니다. "
+                            + "시스템관리자가 아니면 본인 소속 부서 항목만 조회됩니다.")
     @ApiResponses(
             value = {
                 @ApiResponse(
@@ -64,6 +73,10 @@ public class CostController {
                                 @Content(
                                         schema = @Schema(implementation = CostDto.Response.class))),
                 @ApiResponse(
+                        responseCode = "403",
+                        description = "다른 부서의 전산관리비",
+                        content = @Content),
+                @ApiResponse(
                         responseCode = "404",
                         description = "존재하지 않는 전산관리비",
                         content = @Content)
@@ -72,8 +85,9 @@ public class CostController {
     public ResponseEntity<CostDto.Response> getCost(
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
                     @PathVariable("itMngcNo")
-                    String itMngcNo) {
-        return ResponseEntity.ok(costService.getCost(itMngcNo));
+                    String itMngcNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(costService.getCost(itMngcNo, user));
     }
 
     /**
@@ -146,7 +160,9 @@ public class CostController {
      *   <li>{@code GET /api/cost?apfSts=결재중} → 결재중인 전산관리비만
      * </ul>
      *
-     * @param condition 검색 조건 (apfSts, biceDpmC, biceTemC, infPrtYn). 미입력 시 전체 조회
+     * @param condition 검색 조건 (apfSts, costSvnDpmC, svnTemC, sectSysUtzYn, bseYy, myDeptOnly). 미입력 시
+     *     전체 조회
+     * @param user 인증 사용자 (myDeptOnly=true일 때 부서 범위 결정에 사용)
      * @return HTTP 200 + 전산관리비 목록 ({@link CostDto.Response} 리스트)
      */
     @Operation(
@@ -155,7 +171,8 @@ public class CostController {
                     "전산관리비 목록을 조회합니다. "
                             + "Query Parameter로 조건을 지정하면 필터링된 결과를 반환합니다. "
                             + "apfSts=none은 신청서가 없는 항목, "
-                            + "apfSts=결재중/결재완료 등은 해당 결재상태의 항목을 조회합니다.")
+                            + "apfSts=결재중/결재완료 등은 해당 결재상태의 항목을 조회합니다. "
+                            + "myDeptOnly=true는 로그인 사용자 소속 부서 항목만 조회합니다(시스템관리자는 전체).")
     @ApiResponses(
             value = {
                 @ApiResponse(
@@ -166,8 +183,9 @@ public class CostController {
             })
     @GetMapping
     public ResponseEntity<List<CostDto.Response>> getCostList(
-            @ParameterObject @ModelAttribute CostDto.SearchCondition condition) {
-        return ResponseEntity.ok(costService.searchCostList(condition));
+            @ParameterObject @ModelAttribute CostDto.SearchCondition condition,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(costService.searchCostList(condition, user));
     }
 
     /**

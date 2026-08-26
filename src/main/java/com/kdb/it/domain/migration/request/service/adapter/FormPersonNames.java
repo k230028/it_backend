@@ -11,21 +11,20 @@ import java.util.regex.Pattern;
 /**
  * 담당자 이름을 물리 컬럼에 맞춰 다듬습니다.
  *
- * <p>담당자 컬럼(`USID`·`TLR_USID`·`CGPR_ID`)은 사번과 이름을 모두 받는 14자 자리입니다. 부점이 적어 내는 이름은 인사 표기와 어긋나거나
- * 동명이인이라 사번을 확정하지 못하는 경우가 많아 <b>이름을 그대로</b> 담고, 사번은 반입 후 상세 화면에서 맞춥니다.
+ * <p>양식의 담당자 표기는 사번으로 확정하지 않고 이름 스냅샷 컬럼에 저장하므로 이름 컬럼 길이에 맞춥니다.
  */
 final class FormPersonNames {
 
     private static final Pattern KOREAN_NAME_WITH_SUFFIX = Pattern.compile("^([가-힣]{2,})\\s+.+$");
 
-    /** 담당자 컬럼의 물리 길이. 문자 기준(CHAR semantics)입니다. */
-    static final int LIMIT = 14;
+    /** 담당자 이름 스냅샷 컬럼의 물리 길이. 문자 기준(CHAR semantics)입니다. */
+    static final int LIMIT = 100;
 
     /**
      * 이름 뒤에 붙는 직책·직위 표기.
      *
      * <p>양식에는 `Luke Buckingham-Brown 과장`처럼 직책을 붙여 적습니다(런던 실측). 담당자 컬럼은 이름 자리이고 직책은 인사 정보라 원장에 담지
-     * 않습니다 — 직책이 바뀌면 원장 값이 사실과 어긋나고, 14자 한도도 직책이 먹습니다.
+     * 않습니다 — 직책이 바뀌면 원장 값이 사실과 어긋나고 이름 컬럼 자리도 직책이 차지합니다.
      */
     private static final Set<String> TITLES =
             Set.of(
@@ -70,14 +69,14 @@ final class FormPersonNames {
     /**
      * 이름에서 직책을 떼고 컬럼 길이에 맞춥니다.
      *
-     * <p>영문 성명은 직책을 떼고도 14자를 넘길 수 있습니다. 파일을 막는 대신 잘라 담고 잘린 사실을 알립니다 — 조용히 자르면 나중에 이름이 왜 끊겨 있는지 아무도
+     * <p>영문 성명이 이름 컬럼 길이를 넘으면 파일을 막는 대신 잘라 담고 잘린 사실을 알립니다 — 조용히 자르면 나중에 이름이 왜 끊겨 있는지 아무도
      * 설명하지 못합니다. 진단 문구에는 직책을 뗀 이름을 실어 화면에서 실제 저장 대상과 대조할 수 있게 합니다.
      *
      * @param name 양식에 적힌 이름. null·공백이거나 직책만 적혀 있으면 그대로 다룹니다
      * @param label 진단 문구에 쓸 항목 이름 (`확인자` 등)
      * @param sheet 진단 좌표로 쓸 시트
      * @param diagnostics 잘렸을 때 경고를 담을 목록
-     * @return 직책을 뗀 14자 이내 이름. 이름이 없으면 null
+     * @return 직책을 뗀 이름 컬럼 길이 이내 이름. 이름이 없으면 null
      */
     static String fit(
             String name,

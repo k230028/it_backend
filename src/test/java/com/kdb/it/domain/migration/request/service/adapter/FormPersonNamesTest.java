@@ -26,8 +26,8 @@ class FormPersonNamesTest {
         assertThat(fit("김준영 차장")).isEqualTo("김준영");
         assertThat(fit("박은지 부부장")).isEqualTo("박은지");
         assertThat(fit("이서연 행원")).isEqualTo("이서연");
-        assertThat(fit("Luke Buckingham-Brown 과장")).isEqualTo("Luke Buckingha");
-        assertThat(diagnostics).isNotEmpty();
+        assertThat(fit("Luke Buckingham-Brown 과장")).isEqualTo("Luke Buckingham-Brown");
+        assertThat(diagnostics).isEmpty();
     }
 
     @Test
@@ -64,19 +64,19 @@ class FormPersonNamesTest {
     void keepsOnlyFirstTokenAfterKoreanName() {
         assertThat(fit("김민수 책임자")).isEqualTo("김민수");
         assertThat(fit("홍 길동")).isEqualTo("홍 길동");
-        assertThat(fit("Luke Buckingham-Brown")).isEqualTo("Luke Buckingha");
+        assertThat(fit("Luke Buckingham-Brown")).isEqualTo("Luke Buckingham-Brown");
     }
 
     @Test
     @DisplayName("직책을 떼고도 길이를 넘으면 잘라 담고 알린다")
     void truncatesAfterStrippingTitle() {
-        assertThat(fit("Luke Buckingham-Brown 과장")).hasSize(FormPersonNames.LIMIT);
+        assertThat(fit("A".repeat(101) + " 과장")).hasSize(FormPersonNames.LIMIT);
         assertThat(diagnostics)
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .containsExactly(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
         // 진단 문구에는 직책을 뗀 이름이 실린다 — 화면에서 실제 저장 대상과 대조할 수 있어야 한다
         assertThat(diagnostics.get(0).message())
-                .contains("Luke Buckingham-Brown")
+                .contains("A".repeat(101))
                 .doesNotContain("과장");
     }
 

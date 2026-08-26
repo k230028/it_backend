@@ -15,6 +15,7 @@ import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
+import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
@@ -23,6 +24,7 @@ import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -42,6 +44,12 @@ class RequestFormFileImporterTest {
 
     private static final RequestFormDto.FileEntry ENTRY =
             new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571");
+
+    @BeforeEach
+    void keepAllProjectsUnlessTheTestMarksDuplicates() {
+        when(validator.withoutDuplicateProjects(any(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     private RequestFormFileImporter importer() {
         return new RequestFormFileImporter(costService, projectService, stamper, validator);
@@ -151,6 +159,138 @@ class RequestFormFileImporterTest {
     }
 
     @Test
+    @DisplayName("일괄 반입은 담당자 ID를 비우고 이름 스냅샷만 저장한다")
+    void importsPersonNamesWithoutIds() {
+        FormAdapterOutput output = outputWithOneOfEach();
+        ProjectDto.CreateRequest project = output.projects().getFirst();
+        project.setTlrUsid("Luke Buckingham-Brown");
+        project.setUsid("홍길동");
+        project.setDvmTlrUsid("IT팀장 이름");
+        project.setDvmUsid("IT담당자 이름");
+        output.costs().getFirst().setCgprId("김담당");
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-1");
+        when(costService.createCost(any(), anyBoolean())).thenReturn("COST-1");
+
+        RequestFormDto.FileResult result = importer().apply(output, ENTRY, "2026", "12345678");
+
+        ArgumentCaptor<ProjectDto.CreateRequest> projectCaptor =
+                ArgumentCaptor.forClass(ProjectDto.CreateRequest.class);
+        verify(projectService).createProject(projectCaptor.capture(), eq(true));
+        assertThat(projectCaptor.getValue().getTlrUsid()).isNull();
+        assertThat(projectCaptor.getValue().getUsid()).isNull();
+        assertThat(projectCaptor.getValue().getDvmTlrUsid()).isNull();
+        assertThat(projectCaptor.getValue().getDvmUsid()).isNull();
+        verify(projectService)
+                .assignImportedPersonNames("PRJ-1", "Luke Buckingham-Brown", "홍길동");
+        verify(costService).assignImportedPersonName("COST-1", "김담당");
+        assertThat(result.diagnostics())
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.SUBSTITUTE_DROPPED)
+                .extracting(RequestFormDto.FormDiagnostic::field)
+                .containsExactlyInAnyOrder("dvmTlrUsid", "dvmUsid");
+    }
+
+    @Test
+    @DisplayName("정보화사업 BLOCKER가 있어도 진단을 유지하고 일반관리비는 반입한다")
+    void importsCostsWhenOnlyCapitalSectionIsBlocked() {
+        RequestFormDto.FormDiagnostic blocker =
+                RequestFormDto.FormDiagnostic.of(
+                        FormSheetKind.CAPITAL_RESOURCE,
+                        15,
+                        "ioeC",
+                        RequestFormDiagnosticCode.CODE_AMBIGUOUS,
+                        "정보화사업 품목 비목을 확정하지 못했습니다.",
+                        List.of());
+        when(validator.validate(any(), anyString())).thenReturn(List.of(blocker));
+        when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
+
+        RequestFormDto.FileResult result =
+                importer().apply(outputWithOneOfEach(), ENTRY, "2026", "12345678");
+
+        assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
+        assertThat(result.diagnostics()).contains(blocker);
+        assertThat(result.created())
+                .extracting(RequestFormDto.CreatedRecord::key)
+                .containsExactly("COST-2026-0001");
+        verify(projectService, never()).createProject(any(), anyBoolean());
+        verify(costService).createCost(any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("경상사업 BLOCKER가 있어도 진단을 유지하고 일반관리비는 반입한다")
+    void importsCostsWhenOnlyRecurringSectionIsBlocked() {
+        FormAdapterOutput output = outputWithOneOfEach();
+        output.projects().getFirst().setOdnYn("Y");
+        RequestFormDto.FormDiagnostic blocker =
+                RequestFormDto.FormDiagnostic.of(
+                        FormSheetKind.RECURRING,
+                        null,
+                        "abusNm",
+                        RequestFormDiagnosticCode.REQUIRED_MISSING,
+                        "경상사업명이 비어 있습니다.",
+                        List.of());
+        when(validator.validate(any(), anyString())).thenReturn(List.of(blocker));
+        when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
+
+        RequestFormDto.FileResult result =
+                importer().apply(output, ENTRY, "2026", "12345678");
+
+        assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
+        assertThat(result.diagnostics()).contains(blocker);
+        verify(projectService, never()).createProject(any(), anyBoolean());
+        verify(costService).createCost(any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("부분 반입 가능한 파일은 사전검증에서도 APPLIED이고 BLOCKER 진단은 남긴다")
+    void previewMarksPartiallyApplicableFileReadyAndKeepsBlocker() {
+        RequestFormDto.FormDiagnostic blocker =
+                RequestFormDto.FormDiagnostic.of(
+                        FormSheetKind.RECURRING,
+                        null,
+                        "abusNm",
+                        RequestFormDiagnosticCode.REQUIRED_MISSING,
+                        "경상사업명이 비어 있습니다.",
+                        List.of());
+        when(validator.validate(any(), anyString())).thenReturn(List.of(blocker));
+
+        RequestFormDto.FileResult result = importer().preview(outputWithOneOfEach(), ENTRY, "2026");
+
+        assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
+        assertThat(result.diagnostics()).contains(blocker);
+    }
+
+    @Test
+    @DisplayName("중복 사업 경고가 있어도 사업만 건너뛰고 같은 파일의 일반관리비는 반입한다")
+    void skipsDuplicateProjectButImportsCost() {
+        FormAdapterOutput original = outputWithOneOfEach();
+        FormAdapterOutput withoutDuplicateProject =
+                new FormAdapterOutput(
+                        List.of(), original.costs(), original.diagnostics(), original.suggestedGeneralExpenseUnit());
+        when(validator.validate(any(), anyString()))
+                .thenReturn(
+                        List.of(
+                                RequestFormDto.FormDiagnostic.of(
+                                        null,
+                                        null,
+                                        "abusNm",
+                                        RequestFormDiagnosticCode.DUPLICATE_EXISTS,
+                                        "이미 반입된 사업입니다. 덮어쓰지 않고 건너뜁니다.",
+                                        List.of())));
+        when(validator.withoutDuplicateProjects(eq(original), eq("2026")))
+                .thenReturn(withoutDuplicateProject);
+        when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
+
+        RequestFormDto.FileResult result = importer().apply(original, ENTRY, "2026", "12345678");
+
+        assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
+        assertThat(result.counts().capitalProjects()).isEqualTo(1);
+        assertThat(result.counts().costs()).isEqualTo(1);
+        verify(projectService, never()).createProject(any(), anyBoolean());
+        verify(costService).createCost(any(), eq(true));
+    }
+
+    @Test
     @DisplayName("어댑터 진단과 검증기 진단을 합쳐 돌려준다")
     void mergesAdapterAndValidatorDiagnostics() {
         FormAdapterOutput output =
@@ -216,8 +356,8 @@ class RequestFormFileImporterTest {
     }
 
     @Test
-    @DisplayName("선언 금액이 있으면 DFR만 생성 요청에 전달하고 master를 다시 덮어쓰지 않는다")
-    void passesOnlyDeclaredPaidAmountIntoCreateRequest() {
+    @DisplayName("선언 금액이 있으면 생성 후 전체기간·예정·지급 금액을 master에 기록한다")
+    void assignsDeclaredAmountsAfterCreatingProject() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
         ProjectDto.CreateRequest project = new ProjectDto.CreateRequest();
@@ -241,12 +381,17 @@ class RequestFormFileImporterTest {
                 ArgumentCaptor.forClass(ProjectDto.CreateRequest.class);
         verify(projectService).createProject(projectCaptor.capture(), eq(true));
         assertThat(projectCaptor.getValue().getDfrAmt()).isEqualByComparingTo("734375300");
-        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
+        verify(projectService)
+                .assignDeclaredAmounts(
+                        "PRJ-2026-0001",
+                        new BigDecimal("2000000000"),
+                        BigDecimal.ZERO,
+                        new BigDecimal("734375300"));
     }
 
     @Test
-    @DisplayName("선언 master가 품목과 달라도 품목 current/planned와 선언 paid의 공식을 유지한다")
-    void keepsItemSnapshotWhenDeclaredMasterAmountsDisagree() {
+    @DisplayName("선언 master는 품목 생성 뒤에도 전체기간·예정·지급 금액을 유지한다")
+    void keepsDeclaredMasterAmountsAfterItemCreation() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
         ProjectDto.BitemmDto item = new ProjectDto.BitemmDto();
@@ -278,7 +423,12 @@ class RequestFormFileImporterTest {
                                 .add(projectCaptor.getValue().getDfrAmt()))
                 .isEqualByComparingTo("420")
                 .isNotEqualByComparingTo(amounts.totRqmAmt());
-        verify(projectService, never()).assignDeclaredAmounts(any(), any(), any(), any());
+        verify(projectService)
+                .assignDeclaredAmounts(
+                        "PRJ-2026-0001",
+                        new BigDecimal("999"),
+                        new BigDecimal("888"),
+                        new BigDecimal("20"));
     }
 
     @Test

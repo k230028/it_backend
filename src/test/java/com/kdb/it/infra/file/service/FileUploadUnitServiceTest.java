@@ -119,6 +119,28 @@ class FileUploadUnitServiceTest {
     }
 
     @Test
+    @DisplayName("uploadFileInNewTransaction: 내부 표시 파일명이 있으면 DB 파일명으로 저장한다")
+    void uploadFileInNewTransaction_표시파일명저장() {
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder()
+                        .flTpCone("첨부파일")
+                        .apgFlKdNm("편성요청서반입")
+                        .displayFileName("가".repeat(95) + ".xlsx")
+                        .build();
+        MockMultipartFile file =
+                new MockMultipartFile(
+                        "file",
+                        "가".repeat(120) + ".xlsx",
+                        "application/vnd.ms-excel",
+                        "XLS".getBytes(StandardCharsets.UTF_8));
+        given(fileRepository.getNextSequenceValue()).willReturn(1L);
+
+        Cfilem saved = fileUploadUnitService.uploadFileInNewTransaction(file, request);
+
+        assertThat(saved.getFlNm()).hasSize(100).endsWith(".xlsx");
+    }
+
+    @Test
     @DisplayName("linkExistingFileInNewTransaction: 물리 파일 메타데이터를 복사하고 새 부모 메타행을 영속화한다")
     void linkExistingFileInNewTransaction_물리파일메타데이터복사후영속화() {
         Cfilem source =

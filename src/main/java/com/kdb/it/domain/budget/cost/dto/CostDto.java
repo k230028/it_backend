@@ -701,6 +701,15 @@ public class CostDto extends CostTerminalDto {
         private String bseYy;
 
         /**
+         * 소속 부서 한정 조회 여부
+         *
+         * <p>true면 Service가 인증 사용자의 부점코드로 {@code costSvnDpmC}를 덮어씁니다. 부서코드는 클라이언트가 보낸 값이 아니라 인증
+         * 정보에서만 얻으므로 다른 부서로 범위를 넓힐 수 없습니다. 시스템관리자는 이 값과 무관하게 전체를 조회합니다.
+         */
+        @Schema(description = "true면 로그인 사용자 소속 부서 항목만 조회 (시스템관리자는 전체). 미입력 시 부서 제한 없음")
+        private Boolean myDeptOnly;
+
+        /**
          * 모든 조건이 비어있는지 확인 (전체 조회 여부 판단용)
          *
          * @return 모든 필드가 null 또는 빈 문자열이면 true
