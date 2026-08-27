@@ -33,8 +33,8 @@ public class FileReadAuthorizerRegistry {
     /**
      * 파일 읽기 가능 여부. 미등록 종류는 관리자만 허용한다(default-deny).
      *
-     * <p>종류(APG_FL_KD_NM)가 null이면 조회 전에 미등록으로 간주해 관리자만 허용한다. ({@code byKind}는 {@link Map#copyOf}로 만든
-     * 불변 맵이라 {@code get(null)}이 {@link NullPointerException}을 던지므로, null 종류는 반드시 조회 전에 처리한다.)
+     * <p>종류(APG_FL_KD_NM)가 null이면 조회 전에 미등록으로 간주해 관리자만 허용한다. ({@code byKind}는 {@link Map#copyOf}로
+     * 만든 불변 맵이라 {@code get(null)}이 {@link NullPointerException}을 던지므로, null 종류는 반드시 조회 전에 처리한다.)
      */
     public boolean canRead(Cfilem file, CustomUserDetails user) {
         String kind = file.getApgFlKdNm();

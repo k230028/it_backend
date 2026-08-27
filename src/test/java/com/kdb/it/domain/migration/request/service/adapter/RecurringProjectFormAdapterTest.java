@@ -51,10 +51,7 @@ class RecurringProjectFormAdapterTest {
     void skipsNotApplicableRecurringProject() {
         Map<FormSheetKind, Sheet> sheets =
                 reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls"));
-        sheets.get(FormSheetKind.RECURRING)
-                .getRow(2)
-                .getCell(2)
-                .setCellValue("홍보실 해당사항 없음");
+        sheets.get(FormSheetKind.RECURRING).getRow(2).getCell(2).setCellValue("홍보실 해당사항 없음");
 
         FormAdapterOutput output = adapter.adapt(contextOf(sheets, Map.of()));
 

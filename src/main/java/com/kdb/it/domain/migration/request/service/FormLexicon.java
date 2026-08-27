@@ -221,8 +221,7 @@ public final class FormLexicon {
      */
     public static String canonicalEdrtName(String raw) {
         if (raw == null) return "";
-        String withoutExpectation =
-                raw.replaceFirst("\\s*[(（]\\s*예상\\s*[)）]\\s*$", "").trim();
+        String withoutExpectation = raw.replaceFirst("\\s*[(（]\\s*예상\\s*[)）]\\s*$", "").trim();
         String exact = EDRT_CANONICAL.get(SheetAnchorScanner.normalize(withoutExpectation));
         if (exact != null) return exact;
         // `IDT본부장`처럼 소관을 앞에 붙여 적는 표기. 코드표에 `본부장`으로 끝나는 직명은 지역본부장뿐이다

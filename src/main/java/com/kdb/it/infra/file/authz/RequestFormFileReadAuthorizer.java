@@ -31,8 +31,8 @@ import org.springframework.util.StringUtils;
  * <p>매핑과 원장 모두 {@code DEL_YN='N'}인 것만 봅니다. 권한 판정은 실패 시 거부여야 하므로, 논리 삭제나 재매핑 뒤에도 구 부서 사용자가 원본을 계속
  * 열람하는 경로를 남기지 않습니다(SEC-15).
  *
- * <p>판정은 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, user)}의 순수 함수라는 {@link FileReadAuthorizer}의 불변식을 지킵니다. 개별 파일의
- * 다른 속성을 보지 않습니다.
+ * <p>판정은 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, user)}의 순수 함수라는 {@link FileReadAuthorizer}의 불변식을
+ * 지킵니다. 개별 파일의 다른 속성을 보지 않습니다.
  */
 @Component
 @RequiredArgsConstructor

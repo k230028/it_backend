@@ -96,9 +96,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                         : read.amounts().summaryUnit() == null
                                         || read.amounts().yearTotalRaw() == null
                                 ? null
-                                : read.amounts()
-                                        .summaryUnit()
-                                        .toWon(read.amounts().yearTotalRaw());
+                                : read.amounts().summaryUnit().toWon(read.amounts().yearTotalRaw());
         BigDecimal declaredCurrentBasis =
                 closestCurrentBasis(
                         itemTotal,
@@ -121,8 +119,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                         itemTotal,
                         !itemRead.generalExpenseAmounts().isEmpty()
                                 && AmountUnitResolver.inferUnit(
-                                                read.amounts().yearTotalRaw(),
-                                                declaredCurrentBasis)
+                                                read.amounts().yearTotalRaw(), declaredCurrentBasis)
                                         .isPresent(),
                         hasForeignCurrencyItem(items),
                         project.getAbusNm(),
@@ -444,8 +441,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
 
         String message =
                 unit.isPresent()
-                        ? amountMismatchMessage(
-                                requested, itemTotal, amounts, unit.get())
+                        ? amountMismatchMessage(requested, itemTotal, amounts, unit.get())
                         : "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
                                 .formatted(
                                         declaredYearTotal.toPlainString(),
@@ -593,10 +589,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
     }
 
     private static String amountMismatchMessage(
-            BigDecimal requested,
-            BigDecimal itemTotal,
-            ProjectAmounts amounts,
-            AmountUnit unit) {
+            BigDecimal requested, BigDecimal itemTotal, ProjectAmounts amounts, AmountUnit unit) {
         BigDecimal gapPercent =
                 requested
                         .subtract(itemTotal)

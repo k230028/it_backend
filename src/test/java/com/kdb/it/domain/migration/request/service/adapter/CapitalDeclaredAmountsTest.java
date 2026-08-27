@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.domain.budget.cost.service.CostService;
@@ -426,8 +425,8 @@ class CapitalDeclaredAmountsTest {
     /**
      * 실측 제출본(자금운용실)의 금액 구성을 재현합니다.
      *
-     * <p>1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계가 `'26년도 합계`보다 6,309,600원 큽니다. 상대 오차 0.518%라
-     * 3% 미만 자동 보정 대상이며, 1-1이 스스로 적은 `'26년도 필요예산 편성요청`으로 원 단위 배수를 확정합니다.
+     * <p>1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계가 `'26년도 합계`보다 6,309,600원 큽니다. 상대 오차 0.518%라 3%
+     * 미만 자동 보정 대상이며, 1-1이 스스로 적은 `'26년도 필요예산 편성요청`으로 원 단위 배수를 확정합니다.
      *
      * @param yearRequest `'26년도 필요예산 편성요청` 칸에 적을 문자열
      */

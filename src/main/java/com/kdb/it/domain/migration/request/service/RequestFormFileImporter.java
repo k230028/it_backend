@@ -1,5 +1,6 @@
 package com.kdb.it.domain.migration.request.service;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -19,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 편성요청서 파일 1건을 반영합니다.
  *
- * <p>이 클래스가 <b>트랜잭션 원자 단위</b>입니다. `REQUIRES_NEW`로 파일마다 독립 트랜잭션을 열어, 한 파일이 실패해도 같은 배치의 다른 파일은
- * 커밋되게 합니다. 파일 안의 업무 영역은 독립적으로 검증해 BLOCKER가 난 정보화사업·경상사업·일반관리비 영역만 제외합니다.
+ * <p>이 클래스가 <b>트랜잭션 원자 단위</b>입니다. `REQUIRES_NEW`로 파일마다 독립 트랜잭션을 열어, 한 파일이 실패해도 같은 배치의 다른 파일은 커밋되게
+ * 합니다. 파일 안의 업무 영역은 독립적으로 검증해 BLOCKER가 난 정보화사업·경상사업·일반관리비 영역만 제외합니다.
  *
  * <p>원장은 기존 서비스의 이관 전용 오버로드로 만듭니다. 이관은 편성 시즌 밖에서도 실행되어야 해 기간 검증을 건너뛰지만, 채번·조직명 스냅샷·감사로그는 그대로 타야 하므로
  * 새 INSERT 경로를 만들지 않습니다.
@@ -74,7 +75,8 @@ public class RequestFormFileImporter {
             RequestFormDto.FileEntry entry,
             String bseYy,
             String actorEno) {
-        List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>(allDiagnostics(output, bseYy));
+        List<RequestFormDto.FormDiagnostic> diagnostics =
+                new ArrayList<>(allDiagnostics(output, bseYy));
         prepareNameOnlyImport(output, diagnostics);
         FormAdapterOutput applicable = withoutBlockedSections(output, diagnostics);
         if (RequestFormValidator.hasBlocker(diagnostics) && hasNoRecords(applicable)) {
@@ -135,7 +137,8 @@ public class RequestFormFileImporter {
      */
     public RequestFormDto.FileResult preview(
             FormAdapterOutput output, RequestFormDto.FileEntry entry, String bseYy) {
-        List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>(allDiagnostics(output, bseYy));
+        List<RequestFormDto.FormDiagnostic> diagnostics =
+                new ArrayList<>(allDiagnostics(output, bseYy));
         prepareNameOnlyImport(output, diagnostics);
         clearIds(output);
         FormAdapterOutput applicable = withoutBlockedSections(output, diagnostics);
@@ -179,17 +182,17 @@ public class RequestFormFileImporter {
                         null,
                         field,
                         name,
-                        com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode.SUBSTITUTE_DROPPED,
-                        "%s `%s`는 대응하는 이름 컬럼이 없어 ID 컬럼에 저장하지 않습니다."
-                                .formatted(label, name),
+                        com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode
+                                .SUBSTITUTE_DROPPED,
+                        "%s `%s`는 대응하는 이름 컬럼이 없어 ID 컬럼에 저장하지 않습니다.".formatted(label, name),
                         List.of()));
     }
 
     /**
      * BLOCKER가 속한 시트 영역만 저장 대상에서 제외합니다.
      *
-     * <p>진단 목록은 건드리지 않아 제외 사유가 화면의 진단 컬럼에 그대로 남습니다. 시트가 없는 파일 단위 BLOCKER는 어느 원장도 안전하게 만들 수 없으므로
-     * 전체를 제외합니다.
+     * <p>진단 목록은 건드리지 않아 제외 사유가 화면의 진단 컬럼에 그대로 남습니다. 시트가 없는 파일 단위 BLOCKER는 어느 원장도 안전하게 만들 수 없으므로 전체를
+     * 제외합니다.
      */
     private FormAdapterOutput withoutBlockedSections(
             FormAdapterOutput output, List<RequestFormDto.FormDiagnostic> diagnostics) {
@@ -198,7 +201,8 @@ public class RequestFormFileImporter {
                 globalBlocked
                         || hasBlockerFor(diagnostics, FormSheetKind.CAPITAL_OVERVIEW)
                         || hasBlockerFor(diagnostics, FormSheetKind.CAPITAL_RESOURCE);
-        boolean recurringBlocked = globalBlocked || hasBlockerFor(diagnostics, FormSheetKind.RECURRING);
+        boolean recurringBlocked =
+                globalBlocked || hasBlockerFor(diagnostics, FormSheetKind.RECURRING);
         boolean costsBlocked =
                 globalBlocked || hasBlockerFor(diagnostics, FormSheetKind.GENERAL_EXPENSE);
 
@@ -222,10 +226,7 @@ public class RequestFormFileImporter {
     private static boolean hasBlockerFor(
             List<RequestFormDto.FormDiagnostic> diagnostics, FormSheetKind sheet) {
         return diagnostics.stream()
-                .anyMatch(
-                        diagnostic ->
-                                diagnostic.code().blocks()
-                                        && diagnostic.sheet() == sheet);
+                .anyMatch(diagnostic -> diagnostic.code().blocks() && diagnostic.sheet() == sheet);
     }
 
     private static boolean hasNoRecords(FormAdapterOutput output) {
@@ -239,7 +240,8 @@ public class RequestFormFileImporter {
                 SOURCE_SEQUENCE,
                 "%s %s".formatted(APPROVAL_TITLE_PREFIX, label == null ? key : label),
                 actorEno,
-                bseYy);
+                bseYy,
+                ApprovalStatus.MANUAL);
     }
 
     private List<RequestFormDto.FormDiagnostic> allDiagnostics(

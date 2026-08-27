@@ -5,6 +5,7 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -242,5 +244,32 @@ public class CostController {
     public ResponseEntity<CostDto.BulkResponse> getCostsByIds(
             @RequestBody CostDto.BulkGetRequest request) {
         return ResponseEntity.ok(costService.getCostsByIds(request));
+    }
+
+    /**
+     * 단말기 서비스명 입력 후보 목록 조회
+     *
+     * <p>금융정보단말기 상세목록의 [단말기 서비스(옵션)] 칸에서 직접 입력 대신 고를 수 있는 값을 제공합니다. 최근 3개 예산연도에 등록된 단말기의 서비스명을 중복
+     * 제거하여 사용 빈도 내림차순으로 반환합니다.
+     *
+     * @param tmnClsfC 단말기종류 코드 (생략 시 종류 구분 없이 집계)
+     * @return HTTP 200 + 서비스명 목록 (이력이 없으면 빈 배열)
+     */
+    @Operation(
+            summary = "단말기 서비스명 후보 조회",
+            description = "최근 3개 예산연도 단말기의 서비스명(SPF_TMN_NM)을 중복 제거·빈도 내림차순으로 반환합니다.")
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "조회 성공",
+                        content = @Content(array = @ArraySchema(schema = @Schema(type = "string"))))
+            })
+    @GetMapping("/terminals/service-names")
+    public ResponseEntity<List<String>> getTerminalServiceNames(
+            @Parameter(description = "단말기종류 코드 (공통코드 IT_PTL_TMN_SVC_TC)", example = "01")
+                    @RequestParam(value = "tmnClsfC", required = false)
+                    String tmnClsfC) {
+        return ResponseEntity.ok(costService.getTerminalServiceNames(tmnClsfC));
     }
 }

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.times;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -476,8 +477,11 @@ class RequestFormSourceFileArchiverTest {
         ArgumentCaptor<FileDto.UploadRequest> captor =
                 ArgumentCaptor.forClass(FileDto.UploadRequest.class);
         then(fileService).should().uploadFile(eq(source), captor.capture());
-        assertThat(captor.getValue().getDisplayFileName()).hasSize(100).endsWith(".xlsx");
-        assertThat(captor.getValue().getRelativePath()).hasSizeLessThanOrEqualTo(255);
+        assertThat(captor.getValue().getDisplayFileName()).endsWith(".xlsx");
+        assertThat(captor.getValue().getDisplayFileName().getBytes(StandardCharsets.UTF_8))
+                .hasSizeLessThanOrEqualTo(100);
+        assertThat(captor.getValue().getRelativePath().getBytes(StandardCharsets.UTF_8))
+                .hasSizeLessThanOrEqualTo(255);
     }
 
     @Test

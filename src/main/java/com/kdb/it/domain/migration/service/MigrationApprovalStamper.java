@@ -12,10 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 이관한 원장에 결재완료 받이를 붙입니다.
+ * 이관한 원장에 신청서 받이를 붙입니다.
  *
- * <p>예산 편성·집계 조회는 결재완료 신청서가 {@code CAPPLA}로 연결된 원장만 집계하므로(§3.6), 받이가 없으면 이관 데이터가 화면에서 0으로 보입니다.
- * 결재선({@code TPRMPP_CDECIM})은 만들지 않아 실제 결재를 거친 신청서와 구분됩니다.
+ * <p>일반 이관은 결재완료 상태를 기본으로 사용하고, 편성요청서 반입처럼 업무 계약이 다른 호출자는 상태를 명시합니다. 결재선({@code TPRMPP_CDECIM})은
+ * 만들지 않아 실제 결재를 거친 신청서와 구분됩니다.
  *
  * <p>신청서번호는 기존 {@code APF-{연도}-{8자리}} 형식을 그대로 씁니다({@link ApplicationRepository#getNextVal()}과 같은
  * 시퀀스·형식). {@code ApplicationMapRepository}가 신청서번호 사전식 내림차순을 시간순으로 전제하므로(최신 문서번호가 먼저 오는 정렬 쿼리들) 별도
@@ -30,10 +30,9 @@ public class MigrationApprovalStamper {
     private final ApplicationMapRepository applicationMapRepository;
 
     /**
-     * 원천 한 건에 결재완료 받이를 만듭니다.
+     * 원천 한 건에 결재완료 상태의 받이를 만듭니다.
      *
-     * <p>결재중 상태를 거치지 않고 곧바로 결재완료({@link ApprovalStatus#COMPLETED}) 신청서 마스터를 생성한 뒤, 원천 데이터와의
-     * 연결({@link Cappla})을 같은 신청서번호로 저장합니다.
+     * <p>기존 이관 호출의 호환 경로이며 결재완료({@link ApprovalStatus#COMPLETED})를 기본값으로 사용합니다.
      *
      * <p>{@code TPRMPP_CAPPLM}, {@code TPRMPP_CAPPLA} 모두 최초등록자(FST_ENR_USID)·최종변경자(LST_CHG_USID)가
      * 물리 NOT NULL입니다. 이 두 필드는 보통 {@code JpaAuditConfig}의 {@code AuditorAware}가 인증된 {@code
@@ -62,13 +61,31 @@ public class MigrationApprovalStamper {
             String title,
             String actorEno,
             String bseYy) {
+        return stamp(
+                fntTbNm, pkColNm, fntTbCrySno, title, actorEno, bseYy, ApprovalStatus.COMPLETED);
+    }
+
+    /**
+     * 원천 한 건에 호출자가 지정한 상태의 이관 신청서 받이를 만듭니다.
+     *
+     * @param status 생성할 신청서 진행상태
+     * @return 생성한 신청서식별번호
+     */
+    public String stamp(
+            String fntTbNm,
+            String pkColNm,
+            Integer fntTbCrySno,
+            String title,
+            String actorEno,
+            String bseYy,
+            ApprovalStatus status) {
         Long sequence = applicationRepository.getNextVal();
         String apfDcmNo = String.format("APF-%s-%08d", bseYy, sequence);
 
         Capplm application =
                 Capplm.builder()
                         .apfMngNo(apfDcmNo)
-                        .itPtlApfPrgStsC(ApprovalStatus.COMPLETED.code())
+                        .itPtlApfPrgStsC(status.code())
                         .dcdReqTtl(title)
                         .dcdReqUsid(actorEno)
                         .dcdReqDtm(LocalDate.now())

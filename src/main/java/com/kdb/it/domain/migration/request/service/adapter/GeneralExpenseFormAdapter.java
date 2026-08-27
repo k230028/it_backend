@@ -12,6 +12,7 @@ import com.kdb.it.domain.migration.request.service.AmountUnitResolver;
 import com.kdb.it.domain.migration.request.service.FormLexicon;
 import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
+import com.kdb.it.domain.migration.request.service.Utf8ByteLimit;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -275,23 +276,24 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
             request.setIndRsn(null);
             return;
         }
-        if (row.remarks().length() <= INCREASE_REASON_LIMIT) {
+        if (Utf8ByteLimit.length(row.remarks()) <= INCREASE_REASON_LIMIT) {
             request.setIndRsn(row.remarks());
             return;
         }
         String normalized = row.remarks().replaceAll("[\\s\\u00A0\\u3000]+", "");
-        if (normalized.length() <= INCREASE_REASON_LIMIT) {
+        if (Utf8ByteLimit.length(normalized) <= INCREASE_REASON_LIMIT) {
             request.setIndRsn(normalized);
             return;
         }
-        request.setIndRsn(normalized.substring(0, INCREASE_REASON_LIMIT));
+        int actualBytes = Utf8ByteLimit.length(normalized);
+        request.setIndRsn(Utf8ByteLimit.truncate(normalized, INCREASE_REASON_LIMIT));
         diagnostics.add(
                 diagnostic(
                         row,
                         "indRsn",
                         RequestFormDiagnosticCode.SUBSTITUTE_DROPPED,
-                        "비고의 공백을 제거해도 %d자를 넘어 앞 %d자만 반입합니다."
-                                .formatted(normalized.length(), INCREASE_REASON_LIMIT),
+                        "비고의 공백을 제거해도 %d바이트라 UTF-8 문자 경계에서 %d바이트 이하로 줄여 반입합니다."
+                                .formatted(actualBytes, INCREASE_REASON_LIMIT),
                         List.of()));
     }
 
@@ -459,8 +461,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                             row,
                             "sectSysUtzYn",
                             RequestFormDiagnosticCode.CODE_DEFAULTED,
-                            "정보보호 여부 표기 `%s`를 해석하지 못해 일반 항목(N)으로 처리했습니다."
-                                    .formatted(row.infoSec()),
+                            "정보보호 여부 표기 `%s`를 해석하지 못해 일반 항목(N)으로 처리했습니다.".formatted(row.infoSec()),
                             List.of()));
         }
         request.setAbusTc(

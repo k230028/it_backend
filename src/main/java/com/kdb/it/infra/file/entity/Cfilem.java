@@ -16,8 +16,8 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>DB 테이블: {@code TPRMPP_CFILEM}
  *
- * <p>시스템 전역에서 사용되는 첨부파일(이미지 포함)의 메타데이터를 관리합니다. 첨부파일종류명({@code APG_FL_KD_NM})과
- * 첨부파일연결콘텐츠명({@code APG_FL_LNK_CTZ_NM})으로 어느 도메인 데이터에 연결된 파일인지 식별합니다.
+ * <p>시스템 전역에서 사용되는 첨부파일(이미지 포함)의 메타데이터를 관리합니다. 첨부파일종류명({@code APG_FL_KD_NM})과 첨부파일연결콘텐츠명({@code
+ * APG_FL_LNK_CTZ_NM})으로 어느 도메인 데이터에 연결된 파일인지 식별합니다.
  *
  * <p>파일매핑ID 형식: {@code FL-{8자리 시퀀스}} (예: {@code FL-00000001}) — 최대 36자.
  *

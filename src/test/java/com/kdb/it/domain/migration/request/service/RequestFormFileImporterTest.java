@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -23,8 +24,8 @@ import com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts;
 import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import java.math.BigDecimal;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -91,7 +92,7 @@ class RequestFormFileImporterTest {
     }
 
     @Test
-    @DisplayName("생성한 원장마다 이관용 결재완료 받이를 만든다")
+    @DisplayName("생성한 원장마다 수기등록 상태의 신청서 받이를 만든다")
     void stampsApprovalForEachLedger() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
@@ -106,7 +107,8 @@ class RequestFormFileImporterTest {
                         anyInt(),
                         anyString(),
                         eq("12345678"),
-                        eq("2026"));
+                        eq("2026"),
+                        eq(ApprovalStatus.MANUAL));
         verify(stamper)
                 .stamp(
                         eq("BCOSTM"),
@@ -114,7 +116,8 @@ class RequestFormFileImporterTest {
                         anyInt(),
                         anyString(),
                         eq("12345678"),
-                        eq("2026"));
+                        eq("2026"),
+                        eq(ApprovalStatus.MANUAL));
     }
 
     @Test
@@ -122,7 +125,7 @@ class RequestFormFileImporterTest {
     void apply_carriesApprovalNumber() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
-        when(stamper.stamp(any(), any(), any(), any(), any(), any()))
+        when(stamper.stamp(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn("APF-2026-00000007");
 
         RequestFormDto.FileResult result =
@@ -155,7 +158,7 @@ class RequestFormFileImporterTest {
         assertThat(result.created()).isEmpty();
         verify(projectService, never()).createProject(any(), anyBoolean());
         verify(costService, never()).createCost(any(), anyBoolean());
-        verify(stamper, never()).stamp(any(), any(), any(), any(), any(), any());
+        verify(stamper, never()).stamp(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -181,8 +184,7 @@ class RequestFormFileImporterTest {
         assertThat(projectCaptor.getValue().getUsid()).isNull();
         assertThat(projectCaptor.getValue().getDvmTlrUsid()).isNull();
         assertThat(projectCaptor.getValue().getDvmUsid()).isNull();
-        verify(projectService)
-                .assignImportedPersonNames("PRJ-1", "Luke Buckingham-Brown", "홍길동");
+        verify(projectService).assignImportedPersonNames("PRJ-1", "Luke Buckingham-Brown", "홍길동");
         verify(costService).assignImportedPersonName("COST-1", "김담당");
         assertThat(result.diagnostics())
                 .filteredOn(d -> d.code() == RequestFormDiagnosticCode.SUBSTITUTE_DROPPED)
@@ -232,8 +234,7 @@ class RequestFormFileImporterTest {
         when(validator.validate(any(), anyString())).thenReturn(List.of(blocker));
         when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
 
-        RequestFormDto.FileResult result =
-                importer().apply(output, ENTRY, "2026", "12345678");
+        RequestFormDto.FileResult result = importer().apply(output, ENTRY, "2026", "12345678");
 
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
         assertThat(result.diagnostics()).contains(blocker);
@@ -266,7 +267,10 @@ class RequestFormFileImporterTest {
         FormAdapterOutput original = outputWithOneOfEach();
         FormAdapterOutput withoutDuplicateProject =
                 new FormAdapterOutput(
-                        List.of(), original.costs(), original.diagnostics(), original.suggestedGeneralExpenseUnit());
+                        List.of(),
+                        original.costs(),
+                        original.diagnostics(),
+                        original.suggestedGeneralExpenseUnit());
         when(validator.validate(any(), anyString()))
                 .thenReturn(
                         List.of(

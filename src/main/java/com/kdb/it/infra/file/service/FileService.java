@@ -83,8 +83,8 @@ public class FileService {
     /**
      * 목록 인가 판정 요청 범위 캐시 키.
      *
-     * <p>파일 읽기 권한은 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, user)}의 순수 함수이므로 같은 (종류, 부모)를 가리키는 파일은 동일한 판정을 공유한다.
-     * {@link #getFiles} 안에서만 쓰이는 메서드 지역 캐시의 키로 사용하며, 사용자·요청 사이에 공유되지 않는다.
+     * <p>파일 읽기 권한은 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, user)}의 순수 함수이므로 같은 (종류, 부모)를 가리키는 파일은
+     * 동일한 판정을 공유한다. {@link #getFiles} 안에서만 쓰이는 메서드 지역 캐시의 키로 사용하며, 사용자·요청 사이에 공유되지 않는다.
      */
     private record FileReadKey(String apgFlKdNm, String apgFlLnkCtzNm) {}
 
@@ -181,7 +181,8 @@ public class FileService {
                 .filter(
                         file ->
                                 decisions.computeIfAbsent(
-                                        new FileReadKey(file.getApgFlKdNm(), file.getApgFlLnkCtzNm()),
+                                        new FileReadKey(
+                                                file.getApgFlKdNm(), file.getApgFlLnkCtzNm()),
                                         ignored -> fileOwnershipChecker.canRead(file, user)))
                 .map(this::toResponse)
                 .toList();
@@ -206,7 +207,8 @@ public class FileService {
         }
         if (apgFlLnkCtzNms == null
                 || apgFlLnkCtzNms.isEmpty()
-                || apgFlLnkCtzNms.stream().anyMatch(apgFlLnkCtzNm -> !StringUtils.hasText(apgFlLnkCtzNm))) {
+                || apgFlLnkCtzNms.stream()
+                        .anyMatch(apgFlLnkCtzNm -> !StringUtils.hasText(apgFlLnkCtzNm))) {
             throw new CustomGeneralException("주식별자내용(apgFlLnkCtzNm)은 한 건 이상 필요하며 공백일 수 없습니다.");
         }
 
@@ -464,7 +466,9 @@ public class FileService {
     @Transactional
     public int deleteFilesByOrc(String apgFlKdNm, String apgFlLnkCtzNm, CustomUserDetails user) {
         targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(apgFlKdNm);
-        List<Cfilem> files = fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(apgFlKdNm, apgFlLnkCtzNm, "N");
+        List<Cfilem> files =
+                fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                        apgFlKdNm, apgFlLnkCtzNm, "N");
 
         // 인증 정보가 없으면 대상 목록이 비어 있어도 즉시 거부 — 빈 목록에 기대지 않는 서비스 계약
         if (user == null) {

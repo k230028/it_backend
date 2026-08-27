@@ -200,9 +200,9 @@ class GeneralExpenseFormAdapterTest {
     }
 
     @Test
-    @DisplayName("200자 이하 증감사유는 띄어쓰기와 개행을 유지한다")
+    @DisplayName("200바이트 이하 증감사유는 띄어쓰기와 개행을 유지한다")
     void preservesWhitespaceInIncreaseReasonWithinLimit() {
-        String remarks = "가".repeat(90) + " \n\t" + "나".repeat(90);
+        String remarks = "가".repeat(30) + " \n\t" + "나".repeat(30);
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(withFirstRemarks(remarks), AmountUnit.WON));
@@ -211,26 +211,26 @@ class GeneralExpenseFormAdapterTest {
     }
 
     @Test
-    @DisplayName("200자를 넘으면 공백을 제거해 제한 이내인 전체 내용을 반입한다")
+    @DisplayName("200바이트를 넘으면 공백을 제거해 제한 이내인 전체 내용을 반입한다")
     void removesWhitespaceOnlyWhenIncreaseReasonExceedsLimit() {
-        String remarks = "가".repeat(100) + " ".repeat(10) + "\n".repeat(10) + "나".repeat(100);
+        String remarks = "A".repeat(100) + " ".repeat(10) + "\n".repeat(10) + "B".repeat(100);
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(withFirstRemarks(remarks), AmountUnit.WON));
 
-        assertThat(output.costs().get(0).getIndRsn()).isEqualTo("가".repeat(100) + "나".repeat(100));
+        assertThat(output.costs().get(0).getIndRsn()).isEqualTo("A".repeat(100) + "B".repeat(100));
         assertThat(output.diagnostics()).filteredOn(d -> "indRsn".equals(d.field())).isEmpty();
     }
 
     @Test
-    @DisplayName("공백을 제거해도 긴 증감사유는 앞 200자만 반입하고 경고한다")
+    @DisplayName("공백을 제거해도 긴 증감사유는 UTF-8 문자 경계에서 200바이트 이하로 줄이고 경고한다")
     void truncatesIncreaseReasonAfterRemovingWhitespace() {
         String remarks = "가".repeat(120) + " " + "나".repeat(90);
 
         FormAdapterOutput output =
                 adapter.adapt(contextOf(withFirstRemarks(remarks), AmountUnit.WON));
 
-        assertThat(output.costs().get(0).getIndRsn()).isEqualTo("가".repeat(120) + "나".repeat(80));
+        assertThat(output.costs().get(0).getIndRsn()).isEqualTo("가".repeat(66));
         assertThat(output.diagnostics())
                 .filteredOn(d -> "indRsn".equals(d.field()))
                 .singleElement()

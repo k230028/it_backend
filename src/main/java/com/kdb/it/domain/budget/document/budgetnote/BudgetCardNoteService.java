@@ -25,7 +25,8 @@ public class BudgetCardNoteService {
     /** 등록된 카드 참고사항을 화면 순서대로 반환합니다. */
     public List<BudgetCardNoteDto.Response> getNotes() {
         Map<String, Bgdocm> documents =
-                guideDocRepository.findAllByDocMngNoStartingWithAndDelYn(DOCUMENT_PREFIX, ACTIVE)
+                guideDocRepository
+                        .findAllByDocMngNoStartingWithAndDelYn(DOCUMENT_PREFIX, ACTIVE)
                         .stream()
                         .collect(Collectors.toMap(Bgdocm::getDocTtlCone, Function.identity()));
         return Arrays.stream(BudgetCardNoteType.values())
@@ -40,8 +41,7 @@ public class BudgetCardNoteService {
 
     /** 관리자가 카드 참고사항을 신규 등록하거나 수정합니다. */
     @Transactional
-    public BudgetCardNoteDto.Response save(
-            String cardType, BudgetCardNoteDto.SaveRequest request) {
+    public BudgetCardNoteDto.Response save(String cardType, BudgetCardNoteDto.SaveRequest request) {
         BudgetCardNoteType type = BudgetCardNoteType.require(cardType);
         if (request == null || request.content() == null || request.content().isBlank()) {
             throw new IllegalArgumentException("참고사항을 입력해야 합니다");

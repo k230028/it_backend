@@ -175,7 +175,11 @@ class BannerServiceTest {
     @DisplayName("배너가 아닌 파일은 토글을 거부한다 — 배너 API로 다른 파일을 복원할 수 없다")
     void setActive_nonBannerFile_throws() {
         Cfilem other =
-                Cfilem.builder().flMpnId("FL-00000007").apgFlKdNm("공통게시판").apgFlLnkCtzNm("NAC-1").build();
+                Cfilem.builder()
+                        .flMpnId("FL-00000007")
+                        .apgFlKdNm("공통게시판")
+                        .apgFlLnkCtzNm("NAC-1")
+                        .build();
         other.delete();
         given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
 
@@ -216,7 +220,11 @@ class BannerServiceTest {
     @DisplayName("배너가 아닌 파일은 관리자 미리보기를 거부한다")
     void getAdminPreviewImage_nonBannerFile_throws() {
         Cfilem other =
-                Cfilem.builder().flMpnId("FL-00000007").apgFlKdNm("공통게시판").apgFlLnkCtzNm("NAC-1").build();
+                Cfilem.builder()
+                        .flMpnId("FL-00000007")
+                        .apgFlKdNm("공통게시판")
+                        .apgFlLnkCtzNm("NAC-1")
+                        .build();
         other.delete();
         given(fileRepository.findById("FL-00000007")).willReturn(Optional.of(other));
 

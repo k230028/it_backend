@@ -59,7 +59,8 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 파일 목록
      */
-    List<Cfilem> findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(String apgFlKdNm, String apgFlLnkCtzNm, String delYn);
+    List<Cfilem> findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+            String apgFlKdNm, String apgFlLnkCtzNm, String delYn);
 
     /**
      * 주식별자컬럼명과 여러 주식별자내용으로 파일 목록을 한 번에 조회합니다.
@@ -80,7 +81,8 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
      * @param delYn 삭제 여부
      * @return 조건에 맞는 파일 수
      */
-    long countByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(String apgFlKdNm, String apgFlLnkCtzNm, String delYn);
+    long countByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+            String apgFlKdNm, String apgFlLnkCtzNm, String delYn);
 
     /**
      * 주식별자컬럼명으로 파일 목록 전체 조회
@@ -103,7 +105,8 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
      * @param apgFlLnkCtzNm 주식별자내용
      * @return 파일매핑ID 오름차순 파일 목록 (활성·비활성 포함)
      */
-    List<Cfilem> findAllByApgFlKdNmAndApgFlLnkCtzNmOrderByFlMpnIdAsc(String apgFlKdNm, String apgFlLnkCtzNm);
+    List<Cfilem> findAllByApgFlKdNmAndApgFlLnkCtzNmOrderByFlMpnIdAsc(
+            String apgFlKdNm, String apgFlLnkCtzNm);
 
     /**
      * 주식별자컬럼명 + 주식별자내용 + 파일유형내용으로 파일 목록 조회

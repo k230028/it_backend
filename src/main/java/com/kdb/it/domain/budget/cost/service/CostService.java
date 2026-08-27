@@ -40,6 +40,9 @@ public class CostService {
     private final XcrLookupService xcrLookupService;
     private final CostQueryService queryService;
 
+    /** 단말기 서비스명 후보를 집계할 최근 예산연도 범위(당해 연도 포함) */
+    private static final int SERVICE_NAME_LOOKBACK_YEARS = 3;
+
     /**
      * 관리번호의 대표 전산업무비를 조회합니다.
      *
@@ -135,6 +138,23 @@ public class CostService {
     }
 
     /**
+     * 단말기 서비스명(SPF_TMN_NM) 입력 후보 목록을 조회합니다.
+     *
+     * <p>최근 {@value #SERVICE_NAME_LOOKBACK_YEARS}개 예산연도에 등록된 단말기의 서비스명을 중복 제거하여 사용 빈도 내림차순으로 반환합니다.
+     * 단말기종류가 주어지면 같은 종류에서만 집계하고, 비어 있으면 종류 구분 없이 집계합니다.
+     *
+     * @param tmnClsfC 단말기종류 코드 (공통코드 IT_PTL_TMN_SVC_TC), 비어 있으면 전체
+     * @return 빈도 내림차순 서비스명 목록 (해당 이력이 없으면 빈 목록)
+     */
+    public List<String> getTerminalServiceNames(String tmnClsfC) {
+        String fromBseYy =
+                String.valueOf(LocalDate.now().getYear() - (SERVICE_NAME_LOOKBACK_YEARS - 1));
+        return StringUtils.hasText(tmnClsfC)
+                ? btermmRepository.findServiceNamesByTmnClsfC(tmnClsfC, fromBseYy)
+                : btermmRepository.findServiceNames(fromBseYy);
+    }
+
+    /**
      * 여러 전산업무비 관리번호를 부분 성공 방식으로 조회합니다.
      *
      * @param request 관리번호 목록과 편성예산 기준연도
@@ -227,7 +247,10 @@ public class CostService {
         Bcostm cost =
                 costRepository
                         .findByCostBgNoAndLstYnAndDelYn(costBgNo, "Y", "N")
-                        .orElseThrow(() -> new IllegalArgumentException("전산업무비를 찾을 수 없습니다: " + costBgNo));
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "전산업무비를 찾을 수 없습니다: " + costBgNo));
         cost.assignCgprName(cgprNm);
     }
 

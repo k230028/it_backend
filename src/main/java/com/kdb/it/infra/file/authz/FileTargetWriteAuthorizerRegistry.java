@@ -46,7 +46,8 @@ public class FileTargetWriteAuthorizerRegistry {
      * @param user 현재 사용자
      * @throws AccessDeniedException 알 수 없는 종류이거나, 등록 종류의 부모가 없거나 쓰기 권한이 없는 경우
      */
-    public void verifyTargetWriteAccess(String apgFlKdNm, String apgFlLnkCtzNm, CustomUserDetails user) {
+    public void verifyTargetWriteAccess(
+            String apgFlKdNm, String apgFlLnkCtzNm, CustomUserDetails user) {
         if (apgFlKdNm != null && !kindRegistry.isKnown(apgFlKdNm)) {
             // 값 자체는 응답에 싣지 않는다 — 클라이언트가 통제하는 문자열이다.
             throw new AccessDeniedException("알 수 없는 파일 종류입니다.");

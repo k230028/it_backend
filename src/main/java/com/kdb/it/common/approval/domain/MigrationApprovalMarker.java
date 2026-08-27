@@ -1,7 +1,7 @@
 package com.kdb.it.common.approval.domain;
 
 /**
- * 수기 엑셀 이관으로 만들어진 결재완료 기록을 식별하는 표식입니다.
+ * 수기 엑셀 이관으로 만들어진 신청서 기록을 식별하는 표식입니다.
  *
  * <p>이관 받이는 결재선({@code TPRMPP_CDECIM})을 만들지 않고 신청서 본문({@code APF_DTL_CONE})도 비어 있어, 일반 신청서와 같은 화면
  * 흐름을 태우면 빈 문서가 됩니다. 그 구분을 등록자결재요청내용({@code RGPR_DCD_REQ_CONE})에 남기는 고정 문구로 합니다.
@@ -12,7 +12,7 @@ package com.kdb.it.common.approval.domain;
  */
 public final class MigrationApprovalMarker {
 
-    /** 이관으로 생성된 결재완료 기록임을 등록자결재요청내용에 남기는 고정 문구입니다. */
+    /** 이관으로 생성된 신청서 기록임을 등록자결재요청내용에 남기는 고정 문구입니다. */
     public static final String NOTE = "수기 엑셀 이관으로 생성된 결재완료 기록입니다. 실제 결재선을 거치지 않았습니다.";
 
     private MigrationApprovalMarker() {
@@ -23,7 +23,7 @@ public final class MigrationApprovalMarker {
      * 등록자결재요청내용이 이관 표식인지 판정합니다.
      *
      * @param rgprDcdReqCone 등록자결재요청내용. null이면 false
-     * @return 이관으로 생성된 결재완료 기록이면 true
+     * @return 이관으로 생성된 신청서 기록이면 true
      */
     public static boolean isMigrated(String rgprDcdReqCone) {
         return NOTE.equals(rgprDcdReqCone);

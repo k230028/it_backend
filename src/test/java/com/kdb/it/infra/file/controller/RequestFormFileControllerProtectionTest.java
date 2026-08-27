@@ -66,7 +66,10 @@ class RequestFormFileControllerProtectionTest {
                         multipart("/api/files")
                                 .file(file("file"))
                                 .file(textPart("flTpCone", "첨부파일"))
-                                .file(textPart("apgFlKdNm", RequestFormSourceFileArchiver.APG_FL_KD_NM))
+                                .file(
+                                        textPart(
+                                                "apgFlKdNm",
+                                                RequestFormSourceFileArchiver.APG_FL_KD_NM))
                                 .file(textPart("apgFlLnkCtzNm", "APF-2026-00000001"))
                                 .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest")
                                 .with(user(admin)))
@@ -82,7 +85,10 @@ class RequestFormFileControllerProtectionTest {
                         multipart("/api/files/bulk")
                                 .file(file("files"))
                                 .file(textPart("flTpCone", "첨부파일"))
-                                .file(textPart("apgFlKdNm", RequestFormSourceFileArchiver.APG_FL_KD_NM))
+                                .file(
+                                        textPart(
+                                                "apgFlKdNm",
+                                                RequestFormSourceFileArchiver.APG_FL_KD_NM))
                                 .file(textPart("apgFlLnkCtzNm", "APF-2026-00000001"))
                                 .header(SimpleRequestCsrfFilter.REQUIRED_HEADER, "XMLHttpRequest")
                                 .with(user(admin)))

@@ -258,7 +258,8 @@ public class ProjectService {
         Bprojm project =
                 projectRepository
                         .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
-                        .orElseThrow(() -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
         project.assignPersonNames(tlrNm, usrNm);
     }
 

@@ -75,9 +75,7 @@ class FormPersonNamesTest {
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .containsExactly(RequestFormDiagnosticCode.SUBSTITUTE_DROPPED);
         // 진단 문구에는 직책을 뗀 이름이 실린다 — 화면에서 실제 저장 대상과 대조할 수 있어야 한다
-        assertThat(diagnostics.get(0).message())
-                .contains("A".repeat(101))
-                .doesNotContain("과장");
+        assertThat(diagnostics.get(0).message()).contains("A".repeat(101)).doesNotContain("과장");
     }
 
     @Test

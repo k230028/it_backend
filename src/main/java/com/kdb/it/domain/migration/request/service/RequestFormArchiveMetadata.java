@@ -11,23 +11,31 @@ final class RequestFormArchiveMetadata {
     }
 
     static String fitFileName(String fileName) {
-        if (fileName == null || fileName.length() <= FILE_NAME_LIMIT) return fileName;
+        if (fileName == null || Utf8ByteLimit.length(fileName) <= FILE_NAME_LIMIT) return fileName;
         int dot = fileName.lastIndexOf('.');
         String extension = dot > 0 ? fileName.substring(dot) : "";
-        if (extension.length() >= FILE_NAME_LIMIT) return fileName.substring(0, FILE_NAME_LIMIT);
-        return fileName.substring(0, FILE_NAME_LIMIT - extension.length()) + extension;
+        String basename = dot > 0 ? fileName.substring(0, dot) : fileName;
+        int extensionBytes = Utf8ByteLimit.length(extension);
+        if (extensionBytes >= FILE_NAME_LIMIT)
+            return Utf8ByteLimit.truncate(fileName, FILE_NAME_LIMIT);
+        return Utf8ByteLimit.truncate(basename, FILE_NAME_LIMIT - extensionBytes) + extension;
     }
 
     static String fitRelativePath(String relativePath) {
-        if (relativePath == null || relativePath.length() <= RELATIVE_PATH_LIMIT) return relativePath;
+        if (relativePath == null || Utf8ByteLimit.length(relativePath) <= RELATIVE_PATH_LIMIT)
+            return relativePath;
         String normalized = relativePath.replace('\\', '/');
         String[] segments = normalized.split("/");
-        String suffix = segments[segments.length - 1];
+        String prefix = "…/";
+        String suffix =
+                Utf8ByteLimit.truncate(
+                        segments[segments.length - 1],
+                        RELATIVE_PATH_LIMIT - Utf8ByteLimit.length(prefix));
         for (int index = segments.length - 2; index >= 0; index--) {
             String candidate = segments[index] + "/" + suffix;
-            if (candidate.length() + 2 > RELATIVE_PATH_LIMIT) break;
+            if (Utf8ByteLimit.length(prefix + candidate) > RELATIVE_PATH_LIMIT) break;
             suffix = candidate;
         }
-        return "…/" + suffix;
+        return prefix + suffix;
     }
 }

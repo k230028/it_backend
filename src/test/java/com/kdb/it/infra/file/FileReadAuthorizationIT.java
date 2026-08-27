@@ -375,7 +375,10 @@ class FileReadAuthorizationIT {
                                                 .SecurityMockMvcRequestPostProcessors.user(
                                                 user(fileOwner, NS + "D" + uid)))
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"apgFlKdNm\":\"공통게시판\",\"apgFlLnkCtzNm\":\"" + boardNo + "\"}"))
+                                .content(
+                                        "{\"apgFlKdNm\":\"공통게시판\",\"apgFlLnkCtzNm\":\""
+                                                + boardNo
+                                                + "\"}"))
                 .andExpect(status().isForbidden());
 
         assertFileTarget(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid);
@@ -399,7 +402,10 @@ class FileReadAuthorizationIT {
                                                 .SecurityMockMvcRequestPostProcessors.user(
                                                 user(fileOwner, NS + "X" + uid)))
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"apgFlKdNm\":\"검토의견\",\"apgFlLnkCtzNm\":\"" + commentId + "\"}"))
+                                .content(
+                                        "{\"apgFlKdNm\":\"검토의견\",\"apgFlLnkCtzNm\":\""
+                                                + commentId
+                                                + "\"}"))
                 .andExpect(status().isForbidden());
 
         assertFileTarget(flMpnId, KIND_REQUIREMENT, NS + "OLD" + uid);
@@ -450,7 +456,11 @@ class FileReadAuthorizationIT {
 
     /** 종류·부모만 채운 인메모리 파일 엔티티(판정은 APG_FL_KD_NM·APG_FL_LNK_CTZ_NM의 순수 함수). */
     private Cfilem fileOfKind(String apgFlKdNm, String apgFlLnkCtzNm) {
-        return Cfilem.builder().flMpnId(NS + "MEM" + uid).apgFlKdNm(apgFlKdNm).apgFlLnkCtzNm(apgFlLnkCtzNm).build();
+        return Cfilem.builder()
+                .flMpnId(NS + "MEM" + uid)
+                .apgFlKdNm(apgFlKdNm)
+                .apgFlLnkCtzNm(apgFlLnkCtzNm)
+                .build();
     }
 
     private CustomUserDetails user(String eno, String bbrC) {
@@ -462,7 +472,10 @@ class FileReadAuthorizationIT {
     }
 
     private FileDto.SearchCondition condition(String apgFlKdNm, String apgFlLnkCtzNm) {
-        return FileDto.SearchCondition.builder().apgFlKdNm(apgFlKdNm).apgFlLnkCtzNm(apgFlLnkCtzNm).build();
+        return FileDto.SearchCondition.builder()
+                .apgFlKdNm(apgFlKdNm)
+                .apgFlLnkCtzNm(apgFlLnkCtzNm)
+                .build();
     }
 
     private String guid() {
@@ -591,7 +604,8 @@ class FileReadAuthorizationIT {
     }
 
     /** 파일(CFILEM) — 종류·부모·업로더를 통제. */
-    private void insertFile(String flMpnId, String apgFlKdNm, String apgFlLnkCtzNm, String fstEnrUsid) {
+    private void insertFile(
+            String flMpnId, String apgFlKdNm, String apgFlLnkCtzNm, String fstEnrUsid) {
         jdbcTemplate.update(
                 "INSERT INTO TPRMPP_CFILEM (FL_MPN_ID, FL_NM, FL_PYS_NM, FL_KPN_PTH, FL_TP_CONE, "
                         + "APG_FL_KD_NM, APG_FL_LNK_CTZ_NM, FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, "

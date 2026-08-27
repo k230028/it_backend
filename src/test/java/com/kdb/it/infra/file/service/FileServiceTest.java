@@ -182,7 +182,9 @@ class FileServiceTest {
                         .apgFlLnkCtzNm("PRJ-2026-0001")
                         .build();
         Cfilem file = mockCfilem(FL_MNG_NO);
-        given(fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
+        given(
+                        fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                                "요구사항정의서", "PRJ-2026-0001", "N"))
                 .willReturn(List.of(file));
         given(fileOwnershipChecker.canRead(file, USER)).willReturn(true);
 
@@ -220,7 +222,8 @@ class FileServiceTest {
     /**
      * 목록 캐시 검증용 파일 mock — 지정한 (종류, 부모)와 파일ID만 스텁한다.
      *
-     * <p>읽기 판정 캐시는 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM)} 조합만으로 키를 만들므로 각 파일이 자신의 종류·부모를 반환하도록 개별 스텁한다.
+     * <p>읽기 판정 캐시는 {@code (APG_FL_KD_NM, APG_FL_LNK_CTZ_NM)} 조합만으로 키를 만들므로 각 파일이 자신의 종류·부모를 반환하도록
+     * 개별 스텁한다.
      */
     private Cfilem mockCfilemWithParent(String flMngNo, String apgFlKdNm, String apgFlLnkCtzNm) {
         Cfilem f = mock(Cfilem.class);
@@ -234,7 +237,10 @@ class FileServiceTest {
     @DisplayName("getFiles: 같은 부모(종류·APG_FL_LNK_CTZ_NM) 파일 3건이면 canRead를 1회만 호출하고 3건을 반환한다")
     void getFiles_같은부모3건_canRead1회_3건반환() {
         FileDto.SearchCondition condition =
-                FileDto.SearchCondition.builder().apgFlKdNm("요구사항정의서").apgFlLnkCtzNm("DOC-1").build();
+                FileDto.SearchCondition.builder()
+                        .apgFlKdNm("요구사항정의서")
+                        .apgFlLnkCtzNm("DOC-1")
+                        .build();
         Cfilem first = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-1");
         Cfilem second = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-1");
         Cfilem third = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-1");
@@ -274,7 +280,10 @@ class FileServiceTest {
     @DisplayName("getFiles: 같은 부모가 거부되면 canRead를 1회만 호출하고 빈 목록을 반환한다")
     void getFiles_같은부모거부3건_canRead1회_빈목록() {
         FileDto.SearchCondition condition =
-                FileDto.SearchCondition.builder().apgFlKdNm("요구사항정의서").apgFlLnkCtzNm("DOC-DENY").build();
+                FileDto.SearchCondition.builder()
+                        .apgFlKdNm("요구사항정의서")
+                        .apgFlLnkCtzNm("DOC-DENY")
+                        .build();
         Cfilem first = mockCfilemWithParent("FL_00000001", "요구사항정의서", "DOC-DENY");
         Cfilem second = mockCfilemWithParent("FL_00000002", "요구사항정의서", "DOC-DENY");
         Cfilem third = mockCfilemWithParent("FL_00000003", "요구사항정의서", "DOC-DENY");
@@ -341,7 +350,8 @@ class FileServiceTest {
         assertThat(result.get("102")).isEmpty();
         assertThat(result.get("103")).isEmpty();
         verify(fileRepository, times(1))
-                .findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn("검토의견", Set.of("101", "102", "103"), "N");
+                .findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn(
+                        "검토의견", Set.of("101", "102", "103"), "N");
         verify(fileOwnershipChecker, times(1)).canRead(first, USER);
         verify(fileOwnershipChecker, never()).canRead(second, USER);
         verify(fileOwnershipChecker, times(1)).canRead(denied, USER);
@@ -456,7 +466,9 @@ class FileServiceTest {
     void deleteFilesByOrc_파일2건_2반환() {
         Cfilem f1 = mockCfilem("FL_00000001");
         Cfilem f2 = mockCfilem("FL_00000002");
-        given(fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("요구사항정의서", "PRJ-2026-0001", "N"))
+        given(
+                        fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                                "요구사항정의서", "PRJ-2026-0001", "N"))
                 .willReturn(List.of(f1, f2));
 
         int count = fileService.deleteFilesByOrc("요구사항정의서", "PRJ-2026-0001", USER);
@@ -555,7 +567,9 @@ class FileServiceTest {
         given(official.getApgFlKdNm()).willReturn(RequestFormSourceFileArchiver.APG_FL_KD_NM);
         given(
                         fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
-                                RequestFormSourceFileArchiver.APG_FL_KD_NM, "APF-2026-00000001", "N"))
+                                RequestFormSourceFileArchiver.APG_FL_KD_NM,
+                                "APF-2026-00000001",
+                                "N"))
                 .willReturn(List.of(official));
 
         assertThatThrownBy(
@@ -588,7 +602,9 @@ class FileServiceTest {
     @Test
     @DisplayName("deleteFilesByOrc: 연관 파일이 없으면 0을 반환한다")
     void deleteFilesByOrc_파일없음_0반환() {
-        given(fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("없는구분", "PRJ-9999-9999", "N"))
+        given(
+                        fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                                "없는구분", "PRJ-9999-9999", "N"))
                 .willReturn(List.of());
 
         int count = fileService.deleteFilesByOrc("없는구분", "PRJ-9999-9999", USER);
@@ -601,7 +617,10 @@ class FileServiceTest {
     void updateFileMeta_존재하는파일_메타수정() {
         Cfilem cfilem = mock(Cfilem.class);
         FileDto.UpdateRequest request =
-                FileDto.UpdateRequest.builder().apgFlKdNm("정보화사업").apgFlLnkCtzNm("PRJ-2026-0002").build();
+                FileDto.UpdateRequest.builder()
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("PRJ-2026-0002")
+                        .build();
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
 
         String result = fileService.updateFileMeta(FL_MNG_NO, request);
@@ -617,7 +636,10 @@ class FileServiceTest {
         given(cfilem.getApgFlKdNm()).willReturn(RequestFormSourceFileArchiver.APG_FL_KD_NM);
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
         FileDto.UpdateRequest request =
-                FileDto.UpdateRequest.builder().apgFlKdNm("정보화사업").apgFlLnkCtzNm("PRJ-2026-0002").build();
+                FileDto.UpdateRequest.builder()
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("PRJ-2026-0002")
+                        .build();
 
         assertThatThrownBy(() -> fileService.updateFileMeta(FL_MNG_NO, request))
                 .isInstanceOf(AccessDeniedException.class)
@@ -652,7 +674,10 @@ class FileServiceTest {
         given(cfilem.getApgFlKdNm()).willReturn("배너");
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
         FileDto.UpdateRequest request =
-                FileDto.UpdateRequest.builder().apgFlKdNm("정보화사업").apgFlLnkCtzNm("PRJ-2026-0002").build();
+                FileDto.UpdateRequest.builder()
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("PRJ-2026-0002")
+                        .build();
 
         assertThatThrownBy(() -> fileService.updateFileMeta(FL_MNG_NO, request))
                 .isInstanceOf(AccessDeniedException.class)
@@ -843,7 +868,8 @@ class FileServiceTest {
     void uploadFile_빈파일_CustomGeneralException발생() {
         MockMultipartFile emptyFile =
                 new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
-        FileDto.UploadRequest request = FileDto.UploadRequest.builder().apgFlKdNm("요구사항정의서").build();
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().apgFlKdNm("요구사항정의서").build();
 
         assertThatThrownBy(() -> fileService.uploadFile(emptyFile, request))
                 .isInstanceOf(CustomGeneralException.class)
@@ -1116,7 +1142,9 @@ class FileServiceTest {
     @DisplayName("deleteFilesByOrc: 해당 원본구분·원본PK에 파일이 없으면 예외 없이 0을 반환한다")
     void deleteFilesByOrc_파일없는원본PK_0반환() {
         // Arrange: DB에 매칭되는 파일 없음
-        given(fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("없는구분", "PRJ-0000-0000", "N"))
+        given(
+                        fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                                "없는구분", "PRJ-0000-0000", "N"))
                 .willReturn(java.util.Collections.emptyList());
 
         // Act
@@ -1167,7 +1195,9 @@ class FileServiceTest {
         Cfilem f1 = mockCfilem("FL_00000011");
         Cfilem f2 = mockCfilem("FL_00000012");
         Cfilem f3 = mockCfilem("FL_00000013");
-        given(fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn("정보화사업", "BIZ-2026-0001", "N"))
+        given(
+                        fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
+                                "정보화사업", "BIZ-2026-0001", "N"))
                 .willReturn(java.util.Arrays.asList(f1, f2, f3));
 
         // Act

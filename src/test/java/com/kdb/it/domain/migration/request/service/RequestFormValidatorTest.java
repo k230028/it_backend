@@ -15,6 +15,7 @@ import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -132,15 +133,16 @@ class RequestFormValidatorTest {
     }
 
     @Test
-    @DisplayName("계약명이 100자를 넘으면 잘라 넣고 경고한다")
+    @DisplayName("한글 계약명이 100바이트를 넘으면 UTF-8 문자를 보존해 잘라 넣고 경고한다")
     void truncatesOverlongContractName() {
-        CostDto.CreateRequest cost = cost("010", "가".repeat(101), new BigDecimal("1000"));
+        CostDto.CreateRequest cost = cost("010", "가".repeat(34), new BigDecimal("1000"));
 
         assertThat(validator().validate(costsOf(cost), "2026"))
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .contains(RequestFormDiagnosticCode.TEXT_TRUNCATED)
                 .doesNotContain(RequestFormDiagnosticCode.LENGTH_EXCEEDED);
-        assertThat(cost.getCttNm()).hasSize(100);
+        assertThat(cost.getCttNm()).isEqualTo("가".repeat(33));
+        assertThat(cost.getCttNm().getBytes(StandardCharsets.UTF_8)).hasSize(99);
     }
 
     @Test
@@ -148,15 +150,15 @@ class RequestFormValidatorTest {
     void truncatesLongProjectNarrativesWithWarnings() {
         ProjectDto.CreateRequest project = project("길이 검증 사업");
         project.setCpnSafCone("현".repeat(1001));
-        project.setAbusNcsCone("가".repeat(301));
-        project.setAbusRngCone("범".repeat(601));
+        project.setAbusNcsCone("가".repeat(101));
+        project.setAbusRngCone("범".repeat(201));
 
         List<RequestFormDto.FormDiagnostic> diagnostics =
                 validator().validate(projectsOf(project), "2026");
 
-        assertThat(project.getCpnSafCone()).hasSize(1000);
-        assertThat(project.getAbusNcsCone()).hasSize(300);
-        assertThat(project.getAbusRngCone()).hasSize(600);
+        assertThat(project.getCpnSafCone().getBytes(StandardCharsets.UTF_8)).hasSize(999);
+        assertThat(project.getAbusNcsCone().getBytes(StandardCharsets.UTF_8)).hasSize(300);
+        assertThat(project.getAbusRngCone().getBytes(StandardCharsets.UTF_8)).hasSize(600);
         assertThat(diagnostics)
                 .filteredOn(d -> d.code() == RequestFormDiagnosticCode.TEXT_TRUNCATED)
                 .extracting(RequestFormDto.FormDiagnostic::field)
@@ -262,8 +264,7 @@ class RequestFormValidatorTest {
     void excludesDuplicateProjectsFromImportTarget() {
         when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
                 .thenReturn(List.of(Bprojm.builder().abusNm("기존 사업").build()));
-        FormAdapterOutput output =
-                projectsOf(project("기존 사업"), project("신규 사업"), project("신규 사업"));
+        FormAdapterOutput output = projectsOf(project("기존 사업"), project("신규 사업"), project("신규 사업"));
 
         FormAdapterOutput filtered = validator().withoutDuplicateProjects(output, "2026");
 

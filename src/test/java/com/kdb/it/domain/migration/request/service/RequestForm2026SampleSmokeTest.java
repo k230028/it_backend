@@ -73,11 +73,9 @@ class RequestForm2026SampleSmokeTest {
 
     private static final String RISK_MANAGEMENT_SAMPLE_SUFFIX = "편성 요청서_리스크관리부.xls";
 
-    private static final String PROCESS_AUTOMATION_SAMPLE_SUFFIX =
-            "2026년 전산예산 편성 요청서_프로세스자동화팀.xls";
+    private static final String PROCESS_AUTOMATION_SAMPLE_SUFFIX = "2026년 전산예산 편성 요청서_프로세스자동화팀.xls";
 
-    private static final String AI_PLATFORM_SAMPLE_SUFFIX =
-            "2026년 전산예산 편성 요청서_AI플랫폼팀.xls";
+    private static final String AI_PLATFORM_SAMPLE_SUFFIX = "2026년 전산예산 편성 요청서_AI플랫폼팀.xls";
 
     private static final String SAMPLE_LOOKUP_FAILURE = "로컬 샘플 탐색에 실패했습니다";
 
@@ -329,8 +327,7 @@ class RequestForm2026SampleSmokeTest {
                                         "USD", "달러")));
         when(catalogReader.edrtCapitalCandidates()).thenReturn(List.of());
         when(catalogReader.exePttCodeByName()).thenReturn(Map.of());
-        when(catalogReader.edrtCapitalCodeByName())
-                .thenReturn(Map.of("지역본부장", "23", "부점장", "24"));
+        when(catalogReader.edrtCapitalCodeByName()).thenReturn(Map.of("지역본부장", "23", "부점장", "24"));
         when(catalogReader.reportStatusCodeByName()).thenReturn(Map.of());
         List<FormSheetAdapter> adapters =
                 List.of(
@@ -354,11 +351,7 @@ class RequestForm2026SampleSmokeTest {
                                 sheets,
                                 "2026",
                                 new RequestFormDto.FileEntry(
-                                        "sample.xls",
-                                        "디지털전략부(185)",
-                                        null,
-                                        AmountUnit.WON,
-                                        "571"),
+                                        "sample.xls", "디지털전략부(185)", null, AmountUnit.WON, "571"),
                                 "185",
                                 "디지털전략부",
                                 orgIndex,
@@ -378,7 +371,8 @@ class RequestForm2026SampleSmokeTest {
                     .filteredOn(
                             diagnostic ->
                                     diagnostic.code().severity()
-                                            == com.kdb.it.domain.migration.dto.MigrationDto.Severity.BLOCKER)
+                                            == com.kdb.it.domain.migration.dto.MigrationDto.Severity
+                                                    .BLOCKER)
                     .extracting(
                             RequestFormDto.FormDiagnostic::code,
                             RequestFormDto.FormDiagnostic::field,

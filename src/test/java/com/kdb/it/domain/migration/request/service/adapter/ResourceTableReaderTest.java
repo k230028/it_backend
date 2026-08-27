@@ -255,10 +255,7 @@ class ResourceTableReaderTest {
     void routesNextYearItemToPlannedAmount() {
         ProjectDto.BitemmDto item =
                 ResourceTableReader.toItem(
-                        row("KRW", new BigDecimal("202746300"), "27.1월"),
-                        "101",
-                        1,
-                        "2026");
+                        row("KRW", new BigDecimal("202746300"), "27.1월"), "101", 1, "2026");
 
         assertThat(item.getAmt()).isZero();
         assertThat(item.getMplAmt()).isEqualByComparingTo("202746300");
@@ -268,8 +265,7 @@ class ResourceTableReaderTest {
     @DisplayName("한글과 기호로 적은 원화 통화는 KRW로 정규화한다")
     void normalizesKoreanWonCurrencyAliases() {
         for (String currency : List.of("원", "원화", "₩", "원화(KRW)", "KRW(원화)")) {
-            ProjectDto.BitemmDto item =
-                    toItem(row(currency, new BigDecimal("500"), "년"));
+            ProjectDto.BitemmDto item = toItem(row(currency, new BigDecimal("500"), "년"));
 
             assertThat(item.getCurC()).as(currency).isEqualTo("KRW");
             assertThat(item.getAmt()).as(currency).isEqualByComparingTo("500");

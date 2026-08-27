@@ -2,6 +2,7 @@ package com.kdb.it.common.approval.domain;
 
 /** 신청서 결재상태 (Ccodem cId='APF_STS'). */
 public enum ApprovalStatus {
+    MANUAL("0", "수기등록"),
     IN_PROGRESS("1", "결재중"),
     COMPLETED("2", "결재완료"),
     REJECTED("3", "반려"),

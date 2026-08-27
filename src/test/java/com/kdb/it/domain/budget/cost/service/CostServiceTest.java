@@ -2219,4 +2219,37 @@ class CostServiceTest {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
     }
+
+    @Nested
+    @DisplayName("getTerminalServiceNames — 단말기 서비스명 후보 조회")
+    class TerminalServiceNameTests {
+
+        /** 최근 3개 예산연도(당해 포함)의 시작 연도 */
+        private String expectedFromBseYy() {
+            return String.valueOf(LocalDate.now().getYear() - 2);
+        }
+
+        @Test
+        @DisplayName("단말기종류가 있으면 종류별 조회에 최근 3개 예산연도 시작값을 넘긴다")
+        void withTmnClsfC_delegatesToFilteredQuery() {
+            given(btermmRepository.findServiceNamesByTmnClsfC("01", expectedFromBseYy()))
+                    .willReturn(List.of("한국은행 금융망", "연합인포맥스"));
+
+            assertThat(costService.getTerminalServiceNames("01"))
+                    .containsExactly("한국은행 금융망", "연합인포맥스");
+            verify(btermmRepository).findServiceNamesByTmnClsfC("01", expectedFromBseYy());
+            verify(btermmRepository, never()).findServiceNames(any());
+        }
+
+        @Test
+        @DisplayName("단말기종류가 비어 있으면 종류 조건 없는 조회를 사용한다")
+        void blankTmnClsfC_delegatesToUnfilteredQuery() {
+            given(btermmRepository.findServiceNames(expectedFromBseYy()))
+                    .willReturn(List.of("연합인포맥스"));
+
+            assertThat(costService.getTerminalServiceNames("  ")).containsExactly("연합인포맥스");
+            verify(btermmRepository).findServiceNames(expectedFromBseYy());
+            verify(btermmRepository, never()).findServiceNamesByTmnClsfC(any(), any());
+        }
+    }
 }

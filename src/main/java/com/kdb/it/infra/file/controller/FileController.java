@@ -263,7 +263,8 @@ public class FileController {
                         .apgFlKdNm(apgFlKdNm)
                         .build();
 
-        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(apgFlKdNm, apgFlLnkCtzNm, userDetails);
+        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(
+                apgFlKdNm, apgFlLnkCtzNm, userDetails);
         // 업로드 후 전체 파일 정보(previewUrl, downloadUrl 포함) 반환
         FileDto.Response response = fileService.uploadFileAndGet(file, request);
         return ResponseEntity.created(URI.create("/api/files/" + response.getFlMpnId()))
@@ -308,7 +309,8 @@ public class FileController {
                         .apgFlKdNm(apgFlKdNm)
                         .build();
 
-        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(apgFlKdNm, apgFlLnkCtzNm, userDetails);
+        targetWriteAuthorizerRegistry.verifyTargetWriteAccess(
+                apgFlKdNm, apgFlLnkCtzNm, userDetails);
         return ResponseEntity.ok(fileService.uploadFiles(files, request));
     }
 

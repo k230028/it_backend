@@ -100,8 +100,8 @@ public class RequestFormValidator {
     /**
      * 기존 원장 또는 같은 파일 앞쪽에 이미 나온 사업을 저장 대상에서 제외합니다.
      *
-     * <p>중복은 {@link RequestFormDiagnosticCode#DUPLICATE_EXISTS} WARNING으로 사용자에게 알리되, 실제 INSERT를 시도하면 DB
-     * 중복 오류가 날 수 있으므로 사업과 병렬 금액 목록을 함께 걸러 냅니다. 일반관리비는 그대로 남겨 같은 파일의 다른 자료가 계속 반입되게 합니다.
+     * <p>중복은 {@link RequestFormDiagnosticCode#DUPLICATE_EXISTS} WARNING으로 사용자에게 알리되, 실제 INSERT를
+     * 시도하면 DB 중복 오류가 날 수 있으므로 사업과 병렬 금액 목록을 함께 걸러 냅니다. 일반관리비는 그대로 남겨 같은 파일의 다른 자료가 계속 반입되게 합니다.
      */
     @Transactional(readOnly = true)
     public FormAdapterOutput withoutDuplicateProjects(FormAdapterOutput output, String bseYy) {
@@ -568,14 +568,15 @@ public class RequestFormValidator {
             String subject,
             String label,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        if (value == null || value.length() <= max) return;
+        int actualBytes = Utf8ByteLimit.length(value);
+        if (value == null || actualBytes <= max) return;
         diagnostics.add(
                 blocker(
                         sheet,
                         field,
                         subject,
                         RequestFormDiagnosticCode.LENGTH_EXCEEDED,
-                        "%s이(가) %d자를 넘습니다(%d자).".formatted(label, max, value.length())));
+                        "%s이(가) %d바이트를 넘습니다(%d바이트).".formatted(label, max, actualBytes)));
     }
 
     private Set<String> existingProjectNames(String bseYy) {
@@ -594,7 +595,8 @@ public class RequestFormValidator {
             String subject,
             String label,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        if (value == null || value.length() <= max) return value;
+        int actualBytes = Utf8ByteLimit.length(value);
+        if (value == null || actualBytes <= max) return value;
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.about(
                         sheet,
@@ -602,10 +604,10 @@ public class RequestFormValidator {
                         field,
                         subject,
                         RequestFormDiagnosticCode.TEXT_TRUNCATED,
-                        "%s이(가) %d자를 넘어 앞 %d자만 반입합니다(%d자)."
-                                .formatted(label, max, max, value.length()),
+                        "%s이(가) %d바이트를 넘어 UTF-8 문자 경계에서 줄여 반입합니다(%d바이트)."
+                                .formatted(label, max, actualBytes),
                         List.of()));
-        return value.substring(0, max);
+        return Utf8ByteLimit.truncate(value, max);
     }
 
     private RequestFormDto.FormDiagnostic blocker(

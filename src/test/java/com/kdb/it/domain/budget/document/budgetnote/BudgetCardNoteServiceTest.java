@@ -2,8 +2,8 @@ package com.kdb.it.domain.budget.document.budgetnote;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
@@ -92,10 +92,6 @@ class BudgetCardNoteServiceTest {
     }
 
     private static Bgdocm note(String docMngNo, String title, String content) {
-        return Bgdocm.builder()
-                .docMngNo(docMngNo)
-                .docTtlCone(title)
-                .nacTxtInf(content)
-                .build();
+        return Bgdocm.builder().docMngNo(docMngNo).docTtlCone(title).nacTxtInf(content).build();
     }
 }
