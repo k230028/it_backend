@@ -106,7 +106,14 @@ public class CostTerminalAssembler {
                                     Collectors.toMap(
                                             UserRepository.UserNameView::getEno,
                                             UserRepository.UserNameView::getUsrNm));
-            terminals.forEach(terminal -> terminal.setCgprNm(userNames.get(terminal.getCgprId())));
+            /* 조회 실패(빈 행번·미등록 행번)는 null로 덮지 않고 저장 스냅샷(cgprNm 초기값)을 유지한다 */
+            terminals.forEach(
+                    terminal -> {
+                        String userName = userNames.get(terminal.getCgprId());
+                        if (userName != null && !userName.isBlank()) {
+                            terminal.setCgprNm(userName);
+                        }
+                    });
         }
         Map<String, String> serviceNames =
                 codeNameMapBuilder.build(

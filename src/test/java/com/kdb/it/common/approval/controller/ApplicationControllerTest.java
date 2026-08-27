@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.approval.service.ApprovalLineManagementService;
 import com.kdb.it.common.approval.service.PendingApproverService;
 import com.kdb.it.common.mfa.security.MfaGuardConfiguration;
 import com.kdb.it.common.mfa.service.MfaService;
@@ -28,8 +30,9 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
+
 import jakarta.servlet.http.Cookie;
-import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +43,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 /**
  * ApplicationController @WebMvcTest
@@ -60,6 +65,7 @@ class ApplicationControllerTest {
 
     @MockitoBean private ApplicationService applicationService;
     @MockitoBean private PendingApproverService pendingApproverService;
+    @MockitoBean private ApprovalLineManagementService approvalLineManagementService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
     @MockitoBean private MfaService mfaService;
@@ -358,5 +364,22 @@ class ApplicationControllerTest {
                                         org.hamcrest.Matchers.containsString("Max-Age=0")));
 
         verify(applicationService, never()).submit(any());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/applications/{apfMngNo}/approvers/order - 미결재 순서 변경 → 204")
+    @WithMockUser(username = "10001", roles = "USER")
+    void reorderApprovers_인증_204() throws Exception {
+        mockMvc.perform(
+                        patch("/api/applications/APF_202600000001/approvers/order")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"orderedDcdSqns\":[3,2]}"))
+                .andExpect(status().isNoContent());
+
+        verify(approvalLineManagementService)
+                .reorderPendingApprovers(
+                        eq("APF_202600000001"), eq(List.of(3, 2)), eq("10001"), eq(false));
     }
 }

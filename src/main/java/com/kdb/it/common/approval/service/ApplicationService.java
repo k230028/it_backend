@@ -777,28 +777,22 @@ public class ApplicationService {
     /**
      * 결재 회수 가능 여부 검증 헬퍼
      *
-     * <p>결재중 상태인 신청서에 대해 관리자·신청자·중간결재자 세 가지 분기로 회수 권한을 판단합니다.
+     * <p>결재중 상태인 신청서에 대해 기안자 여부로 회수 권한을 판단합니다.
      *
      * <ul>
      *   <li>결재중({@code APF_STS_C = IN_PROGRESS}) 상태가 아니면 무조건 false 반환
-     *   <li>시스템관리자({@code isAdmin=true}): 항상 허용
-     *   <li>신청자({@code currentEno == capplm.rqsEno}): 허용
-     *   <li>중간결재자(최종결재자 아닌 결재선 중 현재 사용자): 허용
+     *   <li>기안자({@code currentEno == capplm.rqsEno}): 허용
      * </ul>
      *
      * @param capplm 대상 신청서 마스터 엔티티
-     * @param approvers 결재선 목록 (중간결재자 여부 판단용, {@code LST_DCD_YN} 기준)
+     * @param approvers 결재선 목록 (호출부 호환성을 위해 유지하며 권한 판단에는 사용하지 않음)
      * @param currentEno 현재 요청 사용자 사번
-     * @param isAdmin 관리자 여부 플래그
+     * @param isAdmin 관리자 여부 플래그 (호출부 호환성을 위해 유지하며 권한 판단에는 사용하지 않음)
      * @return 회수 가능 여부 (true=허용, false=거부)
      */
     private boolean canRecall(
             Capplm capplm, List<Cdecim> approvers, String currentEno, boolean isAdmin) {
         if (!ApprovalStatus.IN_PROGRESS.code().equals(capplm.getItPtlApfPrgStsC())) return false;
-        if (isAdmin) return true;
-        if (currentEno.equals(capplm.getDcdReqUsid())) return true;
-        return approvers.stream()
-                .filter(a -> !"Y".equals(a.getLstDcdYn()))
-                .anyMatch(a -> currentEno.equals(a.getDcrEno()));
+        return currentEno.equals(capplm.getDcdReqUsid());
     }
 }

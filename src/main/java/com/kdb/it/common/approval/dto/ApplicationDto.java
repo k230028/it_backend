@@ -6,16 +6,21 @@ import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+
 import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
-import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 신청서(결재) 관련 DTO 클래스 모음
@@ -43,6 +48,24 @@ public class ApplicationDto {
     @Schema(name = "ApplicationChangeApproverRequest", description = "미결재 결재자 변경 요청")
     public static class ChangeApproverRequest {
         @NotBlank private String newApproverEno;
+    }
+
+    /** 결재선에 추가할 직원 요청 DTO입니다. */
+    @Getter
+    @Setter
+    @Schema(name = "ApplicationAddApproverRequest", description = "추가 결재자 등록 요청")
+    public static class AddApproverRequest {
+        @NotBlank private String approverEno;
+    }
+
+    /** 미결재 결재자 순서 변경 요청 DTO입니다. */
+    @Getter
+    @Setter
+    @Schema(name = "ApplicationReorderApproversRequest", description = "미결재 결재자 순서 변경 요청")
+    public static class ReorderApproversRequest {
+        @NotEmpty
+        @Schema(description = "미결재 결재순번 목록 (변경 후 순서)")
+        private List<Integer> orderedDcdSqns;
     }
 
     /**

@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.exception.CustomGeneralException;
-import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +21,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+
+import java.util.List;
 
 /**
  * ApprovalLineDelegate 단위 테스트
@@ -225,5 +227,54 @@ class ApprovalLineDelegateTest {
                                         json.contains("\"step1\":{\"id\":\"E001\",\"date\"")
                                                 && !json.contains(
                                                         "\"drafter\":{\"id\":\"E001\",\"date\"")));
+    }
+
+    @Test
+    @DisplayName("doUpdate: 추가 결재자 배열 항목에도 승인일을 기록한다")
+    void doUpdate_추가결재자배열_date필드갱신() {
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn(
+                        "{\"approvalLine\":{\"teamLead\":{\"id\":\"E001\"},\"additionalApprovers\":[{\"id\":\"E002\"}]}}");
+        Cdecim first = mock(Cdecim.class);
+        given(first.getDcrEno()).willReturn("E001");
+        given(first.getDcrSqnSno()).willReturn(1);
+        Cdecim additional = mock(Cdecim.class);
+        given(additional.getDcrEno()).willReturn("E002");
+        given(additional.getDcrSqnSno()).willReturn(2);
+
+        delegate.doUpdate(capplm, List.of(first, additional), List.of(additional));
+
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json ->
+                                        json.contains("\"id\":\"E002\"")
+                                                && json.contains("\"date\"")));
+    }
+
+    @Test
+    @DisplayName("추가 결재자를 JSON 결재선에 추가하고 지정 항목을 삭제한다")
+    void 추가결재자_JSON추가삭제() throws Exception {
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn("{\"approvalLine\":{\"teamLead\":{\"id\":\"E001\"}}}");
+
+        delegate.addApproverToDetail(capplm, "E002", "김결재", "대리");
+
+        org.mockito.ArgumentCaptor<String> jsonCaptor =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(capplm).updateDetailContent(jsonCaptor.capture());
+        String updatedJson = jsonCaptor.getValue();
+        org.assertj.core.api.Assertions.assertThat(updatedJson)
+                .contains("\"id\":\"E002\"")
+                .contains("\"name\":\"김결재\"");
+
+        given(capplm.getDcdReqInf()).willReturn(updatedJson);
+        delegate.removeApproverFromDetail(capplm, 0);
+        verify(capplm, org.mockito.Mockito.times(2))
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
     }
 }

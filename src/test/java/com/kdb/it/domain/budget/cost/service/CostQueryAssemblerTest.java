@@ -21,10 +21,7 @@ import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +30,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -287,6 +289,61 @@ class CostQueryAssemblerTest {
         CostDto.Response result = assembler.assembleList(List.of(cost)).getFirst();
 
         assertThat(result.getCgprNm()).isEqualTo("김담당");
+        assertThat(result.getCgprId()).isNull();
+    }
+
+    @Test
+    @DisplayName("목록 조립: 행번이 빈 행은 담당자명 스냅샷을 조인 결과로 덮지 않고 유지한다")
+    void assembleList_행번빈행_담당자명스냅샷유지() {
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-EMPTY-ID")
+                        .bgSno(1)
+                        .lstYn("Y")
+                        .cgprId(null)
+                        .cgprNm("홍길동")
+                        .build();
+
+        CostDto.Response result = assembler.assembleList(List.of(cost)).getFirst();
+
+        assertThat(result.getCgprNm()).isEqualTo("홍길동");
+        assertThat(result.getCgprId()).isNull();
+    }
+
+    @Test
+    @DisplayName("목록 조립: 미해석 행번(퇴직 등)이라도 담당자명 스냅샷을 null로 덮지 않는다")
+    void assembleList_미해석행번_담당자명스냅샷유지() {
+        /* 사번 형태(K999999)지만 사용자 조회가 비는 행 — 종전에는 이름이 null로 덮여 사라졌다 */
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-RETIRED")
+                        .bgSno(1)
+                        .lstYn("Y")
+                        .cgprId("K999999")
+                        .cgprNm("퇴직자")
+                        .build();
+
+        CostDto.Response result = assembler.assembleList(List.of(cost)).getFirst();
+
+        assertThat(result.getCgprNm()).isEqualTo("퇴직자");
+        assertThat(result.getCgprId()).isEqualTo("K999999");
+    }
+
+    @Test
+    @DisplayName("단건 조립: 행번이 빈 행은 담당자명 스냅샷을 조인 결과로 덮지 않고 유지한다")
+    void assembleDetail_행번빈행_담당자명스냅샷유지() {
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-EMPTY-ID")
+                        .bgSno(1)
+                        .lstYn("Y")
+                        .cgprId(null)
+                        .cgprNm("홍길동")
+                        .build();
+
+        CostDto.Response result = assembler.assembleDetail(cost);
+
+        assertThat(result.getCgprNm()).isEqualTo("홍길동");
         assertThat(result.getCgprId()).isNull();
     }
 

@@ -24,13 +24,15 @@ import com.kdb.it.domain.budget.project.repository.BprojaRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 
 class ProjectQueryAssemblerTest {
 
@@ -312,6 +314,47 @@ class ProjectQueryAssemblerTest {
 
         assertThat(result.getUsidNm()).isEqualTo("홍길동");
         assertThat(result.getUsid()).isNull();
+    }
+
+    @Test
+    @DisplayName("상세 조립: 행번이 빈 사업은 담당자명 스냅샷(USR_NM·TLR_NM)을 유지한다")
+    void assembleDetail_행번빈사업_담당자명스냅샷유지() {
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-EMPTY-ID")
+                        .sno(1)
+                        .delYn("N")
+                        .usid(null)
+                        .usrNm("홍길동")
+                        .tlrUsid(null)
+                        .tlrNm("김팀장")
+                        .build();
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getUsidNm()).isEqualTo("홍길동");
+        assertThat(result.getTlrUsidNm()).isEqualTo("김팀장");
+        assertThat(result.getUsid()).isNull();
+        assertThat(result.getTlrUsid()).isNull();
+    }
+
+    @Test
+    @DisplayName("상세 조립: 미해석 행번(퇴직 등)이라도 담당자명 스냅샷을 null로 덮지 않는다")
+    void assembleDetail_미해석행번_담당자명스냅샷유지() {
+        /* 사번 형태(K999999)지만 사용자 조회가 비는 행 — 종전에는 이름이 null로 덮여 사라졌다 */
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-RETIRED")
+                        .sno(1)
+                        .delYn("N")
+                        .usid("K999999")
+                        .usrNm("퇴직자")
+                        .build();
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getUsidNm()).isEqualTo("퇴직자");
+        assertThat(result.getUsid()).isEqualTo("K999999");
     }
 
     @Test

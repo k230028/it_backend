@@ -124,19 +124,19 @@ class ApplicationServiceRecallTest {
     }
 
     @Test
-    @DisplayName("관리자는 무관계자라도 회수 가능")
-    void recall_byAdmin_succeeds() {
+    @DisplayName("관리자라도 기안자가 아니면 회수할 수 없다")
+    void recall_byAdmin_forbidden() {
         when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("1")));
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
                 .thenReturn(List.of(approver(1, "E002", "1", "Y")));
 
-        service.recall(APF, req(), "E999", true);
-        verify(eventPublisher).publishEvent(any(ApprovalRecalledEvent.class));
+        assertThatThrownBy(() -> service.recall(APF, req(), "E999", true))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
-    @DisplayName("중간결재자 회수 — 기승인 이력 보존, 미결재만 회수무효")
-    void recall_byMiddleApprover_preservesApprovedHistory() {
+    @DisplayName("중간결재자라도 기안자가 아니면 회수할 수 없다")
+    void recall_byMiddleApprover_forbidden() {
         when(applicationRepository.findById(APF)).thenReturn(Optional.of(capplm("1")));
         Cdecim a1 = approver(1, "E001", "2", "N");
         Cdecim a2 = approver(2, "E002", "1", "N");
@@ -144,10 +144,7 @@ class ApplicationServiceRecallTest {
         when(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
                 .thenReturn(List.of(a1, a2, a3));
 
-        service.recall(APF, req(), "E002", false);
-
-        assertThat(a1.getItPtlDcdStsC()).isEqualTo("2");
-        assertThat(a2.getItPtlDcdStsC()).isEqualTo("4");
-        assertThat(a3.getItPtlDcdStsC()).isEqualTo("4");
+        assertThatThrownBy(() -> service.recall(APF, req(), "E002", false))
+                .isInstanceOf(AccessDeniedException.class);
     }
 }

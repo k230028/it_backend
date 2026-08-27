@@ -150,6 +150,7 @@ public class CostTerminalDto {
                     .dfrCleC(entity.getDfrCleC())
                     .indRsn(entity.getIndRsn())
                     .cgprId(entity.getCgprId())
+                    .cgprNm(entity.getCgprNm()) // 담당자명 스냅샷 (행번 미해석 시 표시 폴백)
                     .termSvnTemC(entity.getTermSvnTemC())
                     .termSvnDpmC(entity.getTermSvnDpmC())
                     .rmk(entity.getRmk())

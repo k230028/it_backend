@@ -2,13 +2,16 @@ package com.kdb.it.common.approval.entity;
 
 import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.domain.entity.BaseEntity;
+
 import jakarta.persistence.*;
-import java.time.LocalDate;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+
+import java.time.LocalDate;
 
 /**
  * 결재 정보 관리 엔티티
@@ -101,5 +104,10 @@ public class Cdecim extends BaseEntity {
     /** 아직 처리되지 않은 결재 순번의 담당 직원을 변경합니다. */
     public void changeApprover(String approverEno) {
         this.dcrEno = approverEno;
+    }
+
+    /** 결재선의 마지막 항목 여부를 변경합니다. */
+    public void markLast(boolean last) {
+        this.lstDcdYn = last ? "Y" : "N";
     }
 }

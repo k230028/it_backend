@@ -624,6 +624,7 @@ public class CostDto extends CostTerminalDto {
                     .sectSysUtzYn(entity.getSectSysUtzYn()) // 정보보호여부
                     .indRsn(entity.getIndRsn()) // 증감사유
                     .cgprId(entity.getCgprId()) // 담당자
+                    .cgprNm(entity.getCgprNm()) // 담당자명 스냅샷 (행번 미해석 시 표시 폴백)
                     .costSvnDpmC(entity.getCostSvnDpmC()) // 담당부서
                     .svnTemC(entity.getSvnTemC()) // 담당팀
                     .bgUntAbusC(entity.getBgUntAbusC()) // 사업코드

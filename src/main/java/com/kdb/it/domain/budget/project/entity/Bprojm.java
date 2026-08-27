@@ -436,10 +436,7 @@ public class Bprojm extends BaseEntity {
         this.dvmDpmC = dvmDpmC;
         this.sttDtm = sttDtm;
         this.endDtm = endDtm;
-        this.usid = usid;
-        this.dvmUsid = dvmUsid;
-        this.tlrUsid = tlrUsid;
-        this.dvmTlrUsid = dvmTlrUsid;
+        applyPersonIds(usid, dvmUsid, tlrUsid, dvmTlrUsid);
         this.edrtTc = edrtTc;
         this.abusCone = abusCone;
         this.cpnSafCone = cpnSafCone;
@@ -461,6 +458,25 @@ public class Bprojm extends BaseEntity {
         this.odnYn = odnYn;
         this.abusTc = CodeDefaults.orNotApplicable(abusTc);
         this.cncdRfrNo = cncdRfrNo;
+    }
+
+    /**
+     * 담당자 컬럼(USID·DVM_USID·TLR_USID·DVM_TLR_USID) 변경 적용.
+     *
+     * <p><b>빈값 요청이면 기존 값을 유지합니다.</b> 이 컬럼들은 행번 또는 이름을 담는데({@link UserNameResolver} 참고), 행번 미해석 행은
+     * 조회 응답에서 행번이 비워져 내려가므로 수정 저장이 빈값을 그대로 되돌려 보낸다. 그대로 덮으면 컬럼에 남아 있던 이름이 삭제되고 사용자 테이블
+     * 조인으로는 되살릴 수 없다.
+     *
+     * @param usid 주관부서담당자 (빈값이면 기존 유지)
+     * @param dvmUsid IT부서담당자 (빈값이면 기존 유지)
+     * @param tlrUsid 주관부서담당팀장 (빈값이면 기존 유지)
+     * @param dvmTlrUsid IT부서담당팀장 (빈값이면 기존 유지)
+     */
+    private void applyPersonIds(String usid, String dvmUsid, String tlrUsid, String dvmTlrUsid) {
+        if (usid != null && !usid.isBlank()) this.usid = usid;
+        if (dvmUsid != null && !dvmUsid.isBlank()) this.dvmUsid = dvmUsid;
+        if (tlrUsid != null && !tlrUsid.isBlank()) this.tlrUsid = tlrUsid;
+        if (dvmTlrUsid != null && !dvmTlrUsid.isBlank()) this.dvmTlrUsid = dvmTlrUsid;
     }
 
     /**
@@ -538,10 +554,7 @@ public class Bprojm extends BaseEntity {
         this.dvmDpmC = dvmDpmC;
         this.sttDtm = sttDtm;
         this.endDtm = endDtm;
-        this.usid = usid;
-        this.dvmUsid = dvmUsid;
-        this.tlrUsid = tlrUsid;
-        this.dvmTlrUsid = dvmTlrUsid;
+        applyPersonIds(usid, dvmUsid, tlrUsid, dvmTlrUsid);
         this.edrtTc = edrtTc;
         this.abusCone = abusCone;
         this.cpnSafCone = cpnSafCone;

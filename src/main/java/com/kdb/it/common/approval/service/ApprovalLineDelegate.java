@@ -3,10 +3,19 @@ package com.kdb.it.common.approval.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.exception.CustomGeneralException;
+
+import lombok.RequiredArgsConstructor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -15,11 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 결재선 JSON 업데이트 위임 서비스
@@ -107,6 +111,67 @@ public class ApprovalLineDelegate {
         }
     }
 
+    /** 추가 결재자 정보를 신청서 상세 JSON의 결재선 뒤에 추가합니다. */
+    @Transactional
+    public void addApproverToDetail(Capplm capplm, String eno, String name, String rank) {
+        String json = capplm.getDcdReqInf();
+        if (json == null || json.isBlank()) return;
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode line = root.path("approvalLine");
+            if (!(line instanceof ObjectNode lineObject)) return;
+            ArrayNode additions = lineObject.withArray("additionalApprovers");
+            ObjectNode approver = objectMapper.createObjectNode();
+            approver.put("name", name == null ? "" : name);
+            approver.put("rank", rank == null ? "" : rank);
+            approver.put("date", "");
+            approver.put("id", eno);
+            additions.add(approver);
+            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
+        } catch (JsonProcessingException e) {
+            throw new CustomGeneralException("추가 결재선 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
+        }
+    }
+
+    /** 신청서 상세 JSON에서 추가 결재자 배열의 지정 항목을 삭제합니다. */
+    @Transactional
+    public void removeApproverFromDetail(Capplm capplm, int addedIndex) {
+        String json = capplm.getDcdReqInf();
+        if (json == null || json.isBlank()) return;
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode line = root.path("approvalLine");
+            if (!(line instanceof ObjectNode lineObject)) return;
+            JsonNode additions = lineObject.get("additionalApprovers");
+            if (additions instanceof ArrayNode array
+                    && addedIndex >= 0
+                    && addedIndex < array.size()) {
+                array.remove(addedIndex);
+                capplm.updateDetailContent(objectMapper.writeValueAsString(root));
+            }
+        } catch (JsonProcessingException e) {
+            throw new CustomGeneralException("추가 결재선 JSON 삭제 실패: " + capplm.getApfMngNo(), e);
+        }
+    }
+
+    /** 신청서 상세 JSON에 현재 결재선 순서를 기록합니다. */
+    @Transactional
+    public void updateApprovalOrder(Capplm capplm, List<Cdecim> orderedApprovers) {
+        String json = capplm.getDcdReqInf();
+        if (json == null || json.isBlank()) return;
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode line = root.path("approvalLine");
+            if (!(line instanceof ObjectNode lineObject)) return;
+            ArrayNode order = objectMapper.createArrayNode();
+            orderedApprovers.forEach(approver -> order.add(approver.getDcrEno()));
+            lineObject.set("order", order);
+            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
+        } catch (JsonProcessingException e) {
+            throw new CustomGeneralException("결재선 순서 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
+        }
+    }
+
     /**
      * 결재선에서 승인된 결재자의 occurrence(등장 순서) 맵을 생성합니다.
      *
@@ -150,6 +215,10 @@ public class ApprovalLineDelegate {
      */
     private boolean applyDateToMatchingNodes(
             JsonNode approvalLineNode, Map<String, Set<Integer>> targetOccurrences) {
+        JsonNode orderNode = approvalLineNode.get("order");
+        if (orderNode instanceof ArrayNode) {
+            return applyDateInStoredOrder(approvalLineNode, orderNode, targetOccurrences);
+        }
         Map<String, Integer> jsonCounters = new HashMap<>();
         boolean updated = false;
 
@@ -157,7 +226,7 @@ public class ApprovalLineDelegate {
         while (fieldNames.hasNext()) {
             String fieldName = fieldNames.next();
             JsonNode approverNode = approvalLineNode.get(fieldName);
-            if (approverNode == null || !approverNode.isObject() || !approverNode.has("id")) {
+            if (approverNode == null) {
                 continue;
             }
             // 기안자(drafter)는 Cdecim 결재자 레코드가 아니므로 occurrence 카운팅에서 제외.
@@ -165,18 +234,73 @@ public class ApprovalLineDelegate {
             if ("drafter".equals(fieldName)) {
                 continue;
             }
-            String id = approverNode.get("id").asText();
-            int jsonOccurrence = jsonCounters.getOrDefault(id, 0) + 1;
-            jsonCounters.put(id, jsonOccurrence);
-
-            Set<Integer> targets = targetOccurrences.get(id);
-            if (targets != null
-                    && targets.contains(jsonOccurrence)
-                    && approverNode instanceof ObjectNode on) {
-                on.put("date", LocalDateTime.now().format(DATE_FMT));
-                updated = true;
+            if (approverNode.isArray()) {
+                for (JsonNode additional : approverNode) {
+                    updated |= applyDateToApproverNode(additional, jsonCounters, targetOccurrences);
+                }
+            } else if (approverNode.isObject() && approverNode.has("id")) {
+                updated |= applyDateToApproverNode(approverNode, jsonCounters, targetOccurrences);
             }
         }
         return updated;
+    }
+
+    /** 저장된 결재 순서 배열을 사용해 결재일을 올바른 결재자 노드에 반영합니다. */
+    private boolean applyDateInStoredOrder(
+            JsonNode approvalLineNode,
+            JsonNode orderNode,
+            Map<String, Set<Integer>> targetOccurrences) {
+        Map<String, List<JsonNode>> nodesById = new HashMap<>();
+        Iterator<String> fieldNames = approvalLineNode.fieldNames();
+        while (fieldNames.hasNext()) {
+            String fieldName = fieldNames.next();
+            if ("drafter".equals(fieldName) || "order".equals(fieldName)) continue;
+            JsonNode approverNode = approvalLineNode.get(fieldName);
+            if (approverNode == null) continue;
+            if (approverNode.isArray()) {
+                for (JsonNode additional : approverNode) addNodeById(nodesById, additional);
+            } else {
+                addNodeById(nodesById, approverNode);
+            }
+        }
+
+        Map<String, Integer> jsonCounters = new HashMap<>();
+        boolean updated = false;
+        for (JsonNode idNode : orderNode) {
+            String id = idNode.asText();
+            List<JsonNode> candidates = nodesById.get(id);
+            if (candidates == null || candidates.isEmpty()) continue;
+            updated |=
+                    applyDateToApproverNode(candidates.remove(0), jsonCounters, targetOccurrences);
+        }
+        return updated;
+    }
+
+    private void addNodeById(Map<String, List<JsonNode>> nodesById, JsonNode node) {
+        if (node.isObject() && node.has("id")) {
+            nodesById
+                    .computeIfAbsent(
+                            node.get("id").asText(), ignored -> new java.util.ArrayList<>())
+                    .add(node);
+        }
+    }
+
+    /** 결재자 JSON 한 항목의 사번 occurrence를 계산하고 승인일을 반영합니다. */
+    private boolean applyDateToApproverNode(
+            JsonNode approverNode,
+            Map<String, Integer> jsonCounters,
+            Map<String, Set<Integer>> targetOccurrences) {
+        if (!approverNode.isObject() || !approverNode.has("id")) return false;
+        String id = approverNode.get("id").asText();
+        int jsonOccurrence = jsonCounters.getOrDefault(id, 0) + 1;
+        jsonCounters.put(id, jsonOccurrence);
+        Set<Integer> targets = targetOccurrences.get(id);
+        if (targets != null
+                && targets.contains(jsonOccurrence)
+                && approverNode instanceof ObjectNode on) {
+            on.put("date", LocalDateTime.now().format(DATE_FMT));
+            return true;
+        }
+        return false;
     }
 }

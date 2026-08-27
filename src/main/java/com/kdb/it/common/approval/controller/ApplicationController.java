@@ -2,17 +2,22 @@ package com.kdb.it.common.approval.controller;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.approval.service.ApprovalLineManagementService;
 import com.kdb.it.common.approval.service.PendingApproverService;
 import com.kdb.it.common.mfa.domain.MfaPurpose;
 import com.kdb.it.common.mfa.security.MfaRequired;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.validation.Valid;
-import java.net.URI;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
 
 /**
  * 신청서 관리 REST 컨트롤러
@@ -49,6 +56,8 @@ public class ApplicationController {
     private final ApplicationService applicationService;
 
     private final PendingApproverService pendingApproverService;
+
+    private final ApprovalLineManagementService approvalLineManagementService;
 
     /**
      * 전체 신청서 목록 조회
@@ -216,7 +225,7 @@ public class ApplicationController {
     /**
      * 신청서 회수
      *
-     * <p>결재중 신청서를 회수합니다. 신청자/중간결재자/관리자만 가능, 최종 결재자 승인 전까지.
+     * <p>결재중 신청서를 기안자가 회수합니다. 최종 결재자 승인 전까지 가능합니다.
      *
      * @param apfMngNo 신청서 관리번호
      * @param request 회수 요청 ({@link ApplicationDto.RecallRequest})
@@ -224,9 +233,7 @@ public class ApplicationController {
      */
     @PostMapping("/{apfMngNo}/recall")
     @MfaRequired(purpose = MfaPurpose.APPROVAL)
-    @Operation(
-            summary = "신청서 회수",
-            description = "결재중 신청서를 회수합니다. 신청자/중간결재자/관리자만 가능, 최종 결재자 승인 전까지.")
+    @Operation(summary = "신청서 회수", description = "결재중 신청서를 기안자가 회수합니다. 최종 결재자 승인 전까지 가능합니다.")
     public ResponseEntity<Void> recall(
             @PathVariable("apfMngNo") String apfMngNo,
             @Valid @RequestBody ApplicationDto.RecallRequest request) {
@@ -251,6 +258,50 @@ public class ApplicationController {
                 auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
         pendingApproverService.changePendingApprover(
                 apfMngNo, dcdSqn, request.getNewApproverEno(), auth.getName(), isAdmin);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 결재중 신청서의 마지막 순번 뒤에 추가 결재자를 등록합니다. */
+    @PostMapping("/{apfMngNo}/approvers")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
+    @Operation(summary = "추가 결재자 등록", description = "결재중 신청서의 결재선 마지막에 결재자를 추가합니다.")
+    public ResponseEntity<Void> addApprover(
+            @PathVariable("apfMngNo") String apfMngNo,
+            @Valid @RequestBody ApplicationDto.AddApproverRequest request,
+            Authentication auth) {
+        boolean isAdmin =
+                auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
+        approvalLineManagementService.addApprover(
+                apfMngNo, request.getApproverEno(), auth.getName(), isAdmin);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 결재중 신청서의 미결재 추가 결재자를 삭제합니다. */
+    @DeleteMapping("/{apfMngNo}/approvers/{dcdSqn}")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
+    @Operation(summary = "추가 결재자 삭제", description = "결재중 신청서의 미결재 추가 결재자를 삭제합니다.")
+    public ResponseEntity<Void> deleteApprover(
+            @PathVariable("apfMngNo") String apfMngNo,
+            @PathVariable("dcdSqn") int dcdSqn,
+            Authentication auth) {
+        boolean isAdmin =
+                auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
+        approvalLineManagementService.deleteApprover(apfMngNo, dcdSqn, auth.getName(), isAdmin);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 결재중 신청서의 미결재 결재자 순서를 변경합니다. */
+    @PatchMapping("/{apfMngNo}/approvers/order")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
+    @Operation(summary = "미결재 결재자 순서 변경", description = "승인 완료자를 고정하고 미결재 결재자 순서만 변경합니다.")
+    public ResponseEntity<Void> reorderApprovers(
+            @PathVariable("apfMngNo") String apfMngNo,
+            @Valid @RequestBody ApplicationDto.ReorderApproversRequest request,
+            Authentication auth) {
+        boolean isAdmin =
+                auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
+        approvalLineManagementService.reorderPendingApprovers(
+                apfMngNo, request.getOrderedDcdSqns(), auth.getName(), isAdmin);
         return ResponseEntity.noContent().build();
     }
 

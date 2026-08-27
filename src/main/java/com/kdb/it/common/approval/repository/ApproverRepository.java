@@ -2,11 +2,16 @@ package com.kdb.it.common.approval.repository;
 
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.entity.CdecimId;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
  * 결재 정보(Cdecim) 데이터 접근 리포지토리
@@ -88,4 +93,30 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
      * @return 전체 결재선 목록
      */
     List<Cdecim> findByDcdMngNoInOrderByDcrSqnSnoAsc(Collection<String> dcdMngNos);
+
+    /** 복합키 충돌 없이 미결재 결재선의 순번을 임시 위치로 이동합니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            value =
+                    "UPDATE TPRMPP_CDECIM "
+                            + "SET DCR_SQN_SNO = DCR_SQN_SNO + :offset "
+                            + "WHERE APF_DCM_NO = :dcdMngNo "
+                            + "AND DCR_SQN_SNO IN (:sequences)",
+            nativeQuery = true)
+    int shiftPendingSequences(
+            @Param("dcdMngNo") String dcdMngNo,
+            @Param("sequences") Collection<Integer> sequences,
+            @Param("offset") int offset);
+
+    /** 임시 위치의 결재자를 실제 결재 순번으로 이동합니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            value =
+                    "UPDATE TPRMPP_CDECIM SET DCR_SQN_SNO = :toSequence "
+                            + "WHERE APF_DCM_NO = :dcdMngNo AND DCR_SQN_SNO = :fromSequence",
+            nativeQuery = true)
+    int updateSequence(
+            @Param("dcdMngNo") String dcdMngNo,
+            @Param("fromSequence") int fromSequence,
+            @Param("toSequence") int toSequence);
 }

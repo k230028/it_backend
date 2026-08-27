@@ -35,8 +35,10 @@ public final class ProjectResponseMapper {
                 .endDtm(project.getEndDtm()) // 종료일자
                 .prlmHrkOgzCCone(project.getPrlmHrkOgzCCone()) // 주관본부/부문
                 .usid(project.getUsid()) // 주관부서담당자
+                .usidNm(project.getUsrNm()) // 주관부서담당자명 스냅샷 (행번 미해석 시 표시 폴백)
                 .dvmUsid(project.getDvmUsid()) // IT부서담당자
                 .tlrUsid(project.getTlrUsid()) // 주관부서담당팀장
+                .tlrUsidNm(project.getTlrNm()) // 주관부서담당팀장명 스냅샷 (행번 미해석 시 표시 폴백)
                 .dvmTlrUsid(project.getDvmTlrUsid()) // IT부서담당팀장
                 .edrtTc(project.getEdrtTc()) // 전결권
                 .abusCone(project.getAbusCone()) // 사업설명

@@ -245,10 +245,15 @@ public class CostQueryAssembler {
                 cost.getSvnTemNm() != null
                         ? cost.getSvnTemNm()
                         : mapValue(data.organizationNames(), response.getSvnTemC()));
+        /* 담당자명: 행번이 비어 있으면 조인 해석을 건너뛰고 저장 스냅샷(cgprNm 초기값)을 유지한다.
+           해석 실패(퇴직·미등록 행번)도 null로 덮지 않고 스냅샷을 남긴다 — 이름 삭제 방지. */
         String managerId = response.getCgprId();
-        String managerName = mapValue(data.userNames(), managerId);
-        response.setCgprNm(UserNameResolver.resolve(managerId, managerName));
-        if (UserNameResolver.isStoredName(managerId, managerName)) response.setCgprId(null);
+        if (hasText(managerId)) {
+            String managerName = mapValue(data.userNames(), managerId);
+            String resolvedName = UserNameResolver.resolve(managerId, managerName);
+            if (resolvedName != null) response.setCgprNm(resolvedName);
+            if (UserNameResolver.isStoredName(managerId, managerName)) response.setCgprId(null);
+        }
         response.setCgprPtCNm(mapValue(data.positions(), response.getCgprId()));
         response.setBgUntAbusCNm(mapValue(data.businessUnitNames(), response.getBgUntAbusC()));
         response.setDfrCleCNm(mapValue(data.paymentNames(), response.getDfrCleC()));
@@ -282,19 +287,19 @@ public class CostQueryAssembler {
                     .findNameViewByPrlmOgzCCone(response.getSvnTemC())
                     .ifPresent(value -> response.setSvnTemNm(value.getBbrNm()));
         }
+        /* 담당자명: 행번이 비어 있으면 조인 해석을 건너뛰고 저장 스냅샷(cgprNm 초기값)을 유지한다.
+           해석 실패(퇴직·미등록 행번)도 null로 덮지 않고 스냅샷을 남긴다 — 이름 삭제 방지. */
         if (hasText(response.getCgprId())) {
             String managerId = response.getCgprId();
-            userRepository
-                    .findNameViewByEno(managerId)
-                    .ifPresent(
-                            value -> {
-                                response.setCgprNm(value.getUsrNm());
-                                response.setCgprPtCNm(value.getPtCNm());
-                            });
-            if (response.getCgprNm() == null) {
-                response.setCgprNm(UserNameResolver.resolve(managerId, null));
-                if (UserNameResolver.isStoredName(managerId, null)) response.setCgprId(null);
+            UserRepository.UserNameView view =
+                    userRepository.findNameViewByEno(managerId).orElse(null);
+            String lookedUpName = view == null ? null : view.getUsrNm();
+            if (view != null) {
+                response.setCgprPtCNm(view.getPtCNm());
             }
+            String resolvedName = UserNameResolver.resolve(managerId, lookedUpName);
+            if (resolvedName != null) response.setCgprNm(resolvedName);
+            if (UserNameResolver.isStoredName(managerId, lookedUpName)) response.setCgprId(null);
         }
         applyCodeName(
                 CommonCodeGroups.ABUS_UNIT, response.getBgUntAbusC(), response::setBgUntAbusCNm);

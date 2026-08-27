@@ -217,7 +217,11 @@ public class Btermm extends BaseEntity {
         this.xcrBseDt = command.xcrBseDt();
         this.dfrCleC = CodeDefaults.orNotApplicable(command.dfrCleC());
         this.indRsn = command.indRsn();
-        this.cgprId = command.cgprId();
+        /* 담당자(CGPR_ID)는 빈값 요청이면 기존 값을 유지한다 — Bcostm.update와 같은 이유로,
+           행번 미해석 행의 이름이 빈값 저장으로 삭제되는 것을 막는다. */
+        if (command.cgprId() != null && !command.cgprId().isBlank()) {
+            this.cgprId = command.cgprId();
+        }
         this.termSvnTemC = command.termSvnTemC();
         this.termSvnDpmC = command.termSvnDpmC();
         this.rmk = command.rmk();

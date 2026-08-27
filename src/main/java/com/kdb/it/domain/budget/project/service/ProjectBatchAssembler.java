@@ -339,34 +339,73 @@ final class ProjectBatchAssembler {
      *
      * <p>담당자 컬럼은 사번 또는 이름을 담으므로, 사번 조회가 비면 {@link UserNameResolver}가 저장값 자체를 이름으로 사용할지 판정합니다. 직위명은
      * 사번 조회가 성공한 경우에만 채웁니다.
+     *
+     * <p>행번이 비어 있으면 조인 해석을 건너뛰고, 해석에 실패해도 null로 덮지 않습니다 — 응답 초기값으로 실린 저장 스냅샷 이름(USR_NM·TLR_NM)을
+     * 유지해 행번 미해석 행의 이름이 화면에서 사라지지 않게 합니다.
      */
     private static void applyUserNames(
             ProjectDto.Response response,
             Map<String, String> names,
             Map<String, String> positions) {
-        response.setDvmUsidNm(resolveName(names, response.getDvmUsid()));
-        response.setDvmUsidPtCNm(getOrNull(positions, response.getDvmUsid()));
-        response.setTlrUsidNm(resolveName(names, response.getTlrUsid()));
-        response.setTlrUsidPtCNm(getOrNull(positions, response.getTlrUsid()));
-        response.setUsidNm(resolveName(names, response.getUsid()));
-        response.setUsidPtCNm(getOrNull(positions, response.getUsid()));
-        response.setDvmTlrUsidNm(resolveName(names, response.getDvmTlrUsid()));
-        response.setDvmTlrUsidPtCNm(getOrNull(positions, response.getDvmTlrUsid()));
-        if (UserNameResolver.isStoredName(
-                response.getDvmUsid(), getOrNull(names, response.getDvmUsid())))
-            response.setDvmUsid(null);
-        if (UserNameResolver.isStoredName(
-                response.getTlrUsid(), getOrNull(names, response.getTlrUsid())))
-            response.setTlrUsid(null);
-        if (UserNameResolver.isStoredName(response.getUsid(), getOrNull(names, response.getUsid())))
-            response.setUsid(null);
-        if (UserNameResolver.isStoredName(
-                response.getDvmTlrUsid(), getOrNull(names, response.getDvmTlrUsid())))
-            response.setDvmTlrUsid(null);
+        applyUserName(
+                names,
+                positions,
+                response.getDvmUsid(),
+                response::setDvmUsid,
+                response::setDvmUsidNm,
+                response::setDvmUsidPtCNm);
+        applyUserName(
+                names,
+                positions,
+                response.getTlrUsid(),
+                response::setTlrUsid,
+                response::setTlrUsidNm,
+                response::setTlrUsidPtCNm);
+        applyUserName(
+                names,
+                positions,
+                response.getUsid(),
+                response::setUsid,
+                response::setUsidNm,
+                response::setUsidPtCNm);
+        applyUserName(
+                names,
+                positions,
+                response.getDvmTlrUsid(),
+                response::setDvmTlrUsid,
+                response::setDvmTlrUsidNm,
+                response::setDvmTlrUsidPtCNm);
     }
 
-    private static String resolveName(Map<String, String> names, String userId) {
-        return UserNameResolver.resolve(userId, getOrNull(names, userId));
+    /**
+     * 담당자 한 명의 사용자명·직위명 해석을 적용합니다.
+     *
+     * @param names 사번→사용자명 일괄 조회 결과
+     * @param positions 사번→직위명 일괄 조회 결과
+     * @param userId 담당자 컬럼 저장값 (빈값이면 스냅샷 유지를 위해 아무것도 하지 않음)
+     * @param idSetter 저장값이 이름으로 판정되면 행번을 비우는 setter
+     * @param nameSetter 해석된 표시명 setter (해석 실패 시 호출하지 않음 — 스냅샷 유지)
+     * @param positionSetter 직위명 setter (사번 조회 성공 시에만 값 존재)
+     */
+    private static void applyUserName(
+            Map<String, String> names,
+            Map<String, String> positions,
+            String userId,
+            java.util.function.Consumer<String> idSetter,
+            java.util.function.Consumer<String> nameSetter,
+            java.util.function.Consumer<String> positionSetter) {
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        String lookedUpName = getOrNull(names, userId);
+        String resolvedName = UserNameResolver.resolve(userId, lookedUpName);
+        if (resolvedName != null) {
+            nameSetter.accept(resolvedName);
+        }
+        positionSetter.accept(getOrNull(positions, userId));
+        if (UserNameResolver.isStoredName(userId, lookedUpName)) {
+            idSetter.accept(null);
+        }
     }
 
     private static String getOrNull(Map<String, String> values, String key) {
