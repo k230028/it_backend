@@ -170,6 +170,28 @@ class RequestFormValidatorTest {
     }
 
     @Test
+    @DisplayName("한글 품목명이 100바이트를 넘으면 차단하지 않고 UTF-8 문자 경계에서 줄인다")
+    void truncatesOverlongItemNameWithWarning() {
+        ProjectDto.CreateRequest project = project("품목명 길이 검증 사업");
+        project.getItems().get(0).setGclNm("가".repeat(34));
+
+        List<RequestFormDto.FormDiagnostic> diagnostics =
+                validator().validate(projectsOf(project), "2026");
+
+        assertThat(project.getItems().get(0).getGclNm()).isEqualTo("가".repeat(33));
+        assertThat(diagnostics)
+                .filteredOn(d -> "gclNm".equals(d.field()))
+                .singleElement()
+                .satisfies(
+                        diagnostic -> {
+                            assertThat(diagnostic.code())
+                                    .isEqualTo(RequestFormDiagnosticCode.TEXT_TRUNCATED);
+                            assertThat(diagnostic.severity())
+                                    .isEqualTo(MigrationDto.Severity.WARNING);
+                        });
+    }
+
+    @Test
     @DisplayName("양식 담당자 이름은 ID 길이로 차단하지 않는다")
     void allowsPersonNameLongerThanIdColumn() {
         ProjectDto.CreateRequest project = project("담당자 길이 검증 사업");

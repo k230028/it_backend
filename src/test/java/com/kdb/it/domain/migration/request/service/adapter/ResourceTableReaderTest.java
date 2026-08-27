@@ -219,12 +219,56 @@ class ResourceTableReaderTest {
     }
 
     @Test
-    @DisplayName("JPY만 천엔을 엔으로 펴고 나머지 외화는 그대로 둔다")
-    void expandsOnlyJapaneseYen() {
+    @DisplayName("단위가 없는 JPY는 엔으로 보고 다른 외화와 같이 원문 금액을 유지한다")
+    void keepsUnspecifiedJapaneseYenInYen() {
         assertThat(toItem(row("JPY", new BigDecimal("100"), "년")).getFcAmt())
-                .isEqualByComparingTo(new BigDecimal("100000"));
+                .isEqualByComparingTo(new BigDecimal("100"));
         assertThat(toItem(row("GBP", new BigDecimal("100"), "년")).getFcAmt())
                 .isEqualByComparingTo(new BigDecimal("100"));
+    }
+
+    @Test
+    @DisplayName("금액 칸에 천엔이 명시된 JPY만 엔으로 펴서 저장한다")
+    void expandsExplicitThousandsOfJapaneseYen() {
+        ResourceRow thousandYen =
+                new ResourceRow(
+                        11,
+                        "기계장치(HW)",
+                        "서버",
+                        BigDecimal.ONE,
+                        new BigDecimal("100"),
+                        "JPY",
+                        new BigDecimal("100"),
+                        AmountUnit.THOUSAND,
+                        "근거",
+                        "년",
+                        "Y",
+                        "N",
+                        "");
+
+        assertThat(toItem(thousandYen).getFcAmt()).isEqualByComparingTo("100000");
+    }
+
+    @Test
+    @DisplayName("금액 칸에 엔이 명시된 JPY는 원문 금액을 유지한다")
+    void keepsExplicitJapaneseYenInYen() {
+        ResourceRow yen =
+                new ResourceRow(
+                        11,
+                        "기계장치(HW)",
+                        "서버",
+                        BigDecimal.ONE,
+                        new BigDecimal("100"),
+                        "JPY",
+                        new BigDecimal("100"),
+                        AmountUnit.WON,
+                        "근거",
+                        "년",
+                        "Y",
+                        "N",
+                        "");
+
+        assertThat(toItem(yen).getFcAmt()).isEqualByComparingTo("100");
     }
 
     @Test

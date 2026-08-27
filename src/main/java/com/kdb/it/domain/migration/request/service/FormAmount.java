@@ -30,10 +30,10 @@ public final class FormAmount {
     private static final Pattern NOISE = Pattern.compile("[,\\s\\u00A0\\u3000₩$￦]+");
 
     /** 단위 표기와 배수. 긴 표기가 먼저여야 `백만원`이 `원`으로 잘리지 않습니다. */
-    private static final String[] UNIT_WORDS = {"백만원", "천원", "원"};
+    private static final String[] UNIT_WORDS = {"백만원", "천원", "천엔", "원", "엔"};
 
     private static final AmountUnit[] UNIT_VALUES = {
-        AmountUnit.MILLION, AmountUnit.THOUSAND, AmountUnit.WON
+        AmountUnit.MILLION, AmountUnit.THOUSAND, AmountUnit.THOUSAND, AmountUnit.WON, AmountUnit.WON
     };
 
     /**

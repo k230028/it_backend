@@ -33,7 +33,7 @@ public class ResourceTableReader {
     /** 지급주기: 해당없음. 자본예산 품목은 양식에 주기 열이 없어 이 값을 씁니다. */
     public static final String CYCLE_NOT_APPLICABLE = "0";
 
-    /** JPY만 양식이 천엔 단위라 엔으로 폅니다. */
+    /** JPY 금액 칸이 천엔을 명시했을 때 엔으로 펼 배수입니다. */
     private static final long JPY_MULTIPLIER = 1_000L;
 
     /** 도입시기 표기에서 월을 뽑는 패턴. `~26.2월`·`2분기 중` 등에서 씁니다. */
@@ -155,7 +155,7 @@ public class ResourceTableReader {
      * 소요자원 행을 품목 DTO로 바꿉니다.
      *
      * <p>원화 행은 `AMT`에, 외화 행은 `FC_AMT`에만 담습니다. 외화의 원화금액과 환율은 서버 {@code BudgetAmountCalculator}가
-     * `FC_AMT × Ccodem 환율`로 재계산하므로 여기서 채우면 그 값이 버려집니다. JPY만 양식이 천엔이라 엔으로 폅니다.
+     * `FC_AMT × Ccodem 환율`로 재계산하므로 여기서 채우면 그 값이 버려집니다. JPY는 금액 칸이 밝힌 단위만 적용하고, 표기가 없으면 엔으로 봅니다.
      *
      * @param row 소요자원 행
      * @param ioeCode 확정된 비목코드. 미해석이면 null
@@ -243,7 +243,10 @@ public class ResourceTableReader {
             }
             item.setFcAmt(null);
         } else if (currency != null && !currency.isBlank()) {
-            long multiplier = "JPY".equals(currency) ? JPY_MULTIPLIER : 1L;
+            long multiplier =
+                    "JPY".equals(currency) && row.amountUnit() == AmountUnit.THOUSAND
+                            ? JPY_MULTIPLIER
+                            : 1L;
             item.setFcAmt(row.amount().multiply(BigDecimal.valueOf(multiplier)));
             item.setAmt(null);
             item.setXcr(null);

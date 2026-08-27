@@ -27,6 +27,8 @@ class FormAmountTest {
         assertThat(FormAmount.parse("2,122백만원").value()).isEqualByComparingTo("2122");
         assertThat(FormAmount.parse("2,122백만원").unit()).isEqualTo(AmountUnit.MILLION);
         assertThat(FormAmount.parse("500천원").unit()).isEqualTo(AmountUnit.THOUSAND);
+        assertThat(FormAmount.parse("500천엔").unit()).isEqualTo(AmountUnit.THOUSAND);
+        assertThat(FormAmount.parse("500엔").unit()).isEqualTo(AmountUnit.WON);
     }
 
     @Test

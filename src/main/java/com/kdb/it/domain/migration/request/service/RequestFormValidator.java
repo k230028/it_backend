@@ -495,7 +495,15 @@ public class RequestFormValidator {
             if (!alreadyReported.contains(new FieldSubject(IOE_FIELD, nullSafe(item.getGclNm())))) {
                 requireText(item.getIoeC(), sheet, IOE_FIELD, subject, "비목코드", diagnostics);
             }
-            limit(item.getGclNm(), ITEM_NAME_LIMIT, sheet, "gclNm", subject, "품목명", diagnostics);
+            item.setGclNm(
+                    truncate(
+                            item.getGclNm(),
+                            ITEM_NAME_LIMIT,
+                            sheet,
+                            "gclNm",
+                            subject,
+                            "품목명",
+                            diagnostics));
             if (item.getAmt() == null && item.getFcAmt() == null) {
                 diagnostics.add(
                         blocker(
