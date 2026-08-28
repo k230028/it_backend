@@ -10,8 +10,6 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -148,7 +146,10 @@ public class SsoController {
         // 실연동: 인증서버 통신 점검 후 ESSO 로그인 페이지로 이동. 실패 시 수동 로그인 폴백.
         if (!ssoAgentClient.isServerAlive()) {
             log.warn("SSO 인증서버 통신 실패 - 수동 로그인으로 폴백");
-            response.sendRedirect(resolveFrontendBaseUrl(origin) + "/login?error=sso");
+            String frontendBaseUrl = getAllowedOrigin(origin);
+            if (frontendBaseUrl == null) frontendBaseUrl = frontendUrl;
+            if (frontendBaseUrl == null) frontendBaseUrl = "";
+            response.sendRedirect(frontendBaseUrl + "/login?error=sso");
             return;
         }
         response.sendRedirect(
@@ -192,7 +193,10 @@ public class SsoController {
             response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoNextCookie().toString());
             response.addHeader(
                     HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
-            response.sendRedirect(resolveFrontendBaseUrl(origin) + "/login?error=sso");
+            String frontendBaseUrl = getAllowedOrigin(origin);
+            if (frontendBaseUrl == null) frontendBaseUrl = frontendUrl;
+            if (frontendBaseUrl == null) frontendBaseUrl = "";
+            response.sendRedirect(frontendBaseUrl + "/login?error=sso");
             return;
         }
 
@@ -233,8 +237,10 @@ public class SsoController {
                 SsoLogSanitizer.resultCode(result.resultCode()),
                 request.getHeader("X-Forwarded-For") != null);
         String origin = readSessionString(session, SSO_ORIGIN_SESSION_KEY);
-        response.sendRedirect(
-                resolveFrontendBaseUrl(origin.isBlank() ? null : origin) + "/login?error=sso");
+        String frontendBaseUrl = getAllowedOrigin(origin.isBlank() ? null : origin);
+        if (frontendBaseUrl == null) frontendBaseUrl = frontendUrl;
+        if (frontendBaseUrl == null) frontendBaseUrl = "";
+        response.sendRedirect(frontendBaseUrl + "/login?error=sso");
     }
 
     /**
@@ -411,7 +417,10 @@ public class SsoController {
                     HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
 
             String dest = SsoNextPathValidator.safePathOrRoot(effectiveNext);
-            String target = resolveFrontendBaseUrl(effectiveOrigin) + dest;
+            String frontendBaseUrl = getAllowedOrigin(effectiveOrigin);
+            if (frontendBaseUrl == null) frontendBaseUrl = frontendUrl;
+            if (frontendBaseUrl == null) frontendBaseUrl = "";
+            String target = frontendBaseUrl + dest;
             // 복귀 대상이 비어 보이면(app.frontend-url/origin 미설정) 백엔드 자신으로 가 401이 난다.
             log.debug(
                     "SSO 인증 완료 - eno: {}, 토큰 쿠키 발급, 사용자 지정 복귀 경로: {}",
@@ -430,7 +439,10 @@ public class SsoController {
                         HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoNextCookie().toString());
                 response.addHeader(
                         HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
-                response.sendRedirect(resolveFrontendBaseUrl(effectiveOrigin) + "/login?error=sso");
+                String frontendBaseUrl = getAllowedOrigin(effectiveOrigin);
+                if (frontendBaseUrl == null) frontendBaseUrl = frontendUrl;
+                if (frontendBaseUrl == null) frontendBaseUrl = "";
+                response.sendRedirect(frontendBaseUrl + "/login?error=sso");
             } catch (IOException redirectEx) {
                 log.warn(
                         "SSO 오류 리다이렉트 실패 - eno: {}, 오류 유형: {}",
@@ -443,38 +455,24 @@ public class SsoController {
     }
 
     /**
-     * 허용된 origin 기반으로 프론트엔드 기준 URL을 결정합니다.
-     *
-     * <p>{@code cors.allowed-origins}에 포함된 origin이면 해당 origin을, 그렇지 않으면 {@code app.frontend-url}
-     * 기본값을 반환합니다.
-     *
-     * @param origin SSO 시작 시 프론트엔드가 전달한 origin
-     * @return 리다이렉트 대상 프론트엔드 기준 URL
-     */
-    private String resolveFrontendBaseUrl(String origin) {
-        // 복귀 URL 조립(문자열 연결)이 전부 이 반환값에 의존하므로 널이 아님을 여기서 확정한다.
-        // @Value 기본값이 빈 문자열이라 frontendUrl은 실제로 널이 되지 않지만, 프로퍼티가
-        // 명시적으로 비워진 경우까지 포함해 계약을 한 지점에 못박는다.
-        return getAllowedOrigin(origin)
-                .orElseGet(() -> Objects.requireNonNullElse(frontendUrl, ""));
-    }
-
-    /**
      * origin이 허용 목록({@code cors.allowed-origins})에 포함되어 있으면 해당 값을 반환합니다.
      *
-     * <p>오픈 리다이렉트 방지를 위해 허용 목록에 없는 origin은 {@link Optional#empty()}를 반환합니다.
+     * <p>오픈 리다이렉트 방지를 위해 허용 목록에 없는 origin은 {@code null}을 반환합니다.
      *
      * @param origin 검증할 origin 문자열
-     * @return 허용된 origin (없으면 {@link Optional#empty()})
+     * @return 허용된 origin. 없으면 {@code null}
      */
-    private Optional<String> getAllowedOrigin(String origin) {
+    private String getAllowedOrigin(String origin) {
         if (origin == null || origin.isBlank()) {
-            return Optional.empty();
+            return null;
         }
-        return Arrays.stream(allowedOrigins.split(","))
-                .map(value -> value.trim())
-                .filter(allowed -> allowed.equals(origin))
-                .findFirst();
+        for (String configuredOrigin : allowedOrigins.split(",")) {
+            String allowedOrigin = configuredOrigin.trim();
+            if (allowedOrigin.equals(origin)) {
+                return allowedOrigin;
+            }
+        }
+        return null;
     }
 
     /**

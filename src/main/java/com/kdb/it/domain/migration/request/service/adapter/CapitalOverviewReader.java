@@ -191,10 +191,14 @@ public class CapitalOverviewReader {
         project.setSklTpTc(decided(context, "sklTpTc", values));
         project.setCstTpTc(decided(context, "cstTpTc", values));
         String duplicateDecision = decisionOf(context, "dplYn").orElse(null);
+        List<String> duplicateOptions = values.get("dplYn");
+        if (duplicateOptions == null) duplicateOptions = List.of();
         project.setDplYn(
-                duplicateDecision != null ? duplicateDecision : duplicateYn(values.get("dplYn")));
+                duplicateDecision != null ? duplicateDecision : duplicateYn(duplicateOptions));
         project.setFlfFsgDt(decisionOf(context, COMPLETION_DEADLINE_FIELD).orElse(null));
-        applyCompletionDeadlineNotice(context, values.get(COMPLETION_DEADLINE_FIELD), diagnostics);
+        List<String> completionDeadlineOptions = values.get(COMPLETION_DEADLINE_FIELD);
+        if (completionDeadlineOptions == null) completionDeadlineOptions = List.of();
+        applyCompletionDeadlineNotice(context, completionDeadlineOptions, diagnostics);
         project.setRprStsTc(firstMatchingCode(context, "rprStsTc", catalogs, values, diagnostics));
         project.setExePttYn(firstMatchingCode(context, "exePttYn", catalogs, values, diagnostics));
     }

@@ -66,6 +66,7 @@ public class AdminMenuController {
     public ResponseEntity<Void> update(
             @PathVariable(name = "mnuId") String mnuId,
             @Valid @RequestBody MenuDto.UpsertRequest req) {
+        if (adminMenuService == null) throw new IllegalStateException("메뉴 관리 서비스가 없습니다.");
         adminMenuService.update(mnuId, req);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
@@ -78,6 +79,7 @@ public class AdminMenuController {
      */
     @DeleteMapping("/{mnuId}")
     public ResponseEntity<Void> delete(@PathVariable(name = "mnuId") String mnuId) {
+        if (adminMenuService == null) throw new IllegalStateException("메뉴 관리 서비스가 없습니다.");
         adminMenuService.delete(mnuId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }

@@ -208,25 +208,28 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
     }
 
     /** 일반관리비가 당해·예정 순으로 이어진 양식은 당해 선언액에 가장 가까운 앞쪽 행까지만 대사합니다. */
-    private static BigDecimal closestCurrentBasis(
+    static BigDecimal closestCurrentBasis(
             BigDecimal capitalTotal,
             List<BigDecimal> generalExpenseAmounts,
             BigDecimal declaredRaw,
             BigDecimal declaredCurrent) {
-        BigDecimal candidate = capitalTotal;
+        BigDecimal baseCapitalTotal = capitalTotal == null ? BigDecimal.ZERO : capitalTotal;
+        BigDecimal candidate = baseCapitalTotal;
         if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
         for (BigDecimal amount : generalExpenseAmounts) {
-            candidate = candidate.add(Objects.requireNonNull(amount));
+            if (amount == null) continue;
+            candidate = candidate.add(amount);
             if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
         }
-        BigDecimal best = capitalTotal;
+        BigDecimal best = baseCapitalTotal;
         if (declaredCurrent == null) {
             return candidate;
         }
         BigDecimal bestGap = declaredCurrent.subtract(best).abs();
-        candidate = capitalTotal;
+        candidate = baseCapitalTotal;
         for (BigDecimal amount : generalExpenseAmounts) {
-            candidate = candidate.add(Objects.requireNonNull(amount));
+            if (amount == null) continue;
+            candidate = candidate.add(amount);
             BigDecimal gap = declaredCurrent.subtract(candidate).abs();
             if (gap.compareTo(bestGap) < 0) {
                 best = candidate;
@@ -430,13 +433,16 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             ProjectAmounts amounts,
             String projectName,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        if (declaredYearTotal == null || itemTotal.signum() == 0) return;
+        if (declaredYearTotal == null || itemTotal == null || itemTotal.signum() == 0) return;
         if (itemUnit.isPresent()) return;
 
         String message;
-        if (unit.isPresent()) {
-            AmountUnit resolvedUnit = unit.orElseThrow();
+        AmountUnit resolvedUnit = unit.orElse(null);
+        if (resolvedUnit != null) {
             BigDecimal requested = resolvedUnit.toWon(declaredYearTotal);
+            if (requested == null) {
+                throw new IllegalStateException("요약표 금액 환산 결과가 없습니다.");
+            }
             if (isBelowCurrentAmountTolerance(requested, itemTotal)) return;
             message = amountMismatchMessage(requested, itemTotal, amounts, resolvedUnit);
         } else {

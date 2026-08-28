@@ -16,6 +16,7 @@ import com.kdb.it.domain.migration.request.support.RequestFormFixtures;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,19 @@ import org.mockito.quality.Strictness;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CapitalProjectFormAdapterTest {
+
+    @Test
+    @DisplayName("자본 품목 합계가 비어도 일반관리비 기준액을 계산한다")
+    void calculatesCurrentBasisWhenCapitalTotalIsNull() {
+        BigDecimal result =
+                CapitalProjectFormAdapter.closestCurrentBasis(
+                        null,
+                        List.of(new BigDecimal("100"), new BigDecimal("200")),
+                        new BigDecimal("300"),
+                        new BigDecimal("300"));
+
+        assertThat(result).isEqualByComparingTo("300");
+    }
 
     @Mock private OrgIdentityResolver.Index orgIndex;
     @Mock private MigrationIoeCatalogReader catalogReader;
