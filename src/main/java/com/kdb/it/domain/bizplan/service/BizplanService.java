@@ -106,13 +106,18 @@ public class BizplanService {
 
         Bbizpm plan = bizplanRepository.findByAbusMngNoAndDelYn(abusMngNo, "N").orElse(null);
         if (plan == null) {
-            plan =
-                    Bbizpm.builder()
-                            .abusMngNo(abusMngNo)
-                            .abusNm(project.getAbusNm())
-                            .bgNo(resolveBgNo(abusMngNo))
-                            .build();
-            bizplanRepository.save(plan);
+            plan = bizplanRepository.findById(abusMngNo).orElse(null);
+            if (plan != null) {
+                plan.restore();
+            } else {
+                plan =
+                        Bbizpm.builder()
+                                .abusMngNo(abusMngNo)
+                                .abusNm(project.getAbusNm())
+                                .bgNo(resolveBgNo(abusMngNo))
+                                .build();
+                bizplanRepository.save(plan);
+            }
             bprojaSyncService.upsert(abusMngNo, bprojaKey(abusMngNo), STS_IN_PROGRESS);
         }
         // 사업품목이 한 번도 없으면(신규 생성 또는 아직 미시드된 기존 계획) 예산신청 소요예산 품목을 시드한다.

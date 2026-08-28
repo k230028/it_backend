@@ -6,6 +6,7 @@ import com.kdb.it.common.iam.service.LoginAttemptService;
 import com.kdb.it.common.iam.service.UserRoleResolver;
 import com.kdb.it.common.mfa.dto.MfaDto;
 import com.kdb.it.common.mfa.service.MfaService;
+import com.kdb.it.common.security.TokenFingerprint;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
@@ -17,13 +18,9 @@ import com.kdb.it.common.system.repository.RefreshTokenRepository;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.exception.InvalidRefreshTokenException;
 import com.kdb.it.exception.LoginRejectedException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -77,6 +74,9 @@ public class AuthService {
 
     /** JWT Access/Refresh Token 생성 및 검증 유틸리티 */
     private final JwtUtil jwtUtil;
+
+    /** Refresh Token 원문을 DB 조회용 HMAC 지문으로 변환합니다. */
+    private final TokenFingerprint tokenFingerprint;
 
     /** Refresh Token 회전 전용 트랜잭션 컴포넌트 — 비관적 쓰기 잠금 하 조회·회전 담당 (SEC-08 Phase A Task 4/5) */
     private final RefreshTokenRotator refreshTokenRotator;
@@ -391,7 +391,8 @@ public class AuthService {
                 refreshTokenValue == null || refreshTokenValue.isBlank()
                         ? null
                         : refreshTokenRepository
-                                .findByEcyRnwPubTokCone(sha256HexForToken(refreshTokenValue))
+                                .findByEcyRnwPubTokCone(
+                                        tokenFingerprint.forRefreshToken(refreshTokenValue))
                                 .orElse(null);
         String tokenEno = stored == null ? null : stored.getEno();
         if (tokenEno != null) {
@@ -499,7 +500,7 @@ public class AuthService {
     private String issueNewRefreshFamily(String eno) {
         refreshTokenRepository.deleteByEno(eno);
         String value = jwtUtil.generateRefreshToken(eno);
-        String tokenHash = sha256HexForToken(value);
+        String tokenHash = tokenFingerprint.forRefreshToken(value);
         Crtokm token =
                 Crtokm.create(
                         tokenHash,
@@ -509,22 +510,6 @@ public class AuthService {
                         LocalDateTime.now().plus(Duration.ofMillis(refreshTokenValidityMs)));
         refreshTokenRepository.save(token);
         return value;
-    }
-
-    /**
-     * Refresh Token 원문을 조회용 SHA-256 HEX 값으로 변환합니다.
-     *
-     * @param token Refresh Token 원문
-     * @return 소문자 SHA-256 HEX 문자열
-     */
-    public static String sha256HexForToken(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashed = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hashed);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", e);
-        }
     }
 
     /**

@@ -17,10 +17,10 @@ import com.kdb.it.common.mfa.provider.OnePassProviderException;
 import com.kdb.it.common.mfa.store.LoginPendingTransactionStore;
 import com.kdb.it.common.mfa.store.MfaTransactionStore;
 import com.kdb.it.common.mfa.store.MfaTransactionStore.ProofConsumption;
+import com.kdb.it.common.security.TokenFingerprint;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
@@ -44,18 +44,21 @@ public class MfaService {
     private final MfaProviderRegistry providerRegistry;
     private final MfaProperties properties;
     private final Clock clock;
+    private final TokenFingerprint tokenFingerprint;
 
     public MfaService(
             MfaTransactionStore transactionStore,
             LoginPendingTransactionStore loginPendingTransactionStore,
             MfaProviderRegistry providerRegistry,
             MfaProperties properties,
-            Clock clock) {
+            Clock clock,
+            TokenFingerprint tokenFingerprint) {
         this.transactionStore = transactionStore;
         this.loginPendingTransactionStore = loginPendingTransactionStore;
         this.providerRegistry = providerRegistry;
         this.properties = properties;
         this.clock = clock;
+        this.tokenFingerprint = tokenFingerprint;
     }
 
     /**
@@ -73,7 +76,8 @@ public class MfaService {
         Instant expiresAt = now.plus(properties.challengeTtl());
         UUID pendingId = UUID.randomUUID();
         loginPendingTransactionStore.save(
-                new LoginPendingTransaction(hash(pendingId.toString()), eno, expiresAt));
+                new LoginPendingTransaction(
+                        tokenFingerprint.forMfa(pendingId.toString()), eno, expiresAt));
         return new MfaDto.LoginPendingRegistration(pendingId, remainingSeconds(expiresAt, now));
     }
 
@@ -119,7 +123,7 @@ public class MfaService {
                     exception);
             throw new MfaException(MfaErrorCode.MFA_UNAVAILABLE);
         }
-        String tokenHash = hash(challengeId.toString());
+        String tokenHash = tokenFingerprint.forMfa(challengeId.toString());
         transactionStore.save(
                 MfaTransaction.pending(
                         tokenHash,
@@ -127,7 +131,7 @@ public class MfaService {
                         request.purpose(),
                         request.method(),
                         expiresAt,
-                        hash(challenge.challengeId()),
+                        tokenFingerprint.forMfa(challenge.challengeId()),
                         challenge.providerTransactionId()));
         return new MfaDto.MfaChallengeResponse(
                 challengeId,
@@ -154,7 +158,7 @@ public class MfaService {
             Optional<CustomUserDetails> currentUser,
             String pendingCookie) {
         Instant now = Instant.now(clock);
-        String tokenHash = hash(challengeId.toString());
+        String tokenHash = tokenFingerprint.forMfa(challengeId.toString());
         MfaTransaction transaction = findActiveTransaction(tokenHash, now);
         assertTransactionOwner(transaction, currentUser, pendingCookie, now);
         assertVerifiable(transaction);
@@ -200,7 +204,7 @@ public class MfaService {
         String proof = newProof();
         MfaTransaction verified =
                 transactionStore
-                        .verifyAndBindProof(tokenHash, hash(proof), now)
+                        .verifyAndBindProof(tokenHash, tokenFingerprint.forMfa(proof), now)
                         .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_EXPIRED));
         if (verified.status() != MfaTransactionStatus.VERIFIED) {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
@@ -221,7 +225,7 @@ public class MfaService {
     public void cancelChallenge(
             UUID challengeId, Optional<CustomUserDetails> currentUser, String pendingCookie) {
         Instant now = Instant.now(clock);
-        String tokenHash = hash(challengeId.toString());
+        String tokenHash = tokenFingerprint.forMfa(challengeId.toString());
         MfaTransaction transaction = findActiveTransaction(tokenHash, now);
         assertTransactionOwner(transaction, currentUser, pendingCookie, now);
         transactionStore.delete(tokenHash, now);
@@ -253,11 +257,11 @@ public class MfaService {
         }
         LoginPendingTransaction pending =
                 loginPendingTransactionStore
-                        .findByTokenHash(hash(pendingCookie), now)
+                        .findByTokenHash(tokenFingerprint.forMfa(pendingCookie), now)
                         .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
         consumeProof(pending.eno(), proofCookie, MfaPurpose.LOGIN, now);
         loginPendingTransactionStore
-                .consumeOnce(hash(pendingCookie), pending.eno(), now)
+                .consumeOnce(tokenFingerprint.forMfa(pendingCookie), pending.eno(), now)
                 .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
         return pending.eno();
     }
@@ -302,7 +306,7 @@ public class MfaService {
             }
             ownerEno =
                     loginPendingTransactionStore
-                            .findByTokenHash(hash(pendingCookie), now)
+                            .findByTokenHash(tokenFingerprint.forMfa(pendingCookie), now)
                             .map(LoginPendingTransaction::eno)
                             .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_REQUIRED));
         } else {
@@ -321,7 +325,7 @@ public class MfaService {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
         }
         return loginPendingTransactionStore
-                .findByTokenHash(hash(pendingCookie), now)
+                .findByTokenHash(tokenFingerprint.forMfa(pendingCookie), now)
                 .orElseThrow(() -> new MfaException(MfaErrorCode.MFA_EXPIRED));
     }
 
@@ -346,7 +350,9 @@ public class MfaService {
         }
         return MessageDigest.isEqual(
                 transaction.providerChallengeHash().getBytes(StandardCharsets.US_ASCII),
-                hash(providerChallengeId).getBytes(StandardCharsets.US_ASCII));
+                tokenFingerprint
+                        .forMfa(providerChallengeId)
+                        .getBytes(StandardCharsets.US_ASCII));
     }
 
     private void throwFailedVerification(String tokenHash, Instant now) {
@@ -364,7 +370,7 @@ public class MfaService {
         if (proofCookie == null || proofCookie.isBlank()) {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
         }
-        String tokenHash = hash(proofCookie);
+        String tokenHash = tokenFingerprint.forMfa(proofCookie);
         ProofConsumption consumption =
                 transactionStore.consumeVerifiedOnce(tokenHash, eno, purpose, now);
         if (consumption == ProofConsumption.EXPIRED) {
@@ -372,17 +378,6 @@ public class MfaService {
         }
         if (consumption != ProofConsumption.CONSUMED) {
             throw new MfaException(MfaErrorCode.MFA_REQUIRED);
-        }
-    }
-
-    private static String hash(String value) {
-        try {
-            byte[] digest =
-                    MessageDigest.getInstance("SHA-256")
-                            .digest(value.getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", exception);
         }
     }
 

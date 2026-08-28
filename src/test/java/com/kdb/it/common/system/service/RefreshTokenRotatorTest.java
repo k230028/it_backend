@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.UserRoleResolver;
+import com.kdb.it.common.security.TokenFingerprint;
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -41,10 +43,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class RefreshTokenRotatorTest {
 
+    private static final String TOKEN_HMAC_KEY =
+            "test-secret-key-for-junit-test-minimum-256-bits-length-ok";
+
     @Mock private UserRepository userRepository;
     @Mock private UserRoleResolver userRoleResolver;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private JwtUtil jwtUtil;
+    @Spy private TokenFingerprint tokenFingerprint = new TokenFingerprint(TOKEN_HMAC_KEY);
 
     @InjectMocks private RefreshTokenRotator rotator;
 
@@ -54,6 +60,10 @@ class RefreshTokenRotatorTest {
         ReflectionTestUtils.setField(rotator, "rotationGraceSeconds", 30L);
     }
 
+    private static String fingerprint(String token) {
+        return new TokenFingerprint(TOKEN_HMAC_KEY).forRefreshToken(token);
+    }
+
     @Test
     @DisplayName("rotate - 활성 토큰 → 구 토큰 회전 표식 + 신규 토큰 저장 + RefreshRotationResult 반환")
     void rotate_활성토큰_정상회전_결과반환() {
@@ -61,7 +71,7 @@ class RefreshTokenRotatorTest {
         String oldRefresh = "active-token";
         Crtokm stored =
                 Crtokm.builder()
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                        .ecyRnwPubTokCone(fingerprint(oldRefresh))
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("Y")
@@ -69,7 +79,7 @@ class RefreshTokenRotatorTest {
                         .build();
         given(
                         refreshTokenRepository.findByEcyRnwPubTokCone(
-                                AuthService.sha256HexForToken(oldRefresh)))
+                                fingerprint(oldRefresh)))
                 .willReturn(Optional.of(stored));
         given(userRepository.findByEno("10001"))
                 .willReturn(
@@ -103,7 +113,7 @@ class RefreshTokenRotatorTest {
         assertThat(savedNew.getFstEnrUsid()).isEqualTo("10001");
         assertThat(savedNew.getLstChgUsid()).isEqualTo("10001");
         assertThat(savedNew.getEcyRnwPubTokCone())
-                .isEqualTo(AuthService.sha256HexForToken("new-refresh"));
+                .isEqualTo(fingerprint("new-refresh"));
         // 갓 회전된 신규 토큰은 활성(AVL_YN='Y') 상태여야 한다 — 여기가 깨지면 다음 refresh 요청이 거부된다(SEC-01 단일활성 불변식).
         assertThat(savedNew.getAvlYn()).isEqualTo("Y");
         assertThat(savedNew.isRotated()).isFalse();
@@ -117,7 +127,7 @@ class RefreshTokenRotatorTest {
         String oldRefresh = "dup-family-token";
         Crtokm stored =
                 Crtokm.builder()
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                        .ecyRnwPubTokCone(fingerprint(oldRefresh))
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("Y")
@@ -133,7 +143,7 @@ class RefreshTokenRotatorTest {
                         .build();
         given(
                         refreshTokenRepository.findByEcyRnwPubTokCone(
-                                AuthService.sha256HexForToken(oldRefresh)))
+                                fingerprint(oldRefresh)))
                 .willReturn(Optional.of(stored));
         given(userRepository.findByEno("10001"))
                 .willReturn(
@@ -165,14 +175,14 @@ class RefreshTokenRotatorTest {
         String recent = "just-rotated-token";
         Crtokm rotated =
                 Crtokm.builder()
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(recent))
+                        .ecyRnwPubTokCone(fingerprint(recent))
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("N")
                         .endDtm(LocalDateTime.now().plusDays(7))
                         .lstChgDtm(LocalDateTime.now().minusSeconds(3))
                         .build();
-        given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(recent)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(recent)))
                 .willReturn(Optional.of(rotated));
 
         // when & then
@@ -190,14 +200,14 @@ class RefreshTokenRotatorTest {
         String reused = "rotated-old-token";
         Crtokm rotated =
                 Crtokm.builder()
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(reused))
+                        .ecyRnwPubTokCone(fingerprint(reused))
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("N")
                         .endDtm(LocalDateTime.now().plusDays(7))
                         .lstChgDtm(LocalDateTime.now().minusMinutes(5)) // grace(30s) 경과
                         .build();
-        given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(reused)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(reused)))
                 .willReturn(Optional.of(rotated));
 
         // when & then
@@ -225,7 +235,7 @@ class RefreshTokenRotatorTest {
         String tokenValue = "expired-refresh-token";
         Crtokm expiredToken =
                 Crtokm.builder()
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(tokenValue))
+                        .ecyRnwPubTokCone(fingerprint(tokenValue))
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("Y")
@@ -233,7 +243,7 @@ class RefreshTokenRotatorTest {
                         .build();
         given(
                         refreshTokenRepository.findByEcyRnwPubTokCone(
-                                AuthService.sha256HexForToken(tokenValue)))
+                                fingerprint(tokenValue)))
                 .willReturn(Optional.of(expiredToken));
 
         // when & then
@@ -260,7 +270,7 @@ class RefreshTokenRotatorTest {
         String tokenValue = "missing-refresh-token";
         given(
                         refreshTokenRepository.findByEcyRnwPubTokCone(
-                                AuthService.sha256HexForToken(tokenValue)))
+                                fingerprint(tokenValue)))
                 .willReturn(Optional.empty());
 
         // when & then: 타입 기반 마커 예외 — 이 시점엔 폐기할 패밀리가 없으므로 삭제 호출도 없어야 한다.
@@ -279,7 +289,7 @@ class RefreshTokenRotatorTest {
         String tokenValue = "valid-refresh-token";
         Crtokm refreshToken =
                 Crtokm.builder()
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(tokenValue))
+                        .ecyRnwPubTokCone(fingerprint(tokenValue))
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("Y")
@@ -287,7 +297,7 @@ class RefreshTokenRotatorTest {
                         .build();
         given(
                         refreshTokenRepository.findByEcyRnwPubTokCone(
-                                AuthService.sha256HexForToken(tokenValue)))
+                                fingerprint(tokenValue)))
                 .willReturn(Optional.of(refreshToken));
         given(userRepository.findByEno("10001")).willReturn(Optional.empty());
 
@@ -307,7 +317,7 @@ class RefreshTokenRotatorTest {
         String oldRefresh = "active-token";
         Crtokm stored =
                 Crtokm.builder()
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(oldRefresh))
+                        .ecyRnwPubTokCone(fingerprint(oldRefresh))
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("Y")
@@ -315,7 +325,7 @@ class RefreshTokenRotatorTest {
                         .build();
         given(
                         refreshTokenRepository.findByEcyRnwPubTokCone(
-                                AuthService.sha256HexForToken(oldRefresh)))
+                                fingerprint(oldRefresh)))
                 .willReturn(Optional.of(stored));
         given(userRepository.findByEno("10001"))
                 .willReturn(

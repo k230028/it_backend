@@ -3,6 +3,7 @@ package com.kdb.it.common.system.service;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.UserRoleResolver;
+import com.kdb.it.common.security.TokenFingerprint;
 import com.kdb.it.common.system.entity.Crtokm;
 import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.exception.FamilyRevocationRequiredException;
@@ -52,6 +53,7 @@ public class RefreshTokenRotator {
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRoleResolver userRoleResolver;
     private final JwtUtil jwtUtil;
+    private final TokenFingerprint tokenFingerprint;
 
     @Value("${jwt.refresh-token-validity}")
     private long refreshTokenValidityMs;
@@ -129,7 +131,7 @@ public class RefreshTokenRotator {
         refreshTokenRepository.save(refreshToken);
 
         String newRefreshTokenValue = jwtUtil.generateRefreshToken(eno);
-        String newRefreshTokenHash = AuthService.sha256HexForToken(newRefreshTokenValue);
+        String newRefreshTokenHash = tokenFingerprint.forRefreshToken(newRefreshTokenValue);
         Crtokm rotated =
                 Crtokm.create(
                         newRefreshTokenHash,
@@ -149,7 +151,7 @@ public class RefreshTokenRotator {
      * @throws RefreshTokenNotFoundException 조회값에 해당하는 저장 행이 없는 경우
      */
     private Crtokm findRefreshTokenByValue(String refreshTokenValue) {
-        String lookupValue = AuthService.sha256HexForToken(refreshTokenValue);
+        String lookupValue = tokenFingerprint.forRefreshToken(refreshTokenValue);
         return refreshTokenRepository
                 .findByEcyRnwPubTokCone(lookupValue)
                 .orElseThrow(

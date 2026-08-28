@@ -9,7 +9,7 @@
 #      2순위 저장소(file:///)로 등록합니다. 미러가 남아 있으면 빌드가 거기서 해석해
 #      아무것도 새로 받지 않아 캐시(files-2.1)가 비게 됩니다. 따라서 빌드 전에 치워
 #      원격(Nexus/mavenCentral)에서 새로 받도록 강제합니다. 빌드 실패 시 복원합니다.
-#   4. 빈 캐시에서 clean build → 현재 빌드가 실제로 필요로 하는 의존성만 새로 다운로드.
+#   4. 빈 캐시에서 clean build(검증·bootWar 제외) → 애플리케이션 의존성을 새로 다운로드.
 #   5. make-local-maven-repo.ps1 호출 → 캐시를 Maven2 레이아웃으로 변환 + manifest 재생성.
 #
 # 사용 예 (원격 저장소 접근 가능한 외부망 PC, it_backend\oss 디렉토리에서):
@@ -78,11 +78,13 @@ if (Test-Path $OutDir) {
 }
 
 # 4) 빈 캐시에서 새로 받기 (실패 시 백업 복원 후 중단)
-Write-Host "[4/5] clean build (의존성 새로 다운로드)"
-& $gradlew --project-dir $projectRoot --no-daemon clean build
+# 미러 생성 단계에서는 테스트·커버리지·포맷 검사를 묶은 check를 실행하지 않습니다.
+# 실행 가능한 WAR 패키징도 목적이 아니므로 mainClass가 필요한 bootWar 대신 일반 war만 조립합니다.
+Write-Host "[4/5] clean build -x check -x bootWar (검증 생략 / 의존성 새로 다운로드)"
+& $gradlew --project-dir $projectRoot --no-daemon clean build -x check -x bootWar
 if ($LASTEXITCODE -ne 0) {
     Restore-Backup
-    throw "gradle clean build 실패 (exit code $LASTEXITCODE) — 미러 변환을 중단합니다."
+    throw "gradle clean build -x check -x bootWar 실패 (exit code $LASTEXITCODE) — 미러 변환을 중단합니다."
 }
 
 # 다운로드 검증: 원격 저장소에 닿지 못하면 캐시가 비어 변환할 것이 없습니다.

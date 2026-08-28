@@ -2,11 +2,13 @@ package com.kdb.it.domain.council.service;
 
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Bchklm;
+import com.kdb.it.domain.council.entity.BchklmId;
 import com.kdb.it.domain.council.entity.Bperfm;
 import com.kdb.it.domain.council.entity.Bpovwm;
 import com.kdb.it.domain.council.repository.PerformanceRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
 import com.kdb.it.domain.council.repository.SelfCheckRepository;
+import com.kdb.it.domain.entity.EntityRestoreSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -151,43 +153,27 @@ public class FeasibilityService {
 
     /** 사업개요 신규 저장 또는 업데이트 (upsert) */
     private void saveOrUpdateOverview(String asctId, CouncilDto.FeasibilityRequest req) {
-        projectOverviewRepository
-                .findByItPtlAsctIdAndDelYn(asctId, "N")
-                .ifPresentOrElse(
-                        // 기존 데이터 있으면 update
-                        existing ->
-                                existing.update(
-                                        req.prjNm(),
-                                        req.prjTrm(),
-                                        req.ncs(),
-                                        req.prjBg(),
-                                        req.edrt(),
-                                        req.prjDes(),
-                                        req.lglRglYn(),
-                                        req.lglRglNm(),
-                                        req.xptEff(),
-                                        req.kpnTc(),
-                                        req.flMngNo()),
-                        // 없으면 신규 INSERT
-                        () -> {
-                            Bpovwm overview =
-                                    Bpovwm.builder()
-                                            .itPtlAsctId(asctId)
-                                            .abusNm(req.prjNm())
-                                            .abusTrmCone(req.prjTrm())
-                                            .abusNcsCone(req.ncs())
-                                            .rqmBgAmt(req.prjBg())
-                                            .itPtlEdrtTc(req.edrt())
-                                            .abusCone(req.prjDes())
-                                            .lwRglYn(req.lglRglYn() != null ? req.lglRglYn() : "N")
-                                            .lwFdtn(req.lglRglNm())
-                                            .dgogPpoCone(req.xptEff())
-                                            .kpnTpTc(req.kpnTc())
-                                            .flMpnId(req.flMngNo())
-                                            .build();
-                            // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
-                            entityManager.persist(overview);
-                        });
+        Bpovwm overview =
+                projectOverviewRepository.findByItPtlAsctIdAndDelYn(asctId, "N").orElse(null);
+        if (overview == null) {
+            overview = EntityRestoreSupport.findAndRestore(entityManager, Bpovwm.class, asctId);
+        }
+        if (overview == null) {
+            overview = Bpovwm.builder().itPtlAsctId(asctId).build();
+            entityManager.persist(overview);
+        }
+        overview.update(
+                req.prjNm(),
+                req.prjTrm(),
+                req.ncs(),
+                req.prjBg(),
+                req.edrt(),
+                req.prjDes(),
+                req.lglRglYn() != null ? req.lglRglYn() : "N",
+                req.lglRglNm(),
+                req.xptEff(),
+                req.kpnTc(),
+                req.flMngNo());
     }
 
     /**
@@ -224,6 +210,13 @@ public class FeasibilityService {
 
             // upsert: 기존 있으면 update, 없으면 신규 INSERT
             Bchklm existing = existingByItem.get(item.ckgItmC());
+            if (existing == null) {
+                existing =
+                        EntityRestoreSupport.findAndRestore(
+                                entityManager,
+                                Bchklm.class,
+                                new BchklmId(asctId, item.ckgItmC()));
+            }
             if (existing != null) {
                 existing.update(item.ckgRcrd(), item.ckgOpnn());
             } else {

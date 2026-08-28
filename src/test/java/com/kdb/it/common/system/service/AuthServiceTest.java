@@ -18,6 +18,7 @@ import com.kdb.it.common.mfa.dto.MfaDto;
 import com.kdb.it.common.mfa.exception.MfaErrorCode;
 import com.kdb.it.common.mfa.exception.MfaException;
 import com.kdb.it.common.mfa.service.MfaService;
+import com.kdb.it.common.security.TokenFingerprint;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.entity.Clognh;
 import com.kdb.it.common.system.entity.Crtokm;
@@ -45,6 +46,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -57,12 +59,16 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
+    private static final String TOKEN_HMAC_KEY =
+            "test-secret-key-for-junit-test-minimum-256-bits-length-ok";
+
     @Mock private UserRepository userRepository;
     @Mock private UserRoleResolver userRoleResolver;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private LoginHistoryRepository loginHistoryRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtUtil jwtUtil;
+    @Spy private TokenFingerprint tokenFingerprint = new TokenFingerprint(TOKEN_HMAC_KEY);
     @Mock private RefreshTokenRotator refreshTokenRotator;
     @Mock private RefreshTokenRevoker refreshTokenRevoker;
 
@@ -74,6 +80,10 @@ class AuthServiceTest {
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(authService, "refreshTokenValidityMs", 604_800_000L);
+    }
+
+    private static String fingerprint(String token) {
+        return new TokenFingerprint(TOKEN_HMAC_KEY).forRefreshToken(token);
     }
 
     @Test
@@ -638,10 +648,10 @@ class AuthServiceTest {
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("Y")
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(raw))
+                        .ecyRnwPubTokCone(fingerprint(raw))
                         .endDtm(LocalDateTime.now().plusDays(1))
                         .build();
-        given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(raw)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(raw)))
                 .willReturn(Optional.of(stored));
 
         authService.logoutByRefreshToken(raw, null, "127.0.0.1", "Agent");
@@ -659,10 +669,10 @@ class AuthServiceTest {
                         .eno("10001")
                         .famNm("FAM-1")
                         .avlYn("Y")
-                        .ecyRnwPubTokCone(AuthService.sha256HexForToken(raw))
+                        .ecyRnwPubTokCone(fingerprint(raw))
                         .endDtm(LocalDateTime.now().plusDays(1))
                         .build();
-        given(refreshTokenRepository.findByEcyRnwPubTokCone(AuthService.sha256HexForToken(raw)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(raw)))
                 .willReturn(Optional.of(stored));
 
         authService.logoutByRefreshToken(raw, "20002", "127.0.0.1", "Agent");
@@ -812,7 +822,7 @@ class AuthServiceTest {
         // given: 쿠키 해시로 저장 행을 찾지 못하고, 인증 사번도 없는 경우 — 아무 폐기 대상도 없다.
         given(
                         refreshTokenRepository.findByEcyRnwPubTokCone(
-                                AuthService.sha256HexForToken("stale-token")))
+                                fingerprint("stale-token")))
                 .willReturn(Optional.empty());
 
         authService.logoutByRefreshToken("stale-token", null, "127.0.0.1", "Agent");

@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.document.formguide;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
 /** 사업 입력 길라잡이 공개·관리 API의 요청과 응답 DTO입니다. */
@@ -20,5 +21,6 @@ public final class FormGuideDto {
             String contentHtml) {}
 
     /** 길라잡이 HTML 본문 저장 요청입니다. */
+    @Schema(name = "FormGuideSaveRequest", description = "사업 입력 길라잡이 저장 요청")
     public record SaveRequest(@NotBlank String contentHtml) {}
 }

@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -300,6 +301,38 @@ class OnePassClientTest {
     }
 
     @Test
+    void fidoProvider_treatsConfiguredRejectedStatusAsFailure() throws Exception {
+        AtomicInteger callCount = new AtomicInteger();
+        startServer(
+                exchange -> {
+                    requestBody(exchange);
+                    if (callCount.getAndIncrement() == 0) {
+                        respond(
+                                exchange,
+                                200,
+                                "{\"resultCode\":\"100000\",\"resultData\":{\"trId\":\"fido-tr\",\"qrImage\":\"qr\"}}");
+                    } else {
+                        respond(
+                                exchange,
+                                200,
+                                "{\"resultCode\":\"100000\",\"resultData\":{\"trStatus\":\"2\"}}");
+                    }
+                });
+        FidoMfaProvider provider = new FidoMfaProvider(client(Duration.ofSeconds(2), Set.of("2")));
+        MfaChallengeData challenge = provider.start(context());
+
+        MfaVerificationResult result =
+                provider.verify(
+                        new MfaVerifyContext(
+                                context(),
+                                challenge.challengeId(),
+                                "",
+                                challenge.providerTransactionId()));
+
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
+    }
+
+    @Test
     void fidoProvider_treatsNonSuccessResultCodeAsFailure() throws Exception {
         AtomicInteger callCount = new AtomicInteger();
         startServer(
@@ -480,6 +513,10 @@ class OnePassClientTest {
     }
 
     private OnePassClient client(Duration timeout) {
+        return client(timeout, Set.of());
+    }
+
+    private OnePassClient client(Duration timeout, Set<String> rejectedStatuses) {
         return new OnePassClient(
                 new MfaProperties(
                         "http://127.0.0.1:" + server.getAddress().getPort() + "/onepass",
@@ -490,7 +527,8 @@ class OnePassClientTest {
                         false,
                         Duration.ofSeconds(90),
                         5,
-                        "test-fixed-key"));
+                        "test-fixed-key",
+                        rejectedStatuses));
     }
 
     private MfaStartContext context() {

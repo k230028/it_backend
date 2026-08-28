@@ -111,7 +111,8 @@ class MfaConfigurationTest {
                         true,
                         Duration.ofSeconds(90),
                         5,
-                        "test-fixed-key");
+                        "test-fixed-key",
+                        java.util.Set.of());
 
         assertThat(properties.challengeTtl()).isEqualTo(Duration.ofSeconds(90));
         assertThat(properties.maxFailures()).isEqualTo(5);

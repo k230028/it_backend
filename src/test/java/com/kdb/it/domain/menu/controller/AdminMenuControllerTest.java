@@ -1,5 +1,6 @@
 package com.kdb.it.domain.menu.controller;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -252,5 +253,35 @@ class AdminMenuControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ── 메뉴 관리 서비스 부재 방어 가드 ──────────────────────────────
+    // 스프링이 주입하는 경로에서는 서비스가 비어 있을 수 없어 MockMvc로는 이 분기에 닿지 않는다.
+    // 컨트롤러를 직접 생성해 가드가 살아 있는지만 고정한다.
+
+    @Test
+    @DisplayName("update - 메뉴 관리 서비스가 없으면 IllegalStateException")
+    void update_서비스없음_예외() {
+        // given
+        AdminMenuController controller = new AdminMenuController(null, menuQueryService);
+        MenuDto.UpsertRequest req =
+                MenuDto.UpsertRequest.builder().mnuNm("새메뉴").mnuTpC("GRP").build();
+
+        // when & then
+        assertThatThrownBy(() -> controller.update("MNU0000001", req))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("메뉴 관리 서비스");
+    }
+
+    @Test
+    @DisplayName("delete - 메뉴 관리 서비스가 없으면 IllegalStateException")
+    void delete_서비스없음_예외() {
+        // given
+        AdminMenuController controller = new AdminMenuController(null, menuQueryService);
+
+        // when & then
+        assertThatThrownBy(() -> controller.delete("MNU0000001"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("메뉴 관리 서비스");
     }
 }

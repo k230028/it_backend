@@ -243,14 +243,24 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
     private record ItemReadResult(
             List<ProjectDto.BitemmDto> items, List<BigDecimal> generalExpenseAmounts) {}
 
-    /** 1-1 예정금액과 정확히 같은 단일 자본 품목은 당해가 아니라 예정 품목으로 분리합니다. */
+    /** 1-1 예정금액과 정확히 같은 단일 자본 품목은, 나머지가 당해 합계와 맞을 때만 예정 품목으로 분리합니다. */
     private void moveExactPlannedItem(
             List<ProjectDto.BitemmDto> items, CapitalOverviewReader.DeclaredAmounts declared) {
-        if (declared.summaryUnit() == null || declared.laterTotalRaw() == null) return;
+        if (declared.summaryUnit() == null
+                || declared.yearTotalRaw() == null
+                || declared.laterTotalRaw() == null) return;
         BigDecimal planned = declared.summaryUnit().toWon(declared.laterTotalRaw());
         List<ProjectDto.BitemmDto> matches =
                 items.stream().filter(item -> Objects.equals(item.getAmt(), planned)).toList();
         if (matches.size() != 1) return;
+        BigDecimal declaredCurrent = declared.summaryUnit().toWon(declared.yearTotalRaw());
+        BigDecimal remainingCurrent =
+                items.stream()
+                        .filter(item -> item != matches.getFirst())
+                        .map(ProjectDto.BitemmDto::getAmt)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (remainingCurrent.compareTo(declaredCurrent) != 0) return;
         matches.getFirst().setAmt(BigDecimal.ZERO);
         matches.getFirst().setMplAmt(planned);
     }

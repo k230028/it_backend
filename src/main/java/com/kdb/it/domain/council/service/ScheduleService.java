@@ -6,8 +6,10 @@ import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bschdm;
+import com.kdb.it.domain.council.entity.BschdmId;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ScheduleRepository;
+import com.kdb.it.domain.entity.EntityRestoreSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -235,24 +237,29 @@ public class ScheduleService {
 
             // upsert: 기존 데이터 있으면 update, 없으면 신규 INSERT
             final String dsdDtFinal = dsdDtNorm;
-            scheduleRepository
-                    .findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
-                            asctId, eno, dsdDtFinal, item.dsdTm(), "N")
-                    .ifPresentOrElse(
-                            // 기존 응답 update
-                            existing -> existing.respond(item.psbYn()),
-                            // 신규 INSERT — persist()로 직접 @PrePersist 발화 (PRD §15 회귀 방지)
-                            () -> {
-                                Bschdm schedule =
-                                        Bschdm.builder()
-                                                .itPtlAsctId(asctId)
-                                                .eno(eno)
-                                                .cnrcDt(dsdDtFinal)
-                                                .cnrcSttTm(item.dsdTm())
-                                                .usePsbYn(item.psbYn())
-                                                .build();
-                                entityManager.persist(schedule);
-                            });
+            Bschdm schedule =
+                    scheduleRepository
+                            .findByItPtlAsctIdAndEnoAndCnrcDtAndCnrcSttTmAndDelYn(
+                                    asctId, eno, dsdDtFinal, item.dsdTm(), "N")
+                            .orElse(null);
+            if (schedule == null) {
+                schedule =
+                        EntityRestoreSupport.findAndRestore(
+                                entityManager,
+                                Bschdm.class,
+                                new BschdmId(asctId, eno, dsdDtFinal, item.dsdTm()));
+            }
+            if (schedule == null) {
+                schedule =
+                        Bschdm.builder()
+                                .itPtlAsctId(asctId)
+                                .eno(eno)
+                                .cnrcDt(dsdDtFinal)
+                                .cnrcSttTm(item.dsdTm())
+                                .build();
+                entityManager.persist(schedule);
+            }
+            schedule.respond(item.psbYn());
         }
 
         /*

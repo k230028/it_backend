@@ -87,8 +87,8 @@ public final class OnePassClient {
      *
      * <p>거래 조회 자체가 성공({@code resultCode=100000})했는데 {@code trStatus}가 승인(1)이 아니면 사용자가 아직 기기에서 처리하지
      * 않은 상태로 보고 {@link MfaVerificationResult#undecided()}를 반환한다. 제공된 연동 규격에 사용자 거부를 뜻하는 별도 {@code
-     * trStatus} 값이 정의되어 있지 않아, 거부와 대기를 구분하지 못하고 모두 미결정으로 처리한다. 거부한 거래도 challenge 만료 시각까지 미결정으로 남을 뿐
-     * 승인되지는 않는다. 규격에 거부 상태값이 추가되면 이 분기에서 {@link MfaVerificationResult#failure()}로 분리한다.
+     * trStatus} 값이 정의되어 있지 않으므로 기본값에서는 거부와 대기를 모두 미결정으로 처리한다. 공급자가 거부 상태값을 확정하면 {@code
+     * app.mfa.fido-rejected-statuses}에 값을 등록하며, 등록된 상태만 실패로 분리한다.
      *
      * @param svcTrId FIDO 시작에서 발급한 서비스 거래 식별자
      * @return 승인이면 성공, 거래 조회는 됐으나 미승인이면 미결정, 그 밖의 응답이면 실패
@@ -102,8 +102,12 @@ public final class OnePassClient {
         if (!success(response)) {
             return MfaVerificationResult.failure();
         }
-        return "1".equals(text(resultData(response), "trStatus"))
-                ? MfaVerificationResult.success()
+        String status = text(resultData(response), "trStatus");
+        if ("1".equals(status)) {
+            return MfaVerificationResult.success();
+        }
+        return properties.fidoRejectedStatuses().contains(status)
+                ? MfaVerificationResult.failure()
                 : MfaVerificationResult.undecided();
     }
 

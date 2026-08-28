@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.document.budgetnote;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -12,6 +13,7 @@ public final class BudgetCardNoteDto {
     public record Response(String cardType, String content) {}
 
     /** 관리자 참고사항 저장 요청입니다. */
+    @Schema(name = "BudgetCardNoteSaveRequest", description = "예산작성 카드 참고사항 저장 요청")
     public record SaveRequest(
             @NotBlank(message = "참고사항을 입력해야 합니다")
                     @Size(max = 2000, message = "참고사항은 2000자 이하여야 합니다")

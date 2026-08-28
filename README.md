@@ -178,6 +178,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `MFA_SITE_ID`           | OnePass 기관 식별자. 기본값 `SIT01KDBBANK00000000`                  |
 | `MFA_SVC_ID`            | OnePass 서비스 식별자. 기본값 `SVC12SIT01KDBBANK000`                |
 | `MFA_FINGER_VEIN_FIXED_KEY` | 지정맥 해시 검증용 고정키. 모의 공급자를 끈 프로파일에서 필수 |
+| `MFA_FIDO_REJECTED_STATUSES` | OnePass 규격에서 사용자 거부로 확정된 FIDO 상태값. 쉼표로 구분하며 기본값은 비어 있음 |
 | `JAVA_HOME`             | JDK25 설치 경로(C:\Program Files\Java\jdk-25.0.2)                 |
 
 운영에서는 개발·로컬 프로파일의 기본값을 사용하지 않습니다. `EnvironmentValidator`는 모든 프로파일에서 DB 비밀번호와 JWT 시크릿의 빈값을 차단하고, `prod`에서는 Gemini 키, 활성 EAI URL, 프론트 URL, 명시적 CORS Origin과 운영 보안 토글을 추가로 검증합니다.
@@ -196,6 +197,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `app.mfa.challenge-ttl`  | `90s`    | MFA 거래 유효 시간                                                |
 | `app.mfa.max-failures`   | `5`      | 한 거래의 허용 실패 횟수. 초과 시 `MFA_LOCKED`                    |
 | `app.mfa.mock-enabled`   | `false`  | 모의 공급자 사용 여부. **`local-ext`에서만 `true`를 허용**        |
+| `app.mfa.fido-rejected-statuses` | 빈 집합 | 사용자 거부로 확정된 `trStatus` 허용 목록. `MFA_FIDO_REJECTED_STATUSES`로 재정의 |
 | `app.mfa.store`          | `jpa`    | `jpa`(기본)는 MFA·로그인대기 거래를 Oracle(`TPRMPP_CMFATM`/`TPRMPP_CMFADM`)에 저장해 다중 인스턴스를 지원합니다. `memory`는 인스턴스 내부에만 보관하며 단일 인스턴스 전용이고 재시작 시 유실됩니다. `spring.jpa.hibernate.ddl-auto=none`이라 기동 시 스키마를 검증하지 않으므로, `app.mfa.store=jpa`(기본값)로 기동하기 전에 반드시 마이그레이션 `V20260820_002__CreateMfaTransactionTables.sql`을 적용해야 합니다. 적용하지 않으면 기동은 정상적으로 끝나고 최초 로그인 시도에서야 Oracle "table or view does not exist" 오류로 실패합니다 |
 | `app.mfa.cleanup.fixed-delay-ms` | `300000` | 만료 후 10분 유예가 지난 MFA·로그인대기 행을 Oracle에서 물리 삭제하는 배치 주기(ms). 순수한 용량 관리 설정이며 정합성에는 영향이 없습니다(모든 조회·쓰기 경로가 만료 행을 이미 자체적으로 제외합니다) |
 
@@ -216,7 +218,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 - **지정맥 해시 검증** — `mfa.md`의 「지정맥인증 연계 보안방안」대로 서버가 결과를 독립 검증합니다. `FingerVeinMfaProvider`가 거래마다 6자리 랜덤키를 발급해 challenge 응답에 싣고, 화면이 그 키로 BioAgent를 호출하면 에이전트가 `년월일 + 사번 + 랜덤키 + 검증값(SUCC|FAIL) + 고정키`를 SHA-256으로 3회 해시한 값을 돌려줍니다. 서버는 성공 검증값으로 같은 해시를 만들어 상수 시간 비교하므로 **클라이언트가 보낸 결과 코드(`FE00`)를 신뢰하지 않습니다**. 랜덤키는 검증 성공·실패와 무관하게 1회 사용 후 폐기해 재전송을 막습니다.
 - **지정맥 고정키** — `MFA_FINGER_VEIN_FIXED_KEY` 환경변수로 주입합니다. 비밀값이라 프로파일 파일에 기본값을 두지 않으며, 모의 공급자를 끈 프로파일에서 값이 비어 있으면 `MfaConfig`가 기동을 실패시킵니다.
 - **년월일 기준** — 해시의 년월일은 서버 시계(`Clock` 빈)를 씁니다. 자정 경계에 에이전트와 서버의 날짜가 갈리면 검증이 실패할 수 있습니다.
-- **FIDO 재조회** — 사용자가 휴대폰에서 승인할 때까지 화면이 결과를 반복 조회합니다. `trResultConfirm`이 `resultCode=100000`이면서 `trStatus != 1`인 응답은 미결정(UNDECIDED)으로 보아 실패 횟수에 집계하지 않습니다. 연동 규격에 사용자 거부를 뜻하는 `trStatus` 값이 없어 거부와 대기를 구분하지 못하며, 거부한 거래도 만료 시각까지 미결정으로 남습니다.
+- **FIDO 재조회** — 사용자가 휴대폰에서 승인할 때까지 화면이 결과를 반복 조회합니다. `trStatus=1`은 성공이고, `app.mfa.fido-rejected-statuses`에 등록한 값은 즉시 실패로 분리합니다. 그 밖의 값은 미결정(UNDECIDED)으로 보아 실패 횟수에 집계하지 않습니다. 현재 반입 규격에는 사용자 거부 상태값이 없으므로 기본 목록은 비어 있으며, 공급자가 값을 확정한 뒤에만 운영 환경변수로 등록합니다.
 - **다중 인스턴스와 재시작** — 기본값 `app.mfa.store=jpa`에서 MFA 거래와 로그인대기 거래는 Oracle 공유 테이블에 있으므로 인스턴스가 여러 대여도, 인스턴스 하나가 재시작해도 진행 중 거래가 유지됩니다. 상태 전이는 전부 조건부 UPDATE의 영향 행 수로 판정하므로 두 인스턴스가 같은 거래를 동시에 다뤄도 증표가 두 번 소비되지 않습니다. `app.mfa.store=memory`로 바꾼 경우에만 거래가 인스턴스 메모리에 남아 재시작 시 폐기되고 사용자가 MFA를 다시 수행합니다.
 
 ### 실시간 WAS 로그 (`/admin/was-logs`)

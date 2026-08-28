@@ -169,6 +169,35 @@ class BizplanServiceTest {
         }
 
         @Test
+        @DisplayName("같은 PK의 삭제된 BBIZPM이 있으면 신규 merge 대신 기존 행을 복원한다")
+        void restoresDeletedPlanInsteadOfMergingNewEntity() {
+            stubEligibleProject();
+            Bbizpm deleted =
+                    Bbizpm.builder()
+                            .abusMngNo(PRJ)
+                            .abusNm("기존 사업계획")
+                            .guid("existing-guid")
+                            .guidPrgSno(1)
+                            .delYn("Y")
+                            .build();
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
+                    .thenReturn(Optional.empty());
+            when(bizplanRepository.findById(PRJ)).thenReturn(Optional.of(deleted));
+            when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
+            when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
+            when(bbizcmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
+            when(bprojaRepository.findById(new BprojaId(PRJ, BIZ_KEY)))
+                    .thenReturn(Optional.empty());
+
+            service.getOrCreate(PRJ, deptUser());
+
+            assertThat(deleted.getDelYn()).isEqualTo("N");
+            assertThat(deleted.getGuid()).isEqualTo("existing-guid");
+            verify(bizplanRepository, never()).save(any());
+            verify(bprojaSyncService).upsert(PRJ, BIZ_KEY, "21");
+        }
+
+        @Test
         @DisplayName("BBIZPM 최초 생성 시 사업(BITEMM 최신·유효본)의 소요예산 품목을 BBIZGM으로 복사한다")
         void seedsItemsFromProjectOnCreate() {
             stubEligibleProject();

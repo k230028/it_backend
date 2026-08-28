@@ -6,6 +6,7 @@ import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Brsltm;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.ResultRepository;
+import com.kdb.it.domain.entity.EntityRestoreSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -99,26 +100,15 @@ public class ResultService {
     public void saveResult(String asctId, CouncilDto.ResultRequest request) {
         var council = councilService.findActiveCouncil(asctId);
 
-        // upsert: 기존 결과서 있으면 update, 없으면 신규 INSERT
-        resultRepository
-                .findByItPtlAsctIdAndDelYn(asctId, "N")
-                .ifPresentOrElse(
-                        // 기존 결과서 업데이트
-                        existing ->
-                                existing.update(
-                                        request.synOpnn(), request.ckgOpnn(), request.flMngNo()),
-                        // 신규 INSERT
-                        () -> {
-                            Brsltm result =
-                                    Brsltm.builder()
-                                            .itPtlAsctId(asctId)
-                                            .synOpnn(request.synOpnn())
-                                            .ckgOpnn(request.ckgOpnn())
-                                            .flMpnId(request.flMngNo())
-                                            .build();
-                            // 신규 INSERT는 persist()로 @PrePersist 발화 보장 (merge 분기 회귀 방지, §5.12.1.1)
-                            entityManager.persist(result);
-                        });
+        Brsltm result = resultRepository.findByItPtlAsctIdAndDelYn(asctId, "N").orElse(null);
+        if (result == null) {
+            result = EntityRestoreSupport.findAndRestore(entityManager, Brsltm.class, asctId);
+        }
+        if (result == null) {
+            result = Brsltm.builder().itPtlAsctId(asctId).build();
+            entityManager.persist(result);
+        }
+        result.update(request.synOpnn(), request.ckgOpnn(), request.flMngNo());
 
         // 협의회 상태 전이: → RESULT_WRITING (최초 저장 시 1회만)
         // RESULT_WRITING: 이미 '협의회 완료' 버튼으로 전이된 정상 흐름 (전이 skip)

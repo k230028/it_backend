@@ -12,9 +12,11 @@ import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.council.dto.CouncilDto;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bplevm;
+import com.kdb.it.domain.council.entity.BplevmId;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PlanEvaluationRepository;
+import com.kdb.it.domain.entity.EntityRestoreSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
@@ -592,6 +594,13 @@ public class PlanEvaluationService {
 
             // upsert: 기존 평가 있으면 update, 없으면 신규 INSERT
             Bplevm existing = existingByBusiness.get(item.abusMngNo());
+            if (existing == null) {
+                existing =
+                        EntityRestoreSupport.findAndRestore(
+                                entityManager,
+                                Bplevm.class,
+                                new BplevmId(asctId, eno, item.abusMngNo()));
+            }
             if (existing != null) {
                 existing.update(item.pprtYn(), item.evalOpnn());
             } else {

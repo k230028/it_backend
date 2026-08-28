@@ -22,9 +22,8 @@ import com.kdb.it.common.mfa.provider.MfaVerificationResult;
 import com.kdb.it.common.mfa.provider.OnePassProviderException;
 import com.kdb.it.common.mfa.store.InMemoryLoginPendingTransactionStore;
 import com.kdb.it.common.mfa.store.InMemoryMfaTransactionStore;
+import com.kdb.it.common.security.TokenFingerprint;
 import com.kdb.it.common.system.security.CustomUserDetails;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -1041,8 +1040,11 @@ class MfaServiceTest {
                         true,
                         Duration.ofSeconds(90),
                         5,
-                        "test-fixed-key"),
-                clock);
+                        "test-fixed-key",
+                        java.util.Set.of()),
+                clock,
+                new TokenFingerprint(
+                        "test-secret-key-for-junit-test-minimum-256-bits-length-ok"));
     }
 
     private static MfaProvider successProvider() {
@@ -1084,14 +1086,9 @@ class MfaServiceTest {
     }
 
     private static String hash(String value) {
-        try {
-            byte[] digest =
-                    MessageDigest.getInstance("SHA-256")
-                            .digest(value.getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return new TokenFingerprint(
+                        "test-secret-key-for-junit-test-minimum-256-bits-length-ok")
+                .forMfa(value);
     }
 
     private static final class MutableClock extends Clock {

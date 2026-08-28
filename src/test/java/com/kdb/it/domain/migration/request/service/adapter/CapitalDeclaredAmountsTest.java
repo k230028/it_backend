@@ -444,6 +444,21 @@ class CapitalDeclaredAmountsTest {
         assertThat(output.diagnostics()).noneMatch(diagnostic -> diagnostic.code().blocks());
     }
 
+    @Test
+    @DisplayName("당해 합계와 이후 합계가 같아도 유일한 당해 품목을 예정금액으로 옮기지 않는다")
+    void keepsOnlyCurrentItemWhenYearAndLaterTotalsAreEqual() {
+        FormAdapterOutput output =
+                adaptWithResource("20백만원", 10d, 10d, "기계장치(HW)", 10_000_000d);
+
+        assertThat(output.projects().getFirst().getItems())
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.getAmt()).isEqualByComparingTo("10000000");
+                            assertThat(item.getMplAmt()).isNull();
+                        });
+    }
+
     private FormAdapterOutput adapt(Sheet overview) {
         Map<FormSheetKind, Sheet> sheets = new EnumMap<>(FormSheetKind.class);
         sheets.put(FormSheetKind.CAPITAL_OVERVIEW, overview);

@@ -7,8 +7,10 @@ import com.kdb.it.domain.council.dto.EvaluationItemAvgRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.Bevalm;
+import com.kdb.it.domain.council.entity.BevalmId;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.EvaluationRepository;
+import com.kdb.it.domain.entity.EntityRestoreSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -198,6 +200,13 @@ public class EvaluationService {
 
             // upsert: 기존 의견 있으면 update, 없으면 신규 INSERT
             Bevalm existing = existingByItem.get(item.ckgItmC());
+            if (existing == null) {
+                existing =
+                        EntityRestoreSupport.findAndRestore(
+                                entityManager,
+                                Bevalm.class,
+                                new BevalmId(asctId, eno, item.ckgItmC()));
+            }
             if (existing != null) {
                 existing.update(item.ckgRcrd(), item.ckgOpnn());
             } else {

@@ -77,6 +77,8 @@ class RequestForm2026SampleSmokeTest {
 
     private static final String AI_PLATFORM_SAMPLE_SUFFIX = "2026년 전산예산 편성 요청서_AI플랫폼팀.xls";
 
+    private static final String LIMIT_ACCOUNT_SAMPLE_SUFFIX = "한도제한계좌 비대면 한도해제.xls";
+
     private static final String SAMPLE_LOOKUP_FAILURE = "로컬 샘플 탐색에 실패했습니다";
 
     private static final String SAMPLE_READ_FAILURE = "로컬 샘플을 읽지 못했습니다";
@@ -159,8 +161,8 @@ class RequestForm2026SampleSmokeTest {
             if (classifySample(sampleRoot, path)) requestForms++;
         }
 
-        assertThat(excelFiles.size()).isEqualTo(67);
-        assertThat(requestForms).isEqualTo(55);
+        assertThat(excelFiles.size()).isEqualTo(68);
+        assertThat(requestForms).isEqualTo(56);
         assertThat(excelFiles.size() - requestForms).isEqualTo(12);
     }
 
@@ -497,6 +499,16 @@ class RequestForm2026SampleSmokeTest {
                 .as(
                         "items=%s planned=%s diagnostics=%s",
                         itemSummary(output), sumPlannedItems(output), output.diagnostics())
+                .isPositive();
+    }
+
+    @Test
+    @DisplayName("한도제한계좌 비대면 한도해제 사업의 정보화사업 금액을 0원으로 바꾸지 않는다")
+    void keepsLimitAccountCurrentAmount() throws IOException {
+        FormAdapterOutput output = adaptCapitalSample(LIMIT_ACCOUNT_SAMPLE_SUFFIX, null);
+
+        assertThat(sumCurrentItems(output))
+                .as("items=%s diagnostics=%s", itemSummary(output), output.diagnostics())
                 .isPositive();
     }
 
