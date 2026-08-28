@@ -70,8 +70,14 @@ public class BtermmL extends BaseLogEntity {
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드")
     private String termSvnTemC;
 
+    @Column(name = "SVN_TEM_NM", length = 100, comment = "주관팀명")
+    private String svnTemNm;
+
     @Column(name = "SVN_DPM_C", length = 20, comment = "담당부서코드")
     private String termSvnDpmC;
+
+    @Column(name = "SVN_DPM_NM", length = 100, comment = "주관부서명")
+    private String svnDpmNm;
 
     @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;

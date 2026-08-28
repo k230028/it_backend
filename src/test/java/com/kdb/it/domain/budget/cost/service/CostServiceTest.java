@@ -529,6 +529,40 @@ class CostServiceTest {
         assertThat(captor.getValue().getSvnTemNm()).isEqualTo("담당팀명A");
     }
 
+    @Test
+    @DisplayName("전산업무비 생성 시 단말기에도 주관부서명과 주관팀명 스냅샷을 저장한다")
+    void createCost_storesTerminalSvnOrgNameSnapshot() {
+        CostDto.TerminalDto terminal =
+                CostDto.TerminalDto.builder().cgprId("10004").curC("KRW").build();
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .cttNm("단말기 조직명 스냅샷 계약")
+                        .terminals(List.of(terminal))
+                        .build();
+        CuserI manager =
+                CuserI.builder()
+                        .eno("10004")
+                        .usrNm("담당자")
+                        .bbrC("BBR004")
+                        .temC("18004")
+                        .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(btermmRepository.getNextSequenceValue()).willReturn(4L);
+        given(cuserIRepository.findByEnoIn(java.util.Set.of("10004")))
+                .willReturn(List.of(manager));
+        given(cuserIRepository.findByEno("10004")).willReturn(Optional.of(manager));
+        given(orgNameResolver.resolveName("BBR004")).willReturn("디지털전략부");
+        given(orgNameResolver.resolveName("18004")).willReturn("디지털전략팀");
+
+        costService.createCost(request);
+
+        ArgumentCaptor<Btermm> captor = ArgumentCaptor.forClass(Btermm.class);
+        verify(btermmRepository).save(captor.capture());
+        assertThat(captor.getValue().getSvnDpmNm()).isEqualTo("디지털전략부");
+        assertThat(captor.getValue().getSvnTemNm()).isEqualTo("디지털전략팀");
+    }
+
     // ───────────────────────────────────────────────────────
     // updateCost (신규) — 정상 수정
     // ───────────────────────────────────────────────────────

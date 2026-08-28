@@ -3,13 +3,16 @@ package com.kdb.it.common.approval.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -381,5 +384,214 @@ class ApplicationControllerTest {
         verify(approvalLineManagementService)
                 .reorderPendingApprovers(
                         eq("APF_202600000001"), eq(List.of(3, 2)), eq("10001"), eq(false));
+    }
+
+    // ───────────────────────────────────────────────────────
+    // PATCH /{apfMngNo}/approvers/{dcdSqn} — 미결재 결재자 변경
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("PATCH /api/applications/{apfMngNo}/approvers/{dcdSqn} - 일반 사용자 변경 → 204")
+    @WithMockUser(username = "10001", roles = "USER")
+    void changePendingApprover_일반사용자_204() throws Exception {
+        // 실행
+        mockMvc.perform(
+                        patch("/api/applications/APF_202600000001/approvers/2")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"newApproverEno\":\"E777\"}"))
+                .andExpect(status().isNoContent());
+
+        // 검증: 관리자 아님(false)으로 전달
+        verify(pendingApproverService)
+                .changePendingApprover(
+                        eq("APF_202600000001"), eq(2), eq("E777"), eq("10001"), eq(false));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/applications/{apfMngNo}/approvers/{dcdSqn} - 관리자 변경 → 204 + 관리자 권한 전달")
+    @WithMockUser(
+            username = "90001",
+            roles = {"USER", "ADMIN"})
+    void changePendingApprover_관리자_204() throws Exception {
+        // 준비
+        CustomUserDetails admin =
+                new CustomUserDetails("90001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+
+        // 실행
+        mockMvc.perform(
+                        patch("/api/applications/APF_202600000001/approvers/3")
+                                .with(user(admin))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"newApproverEno\":\"E888\"}"))
+                .andExpect(status().isNoContent());
+
+        // 검증: 관리자(true)로 전달
+        verify(pendingApproverService)
+                .changePendingApprover(
+                        eq("APF_202600000001"), eq(3), eq("E888"), eq("90001"), eq(true));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/applications/{apfMngNo}/approvers/{dcdSqn} - 사번 공백 → 400 + 서비스 미호출")
+    @WithMockUser(username = "10001", roles = "USER")
+    void changePendingApprover_사번공백_400() throws Exception {
+        // 실행
+        mockMvc.perform(
+                        patch("/api/applications/APF_202600000001/approvers/2")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"newApproverEno\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+
+        // 검증
+        verify(pendingApproverService, never())
+                .changePendingApprover(
+                        anyString(), anyInt(), anyString(), anyString(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/applications/{apfMngNo}/approvers/{dcdSqn} - 비인증 → 401")
+    void changePendingApprover_비인증_401() throws Exception {
+        mockMvc.perform(
+                        patch("/api/applications/APF_202600000001/approvers/2")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"newApproverEno\":\"E777\"}"))
+                .andExpect(status().isUnauthorized());
+
+        verify(pendingApproverService, never())
+                .changePendingApprover(
+                        anyString(), anyInt(), anyString(), anyString(), anyBoolean());
+    }
+
+    // ───────────────────────────────────────────────────────
+    // POST /{apfMngNo}/approvers — 추가 결재자 등록
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/approvers - 결재선 참여자 추가 → 204")
+    @WithMockUser(username = "10001", roles = "USER")
+    void addApprover_일반사용자_204() throws Exception {
+        // 실행
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/approvers")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"approverEno\":\"E555\"}"))
+                .andExpect(status().isNoContent());
+
+        // 검증
+        verify(approvalLineManagementService)
+                .addApprover(eq("APF_202600000001"), eq("E555"), eq("10001"), eq(false));
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/approvers - 권한 없는 사용자 → 403")
+    @WithMockUser(username = "10001", roles = "USER")
+    void addApprover_권한거부_403() throws Exception {
+        // 준비: 서비스가 접근 거부 예외를 던지도록 설정
+        willThrow(new org.springframework.security.access.AccessDeniedException("결재선 변경 권한이 없습니다."))
+                .given(approvalLineManagementService)
+                .addApprover(anyString(), anyString(), anyString(), anyBoolean());
+
+        // 실행 및 검증
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/approvers")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"approverEno\":\"E555\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/approvers - 사번 공백 → 400 + 서비스 미호출")
+    @WithMockUser(username = "10001", roles = "USER")
+    void addApprover_사번공백_400() throws Exception {
+        // 실행
+        mockMvc.perform(
+                        post("/api/applications/APF_202600000001/approvers")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"approverEno\":\"\"}"))
+                .andExpect(status().isBadRequest());
+
+        // 검증
+        verify(approvalLineManagementService, never())
+                .addApprover(anyString(), anyString(), anyString(), anyBoolean());
+    }
+
+    // ───────────────────────────────────────────────────────
+    // DELETE /{apfMngNo}/approvers/{dcdSqn} — 추가 결재자 삭제
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("DELETE /api/applications/{apfMngNo}/approvers/{dcdSqn} - 결재선 참여자 삭제 → 204")
+    @WithMockUser(username = "10001", roles = "USER")
+    void deleteApprover_일반사용자_204() throws Exception {
+        // 실행
+        mockMvc.perform(
+                        delete("/api/applications/APF_202600000001/approvers/3")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF))
+                .andExpect(status().isNoContent());
+
+        // 검증
+        verify(approvalLineManagementService)
+                .deleteApprover(eq("APF_202600000001"), eq(3), eq("10001"), eq(false));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/applications/{apfMngNo}/approvers/{dcdSqn} - 관리자 삭제 → 204 + 관리자 권한 전달")
+    @WithMockUser(
+            username = "90001",
+            roles = {"USER", "ADMIN"})
+    void deleteApprover_관리자_204() throws Exception {
+        // 준비
+        CustomUserDetails admin =
+                new CustomUserDetails("90001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+
+        // 실행
+        mockMvc.perform(
+                        delete("/api/applications/APF_202600000002/approvers/4")
+                                .with(user(admin))
+                                .cookie(MFA_PROOF))
+                .andExpect(status().isNoContent());
+
+        // 검증
+        verify(approvalLineManagementService)
+                .deleteApprover(eq("APF_202600000002"), eq(4), eq("90001"), eq(true));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/applications/{apfMngNo}/approvers/{dcdSqn} - 승인 완료 결재자 삭제 시도 → 400")
+    @WithMockUser(username = "10001", roles = "USER")
+    void deleteApprover_승인완료삭제시도_400() throws Exception {
+        // 준비: 비즈니스 규칙 위반 예외 → 400 매핑 검증
+        willThrow(new IllegalStateException("미결재 상태인 결재자만 삭제할 수 있습니다."))
+                .given(approvalLineManagementService)
+                .deleteApprover(anyString(), anyInt(), anyString(), anyBoolean());
+
+        // 실행 및 검증
+        mockMvc.perform(
+                        delete("/api/applications/APF_202600000001/approvers/1")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/applications/{apfMngNo}/approvers/{dcdSqn} - 비인증 → 401")
+    void deleteApprover_비인증_401() throws Exception {
+        mockMvc.perform(delete("/api/applications/APF_202600000001/approvers/3"))
+                .andExpect(status().isUnauthorized());
+
+        verify(approvalLineManagementService, never())
+                .deleteApprover(anyString(), anyInt(), anyString(), anyBoolean());
     }
 }

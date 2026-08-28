@@ -183,6 +183,165 @@ class ApprovalLineManagementServiceTest {
                         org.mockito.ArgumentMatchers.anyInt());
     }
 
+    @Test
+    @DisplayName("신청서가 존재하지 않으면 결재선 추가를 거부한다")
+    void addApprover_신청서없음_예외() {
+        // given: 신청서 미존재
+        given(applicationRepository.findById(APF)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> service.addApprover(APF, "E004", "E002", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("신청서를 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("결재선이 비어 있으면 결재선 추가를 거부한다")
+    void addApprover_결재선없음_예외() {
+        // given: 결재중 신청서지만 결재선 없음
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF)).willReturn(List.of());
+
+        // when & then
+        assertThatThrownBy(() -> service.addApprover(APF, "E004", "E002", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("신청서 결재선을 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("추가할 직원이 존재하지 않으면 결재선 추가를 거부한다")
+    void addApprover_직원없음_예외() {
+        // given: 결재선은 있으나 추가 대상 직원 미존재
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E002", "1")));
+        given(userRepository.findById("E999")).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> service.addApprover(APF, "E999", "E002", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("추가할 직원을 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("관리자는 결재선 밖 사용자여도 결재자를 추가할 수 있다")
+    void addApprover_관리자_결재선밖사용자_성공() {
+        // given: currentEno가 결재선에 없지만 isAdmin=true
+        Capplm application = application("1", "E001");
+        Cdecim only = approver(1, "E002", "1");
+        given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(only));
+        given(userRepository.findById("E004"))
+                .willReturn(
+                        Optional.of(
+                                CuserI.builder().eno("E004").usrNm("추가결재자").ptCNm("과장").build()));
+
+        // when
+        service.addApprover(APF, "E004", "E999", true);
+
+        // then: 관리자 권한으로 추가 성공
+        assertThat(only.getLstDcdYn()).isEqualTo("N");
+        verify(approvalLineDelegate)
+                .addApproverToDetail(eq(application), eq("E004"), eq("추가결재자"), eq("과장"));
+    }
+
+    @Test
+    @DisplayName("삭제 대상 결재 순번이 없으면 삭제를 거부한다")
+    void deleteApprover_순번없음_예외() {
+        // given: 순번 99는 결재선에 없음
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E002", "1")));
+
+        // when & then
+        assertThatThrownBy(() -> service.deleteApprover(APF, 99, "E002", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("결재 순번을 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("중간 결재자를 삭제하면 남은 마지막 결재자에게 최종결재여부를 재지정한다")
+    void deleteApprover_중간삭제_마지막재지정() {
+        // given: 미결재 3명 중 가운데(순번 2) 삭제
+        Capplm application = application("1", "E001");
+        Cdecim first = approver(1, "E002", "1");
+        Cdecim middle = approver(2, "E003", "1");
+        Cdecim last = approver(3, "E004", "1");
+        given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(first, middle, last));
+
+        // when
+        service.deleteApprover(APF, 2, "E002", false);
+
+        // then: 남은 목록 [first,last]에 최종결재여부 재지정 후 JSON 반영
+        verify(approverRepository).delete(middle);
+        assertThat(first.getLstDcdYn()).isEqualTo("N");
+        assertThat(last.getLstDcdYn()).isEqualTo("Y");
+        verify(approverRepository).save(last);
+        verify(approvalLineDelegate).removeApproverFromDetail(eq(application), eq(1));
+        verify(approvalLineDelegate)
+                .updateApprovalOrder(eq(application), eq(List.of(first, last)));
+    }
+
+    @Test
+    @DisplayName("순서가 기존과 동일하면 시퀀스 변경 없이 JSON 순서만 기록한다")
+    void reorderPendingApprovers_순서동일_시퀀스변경없음() {
+        // given: 미결재 [1,2] 그대로 요청
+        Capplm application = application("1", "E001");
+        Cdecim pending1 = approver(1, "E002", "1");
+        Cdecim pending2 = approver(2, "E003", "1");
+        given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(pending1, pending2));
+
+        // when
+        service.reorderPendingApprovers(APF, List.of(1, 2), "E002", false);
+
+        // then: 시퀀스 이동 없이 order 기록만 수행
+        verify(approverRepository, never())
+                .shiftPendingSequences(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyList(),
+                        org.mockito.ArgumentMatchers.anyInt());
+        verify(approvalLineDelegate)
+                .updateApprovalOrder(eq(application), eq(List.of(pending1, pending2)));
+    }
+
+    @Test
+    @DisplayName("순서 목록이 null이면 순서 변경을 거부한다")
+    void reorderPendingApprovers_null요청_거부() {
+        // given
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E002", "1")));
+
+        // when & then
+        assertThatThrownBy(() -> service.reorderPendingApprovers(APF, null, "E002", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("미결재 결재자 전체 순서를 보내야 합니다");
+    }
+
+    @Test
+    @DisplayName("크기는 같아도 순번 집합이 다르면 순서 변경을 거부한다")
+    void reorderPendingApprovers_집합불일치_거부() {
+        // given: 미결재 순번 [1,2]인데 [1,3] 요청 (중복 없음, 크기 동일)
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E002", "1"), approver(2, "E003", "1")));
+
+        // when & then
+        assertThatThrownBy(() -> service.reorderPendingApprovers(APF, List.of(1, 3), "E002", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("미결재 결재자 순서가 현재 결재선과 일치하지 않습니다");
+    }
+
     private Capplm application(String status, String requester) {
         return Capplm.builder().apfMngNo(APF).itPtlApfPrgStsC(status).dcdReqUsid(requester).build();
     }

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class BtermmUpdateCommandTest {
 
     @Test
-    @DisplayName("update - 명령의 15개 필드를 모두 반영하고 필수 코드 빈값은 기본값으로 보정한다")
+    @DisplayName("update - 명령의 17개 필드를 모두 반영하고 필수 코드 빈값은 기본값으로 보정한다")
     void update_명령의모든필드반영_필수코드빈값보정() {
         Btermm target = Btermm.builder().tmnMngNo("TER-2026-0001").sno(1).build();
         Btermm.UpdateCommand command =
@@ -29,7 +29,9 @@ class BtermmUpdateCommandTest {
                         .indRsn("증액")
                         .cgprId("10001")
                         .termSvnTemC("18001")
+                        .svnTemNm("디지털전략팀")
                         .termSvnDpmC("180")
+                        .svnDpmNm("디지털전략부")
                         .rmk("비고")
                         .fcAmt(new BigDecimal("1000.000"))
                         .build();
@@ -49,7 +51,9 @@ class BtermmUpdateCommandTest {
         assertThat(target.getCgprId()).isEqualTo("10001");
         // 팀코드와 부서코드는 둘 다 String이라 위치 인자 시절에는 서로 바뀌어도 컴파일이 통과했다.
         assertThat(target.getTermSvnTemC()).isEqualTo("18001");
+        assertThat(target.getSvnTemNm()).isEqualTo("디지털전략팀");
         assertThat(target.getTermSvnDpmC()).isEqualTo("180");
+        assertThat(target.getSvnDpmNm()).isEqualTo("디지털전략부");
         assertThat(target.getRmk()).isEqualTo("비고");
         assertThat(target.getFcAmt()).isEqualByComparingTo("1000.000");
     }

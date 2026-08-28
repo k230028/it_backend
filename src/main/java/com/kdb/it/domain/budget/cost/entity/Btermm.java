@@ -140,9 +140,17 @@ public class Btermm extends BaseEntity {
     @Column(name = "SVN_TEM_C", length = 5, comment = "담당팀코드 (물리컬럼 SVN_TEM_C=주관팀코드)")
     private String termSvnTemC;
 
+    /** 주관팀명 스냅샷 */
+    @Column(name = "SVN_TEM_NM", length = 100, comment = "주관팀명")
+    private String svnTemNm;
+
     /** 담당부서 (최대 20자) */
     @Column(name = "SVN_DPM_C", length = 20, comment = "담당부서코드 (물리컬럼 SVN_DPM_C=주관부서코드)")
     private String termSvnDpmC;
+
+    /** 주관부서명 스냅샷 */
+    @Column(name = "SVN_DPM_NM", length = 100, comment = "주관부서명")
+    private String svnDpmNm;
 
     /** 비고 */
     @Column(name = "RMK", length = 300, comment = "비고")
@@ -160,7 +168,7 @@ public class Btermm extends BaseEntity {
     /**
      * 단말기 관리 변경 명령.
      *
-     * <p>필드가 15개라 위치 인자로는 인접한 같은 타입끼리 뒤바뀌어도 컴파일러가 잡지 못합니다(예: {@code termSvnTemC}와 {@code
+     * <p>필드가 17개라 위치 인자로는 인접한 같은 타입끼리 뒤바뀌어도 컴파일러가 잡지 못합니다(예: {@code termSvnTemC}와 {@code
      * termSvnDpmC}). 호출부가 이름을 명시하도록 {@link Bcostm.UpdateCommand}와 같은 형태로 묶습니다.
      *
      * @param spfTmnNm 특정단말명
@@ -175,7 +183,9 @@ public class Btermm extends BaseEntity {
      * @param indRsn 증감사유
      * @param cgprId 담당자 ID
      * @param termSvnTemC 주관팀코드
+     * @param svnTemNm 주관팀명
      * @param termSvnDpmC 주관부서코드
+     * @param svnDpmNm 주관부서명
      * @param rmk 비고
      * @param fcAmt 외화금액 (원화 행은 null, 외화 행은 사용자 입력 외화 원금)
      */
@@ -193,7 +203,9 @@ public class Btermm extends BaseEntity {
             String indRsn,
             String cgprId,
             String termSvnTemC,
+            String svnTemNm,
             String termSvnDpmC,
+            String svnDpmNm,
             String rmk,
             BigDecimal fcAmt) {}
 
@@ -223,9 +235,17 @@ public class Btermm extends BaseEntity {
             this.cgprId = command.cgprId();
         }
         this.termSvnTemC = command.termSvnTemC();
+        this.svnTemNm = command.svnTemNm();
         this.termSvnDpmC = command.termSvnDpmC();
+        this.svnDpmNm = command.svnDpmNm();
         this.rmk = command.rmk();
         this.fcAmt = command.fcAmt();
+    }
+
+    /** 현재 조직코드에 대응하는 조직명 스냅샷을 설정합니다. */
+    public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
+        this.svnDpmNm = svnDpmNm;
+        this.svnTemNm = svnTemNm;
     }
 
     /**

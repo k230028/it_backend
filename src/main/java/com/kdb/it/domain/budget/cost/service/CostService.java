@@ -235,6 +235,9 @@ public class CostService {
                 Btermm entity = terminal.toEntity();
                 entity.setBcostmInfo(cost.getCostBgNo(), cost.getBgSno());
                 entity.assignCgprName(resolveCgprName(entity.getCgprId()));
+                entity.assignSvnOrgNames(
+                        orgNameResolver.resolveName(entity.getTermSvnDpmC()),
+                        orgNameResolver.resolveName(entity.getTermSvnTemC()));
                 btermmRepository.save(entity);
             }
         }
@@ -326,6 +329,9 @@ public class CostService {
                 Btermm entity = terminal.toEntity();
                 entity.setBcostmInfo(target.getCostBgNo(), target.getBgSno());
                 entity.assignCgprName(resolveCgprName(entity.getCgprId()));
+                entity.assignSvnOrgNames(
+                        orgNameResolver.resolveName(entity.getTermSvnDpmC()),
+                        orgNameResolver.resolveName(entity.getTermSvnTemC()));
                 btermmRepository.save(entity);
                 keptPks.add(terminalPk(terminal.getTmnMngNo(), terminal.getSno()));
             }
@@ -408,8 +414,11 @@ public class CostService {
         terminal.setFcAmt(reconciled[1]);
     }
 
-    private static void updateTerminal(Btermm existing, CostDto.TerminalDto terminal) {
+    private void updateTerminal(Btermm existing, CostDto.TerminalDto terminal) {
         existing.update(toTerminalUpdateCommand(terminal));
+        existing.assignSvnOrgNames(
+                orgNameResolver.resolveName(existing.getTermSvnDpmC()),
+                orgNameResolver.resolveName(existing.getTermSvnTemC()));
     }
 
     private static Btermm.UpdateCommand toTerminalUpdateCommand(CostDto.TerminalDto terminal) {
@@ -426,7 +435,9 @@ public class CostService {
                 .indRsn(terminal.getIndRsn())
                 .cgprId(terminal.getCgprId())
                 .termSvnTemC(terminal.getTermSvnTemC())
+                .svnTemNm(null)
                 .termSvnDpmC(terminal.getTermSvnDpmC())
+                .svnDpmNm(null)
                 .rmk(terminal.getRmk())
                 .fcAmt(terminal.getFcAmt())
                 .build();

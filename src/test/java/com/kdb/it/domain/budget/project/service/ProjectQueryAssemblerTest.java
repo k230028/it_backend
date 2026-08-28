@@ -1,8 +1,10 @@
 package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -305,6 +308,53 @@ class ProjectQueryAssemblerTest {
     }
 
     @Test
+    @DisplayName("상세 조립: 신청서 진행상태 코드가 없으면 상태 표시명을 null로 둔다")
+    void assembleDetail_신청서진행상태코드없음_상태표시명null() {
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-NOSTS-001").sno(1).delYn("N").build();
+        ApplicationMapView map = new ApplicationMapView("APF-NOSTS", "PRJ-NOSTS-001", 1);
+        // 진행상태 코드가 비어 있는 신청서 — ApprovalStatus.ofCode를 타지 않아야 한다
+        ApplicationSummaryView application =
+                new ApplicationSummaryView("APF-NOSTS", null, "상태 없는 결재", "10001", null, null);
+        given(
+                        applicationMapRepository
+                                .findViewsByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                        "BPROJM", "PRJ-NOSTS-001", 1))
+                .willReturn(List.of(map));
+        given(applicationRepository.findSummaryViewsByApfMngNoIn(List.of("APF-NOSTS")))
+                .willReturn(List.of(application));
+        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-NOSTS"))
+                .willReturn(List.of());
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getApfMngNo()).isEqualTo("APF-NOSTS");
+        assertThat(result.getApfSts()).isNull();
+        assertThat(result.getApfStsC()).isNull();
+        assertThat(result.getApplicationInfo()).isNotNull();
+        assertThat(result.getApplicationInfo().getApfNm()).isEqualTo("상태 없는 결재");
+        assertThat(result.getApplicationInfo().getApfSts()).isNull();
+    }
+
+    @Test
+    @DisplayName("상세 조립: 저장된 현업부서명 스냅샷이 있으면 조직 조회보다 우선한다")
+    void assembleDetail_현업부서명스냅샷_조직조회보다우선() {
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-SVN-001")
+                        .sno(1)
+                        .delYn("N")
+                        .svnDpmC("D002")
+                        .svnDpmNm("현업부명 스냅샷")
+                        .build();
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getSvnDpmCNm()).isEqualTo("현업부명 스냅샷");
+        // 스냅샷이 있으므로 현업부서 코드로 조직명을 재조회하지 않는다
+        then(organizationRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
     @DisplayName("담당자 이름이 저장된 사업은 이름 필드에 두고 사번 필드를 비운다")
     void assembleDetail_separatesStoredManagerNameFromEmployeeId() {
         Bprojm project =
@@ -454,6 +504,80 @@ class ProjectQueryAssemblerTest {
         assertThat(result.getTyyBgAmt()).isEqualByComparingTo("100");
         assertThat(result.getMplAmt()).isEqualByComparingTo("30");
         assertThat(result.getPrjBgAmt()).isEqualByComparingTo("130");
+    }
+
+    @Test
+    @DisplayName("상세 조립: 품목 비목 코드가 전부 비어 있으면 코드명 조회 없이 품목을 반환한다")
+    void assembleDetail_품목비목코드전부빈값_코드명조회생략() {
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-NOIOE-001").sno(1).delYn("N").build();
+        // 비목 코드가 null인 품목만 있는 사업 — 코드명 조회 자체를 건너뛰어야 한다
+        Bitemm uncoded =
+                Bitemm.builder()
+                        .gclMngNo("GCL-NOIOE")
+                        .abusMngNo("PRJ-NOIOE-001")
+                        .fntTbCrySno(1)
+                        .gclNm("코드 없는 품목")
+                        .amt(BigDecimal.valueOf(10))
+                        .build();
+        given(itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-NOIOE-001", 1, "N"))
+                .willReturn(List.of(uncoded));
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getItems())
+                .singleElement()
+                .satisfies(
+                        value -> {
+                            assertThat(value.getGclNm()).isEqualTo("코드 없는 품목");
+                            assertThat(value.getIoeCNm()).isNull();
+                        });
+        then(codeRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("상세 조립: 비목 코드 없는 품목이 섞여 있으면 코드 있는 품목만 코드명을 채운다")
+    void assembleDetail_비목코드없는품목혼재_코드있는품목만채움() {
+        Bprojm project = Bprojm.builder().abusMngNo("PRJ-MIX-001").sno(1).delYn("N").build();
+        Bitemm coded =
+                Bitemm.builder()
+                        .gclMngNo("GCL-MIX-1")
+                        .abusMngNo("PRJ-MIX-001")
+                        .fntTbCrySno(1)
+                        .ioeC("101")
+                        .gclNm("코드 있는 품목")
+                        .amt(BigDecimal.valueOf(100))
+                        .build();
+        Bitemm uncoded =
+                Bitemm.builder()
+                        .gclMngNo("GCL-MIX-2")
+                        .abusMngNo("PRJ-MIX-001")
+                        .fntTbCrySno(1)
+                        .gclNm("코드 없는 품목")
+                        .amt(BigDecimal.valueOf(20))
+                        .build();
+        given(itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-MIX-001", 1, "N"))
+                .willReturn(List.of(coded, uncoded));
+        stubIoeCode();
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getItems())
+                .extracting(ProjectDto.BitemmDto::getIoeCNm)
+                .containsExactly("개발비", null);
+    }
+
+    @Test
+    @DisplayName("품목 비목 코드명 보강: 품목 목록이 null이면 예외 없이 종료한다")
+    void enrichItemIoeNames_null품목목록_예외없이종료() throws Exception {
+        // 공개 API는 null 품목 목록을 만들지 않으므로 방어 분기를 리플렉션으로 직접 검증한다
+        Method enrich =
+                ProjectQueryAssembler.class.getDeclaredMethod("enrichItemIoeNames", List.class);
+        enrich.setAccessible(true);
+
+        assertThatCode(() -> enrich.invoke(assembler, new Object[] {null}))
+                .doesNotThrowAnyException();
+
+        then(codeRepository).shouldHaveNoInteractions();
     }
 
     @Test

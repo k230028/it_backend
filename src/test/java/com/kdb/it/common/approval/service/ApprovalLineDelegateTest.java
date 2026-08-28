@@ -277,4 +277,404 @@ class ApprovalLineDelegateTest {
         verify(capplm, org.mockito.Mockito.times(2))
                 .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
     }
+
+    // ───────────────────────────────────────────────────────
+    // doUpdate — 저장된 order 배열 기반 갱신 (applyDateInStoredOrder)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("doUpdate: order 배열이 있으면 저장된 순서대로 승인일을 반영한다")
+    void doUpdate_order배열_저장된순서로갱신() {
+        // Arrange: order 배열에 미존재 사번(GHOST)과 중복 사번(E001)을 포함해 skip 분기까지 검증
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        String json =
+                "{\"approvalLine\":{\"drafter\":{\"id\":\"E009\"},"
+                        + "\"order\":[\"E002\",\"GHOST\",\"E001\",\"E001\"],"
+                        + "\"teamLead\":{\"id\":\"E001\"},"
+                        + "\"deptHead\":{\"id\":\"E002\"},"
+                        + "\"additionalApprovers\":[{\"id\":\"E003\"},\"메모\"],"
+                        + "\"caption\":\"텍스트\"}}";
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn(json);
+
+        Cdecim first = mock(Cdecim.class);
+        given(first.getDcrEno()).willReturn("E002");
+        given(first.getDcrSqnSno()).willReturn(1);
+        Cdecim second = mock(Cdecim.class);
+        given(second.getDcrEno()).willReturn("E001");
+        given(second.getDcrSqnSno()).willReturn(2);
+        Cdecim third = mock(Cdecim.class);
+        given(third.getDcrEno()).willReturn("E003");
+        given(third.getDcrSqnSno()).willReturn(3);
+        Cdecim approved = mock(Cdecim.class);
+        given(approved.getDcrSqnSno()).willReturn(1);
+
+        // Act
+        delegate.doUpdate(capplm, List.of(first, second, third), List.of(approved));
+
+        // Assert: 승인된 E002(deptHead)만 date가 기록되고 E001(teamLead)은 유지
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                updatedJson ->
+                                        updatedJson.contains(
+                                                        "\"deptHead\":{\"id\":\"E002\",\"date\"")
+                                                && !updatedJson.contains(
+                                                        "\"teamLead\":{\"id\":\"E001\",\"date\"")));
+    }
+
+    @Test
+    @DisplayName("doUpdate: 동일 사번이 결재선에 두 번 등장하면 승인된 occurrence만 갱신한다")
+    void doUpdate_동일사번중복_승인된occurrence만갱신() {
+        // Arrange: E001이 두 번 등장, 두 번째 순번(occurrence 2)만 승인됨
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn(
+                        "{\"approvalLine\":{\"step1\":{\"id\":\"E001\"},\"step2\":{\"id\":\"E001\"}}}");
+        Cdecim occurrence1 = mock(Cdecim.class);
+        given(occurrence1.getDcrEno()).willReturn("E001");
+        given(occurrence1.getDcrSqnSno()).willReturn(1);
+        Cdecim occurrence2 = mock(Cdecim.class);
+        given(occurrence2.getDcrEno()).willReturn("E001");
+        given(occurrence2.getDcrSqnSno()).willReturn(2);
+
+        // Act
+        delegate.doUpdate(capplm, List.of(occurrence1, occurrence2), List.of(occurrence2));
+
+        // Assert: step1은 미갱신, step2만 date 기록
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json ->
+                                        !json.contains("\"step1\":{\"id\":\"E001\",\"date\"")
+                                                && json.contains(
+                                                        "\"step2\":{\"id\":\"E001\",\"date\"")));
+    }
+
+    @Test
+    @DisplayName("doUpdate: 배열 내 id 없는 항목과 스칼라 항목은 무시하고 유효 항목만 갱신한다")
+    void doUpdate_배열내_id없는항목_무시() {
+        // Arrange: additionalApprovers에 스칼라·id 없는 객체·유효 객체 혼재
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn(
+                        "{\"approvalLine\":{\"additionalApprovers\":[\"메모\",{\"name\":\"이름만\"},{\"id\":\"E001\"}]}}");
+        Cdecim approver = mock(Cdecim.class);
+        given(approver.getDcrEno()).willReturn("E001");
+        given(approver.getDcrSqnSno()).willReturn(1);
+
+        // Act
+        delegate.doUpdate(capplm, List.of(approver), List.of(approver));
+
+        // Assert: 유효한 E001 항목에만 date 기록
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json -> json.contains("\"id\":\"E001\",\"date\"")));
+    }
+
+    // ───────────────────────────────────────────────────────
+    // applyRecallInfo — 분기 보강
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("applyRecallInfo: 상세 JSON이 null이면 새 객체에 회수 정보를 기록한다")
+    void applyRecallInfo_null_JSON_회수정보기록() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn(null);
+
+        // Act
+        delegate.applyRecallInfo(capplm, "E001", "회수 사유");
+
+        // Assert
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json ->
+                                        json.contains("\"recallerEno\":\"E001\"")
+                                                && json.contains("\"recallOpnn\":\"회수 사유\"")));
+    }
+
+    @Test
+    @DisplayName("applyRecallInfo: 기존 JSON 필드를 유지하며 recallInfo를 추가한다")
+    void applyRecallInfo_기존JSON유지_회수정보추가() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("{\"title\":\"기존제목\"}");
+
+        // Act
+        delegate.applyRecallInfo(capplm, "E002", "재검토");
+
+        // Assert: 기존 필드 유지 + recallInfo 추가
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json ->
+                                        json.contains("\"title\":\"기존제목\"")
+                                                && json.contains("\"recallInfo\"")));
+    }
+
+    @Test
+    @DisplayName("applyRecallInfo: 저장된 JSON이 배열이면 IllegalStateException을 던진다")
+    void applyRecallInfo_배열JSON_예외발생() {
+        // Arrange: ObjectNode 캐스팅 실패 → ClassCastException 분기
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("[1,2]");
+
+        // Act & Assert
+        assertThatThrownBy(() -> delegate.applyRecallInfo(capplm, "E001", "회수"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("회수 정보 JSON 갱신 실패");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // addApproverToDetail — 분기 보강
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("addApproverToDetail: 상세 JSON이 null 또는 공백이면 아무 작업도 하지 않는다")
+    void addApproverToDetail_JSON없음_미수행() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm nullJson = mock(Capplm.class);
+        given(nullJson.getDcdReqInf()).willReturn(null);
+        Capplm blankJson = mock(Capplm.class);
+        given(blankJson.getDcdReqInf()).willReturn("   ");
+
+        // Act
+        delegate.addApproverToDetail(nullJson, "E002", "이름", "직급");
+        delegate.addApproverToDetail(blankJson, "E002", "이름", "직급");
+
+        // Assert
+        verify(nullJson, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+        verify(blankJson, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("addApproverToDetail: approvalLine이 객체가 아니면 아무 작업도 하지 않는다")
+    void addApproverToDetail_결재선객체아님_미수행() {
+        // Arrange: approvalLine이 배열 → ObjectNode 아님
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("{\"approvalLine\":[]}");
+
+        // Act
+        delegate.addApproverToDetail(capplm, "E002", "이름", "직급");
+
+        // Assert
+        verify(capplm, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("addApproverToDetail: 이름·직급이 null이면 빈 문자열로 기록한다")
+    void addApproverToDetail_이름직급null_빈문자열기록() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn("{\"approvalLine\":{\"teamLead\":{\"id\":\"E001\"}}}");
+
+        // Act
+        delegate.addApproverToDetail(capplm, "E002", null, null);
+
+        // Assert: null 방어 분기 → "" 기록
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json ->
+                                        json.contains("\"name\":\"\"")
+                                                && json.contains("\"rank\":\"\"")
+                                                && json.contains("\"id\":\"E002\"")));
+    }
+
+    @Test
+    @DisplayName("addApproverToDetail: JSON 파싱 실패 시 CustomGeneralException을 던진다")
+    void addApproverToDetail_JSON파싱실패_예외발생() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("{잘못된JSON");
+        given(capplm.getApfMngNo()).willReturn("APF-202600000010");
+
+        // Act & Assert
+        assertThatThrownBy(() -> delegate.addApproverToDetail(capplm, "E002", "이름", "직급"))
+                .isInstanceOf(CustomGeneralException.class);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // removeApproverFromDetail — 분기 보강
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("removeApproverFromDetail: 상세 JSON이 null 또는 공백이면 아무 작업도 하지 않는다")
+    void removeApproverFromDetail_JSON없음_미수행() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm nullJson = mock(Capplm.class);
+        given(nullJson.getDcdReqInf()).willReturn(null);
+        Capplm blankJson = mock(Capplm.class);
+        given(blankJson.getDcdReqInf()).willReturn(" ");
+
+        // Act
+        delegate.removeApproverFromDetail(nullJson, 0);
+        delegate.removeApproverFromDetail(blankJson, 0);
+
+        // Assert
+        verify(nullJson, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+        verify(blankJson, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("removeApproverFromDetail: approvalLine이 객체가 아니면 아무 작업도 하지 않는다")
+    void removeApproverFromDetail_결재선객체아님_미수행() {
+        // Arrange: approvalLine 키 자체가 없는 JSON → MissingNode
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("{\"title\":\"제목\"}");
+
+        // Act
+        delegate.removeApproverFromDetail(capplm, 0);
+
+        // Assert
+        verify(capplm, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("removeApproverFromDetail: additionalApprovers 배열이 없으면 아무 작업도 하지 않는다")
+    void removeApproverFromDetail_추가결재자배열없음_미수행() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn("{\"approvalLine\":{\"teamLead\":{\"id\":\"E001\"}}}");
+
+        // Act
+        delegate.removeApproverFromDetail(capplm, 0);
+
+        // Assert
+        verify(capplm, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("removeApproverFromDetail: 인덱스가 음수이거나 범위를 벗어나면 아무 작업도 하지 않는다")
+    void removeApproverFromDetail_인덱스범위밖_미수행() {
+        // Arrange: 배열 크기 1 → -1과 5 모두 범위 밖
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn("{\"approvalLine\":{\"additionalApprovers\":[{\"id\":\"E001\"}]}}");
+
+        // Act
+        delegate.removeApproverFromDetail(capplm, -1);
+        delegate.removeApproverFromDetail(capplm, 5);
+
+        // Assert
+        verify(capplm, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("removeApproverFromDetail: JSON 파싱 실패 시 CustomGeneralException을 던진다")
+    void removeApproverFromDetail_JSON파싱실패_예외발생() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("{잘못된JSON");
+        given(capplm.getApfMngNo()).willReturn("APF-202600000011");
+
+        // Act & Assert
+        assertThatThrownBy(() -> delegate.removeApproverFromDetail(capplm, 0))
+                .isInstanceOf(CustomGeneralException.class);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // updateApprovalOrder — 전체 미커버 메서드
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateApprovalOrder: 결재자 사번 순서를 order 배열로 기록한다")
+    void updateApprovalOrder_정상_order배열기록() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn("{\"approvalLine\":{\"teamLead\":{\"id\":\"E001\"}}}");
+        Cdecim first = mock(Cdecim.class);
+        given(first.getDcrEno()).willReturn("E001");
+        Cdecim second = mock(Cdecim.class);
+        given(second.getDcrEno()).willReturn("E002");
+
+        // Act
+        delegate.updateApprovalOrder(capplm, List.of(first, second));
+
+        // Assert: order 배열이 결재자 순서대로 기록됨
+        verify(capplm)
+                .updateDetailContent(
+                        org.mockito.ArgumentMatchers.argThat(
+                                json -> json.contains("\"order\":[\"E001\",\"E002\"]")));
+    }
+
+    @Test
+    @DisplayName("updateApprovalOrder: 상세 JSON이 null 또는 공백이면 아무 작업도 하지 않는다")
+    void updateApprovalOrder_JSON없음_미수행() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm nullJson = mock(Capplm.class);
+        given(nullJson.getDcdReqInf()).willReturn(null);
+        Capplm blankJson = mock(Capplm.class);
+        given(blankJson.getDcdReqInf()).willReturn("  ");
+
+        // Act
+        delegate.updateApprovalOrder(nullJson, List.of());
+        delegate.updateApprovalOrder(blankJson, List.of());
+
+        // Assert
+        verify(nullJson, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+        verify(blankJson, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("updateApprovalOrder: approvalLine이 객체가 아니면 아무 작업도 하지 않는다")
+    void updateApprovalOrder_결재선객체아님_미수행() {
+        // Arrange: approvalLine이 문자열 → ObjectNode 아님
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("{\"approvalLine\":\"문자열\"}");
+
+        // Act
+        delegate.updateApprovalOrder(capplm, List.of());
+
+        // Assert
+        verify(capplm, org.mockito.Mockito.never())
+                .updateDetailContent(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("updateApprovalOrder: JSON 파싱 실패 시 CustomGeneralException을 던진다")
+    void updateApprovalOrder_JSON파싱실패_예외발생() {
+        // Arrange
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf()).willReturn("{잘못된JSON");
+        given(capplm.getApfMngNo()).willReturn("APF-202600000012");
+
+        // Act & Assert
+        assertThatThrownBy(() -> delegate.updateApprovalOrder(capplm, List.of()))
+                .isInstanceOf(CustomGeneralException.class);
+    }
 }
