@@ -104,7 +104,7 @@ public class ChangeLogEntityListener {
         try {
             ApplicationContextHolder.getBean(AuditLogPersister.class)
                     .persist(entity, logClass, chgTp);
-        } catch (Exception exception) {
+        } catch (RuntimeException exception) {
             // 스냅샷 생성·예약 단계 실패는 본 업무를 롤백시키지 않고 실패 recorder로 위임한다(schedule 단계).
             try {
                 ApplicationContextHolder.getBean(AuditFailureRecorder.class)
@@ -114,7 +114,7 @@ public class ChangeLogEntityListener {
                                 chgTp,
                                 "schedule",
                                 exception);
-            } catch (Exception recorderException) {
+            } catch (RuntimeException recorderException) {
                 // recorder 빈 조회조차 실패하면 최소한 ERROR 로그로 남긴다.
                 log.error(
                         "[감사로그 예약 실패] entity={}, logClass={}, chgTp={}",

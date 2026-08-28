@@ -44,7 +44,7 @@ public class NotificationRetryScheduler {
         for (String id : ids) {
             try {
                 dispatchService.dispatch(id);
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 log.warn("알림 재시도 처리 실패: infmMsgNo={}", id, ex);
             }
         }

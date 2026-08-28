@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -178,8 +179,8 @@ public class OrgIdentityResolver {
             if (!matcher.matches()) {
                 return resolveOrg(folderName);
             }
-            String code = matcher.group(2);
-            String name = matcher.group(1).trim();
+            String code = Objects.requireNonNull(matcher.group(2));
+            String name = Objects.requireNonNull(matcher.group(1)).trim();
             if (orgNameByCode.containsKey(code)) {
                 String registeredName = orgNameByCode.get(code);
                 return Resolution.of(code, registeredName == null ? name : registeredName);

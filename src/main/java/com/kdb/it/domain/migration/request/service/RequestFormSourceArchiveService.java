@@ -5,7 +5,6 @@ import com.kdb.it.domain.migration.request.dto.RequestFormSourceArchiveRequest;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -13,10 +12,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -162,12 +163,13 @@ public class RequestFormSourceArchiveService {
 
     private void writeZip(List<ArchiveFile> archiveFiles, OutputStream output) {
         try (ZipOutputStream zip =
-                zipOutputStreamFactory.apply(new NonClosingOutputStream(output))) {
+                zipOutputStreamFactory.apply(CloseShieldOutputStream.wrap(output))) {
             for (ArchiveFile archiveFile : archiveFiles) {
                 FileService.FileDownloadResult download =
                         fileService.downloadFile(archiveFile.fileId());
                 zip.putNextEntry(new ZipEntry(archiveFile.entryName()));
-                try (InputStream input = download.resource().getInputStream()) {
+                try (InputStream input =
+                        Objects.requireNonNull(download.resource().getInputStream())) {
                     input.transferTo(zip);
                 } finally {
                     zip.closeEntry();
@@ -183,16 +185,4 @@ public class RequestFormSourceArchiveService {
 
     /** ZIP에 담을 파일 한 건과 확정된 엔트리 경로 */
     public record ArchiveFile(String fileId, String entryName) {}
-
-    private static final class NonClosingOutputStream extends FilterOutputStream {
-
-        private NonClosingOutputStream(OutputStream output) {
-            super(output);
-        }
-
-        @Override
-        public void close() throws IOException {
-            flush();
-        }
-    }
 }

@@ -12,6 +12,7 @@ import com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts;
 import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -87,12 +88,15 @@ public class RequestFormFileImporter {
         List<RequestFormDto.CreatedRecord> created = new ArrayList<>();
         List<ProjectDto.CreateRequest> projects = importTarget.projects();
         for (int index = 0; index < projects.size(); index++) {
-            ProjectDto.CreateRequest project = projects.get(index);
+            ProjectDto.CreateRequest project =
+                    Objects.requireNonNull(projects.get(index), "사업 생성 요청이 없습니다.");
             String tlrNm = project.getTlrUsid();
             String usrNm = project.getUsid();
             clearProjectIds(project);
             project.setBseYy(bseYy);
-            ProjectAmounts amounts = importTarget.projectAmounts().get(index);
+            ProjectAmounts amounts =
+                    Objects.requireNonNull(
+                            importTarget.projectAmounts().get(index), "사업 금액 정보가 없습니다.");
             if (amounts.isPresent()) {
                 project.setDfrAmt(amounts.dfrAmt());
             }

@@ -418,7 +418,7 @@ public class SsoController {
                     SsoLogSanitizer.masked(verifiedEno),
                     !"/".equals(dest));
             response.sendRedirect(target);
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error(
                     "SSO 인증 실패 - eno: {}, 오류 유형: {}",
                     SsoLogSanitizer.masked(eno),

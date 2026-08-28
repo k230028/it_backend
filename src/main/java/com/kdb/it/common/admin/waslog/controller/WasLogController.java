@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -204,41 +205,45 @@ public class WasLogController {
                         ? ""
                         : "[" + applicationName + "] ";
         return out -> {
-            // Writer를 닫으면 컨테이너 출력 스트림까지 닫히므로 flush만 한다.
-            Writer writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
-            writer.write(
-                    "# 형식은 파일 로그(FILE_LOG_PATTERN)와 같으나, PID 자리에 인스턴스ID가 들어갑니다"
-                            + " — 피어 로그가 섞일 수 있어 어느 서버의 로그인지를 남깁니다.\n");
-            // 그래도 잘렸다면(버퍼 용량보다 필터 결과가 많을 수는 없으나 방어적으로) 파일에 사실을 적는다.
-            if (snapshot.dropped()) {
-                writer.write("# 일부 로그가 생략되었습니다 — 버퍼에서 밀려났거나 조회 상한에 걸렸습니다.\n");
-            }
-            for (WasLogEntry entry : snapshot.entries()) {
+            // CloseShield가 컨테이너 출력 스트림의 소유권을 보존하므로 Writer는 정상 종료한다.
+            try (Writer writer =
+                    new BufferedWriter(
+                            new OutputStreamWriter(
+                                    CloseShieldOutputStream.wrap(out), StandardCharsets.UTF_8))) {
                 writer.write(
-                        FILE_TIMESTAMP.format(
-                                ZonedDateTime.ofInstant(
-                                        Instant.ofEpochMilli(entry.timestamp()),
-                                        ZoneId.systemDefault())));
-                // %5p — 오른쪽 정렬 5칸
-                writer.write(String.format(" %5s ", entry.level()));
-                writer.write(instanceId);
-                writer.write(" --- ");
-                writer.write(applicationField);
-                writer.write('[');
-                writer.write(entry.thread());
-                writer.write("] ");
-                // %-40.40logger{39}
-                writer.write(
-                        String.format("%-40.40s", LOGGER_ABBREVIATOR.abbreviate(entry.logger())));
-                writer.write(" : ");
-                writer.write(entry.message());
-                writer.write('\n');
-                if (entry.throwable() != null) {
-                    writer.write(entry.throwable());
+                        "# 형식은 파일 로그(FILE_LOG_PATTERN)와 같으나, PID 자리에 인스턴스ID가 들어갑니다"
+                                + " — 피어 로그가 섞일 수 있어 어느 서버의 로그인지를 남깁니다.\n");
+                // 그래도 잘렸다면(버퍼 용량보다 필터 결과가 많을 수는 없으나 방어적으로) 파일에 사실을 적는다.
+                if (snapshot.dropped()) {
+                    writer.write("# 일부 로그가 생략되었습니다 — 버퍼에서 밀려났거나 조회 상한에 걸렸습니다.\n");
+                }
+                for (WasLogEntry entry : snapshot.entries()) {
+                    writer.write(
+                            FILE_TIMESTAMP.format(
+                                    ZonedDateTime.ofInstant(
+                                            Instant.ofEpochMilli(entry.timestamp()),
+                                            ZoneId.systemDefault())));
+                    // %5p — 오른쪽 정렬 5칸
+                    writer.write(String.format(" %5s ", entry.level()));
+                    writer.write(instanceId);
+                    writer.write(" --- ");
+                    writer.write(applicationField);
+                    writer.write('[');
+                    writer.write(entry.thread());
+                    writer.write("] ");
+                    // %-40.40logger{39}
+                    writer.write(
+                            String.format(
+                                    "%-40.40s", LOGGER_ABBREVIATOR.abbreviate(entry.logger())));
+                    writer.write(" : ");
+                    writer.write(entry.message());
                     writer.write('\n');
+                    if (entry.throwable() != null) {
+                        writer.write(entry.throwable());
+                        writer.write('\n');
+                    }
                 }
             }
-            writer.flush();
         };
     }
 

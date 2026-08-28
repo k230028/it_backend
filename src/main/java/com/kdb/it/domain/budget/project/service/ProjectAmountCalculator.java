@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.project.service;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import java.math.BigDecimal;
 import java.util.Collection;
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 /** 활성 품목과 지급금액으로 정보화사업 금액을 계산합니다. */
@@ -26,9 +27,11 @@ public class ProjectAmountCalculator {
             plannedAmt = plannedAmt.add(toPlannedKrw(item));
         }
 
-        currentRequestAmt = ProjectAmountPolicy.normalize(currentRequestAmt, "당해 요청금액");
-        plannedAmt = ProjectAmountPolicy.normalize(plannedAmt, "예정금액");
-        BigDecimal normalizedPaidAmt = ProjectAmountPolicy.normalize(paidAmt, "지급금액");
+        currentRequestAmt =
+                Objects.requireNonNull(ProjectAmountPolicy.normalize(currentRequestAmt, "당해 요청금액"));
+        plannedAmt = Objects.requireNonNull(ProjectAmountPolicy.normalize(plannedAmt, "예정금액"));
+        BigDecimal normalizedPaidAmt =
+                Objects.requireNonNull(ProjectAmountPolicy.normalize(paidAmt, "지급금액"));
         BigDecimal totalRequiredAmt =
                 ProjectAmountPolicy.normalize(
                         currentRequestAmt.add(plannedAmt).add(normalizedPaidAmt), "총소요금액");

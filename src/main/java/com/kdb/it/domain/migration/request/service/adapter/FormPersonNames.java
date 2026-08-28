@@ -4,6 +4,7 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -86,7 +87,7 @@ final class FormPersonNames {
         if (name == null || name.isBlank()) return null;
         String trimmed = stripTitle(name.trim().replaceAll("\\s+", " "));
         Matcher koreanName = KOREAN_NAME_WITH_SUFFIX.matcher(trimmed);
-        if (koreanName.matches()) trimmed = koreanName.group(1);
+        if (koreanName.matches()) trimmed = Objects.requireNonNull(koreanName.group(1));
         if (trimmed.length() <= LIMIT) return trimmed;
 
         diagnostics.add(

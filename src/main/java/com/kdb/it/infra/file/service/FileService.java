@@ -353,7 +353,7 @@ public class FileService {
                 // 영속화된 엔티티를 그대로 DTO로 변환
                 Cfilem saved = fileUploadUnitService.uploadFileInNewTransaction(file, request);
                 successList.add(toResponse(saved));
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // 다건 업로드 중 일부 실패는 전체를 중단하지 않고 실패 목록으로 수집한다.
                 // 단, 원본 파일명과 스택트레이스를 warn으로 남겨 실패 원인을 추적한다.
                 String fileName = failureFileName(file);

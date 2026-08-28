@@ -53,7 +53,7 @@ public class CouncilSkipApprovalEventListener {
             try {
                 councilSkipService.handleApprovalCompleted(asctId, approved);
                 log.info("[생략판정요청] 결재 콜백 처리 완료 - asctId={}, approved={}", asctId, approved);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 log.error(
                         "[생략판정요청] 결재 콜백 처리 실패 - asctId={}, apfMngNo={}",
                         asctId,

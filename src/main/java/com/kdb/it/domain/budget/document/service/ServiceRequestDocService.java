@@ -15,6 +15,7 @@ import com.kdb.it.exception.CustomGeneralException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -268,7 +269,9 @@ public class ServiceRequestDocService {
         OwnershipVerifier.verifyOwnerOrAdmin(latest.getFstEnrUsid(), user);
 
         // 새 버전 번호 계산: 저장 정수 → 화면 소수(÷ 100)로 환산 후 + 0.01 증가
-        BigDecimal currentDisplay = DocVersionCodec.toDisplay(latest.getDocVrsSno());
+        BigDecimal currentDisplay =
+                Objects.requireNonNull(
+                        DocVersionCodec.toDisplay(latest.getDocVrsSno()), "문서 버전이 없습니다.");
         BigDecimal nextDisplay = currentDisplay.add(VERSION_INCREMENT);
 
         // 기존 업무 필드 복제 + 새 버전 번호(저장 정수, × 100) 지정

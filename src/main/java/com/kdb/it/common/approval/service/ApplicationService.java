@@ -383,7 +383,7 @@ public class ApplicationService {
                                 .build());
                 successCount++;
 
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // 실패 시 RuntimeException을 던져 전체 트랜잭션 롤백
                 throw new RuntimeException(
                         "신청서 " + item.getApfMngNo() + " 처리 실패: " + e.getMessage(), e);

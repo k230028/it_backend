@@ -58,7 +58,7 @@ public class AuditFailureRecorder {
                                 "stage",
                                 stage)
                         .increment();
-            } catch (Exception metricException) {
+            } catch (RuntimeException metricException) {
                 log.warn(
                         "[감사로그] 실패 메트릭 기록 실패: entity={}, chgTp={}, stage={}",
                         entityName,

@@ -355,7 +355,9 @@ public class PlanService {
             cpitBgApvAmt = cpitBgApvAmt.add(amount);
             totXpAmt = totXpAmt.add(generalAmount);
 
-            ProjectDto.Response project = projectService.getProject(prjMngNo);
+            ProjectDto.Response project =
+                    Objects.requireNonNull(
+                            projectService.getProject(prjMngNo), "이관 대상 사업 조회 결과가 없습니다.");
             projectSnapshots.add(
                     PlanDto.ProjectSnapshot.builder()
                             .prjMngNo(prjMngNo)

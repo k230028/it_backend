@@ -45,7 +45,7 @@ public final class MentionExtractor {
         Set<String> recipients = new LinkedHashSet<>();
         while (matcher.find()) {
             String eno = matcher.group(1);
-            if (authorEno != null && eno.equals(authorEno)) {
+            if (java.util.Objects.equals(eno, authorEno)) {
                 continue;
             }
             recipients.add(eno);

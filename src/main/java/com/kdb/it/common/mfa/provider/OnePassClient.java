@@ -145,7 +145,7 @@ public final class OnePassClient {
                             .body(request)
                             .retrieve()
                             .body(MAP_TYPE);
-        } catch (Exception exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalStateException("OnePass MFA 통신 또는 응답 처리에 실패했습니다.", exception);
         }
         if (response == null) {

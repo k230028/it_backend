@@ -70,7 +70,7 @@ public class NotificationEventListener {
                             // 결재 결과 알림도 결재 대기 목록 화면으로 고정 (사용자 정책).
                             .infmRcdUrl("/approval/list?tab=pending")
                             .build());
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             log.warn(
                     "Approval result notification failed: apfMngNo={}, status={}",
                     event.apfMngNo(),
@@ -127,7 +127,7 @@ public class NotificationEventListener {
                                     .build());
                 }
             }
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             log.warn(
                     "Approval recall notification failed: apfMngNo={}, recaller={}",
                     event.apfMngNo(),
@@ -144,7 +144,7 @@ public class NotificationEventListener {
         String id;
         try {
             id = outboxService.enqueue(event);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             meterRegistry
                     .counter(
                             "notification.persist.failure",
@@ -159,7 +159,7 @@ public class NotificationEventListener {
         }
         try {
             dispatchService.dispatch(id);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             meterRegistry
                     .counter(
                             "notification.dispatch.unexpected",

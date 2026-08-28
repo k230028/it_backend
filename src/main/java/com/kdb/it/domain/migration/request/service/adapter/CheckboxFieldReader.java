@@ -96,7 +96,9 @@ public final class CheckboxFieldReader {
     public static String toDuplicateYn(List<String> captions) {
         for (String caption : captions) {
             Matcher matcher = YN_IN_PARENTHESIS.matcher(caption);
-            if (matcher.find()) return matcher.group(1).toUpperCase(java.util.Locale.ROOT);
+            if (matcher.find())
+                return java.util.Objects.requireNonNull(matcher.group(1))
+                        .toUpperCase(java.util.Locale.ROOT);
         }
         return null;
     }

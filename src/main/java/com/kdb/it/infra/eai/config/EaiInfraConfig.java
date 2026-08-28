@@ -33,7 +33,7 @@ public class EaiInfraConfig {
     /** GUID 난수부(9자리) 공급. ePAMS getRandomNum(9)와 동일 규격. */
     @Bean
     public Supplier<String> eaiGuidRandom() {
-        return () -> String.format("%09d", SECURE_RANDOM.nextInt(999_999_999) + 1);
+        return () -> String.format("%09d", SECURE_RANDOM.nextInt(1, 1_000_000_000));
     }
 
     /** 길이 인자 난수(0~9) 공급 — GWE MSG_KEY(8자리) 등 섹션 전용. 헤더 GUID 시임과 별개. */

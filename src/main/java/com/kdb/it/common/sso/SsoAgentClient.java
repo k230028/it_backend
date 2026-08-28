@@ -57,7 +57,7 @@ public class SsoAgentClient {
             Map<String, Object> body =
                     restClient.get().uri(props.checkServerUrl()).retrieve().body(MAP_TYPE);
             return body != null && SUCCESS_CODE.equals(text(body, "resultCode"));
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn(
                     "SSO 인증서버 통신 점검 실패 - url: {}, 오류 유형: {}",
                     props.checkServerUrl(),
@@ -126,7 +126,7 @@ public class SsoAgentClient {
                 log.warn("SSO 토큰 검증 거부 - resultCode: {}", SsoLogSanitizer.resultCode(resultCode));
             }
             return new TokenAuthResult(resultCode, resultMessage, resultData, returnUrl, useCSMode);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn(
                     "SSO 토큰 검증 통신 실패 - url: {}, 오류 유형: {}",
                     props.tokenAuthorizationUrl(),

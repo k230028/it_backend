@@ -216,7 +216,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         BigDecimal candidate = capitalTotal;
         if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
         for (BigDecimal amount : generalExpenseAmounts) {
-            candidate = candidate.add(amount);
+            candidate = candidate.add(Objects.requireNonNull(amount));
             if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
         }
         BigDecimal best = capitalTotal;
@@ -226,7 +226,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         BigDecimal bestGap = declaredCurrent.subtract(best).abs();
         candidate = capitalTotal;
         for (BigDecimal amount : generalExpenseAmounts) {
-            candidate = candidate.add(amount);
+            candidate = candidate.add(Objects.requireNonNull(amount));
             BigDecimal gap = declaredCurrent.subtract(candidate).abs();
             if (gap.compareTo(bestGap) < 0) {
                 best = candidate;
@@ -246,10 +246,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         if (declared.summaryUnit() == null || declared.laterTotalRaw() == null) return;
         BigDecimal planned = declared.summaryUnit().toWon(declared.laterTotalRaw());
         List<ProjectDto.BitemmDto> matches =
-                items.stream()
-                        .filter(item -> item.getAmt() != null)
-                        .filter(item -> item.getAmt().compareTo(planned) == 0)
-                        .toList();
+                items.stream().filter(item -> Objects.equals(item.getAmt(), planned)).toList();
         if (matches.size() != 1) return;
         matches.getFirst().setAmt(BigDecimal.ZERO);
         matches.getFirst().setMplAmt(planned);
@@ -436,16 +433,18 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         if (declaredYearTotal == null || itemTotal.signum() == 0) return;
         if (itemUnit.isPresent()) return;
 
-        BigDecimal requested = unit.map(value -> value.toWon(declaredYearTotal)).orElse(null);
-        if (requested != null && isBelowCurrentAmountTolerance(requested, itemTotal)) return;
-
-        String message =
-                unit.isPresent()
-                        ? amountMismatchMessage(requested, itemTotal, amounts, unit.get())
-                        : "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
-                                .formatted(
-                                        declaredYearTotal.toPlainString(),
-                                        itemTotal.toPlainString());
+        String message;
+        if (unit.isPresent()) {
+            AmountUnit resolvedUnit = unit.orElseThrow();
+            BigDecimal requested = resolvedUnit.toWon(declaredYearTotal);
+            if (isBelowCurrentAmountTolerance(requested, itemTotal)) return;
+            message = amountMismatchMessage(requested, itemTotal, amounts, resolvedUnit);
+        } else {
+            message =
+                    "1-1 요약표의 합계(%s)와 1-2 품목 합계(%s)가 어느 단위로도 맞지 않습니다."
+                            .formatted(
+                                    declaredYearTotal.toPlainString(), itemTotal.toPlainString());
+        }
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.about(
                         FormSheetKind.CAPITAL_OVERVIEW,

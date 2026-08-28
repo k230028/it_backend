@@ -79,7 +79,7 @@ public class CouncilApprovalEventListener {
                 councilApprovalService.processApprovalCallback(
                         asctId, new CouncilDto.ApprovalCallbackRequest(approved));
                 log.info("협의회 결재 상태 자동 전이 완료 - asctId: {}, approved: {}", asctId, approved);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // 상태 전이 실패 시 로그 기록 후 예외 재발생 → 트랜잭션 전체 롤백
                 log.error(
                         "협의회 결재 상태 전이 실패 - asctId: {}, apfMngNo: {}", asctId, event.apfMngNo(), e);

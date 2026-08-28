@@ -21,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -176,7 +177,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                             RequestFormDiagnosticCode.CODE_UNRESOLVED,
                             normalized.isEmpty()
                                     ? "통화 구분이 비어 있습니다. 통화를 골라 주세요."
-                                    : "통화 구분 `%s`를 통화코드로 해석하지 못했습니다. 골라 주세요.".formatted(raw.trim()),
+                                    : "통화 구분 `%s`를 통화코드로 해석하지 못했습니다. 골라 주세요.".formatted(normalized),
                             candidates));
         }
         return resolved;
@@ -210,7 +211,10 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
         // 확인이 뜨지 않고, 사용자가 통화를 KRW로 고쳐 반영하는 순간 배수가 확인 없이 추정 적용된다.
         if (krwAmounts.isEmpty() && currencies.size() == rows.size()) return AmountUnit.WON;
 
-        AmountUnit suggested = AmountUnitResolver.suggestGeneralExpenseUnit(krwAmounts);
+        AmountUnit suggested =
+                Objects.requireNonNull(
+                        AmountUnitResolver.suggestGeneralExpenseUnit(krwAmounts),
+                        "일반관리비 금액 단위를 추정할 수 없습니다.");
         diagnostics.add(
                 RequestFormDto.FormDiagnostic.decide(
                         FormSheetKind.GENERAL_EXPENSE,

@@ -63,13 +63,15 @@ public class BoardPostService {
             String blbMngNo, BoardPostDto.SearchCondition cond, CustomUserDetails user) {
 
         Cblbmm board = findUserActiveBoard(blbMngNo); // 사용 중인 게시판만 사용자 목록 조회 허용
-        validateSearchCondition(cond);
+        BoardPostDto.SearchCondition effectiveCond =
+                cond == null ? new BoardPostDto.SearchCondition() : cond;
+        validateSearchCondition(effectiveCond);
         if (SCHEDULE_BOARD_TYPE.equals(board.getItPtlBlbTc())) {
-            cond.ignorePublicationPeriod();
+            effectiveCond.ignorePublicationPeriod();
         }
 
         return postRepository
-                .searchPostRows(blbMngNo, cond, user.isAdmin())
+                .searchPostRows(blbMngNo, effectiveCond, user.isAdmin())
                 .map(BoardPostDto.ListItem::from);
     }
 

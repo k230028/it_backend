@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -66,7 +67,7 @@ public class AdminMenuController {
             @PathVariable(name = "mnuId") String mnuId,
             @Valid @RequestBody MenuDto.UpsertRequest req) {
         adminMenuService.update(mnuId, req);
-        return ResponseEntity.noContent().build();
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     /**
@@ -78,7 +79,7 @@ public class AdminMenuController {
     @DeleteMapping("/{mnuId}")
     public ResponseEntity<Void> delete(@PathVariable(name = "mnuId") String mnuId) {
         adminMenuService.delete(mnuId);
-        return ResponseEntity.noContent().build();
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     /**

@@ -116,7 +116,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // 보안상 토큰 본문·접두부는 로그에 남기지 않고 요청 URI만 기록한다.
                 logger.warn("JWT 서명·만료 또는 Access 용도 검증에 실패했습니다: " + request.getRequestURI());
             }
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             // 예외 발생 시 로그만 기록하고 필터 체인은 계속 진행 (인증 실패로 처리)
             logger.error("=== JWT 인증 처리 중 오류 ===");
             logger.error("요청 URI: " + request.getRequestURI());

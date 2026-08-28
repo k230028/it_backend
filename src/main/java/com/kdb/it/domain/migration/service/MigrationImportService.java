@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -195,7 +196,9 @@ public class MigrationImportService {
                 if (sheet.kind() != kind) {
                     continue;
                 }
-                AdapterOutput output = adapters.get(kind).adapt(sheet, ctx);
+                SheetAdapter adapter =
+                        Objects.requireNonNull(adapters.get(kind), "이관 시트 어댑터가 없습니다: " + kind);
+                AdapterOutput output = adapter.adapt(sheet, ctx);
                 planIntents.addAll(output.plans());
                 Set<Integer> createRows = plan.createNewRows().getOrDefault(kind, Set.of());
                 List<AllocationIntent> intents = output.allocations();
@@ -370,7 +373,9 @@ public class MigrationImportService {
                 if (sheet.kind() != kind) {
                     continue;
                 }
-                AdapterOutput output = adapters.get(kind).adapt(sheet, ctx);
+                SheetAdapter adapter =
+                        Objects.requireNonNull(adapters.get(kind), "이관 시트 어댑터가 없습니다: " + kind);
+                AdapterOutput output = adapter.adapt(sheet, ctx);
                 List<AllocationIntent> intents = output.allocations();
                 for (int i = 0; i < intents.size(); i++) {
                     AllocationIntent intent = intents.get(i);

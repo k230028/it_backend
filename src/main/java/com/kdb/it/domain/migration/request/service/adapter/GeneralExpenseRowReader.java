@@ -5,6 +5,7 @@ import com.kdb.it.domain.migration.request.service.FormEnumeration;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -53,7 +54,8 @@ final class GeneralExpenseRowReader {
         String lastDetail = "";
         for (int rowIndex = firstDataRow; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
             String contractCell = cell(rowIndex, "contractName");
-            String contractName = FormText.singleLineName(contractCell);
+            String contractName =
+                    Objects.requireNonNullElse(FormText.singleLineName(contractCell), "");
             FormAmount.Parsed annual = FormAmount.parse(cell(rowIndex, "annual"));
             if (contractName.isEmpty() && annual == null) continue;
 

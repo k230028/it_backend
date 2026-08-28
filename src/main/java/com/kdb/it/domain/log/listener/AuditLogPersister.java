@@ -78,7 +78,7 @@ public class AuditLogPersister {
             String stage) {
         try {
             auditLogWriter.writeInNewTransaction(snapshot);
-        } catch (Exception exception) {
+        } catch (RuntimeException exception) {
             auditFailureRecorder.record(entityName, entityId, chgTp, stage, exception);
         }
     }
