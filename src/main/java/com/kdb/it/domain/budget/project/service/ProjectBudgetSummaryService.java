@@ -188,7 +188,7 @@ public class ProjectBudgetSummaryService {
             BigDecimal totRqmAmt,
             BigDecimal mplAmt,
             BigDecimal dfrAmt) {
-        if (totRqmAmt == null) return;
+        if (response == null || totRqmAmt == null) return;
 
         BigDecimal storedPlannedAmt = nvl(mplAmt);
         BigDecimal storedPaidAmt = nvl(dfrAmt);

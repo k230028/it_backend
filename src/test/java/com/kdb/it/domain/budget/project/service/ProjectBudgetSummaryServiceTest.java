@@ -33,6 +33,12 @@ import org.slf4j.LoggerFactory;
 @ExtendWith(MockitoExtension.class)
 class ProjectBudgetSummaryServiceTest {
 
+    @Test
+    @DisplayName("저장 금액 스냅샷 적용 대상이 없으면 아무 작업도 하지 않는다")
+    void applyStoredAmountSnapshot_ignoresNullResponse() {
+        service.applyStoredAmountSnapshot(null, BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ZERO);
+    }
+
     private record BudgetView(
             String gclMngNo,
             String abusMngNo,
