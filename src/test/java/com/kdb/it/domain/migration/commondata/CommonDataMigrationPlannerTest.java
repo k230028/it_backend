@@ -129,6 +129,23 @@ class CommonDataMigrationPlannerTest {
     }
 
     @Test
+    void 다국어구분명이_메뉴도공통코드도아니면_오류다() {
+        CommonDataMigrationDto.Request request =
+                new CommonDataMigrationDto.Request(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(
+                                new CommonDataMigrationDto.TranslationRow(
+                                        2, "BRD0000001", "BRD_NM", "ko", "게시판 설명", "게시판")));
+
+        CommonDataMigrationPlanner.Plan plan = planner.plan(request, emptySnapshot());
+
+        assertThat(plan.errors()).anySatisfy(e -> assertThat(e).contains("구분명"));
+    }
+
+    @Test
     void 같은메뉴ID인데_경로나이름이다르면_경고한다() {
         Cmenum existing = Cmenum.builder()
                 .mnuId("MNU0000001").mnuNm("다른이름").mnuTpC("PGE").srePth("/other")
@@ -326,6 +343,31 @@ class CommonDataMigrationPlannerTest {
         assertThat(plan.codes().added()).isEqualTo(1);
         assertThat(plan.codes().restored()).isEqualTo(1);
         assertThat(plan.codes().updated()).isEqualTo(1);
+    }
+
+    @Test
+    void 복합키필드에구분자문자열이섞여도_다른행을_같은키로오판하지않는다() {
+        // cId="CUR", cdva="A::B" 행과 cId="CUR::A", cdva="B" 행은 필드 경계가 다른데,
+        // "::"로 이어붙이면 둘 다 "CUR::A::B::20200101"이 되어 중복으로 오판될 수 있었다.
+        // List.of(...)를 키로 쓰면 원소 단위 비교라 이런 충돌이 구조적으로 불가능하다.
+        CommonDataMigrationDto.Request request =
+                new CommonDataMigrationDto.Request(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(
+                                new CommonDataMigrationDto.CodeRow(
+                                        2, "CUR", "A::B", "20200101", null, null, null, null,
+                                        null, null, null, null, null, null),
+                                new CommonDataMigrationDto.CodeRow(
+                                        3, "CUR::A", "B", "20200101", null, null, null, null,
+                                        null, null, null, null, null, null)),
+                        List.of());
+
+        CommonDataMigrationPlanner.Plan plan = planner.plan(request, emptySnapshot());
+
+        assertThat(plan.errors()).noneMatch(e -> e.contains("중복"));
+        assertThat(plan.codes().added()).isEqualTo(2);
     }
 
     @Test

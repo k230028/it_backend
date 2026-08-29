@@ -34,9 +34,6 @@ public class CommonDataMigrationPlanner {
     private static final String SHEET_CODE = "공통코드";
     private static final String SHEET_TRANSLATION = "다국어";
 
-    /** 복합키 필드를 하나의 맵 키 문자열로 합칠 때 쓰는 구분자입니다. 업무 데이터(ID·코드값)에 나타나지 않는 :: 문자열을 씁니다. */
-    private static final String KEY_SEP = "::";
-
     private static final int MIN_MENU_DEPTH = 1;
     private static final int MAX_MENU_DEPTH = 4;
     private static final int LANGUAGE_CODE_LENGTH = 2;
@@ -80,17 +77,18 @@ public class CommonDataMigrationPlanner {
         List<String> warnings = new ArrayList<>();
 
         Map<String, String> menuDelYnByKey = snapshotDelYnMap(snapshot.allMenus(), Cmenum::getMnuId);
-        Map<String, String> menuAuthDelYnByKey =
-                snapshotDelYnMap(snapshot.allMenuAuths(), a -> a.getMnuId() + KEY_SEP + a.getAthId());
+        Map<List<String>, String> menuAuthDelYnByKey =
+                snapshotDelYnMap(
+                        snapshot.allMenuAuths(), a -> List.of(a.getMnuId(), a.getAthId()));
         Map<String, String> routeDelYnByKey = snapshotDelYnMap(snapshot.allRoutes(), Cmenud::getSrePth);
-        Map<String, String> codeDelYnByKey =
+        Map<List<String>, String> codeDelYnByKey =
                 snapshotDelYnMap(
                         snapshot.codesForFileCIds(),
-                        c -> c.getCId() + KEY_SEP + c.getCdva() + KEY_SEP + c.getSttDt());
-        Map<String, String> translationDelYnByKey =
+                        c -> List.of(c.getCId(), c.getCdva(), c.getSttDt()));
+        Map<List<String>, String> translationDelYnByKey =
                 snapshotDelYnMap(
                         snapshot.translationsForFileKeys(),
-                        t -> t.getTcIdCone() + KEY_SEP + t.getTcColNm() + KEY_SEP + t.getDttLanC());
+                        t -> List.of(t.getTcIdCone(), t.getTcColNm(), t.getDttLanC()));
 
         Set<String> activeSnapshotMenuIds = activeKeys(snapshot.allMenus(), Cmenum::getMnuId);
         Set<String> activeSnapshotRoutePaths = activeKeys(snapshot.allRoutes(), Cmenud::getSrePth);
@@ -105,12 +103,16 @@ public class CommonDataMigrationPlanner {
             fileRoutePaths.add(row.srePth());
         }
 
-        // 시트 내 PK 중복 검사 (5개 시트 각각)
+        // 시트 내 PK 중복 검사 (5개 시트 각각). 복합키는 문자열 결합 대신 List.of(...)를 맵/셋 키로 써서
+        // 필드 경계가 다른 값끼리(예: cId="A::B"+cdva="C" vs cId="A"+cdva="B::C") 같은 키로 뭉치는
+        // 구분자 충돌 자체를 구조적으로 없앤다. 오류 메시지의 "(값: ...)"는 사람이 읽는 표기이므로
+        // 별도 displayFn으로 "/" 결합해 내부 키 표현과 분리한다.
         checkDuplicates(
                 errors,
                 SHEET_MENU,
                 request.menus(),
                 CommonDataMigrationDto.MenuRow::excelRow,
+                CommonDataMigrationDto.MenuRow::mnuId,
                 CommonDataMigrationDto.MenuRow::mnuId,
                 "메뉴ID가 중복되었습니다");
         checkDuplicates(
@@ -118,7 +120,8 @@ public class CommonDataMigrationPlanner {
                 SHEET_MENU_AUTH,
                 request.menuAuths(),
                 CommonDataMigrationDto.MenuAuthRow::excelRow,
-                r -> r.mnuId() + KEY_SEP + r.athId(),
+                r -> List.of(r.mnuId(), r.athId()),
+                r -> r.mnuId() + "/" + r.athId(),
                 "메뉴ID/자격등급ID 조합이 중복되었습니다");
         checkDuplicates(
                 errors,
@@ -126,20 +129,23 @@ public class CommonDataMigrationPlanner {
                 request.routes(),
                 CommonDataMigrationDto.RouteRow::excelRow,
                 CommonDataMigrationDto.RouteRow::srePth,
+                CommonDataMigrationDto.RouteRow::srePth,
                 "화면경로가 중복되었습니다");
         checkDuplicates(
                 errors,
                 SHEET_CODE,
                 request.codes(),
                 CommonDataMigrationDto.CodeRow::excelRow,
-                c -> c.cId() + KEY_SEP + c.cdva() + KEY_SEP + c.sttDt(),
+                c -> List.of(c.cId(), c.cdva(), c.sttDt()),
+                c -> c.cId() + "/" + c.cdva() + "/" + c.sttDt(),
                 "코드 키가 중복되었습니다");
         checkDuplicates(
                 errors,
                 SHEET_TRANSLATION,
                 request.translations(),
                 CommonDataMigrationDto.TranslationRow::excelRow,
-                t -> t.tcIdCone() + KEY_SEP + t.tcColNm() + KEY_SEP + t.dttLanC(),
+                t -> List.of(t.tcIdCone(), t.tcColNm(), t.dttLanC()),
+                t -> t.tcIdCone() + "/" + t.tcColNm() + "/" + t.dttLanC(),
                 "다국어 키가 중복되었습니다");
 
         // 시트별 값 검증 + 참조 무결성 + 경고
@@ -173,7 +179,7 @@ public class CommonDataMigrationPlanner {
                 classify(
                         SHEET_MENU_AUTH,
                         request.menuAuths(),
-                        r -> r.mnuId() + KEY_SEP + r.athId(),
+                        r -> List.of(r.mnuId(), r.athId()),
                         menuAuthDelYnByKey);
         CommonDataMigrationDto.TableSummary routes =
                 classify(
@@ -182,13 +188,13 @@ public class CommonDataMigrationPlanner {
                 classify(
                         SHEET_CODE,
                         request.codes(),
-                        c -> c.cId() + KEY_SEP + c.cdva() + KEY_SEP + c.sttDt(),
+                        c -> List.of(c.cId(), c.cdva(), c.sttDt()),
                         codeDelYnByKey);
         CommonDataMigrationDto.TableSummary translations =
                 classify(
                         SHEET_TRANSLATION,
                         request.translations(),
-                        t -> t.tcIdCone() + KEY_SEP + t.tcColNm() + KEY_SEP + t.dttLanC(),
+                        t -> List.of(t.tcIdCone(), t.tcColNm(), t.dttLanC()),
                         translationDelYnByKey);
 
         return new Plan(menus, menuAuths, routes, codes, translations, warnings, errors);
@@ -395,31 +401,47 @@ public class CommonDataMigrationPlanner {
         }
     }
 
-    /** 오류 ⑩: 시트 내에서 같은 키가 두 번째 이상 나타나면 그 행에 중복 오류를 추가합니다. */
-    private static <T> void checkDuplicates(
+    /**
+     * 오류 ⑩: 시트 내에서 같은 키가 두 번째 이상 나타나면 그 행에 중복 오류를 추가합니다.
+     *
+     * <p>{@code keyFn}은 동등성 판정에만 쓰는 키(단일 필드는 String, 복합 필드는 {@link List#of}로 묶은 List)이고, {@code
+     * displayFn}은 오류 메시지의 "(값: ...)"에 넣을 사람이 읽는 표기입니다. 키를 문자열로 결합하면 필드 경계가 다른 값끼리(예: "A::B"+"C" vs
+     * "A"+"B::C") 같은 문자열로 뭉쳐 중복을 오판할 수 있어 표기와 동등성 판정을 분리했습니다.
+     */
+    private static <T, K> void checkDuplicates(
             List<String> errors,
             String sheet,
             List<T> rows,
             ToIntFunction<T> rowNumberFn,
-            Function<T, String> keyFn,
+            Function<T, K> keyFn,
+            Function<T, String> displayFn,
             String detail) {
-        Set<String> seen = new HashSet<>();
+        Set<K> seen = new HashSet<>();
         for (T row : rows) {
-            String key = keyFn.apply(row);
+            K key = keyFn.apply(row);
             if (!seen.add(key)) {
-                errors.add(message(sheet, rowNumberFn.applyAsInt(row), detail + " (값: " + key + ")"));
+                errors.add(
+                        message(
+                                sheet,
+                                rowNumberFn.applyAsInt(row),
+                                detail + " (값: " + displayFn.apply(row) + ")"));
             }
         }
     }
 
-    /** 분류 규칙: 스냅샷에 같은 키가 없으면 added, 있고 delYn='Y'면 restored, 그 외(활성)는 updated로 센다. */
-    private static <T> CommonDataMigrationDto.TableSummary classify(
-            String table, List<T> rows, Function<T, String> keyFn, Map<String, String> snapshotDelYnByKey) {
+    /**
+     * 분류 규칙: 스냅샷에 같은 키가 없으면 added, 있고 delYn='Y'면 restored, 그 외(활성)는 updated로 센다.
+     *
+     * <p>{@code K}는 단일 필드 키(String)이거나 {@link List#of}로 묶은 복합 필드 키입니다. List는 원소 단위로 equals/hashCode를
+     * 계산하므로 문자열 결합과 달리 필드 경계 충돌이 없습니다.
+     */
+    private static <T, K> CommonDataMigrationDto.TableSummary classify(
+            String table, List<T> rows, Function<T, K> keyFn, Map<K, String> snapshotDelYnByKey) {
         int added = 0;
         int updated = 0;
         int restored = 0;
         for (T row : rows) {
-            String key = keyFn.apply(row);
+            K key = keyFn.apply(row);
             if (!snapshotDelYnByKey.containsKey(key)) {
                 added++;
             } else if ("Y".equals(snapshotDelYnByKey.get(key))) {
@@ -431,9 +453,9 @@ public class CommonDataMigrationPlanner {
         return new CommonDataMigrationDto.TableSummary(table, added, updated, restored);
     }
 
-    private static <E extends BaseEntity> Map<String, String> snapshotDelYnMap(
-            List<E> entities, Function<E, String> keyFn) {
-        Map<String, String> map = new HashMap<>();
+    private static <E extends BaseEntity, K> Map<K, String> snapshotDelYnMap(
+            List<E> entities, Function<E, K> keyFn) {
+        Map<K, String> map = new HashMap<>();
         for (E entity : entities) {
             map.put(keyFn.apply(entity), entity.getDelYn());
         }
