@@ -59,4 +59,14 @@ public interface CodeRepository extends JpaRepository<Ccodem, CcodemId>, CodeRep
     @Query(
             "SELECT c FROM Ccodem c WHERE c.cId = :cId AND c.delYn = :delYn ORDER BY c.cSqn ASC NULLS LAST, c.cdva ASC")
     List<Ccodem> findByCIdAndDelYn(@Param("cId") String cId, @Param("delYn") String delYn);
+
+    /**
+     * 활성 공통코드 전량을 조회합니다. 공통 데이터 이관 내보내기가 씁니다.
+     *
+     * @return 코드ID·코드순서·코드값·시작일자 오름차순의 활성 코드 목록
+     */
+    @Query(
+            "SELECT c FROM Ccodem c WHERE c.delYn = 'N' "
+                    + "ORDER BY c.cId ASC, c.cSqn ASC NULLS LAST, c.cdva ASC, c.sttDt ASC")
+    List<Ccodem> findAllActiveOrdered();
 }

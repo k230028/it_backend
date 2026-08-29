@@ -38,4 +38,19 @@ public interface ClangmRepository extends JpaRepository<Clangm, ClangmId> {
                     + "WHERE c.dttNm = :target AND c.tcIdCone = :targetKey")
     boolean existsByDttNmAndTcIdCone(
             @Param("target") String target, @Param("targetKey") String targetKey);
+
+    /** 활성 번역 전량을 조회합니다. 공통 데이터 이관 내보내기가 씁니다. */
+    @Query(
+            "SELECT c FROM Clangm c WHERE c.delYn = 'N' "
+                    + "ORDER BY c.dttNm ASC, c.tcIdCone ASC, c.tcColNm ASC, c.dttLanC ASC")
+    List<Clangm> findAllActive();
+
+    /**
+     * 대상 키 집합의 번역을 논리삭제 행 포함 전량 조회합니다.
+     *
+     * <p>이관 업서트가 삭제 행을 복원하려면 그 행이 보여야 합니다. 호출자는 Oracle IN 1000개
+     * 제한(ORA-01795)을 피하도록 키를 900개 이하로 잘라 호출합니다.
+     */
+    @Query("SELECT c FROM Clangm c WHERE c.tcIdCone IN :targetKeys")
+    List<Clangm> findAllByTcIdConeIn(@Param("targetKeys") Collection<String> targetKeys);
 }
