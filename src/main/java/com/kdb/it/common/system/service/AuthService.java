@@ -212,7 +212,6 @@ public class AuthService {
      * @param userAgent 클라이언트 User-Agent 문자열 (이력 기록용)
      * @return 로그인 응답 DTO (쿠키 생성에 사용할 토큰, 사번, 사용자명, 자격등급)
      */
-    @Transactional(noRollbackFor = LoginRejectedException.class)
     private AuthDto.LoginResponse issueLoginTokens(
             CuserI user, String ipAddress, String userAgent) {
         String eno = user.getEno();

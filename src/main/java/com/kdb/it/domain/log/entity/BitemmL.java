@@ -25,7 +25,7 @@ public class BitemmL extends BaseLogEntity {
     @Column(name = "SNO", precision = 9, comment = "일련번호")
     private Integer sno;
 
-    @Column(name = "ABUS_MNG_NO", length = 32, comment = "사업관리번호")
+    @Column(name = "ABUS_MNG_NO", length = 30, comment = "사업관리번호")
     private String abusMngNo;
 
     @Column(name = "FNT_TB_CRY_SNO", comment = "원천테이블적재일련번호")

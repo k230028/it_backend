@@ -95,7 +95,7 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
     List<Cdecim> findByDcdMngNoInOrderByDcrSqnSnoAsc(Collection<String> dcdMngNos);
 
     /** 복합키 충돌 없이 미결재 결재선의 순번을 임시 위치로 이동합니다. */
-    @Modifying(flushAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(
             value =
                     "UPDATE TPRMPP_CDECIM "
@@ -109,7 +109,7 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
             @Param("offset") int offset);
 
     /** 임시 위치의 결재자를 실제 결재 순번으로 이동합니다. */
-    @Modifying(flushAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(
             value =
                     "UPDATE TPRMPP_CDECIM SET DCR_SQN_SNO = :toSequence "

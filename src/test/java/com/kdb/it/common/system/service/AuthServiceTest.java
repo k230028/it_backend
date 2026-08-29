@@ -94,6 +94,24 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("completeLogin 이 실제 트랜잭션 경계를 소유하고 private 토큰 발급 헬퍼에는 트랜잭션 선언이 없다")
+    void completeLogin_실제트랜잭션경계유지_private헬퍼선언없음() throws Exception {
+        Method completeLogin =
+                AuthService.class.getDeclaredMethod(
+                        "completeLogin", String.class, String.class, String.class, String.class);
+        Method issueLoginTokens =
+                AuthService.class.getDeclaredMethod(
+                        "issueLoginTokens", CuserI.class, String.class, String.class);
+
+        assertThat(completeLogin.getAnnotation(org.springframework.transaction.annotation.Transactional.class))
+                .isNotNull();
+        assertThat(
+                        issueLoginTokens.getAnnotation(
+                                org.springframework.transaction.annotation.Transactional.class))
+                .isNull();
+    }
+
+    @Test
     @DisplayName("startLogin - 유효한 자격증명은 JWT 없이 MFA 로그인 대기 거래만 등록한다")
     void startLogin_유효한자격증명_JWT없이대기거래등록() {
         CuserI user = CuserI.builder().eno("10001").usrEcyPwd("encodedPwd").build();
