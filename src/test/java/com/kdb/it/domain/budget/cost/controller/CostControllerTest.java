@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
@@ -26,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +43,12 @@ class CostControllerTest {
     @MockitoBean private CostService costService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+
+    private UsernamePasswordAuthenticationToken adminAuthentication() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+        return new UsernamePasswordAuthenticationToken(admin, null, admin.getAuthorities());
+    }
 
     @Test
     @DisplayName("GET /api/cost - 비인증 → 401")
@@ -126,13 +135,13 @@ class CostControllerTest {
 
     @Test
     @DisplayName("PUT /api/cost/{itMngcNo} - 시스템관리자는 통화가 없어도 수정 요청을 전달한다")
-    @WithMockUser(username = "10001", authorities = "ROLE_ADMIN")
     void updateCost_관리자_통화누락_200() throws Exception {
         given(costService.updateCost(anyString(), any())).willReturn("COST_2026_0001");
         var body = new CostDto.UpdateRequest();
 
         mockMvc.perform(
                         put("/api/cost/COST_2026_0001")
+                                .with(authentication(adminAuthentication()))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());

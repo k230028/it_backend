@@ -52,16 +52,35 @@ public final class OwnershipVerifier {
             throw new AccessDeniedException("인증 정보가 없어 수정할 수 없습니다.");
         }
 
+        if (canModify(creatorEno, resourceBbrC, user)) {
+            return;
+        }
+
+        throw new AccessDeniedException("수정 권한이 없습니다.");
+    }
+
+    /**
+     * 명시적으로 전달된 사용자 기준으로 수정 가능 여부를 판정합니다.
+     *
+     * <p>판정 규칙은 최초 작성자 본인, 같은 부서의 부서관리자, 시스템관리자입니다. 서비스·권한자처럼 SecurityContext 밖에서 같은 규칙이 필요할 때
+     * 사용합니다.
+     *
+     * @param creatorEno 리소스 최초 작성자 사번
+     * @param resourceBbrC 리소스 소속 부서코드
+     * @param user 판정할 사용자
+     * @return 수정 가능하면 {@code true}
+     */
+    public static boolean canModify(String creatorEno, String resourceBbrC, CustomUserDetails user) {
+        if (user == null) {
+            return false;
+        }
+
         boolean createdByUser = Objects.equals(creatorEno, user.getEno());
         boolean sameDepartmentManager =
                 user.isDeptManager()
                         && StringUtils.hasText(resourceBbrC)
                         && Objects.equals(resourceBbrC, user.getBbrC());
-        if (user.isAdmin() || createdByUser || sameDepartmentManager) {
-            return;
-        }
-
-        throw new AccessDeniedException("수정 권한이 없습니다.");
+        return user.isAdmin() || createdByUser || sameDepartmentManager;
     }
 
     /**
@@ -74,14 +93,9 @@ public final class OwnershipVerifier {
      */
     public static boolean isCurrentUserAdmin() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            return false;
-        }
-        if (authentication.getPrincipal() instanceof CustomUserDetails user) {
-            return user.isAdmin();
-        }
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        return authentication != null
+                && authentication.getPrincipal() instanceof CustomUserDetails user
+                && user.isAdmin();
     }
 
     /**

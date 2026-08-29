@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
@@ -27,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,6 +49,12 @@ class ProjectControllerTest {
     @MockitoBean private ProjectService projectService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+
+    private UsernamePasswordAuthenticationToken adminAuthentication() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+        return new UsernamePasswordAuthenticationToken(admin, null, admin.getAuthorities());
+    }
 
     @Test
     @DisplayName("GET /api/projects - 인증된 사용자 → 200 + 목록 반환")
@@ -169,7 +178,6 @@ class ProjectControllerTest {
 
     @Test
     @DisplayName("PUT /api/projects/{prjMngNo} - 시스템관리자는 사업구분이 없어도 수정 요청을 전달한다")
-    @WithMockUser(username = "10001", authorities = "ROLE_ADMIN")
     void updateProject_관리자_사업구분누락_200반환() throws Exception {
         given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
                 .willReturn("PRJ-2026-0001");
@@ -178,6 +186,7 @@ class ProjectControllerTest {
 
         mockMvc.perform(
                         put("/api/projects/PRJ-2026-0001")
+                                .with(authentication(adminAuthentication()))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -200,7 +209,6 @@ class ProjectControllerTest {
 
     @Test
     @DisplayName("PUT /api/projects/{prjMngNo} - 시스템관리자는 사업구분 0도 수정 요청을 전달한다")
-    @WithMockUser(username = "10001", authorities = "ROLE_ADMIN")
     void updateProject_관리자_사업구분해당없음_200반환() throws Exception {
         given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
                 .willReturn("PRJ-2026-0001");
@@ -209,6 +217,7 @@ class ProjectControllerTest {
 
         mockMvc.perform(
                         put("/api/projects/PRJ-2026-0001")
+                                .with(authentication(adminAuthentication()))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

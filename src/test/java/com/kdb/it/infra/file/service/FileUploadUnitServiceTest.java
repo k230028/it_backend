@@ -14,6 +14,8 @@ import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import jakarta.persistence.EntityManager;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -322,5 +324,22 @@ class FileUploadUnitServiceTest {
                         .resolve(String.valueOf(today.getYear()))
                         .resolve(String.format("%02d", today.getMonthValue()));
         assertThat(saved.getFlKpnPth()).isEqualTo(expected.toString());
+    }
+
+    @Test
+    @DisplayName("uploadFileInNewTransaction: 저장소 준비 실패 메시지는 절대경로를 노출하지 않는다")
+    void uploadFileInNewTransaction_저장소준비실패_절대경로미노출(@TempDir Path tempDir) throws IOException {
+        Path blockedBase = Files.writeString(tempDir.resolve("blocked-base.txt"), "x");
+        ReflectionTestUtils.setField(fileUploadUnitService, "basePath", blockedBase.toString());
+        FileDto.UploadRequest request =
+                FileDto.UploadRequest.builder().apgFlKdNm("첨부").flTpCone("첨부파일").build();
+        MockMultipartFile file =
+                new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
+
+        assertThatThrownBy(() -> fileUploadUnitService.uploadFileInNewTransaction(file, request))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessage("파일 업로드 저장소를 준비하지 못했습니다.")
+                .hasMessageNotContaining(blockedBase.toString());
+        verifyNoInteractions(entityManager);
     }
 }

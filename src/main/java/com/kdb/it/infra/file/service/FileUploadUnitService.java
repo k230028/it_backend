@@ -87,7 +87,8 @@ public class FileUploadUnitService {
         try {
             Files.createDirectories(storageDir);
         } catch (IOException e) {
-            throw new CustomGeneralException("파일 저장 디렉토리 생성에 실패했습니다. 경로: " + flKpnPth, e);
+            log.error("파일 업로드 저장소 준비 실패: storageDir={}", flKpnPth, e);
+            throw new CustomGeneralException("파일 업로드 저장소를 준비하지 못했습니다.", e);
         }
 
         Path targetPath = storageDir.resolve(flPysNm);

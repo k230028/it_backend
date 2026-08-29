@@ -1,5 +1,6 @@
 package com.kdb.it.common.system.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /** OwnershipVerifier 단위 테스트 — 관리자/소유자/타인/널 분기 검증. */
@@ -102,6 +104,41 @@ class OwnershipVerifierTest {
     }
 
     @Test
+    @DisplayName("명시적 사용자 판정은 생성자를 허용한다")
+    void canModify_생성자_허용() {
+        assertThat(
+                        OwnershipVerifier.canModify(
+                                "10001",
+                                "D999",
+                                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "D001")))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("명시적 사용자 판정은 관리자를 허용한다")
+    void canModify_관리자_허용() {
+        assertThat(
+                        OwnershipVerifier.canModify(
+                                "10001",
+                                "D001",
+                                new CustomUserDetails(
+                                        "90000", List.of(CustomUserDetails.ATH_ADMIN), "D999")))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("명시적 사용자 판정은 같은 부서의 부서관리자를 허용한다")
+    void canModify_부서관리자_같은부서_허용() {
+        assertThat(
+                        OwnershipVerifier.canModify(
+                                "10001",
+                                "D001",
+                                new CustomUserDetails(
+                                        "10002", List.of(CustomUserDetails.ATH_DEPT_MGR), "D001")))
+                .isTrue();
+    }
+
+    @Test
     @DisplayName("생성자는 수정할 수 있다")
     void verifyModifiable_생성자_허용() {
         setUser("10001", "D001", false, false);
@@ -144,6 +181,17 @@ class OwnershipVerifierTest {
 
         assertThatThrownBy(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("현재 사용자 관리자 판정은 CustomUserDetails가 아닌 ROLE_ADMIN principal을 거부한다")
+    void isCurrentUserAdmin_비CustomUserDetails관리자권한문자열_거부() {
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                "10001", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+
+        assertThat(OwnershipVerifier.isCurrentUserAdmin()).isFalse();
     }
 
     @Test

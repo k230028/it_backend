@@ -1,8 +1,8 @@
 package com.kdb.it.infra.file.authz;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -26,6 +26,11 @@ public class ProjectFileTargetWriteAuthorizer implements FileTargetWriteAuthoriz
         return Set.of(ProjectFileReadAuthorizer.PROJECT_KIND);
     }
 
+    @Override
+    public boolean allowsGenericMutation() {
+        return false;
+    }
+
     /**
      * 정보화사업 첨부 대상 쓰기 가능 여부를 판정합니다.
      *
@@ -42,16 +47,8 @@ public class ProjectFileTargetWriteAuthorizer implements FileTargetWriteAuthoriz
                 .findByAbusMngNoAndDelYn(apgFlLnkCtzNm, "N")
                 .map(
                         project ->
-                                user.isAdmin()
-                                        || Objects.equals(user.getEno(), project.getFstEnrUsid())
-                                        || isSameDepartmentManager(user, project.getSvnDpmC()))
+                                OwnershipVerifier.canModify(
+                                        project.getFstEnrUsid(), project.getSvnDpmC(), user))
                 .orElse(false);
-    }
-
-    /** 주관부서가 같은 기획통할담당자인지 판정합니다(부서코드가 비어 있으면 불일치로 봅니다). */
-    private boolean isSameDepartmentManager(CustomUserDetails user, String svnDpmC) {
-        return user.isDeptManager()
-                && StringUtils.hasText(svnDpmC)
-                && Objects.equals(svnDpmC, user.getBbrC());
     }
 }

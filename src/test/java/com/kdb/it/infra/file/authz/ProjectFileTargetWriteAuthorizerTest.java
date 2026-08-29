@@ -89,6 +89,14 @@ class ProjectFileTargetWriteAuthorizerTest {
     }
 
     @Test
+    @DisplayName("부모 사업이 사라지면 기존 작성자도 첨부 대상에 쓸 수 없다")
+    void ownerCannotWriteWhenParentProjectMissing() {
+        given(projectRepository.findByAbusMngNoAndDelYn(PRJ, "N")).willReturn(Optional.empty());
+
+        assertThat(authorizer.canWrite(PRJ, user("E001", "18001"))).isFalse();
+    }
+
+    @Test
     @DisplayName("관리자도 없거나 공백인 사업 대상에는 쓸 수 없다")
     void adminCannotWriteMissingOrBlankTarget() {
         given(projectRepository.findByAbusMngNoAndDelYn(PRJ, "N")).willReturn(Optional.empty());
@@ -104,5 +112,11 @@ class ProjectFileTargetWriteAuthorizerTest {
         assertThat(authorizer.canWrite(PRJ, null)).isFalse();
 
         then(projectRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("정보화사업 첨부는 범용 수정·삭제 API로 변경할 수 없다")
+    void genericMutationDenied() {
+        assertThat(authorizer.allowsGenericMutation()).isFalse();
     }
 }

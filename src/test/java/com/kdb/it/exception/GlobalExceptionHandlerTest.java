@@ -53,6 +53,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("handleCustomGeneralException - 일반 비즈니스 메시지는 그대로 유지한다")
+    void handleCustomGeneralException_일반비즈니스메시지_보존() {
+        CustomGeneralException ex = new CustomGeneralException("게시판을 찾을 수 없습니다: BLB-2026-0001");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleCustomGeneralException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody())
+                .containsEntry("message", "게시판을 찾을 수 없습니다: BLB-2026-0001");
+    }
+
+    @Test
     void handleMfaException_공급자코드와메시지_응답에포함() {
         MfaException ex =
                 new MfaException(MfaErrorCode.MFA_UNAVAILABLE, "100108", "등록되지 않은 사용자 입니다.");
