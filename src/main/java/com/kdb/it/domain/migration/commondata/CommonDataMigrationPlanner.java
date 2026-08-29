@@ -94,6 +94,7 @@ public class CommonDataMigrationPlanner {
         Set<String> activeSnapshotMenuIds = activeKeys(snapshot.allMenus(), Cmenum::getMnuId);
         Set<String> activeSnapshotRoutePaths = activeKeys(snapshot.allRoutes(), Cmenud::getSrePth);
         Map<String, Cmenum> activeSnapshotMenuById = activeEntitiesByKey(snapshot.allMenus(), Cmenum::getMnuId);
+        Map<String, String> activeSnapshotMnuIdBySrePth = activeMenuIdsBySrePth(snapshot.allMenus());
 
         Set<String> fileMenuIds = new HashSet<>();
         for (CommonDataMigrationDto.MenuRow row : request.menus()) {
@@ -156,6 +157,7 @@ public class CommonDataMigrationPlanner {
             validateMenuRow(row, fileMenuIds, activeSnapshotMenuIds, errors);
             warnAgainstSnapshot(row, activeSnapshotMenuById, warnings);
             warnMissingRouteForPage(row, fileRoutePaths, activeSnapshotRoutePaths, warnings);
+            warnPathUsedByOtherMenu(row, activeSnapshotMnuIdBySrePth, warnings);
         }
         for (CommonDataMigrationDto.MenuAuthRow row : request.menuAuths()) {
             validateMenuAuthRow(row, fileMenuIds, activeSnapshotMenuIds, snapshot.athIds(), errors);
@@ -396,6 +398,31 @@ public class CommonDataMigrationPlanner {
         }
     }
 
+    /**
+     * 경고 ④: 파일 메뉴의 화면경로를 운영 스냅샷의 다른 활성 메뉴가 이미 쓰고 있으면 경고합니다.
+     *
+     * <p>시드가 서버별 시퀀스로 메뉴를 채번해 dev/prod 메뉴ID가 어긋날 수 있다. 이때 파일이 dev 기준 메뉴ID로
+     * 새 메뉴를 추가하면서 운영에 이미 있는 화면경로를 그대로 쓰면, 반영 후 같은 경로를 가리키는 활성 메뉴가 2개가
+     * 된다. 자기 자신(같은 메뉴ID)을 갱신하는 정상 케이스는 제외한다.
+     */
+    private static void warnPathUsedByOtherMenu(
+            CommonDataMigrationDto.MenuRow row,
+            Map<String, String> activeSnapshotMnuIdBySrePth,
+            List<String> warnings) {
+        if (row.srePth() == null || row.srePth().isBlank()) {
+            return;
+        }
+        String conflictingMnuId = activeSnapshotMnuIdBySrePth.get(row.srePth());
+        if (conflictingMnuId != null && !conflictingMnuId.equals(row.mnuId())) {
+            warnings.add(
+                    message(
+                            SHEET_MENU,
+                            row.excelRow(),
+                            "같은 화면경로(" + row.srePth() + ")를 운영의 다른 메뉴("
+                                    + conflictingMnuId + ")가 사용 중입니다 — 반영 시 같은 경로의 활성 메뉴가 2개가 됩니다."));
+        }
+    }
+
     /** 오류 ①(안전망): 값이 비어 있으면 오류를 추가합니다. 어노테이션 검증을 거치지 않고 호출되는 경로를 대비합니다. */
     private static void requireNotBlank(
             List<String> errors, String sheet, int excelRow, String fieldLabel, String value) {
@@ -483,6 +510,17 @@ public class CommonDataMigrationPlanner {
         for (E entity : entities) {
             if (!"Y".equals(entity.getDelYn())) {
                 map.put(keyFn.apply(entity), entity);
+            }
+        }
+        return map;
+    }
+
+    /** 활성 메뉴의 srePth→mnuId 맵입니다. srePth가 비어 있는 메뉴(GRP/LNK 등)는 제외합니다. */
+    private static Map<String, String> activeMenuIdsBySrePth(List<Cmenum> menus) {
+        Map<String, String> map = new HashMap<>();
+        for (Cmenum menu : menus) {
+            if (!"Y".equals(menu.getDelYn()) && menu.getSrePth() != null && !menu.getSrePth().isBlank()) {
+                map.put(menu.getSrePth(), menu.getMnuId());
             }
         }
         return map;

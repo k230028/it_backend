@@ -410,6 +410,61 @@ class CommonDataMigrationPlannerTest {
     }
 
     @Test
+    void 화면경로를_운영의다른메뉴가사용중이면_경고한다() {
+        // 시드가 서버별 시퀀스로 메뉴를 채번해 dev/prod 메뉴ID가 어긋나면, 파일이 dev 기준
+        // 메뉴ID로 새 메뉴를 만들면서 운영에 이미 있는 화면경로를 그대로 쓰는 시나리오가 생긴다.
+        Cmenum other =
+                Cmenum.builder()
+                        .mnuId("MNU0000042")
+                        .mnuNm("운영메뉴")
+                        .mnuTpC("PGE")
+                        .srePth("/admin/menus")
+                        .mnuSotSqnSno(1)
+                        .hidYn("N")
+                        .mnuDep(1)
+                        .whlMnuPth("/MNU0000042")
+                        .build();
+        other.restore();
+        CommonDataMigrationPlanner.Snapshot snapshot =
+                new CommonDataMigrationPlanner.Snapshot(
+                        List.of(other), List.of(), List.of(), List.of(), List.of(),
+                        Set.of("ITPAD001"));
+        CommonDataMigrationDto.Request request =
+                new CommonDataMigrationDto.Request(
+                        List.of(menuRow("MNU0000001", null)),
+                        List.of(new CommonDataMigrationDto.MenuAuthRow(2, "MNU0000001", "ITPAD001")),
+                        List.of(
+                                new CommonDataMigrationDto.RouteRow(
+                                        2, "/admin/menus", "메뉴 관리", "Y", null)),
+                        List.of(),
+                        List.of());
+
+        CommonDataMigrationPlanner.Plan plan = planner.plan(request, snapshot);
+
+        assertThat(plan.errors()).isEmpty();
+        assertThat(plan.warnings())
+                .anySatisfy(w -> assertThat(w).contains("MNU0000042").contains("/admin/menus"));
+    }
+
+    @Test
+    void 정렬순서와깊이가null이어도_NPE없이_필수오류2건으로_분류한다() {
+        // mnuSotSqnSno·mnuDep는 DTO 필드 레벨 검증 제거로 planner가 유일한 방어선이다.
+        // else-if로 null 검사를 먼저 하므로 범위 비교(mnuDep < MIN)에서 auto-unboxing NPE가 나지 않는다.
+        CommonDataMigrationDto.MenuRow row =
+                new CommonDataMigrationDto.MenuRow(
+                        2, "MNU0000001", null, "메뉴명", "PGE", null, "/admin/menus", null, "N", null,
+                        "/MNU0000001");
+        CommonDataMigrationDto.Request request =
+                new CommonDataMigrationDto.Request(
+                        List.of(row), List.of(), List.of(), List.of(), List.of());
+
+        CommonDataMigrationPlanner.Plan plan = planner.plan(request, emptySnapshot());
+
+        assertThat(plan.errors()).anySatisfy(e -> assertThat(e).contains("메뉴정렬순서"));
+        assertThat(plan.errors()).anySatisfy(e -> assertThat(e).contains("메뉴깊이"));
+    }
+
+    @Test
     void PGE메뉴경로가_카탈로그에없으면_경고한다() {
         CommonDataMigrationDto.Request request =
                 new CommonDataMigrationDto.Request(
