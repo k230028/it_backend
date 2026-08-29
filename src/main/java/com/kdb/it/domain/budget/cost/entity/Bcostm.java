@@ -234,8 +234,8 @@ public class Bcostm extends BaseEntity {
         this.sectSysUtzYn = command.sectSysUtzYn();
         this.indRsn = command.indRsn();
         /* 담당자(CGPR_ID)는 빈값 요청이면 기존 값을 유지한다. 이 컬럼은 행번 또는 이름을 담는데,
-           행번 미해석 행은 조회 응답에서 행번이 비워져 내려가므로 수정 저장이 빈값을 되돌려 보낸다.
-           그대로 덮으면 컬럼에 남아 있던 이름이 삭제된다(사용자 테이블 조인으로 되살릴 수 없음). */
+        행번 미해석 행은 조회 응답에서 행번이 비워져 내려가므로 수정 저장이 빈값을 되돌려 보낸다.
+        그대로 덮으면 컬럼에 남아 있던 이름이 삭제된다(사용자 테이블 조인으로 되살릴 수 없음). */
         if (command.cgprId() != null && !command.cgprId().isBlank()) {
             this.cgprId = command.cgprId();
         }

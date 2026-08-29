@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.InitBinder;
 /**
  * 게시물 검색 조건 바인딩 방어선.
  *
- * <p>서버 전용 {@code ignorePublicationPeriod} 플래그는 서비스가 내부 판단으로만 켜야 하므로 쿼리 파라미터 대입을 명시적으로 차단합니다.
- * 다른 검색 필드는 기존처럼 바인딩합니다.
+ * <p>서버 전용 {@code ignorePublicationPeriod} 플래그는 서비스가 내부 판단으로만 켜야 하므로 쿼리 파라미터 대입을 명시적으로 차단합니다. 다른 검색
+ * 필드는 기존처럼 바인딩합니다.
  */
 @ControllerAdvice(assignableTypes = BoardPostController.class)
 public class BoardPostSearchConditionBindingAdvice {

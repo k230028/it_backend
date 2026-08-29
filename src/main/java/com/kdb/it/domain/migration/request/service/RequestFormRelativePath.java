@@ -18,8 +18,8 @@ public final class RequestFormRelativePath {
      * <p>마지막 파일명은 manifest 값을 신뢰하지 않고 실제 업로드 파일명으로 교체합니다.
      *
      * <p>여기의 {@code MAX_LENGTH}·{@code FILE_NAME_MAX_LENGTH}는 <b>문자 수</b> 기준 검사입니다. 대상 컬럼 {@code
-     * APG_FL_PTH}·{@code FL_NM}은 BYTE semantics라 문자 수 상한 이내인 한글 경로도 UTF-8 바이트로는 상한을 넘을 수 있고, 그 경우
-     * 이 메서드는 줄이지 않고 그대로 돌려줍니다. 저장 경로에서는 {@code RequestFormArchiveMetadata}의 UTF-8 바이트 절단을 반드시 한 번 더
+     * APG_FL_PTH}·{@code FL_NM}은 BYTE semantics라 문자 수 상한 이내인 한글 경로도 UTF-8 바이트로는 상한을 넘을 수 있고, 그 경우 이
+     * 메서드는 줄이지 않고 그대로 돌려줍니다. 저장 경로에서는 {@code RequestFormArchiveMetadata}의 UTF-8 바이트 절단을 반드시 한 번 더
      * 적용해야 {@code ORA-12899}가 나지 않습니다.
      *
      * @param fileKey manifest에 담긴 전체 파일 키

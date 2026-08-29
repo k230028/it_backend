@@ -396,9 +396,7 @@ public final class RequestFormDto {
                     int blockedFiles,
             @Schema(description = "원장 종류별 합계", requiredMode = Schema.RequiredMode.REQUIRED)
                     RecordCounts created,
-            @Schema(
-                            description = "원본 보관 실패 파일 상대경로",
-                            requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "원본 보관 실패 파일 상대경로", requiredMode = Schema.RequiredMode.REQUIRED)
                     List<String> archiveFailedFileKeys) {
 
         public ImportSummary {
@@ -407,7 +405,8 @@ public final class RequestFormDto {
         }
 
         /** 기존 내부 호출부와의 호환을 위한 원본 보관 실패 목록 없는 생성자입니다. */
-        public ImportSummary(int totalFiles, int appliedFiles, int blockedFiles, RecordCounts created) {
+        public ImportSummary(
+                int totalFiles, int appliedFiles, int blockedFiles, RecordCounts created) {
             this(totalFiles, appliedFiles, blockedFiles, created, List.of());
         }
     }

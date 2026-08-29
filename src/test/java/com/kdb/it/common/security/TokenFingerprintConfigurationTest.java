@@ -1,9 +1,9 @@
 package com.kdb.it.common.security;
 
-import com.kdb.it.common.system.EnvironmentValidator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.kdb.it.common.system.EnvironmentValidator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -22,25 +22,26 @@ class TokenFingerprintConfigurationTest {
     @DisplayName("TokenFingerprint 빈은 jwt.secret이 아니라 전용 시크릿으로 지문을 계산한다")
     void contextUsesDedicatedFingerprintSecretInsteadOfJwtSecret() {
         String jwtSecret = "jwt-signing-secret-at-least-256-bits-xxxxxxxx";
-        String fingerprintSecret =
-                "token-fingerprint-secret-at-least-256-bits-xxxxxxxx";
+        String fingerprintSecret = "token-fingerprint-secret-at-least-256-bits-xxxxxxxx";
 
         try (ConfigurableApplicationContext context =
                 application()
                         .run(
                                 arguments(
                                         Map.of(
-                                                 "spring.config.name",
-                                                         "token-fingerprint-test-empty",
-                                                 "spring.datasource.password",
-                                                         "test-db-password",
-                                                 "jwt.secret", jwtSecret,
+                                                "spring.config.name",
+                                                "token-fingerprint-test-empty",
+                                                "spring.datasource.password",
+                                                "test-db-password",
+                                                "jwt.secret",
+                                                jwtSecret,
                                                 "security.token-fingerprint-secret",
-                                                        fingerprintSecret)))) {
+                                                fingerprintSecret)))) {
             TokenFingerprint fingerprint = context.getBean(TokenFingerprint.class);
 
             assertThat(fingerprint.forRefreshToken("sample-token"))
-                    .isEqualTo(new TokenFingerprint(fingerprintSecret).forRefreshToken("sample-token"))
+                    .isEqualTo(
+                            new TokenFingerprint(fingerprintSecret).forRefreshToken("sample-token"))
                     .isNotEqualTo(new TokenFingerprint(jwtSecret).forRefreshToken("sample-token"));
         }
     }
@@ -55,14 +56,14 @@ class TokenFingerprintConfigurationTest {
                                             .run(
                                                     arguments(
                                                             Map.of(
-                                                                     "spring.config.name",
-                                                                             "token-fingerprint-test-empty",
-                                                                     "spring.datasource.password",
-                                                                     "test-db-password",
-                                                                     "jwt.secret",
-                                                                     "jwt-signing-secret-at-least-256-bits-xxxxxxxx",
-                                                                     "security.token-fingerprint-secret",
-                                                                     "")))) {
+                                                                    "spring.config.name",
+                                                                    "token-fingerprint-test-empty",
+                                                                    "spring.datasource.password",
+                                                                    "test-db-password",
+                                                                    "jwt.secret",
+                                                                    "jwt-signing-secret-at-least-256-bits-xxxxxxxx",
+                                                                    "security.token-fingerprint-secret",
+                                                                    "")))) {
                                 // 기동 성공 자체가 전용 시크릿 분리 계약 위반이다.
                             }
                         })
@@ -70,7 +71,8 @@ class TokenFingerprintConfigurationTest {
     }
 
     private SpringApplication application() {
-        SpringApplication application = new SpringApplication(TokenFingerprintOnlyApplication.class);
+        SpringApplication application =
+                new SpringApplication(TokenFingerprintOnlyApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
         application.setLogStartupInfo(false);
         application.setRegisterShutdownHook(false);

@@ -64,6 +64,14 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      */
     List<Bcostm> findByCostBgNoAndDelYn(String costBgNo, String delYn);
 
+    /** 예산연도와 현재 유효 버전까지 확인하는 단건 조회입니다. */
+    Optional<Bcostm> findByCostBgNoAndBseYyAndLstYnAndDelYn(
+            String costBgNo, String bseYy, String lstYn, String delYn);
+
+    /** 금융정보단말기 일괄업로드 대상인지까지 확인하는 최신 전산업무비 조회입니다. */
+    Optional<Bcostm> findByCostBgNoAndBseYyAndLstYnAndTmnYnAndDelYn(
+            String costBgNo, String bseYy, String lstYn, String tmnYn, String delYn);
+
     /**
      * 전산업무비번호 집합 일괄 조회 (N+1 제거) — 계약명 매핑용
      *

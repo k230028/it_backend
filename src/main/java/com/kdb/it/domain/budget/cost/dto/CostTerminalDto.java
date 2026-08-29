@@ -104,8 +104,14 @@ public class CostTerminalDto {
         @Schema(description = "담당팀", example = "00101")
         private String termSvnTemC;
 
+        @Schema(description = "담당팀명 스냅샷", nullable = true)
+        private String termSvnTemNm;
+
         @Schema(description = "담당부서", example = "001")
         private String termSvnDpmC;
+
+        @Schema(description = "담당부서명 스냅샷", nullable = true)
+        private String termSvnDpmNm;
 
         @Schema(description = "비고", example = "특이사항 없음")
         private String rmk;
@@ -152,7 +158,9 @@ public class CostTerminalDto {
                     .cgprId(entity.getCgprId())
                     .cgprNm(entity.getCgprNm()) // 담당자명 스냅샷 (행번 미해석 시 표시 폴백)
                     .termSvnTemC(entity.getTermSvnTemC())
+                    .termSvnTemNm(entity.getSvnTemNm())
                     .termSvnDpmC(entity.getTermSvnDpmC())
+                    .termSvnDpmNm(entity.getSvnDpmNm())
                     .rmk(entity.getRmk())
                     .fcAmt(entity.getFcAmt())
                     .build();

@@ -13,8 +13,8 @@ import static org.mockito.Mockito.times;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
-import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -90,7 +90,8 @@ class RequestFormSourceFileArchiverTest {
                             results.get(i)));
         }
         try {
-            Method archive = RequestFormSourceFileArchiver.class.getDeclaredMethod("archive", List.class);
+            Method archive =
+                    RequestFormSourceFileArchiver.class.getDeclaredMethod("archive", List.class);
             Object result = archive.invoke(archiver, plan);
             return result == null ? List.of() : (List<String>) result;
         } catch (ReflectiveOperationException e) {
@@ -525,8 +526,7 @@ class RequestFormSourceFileArchiverTest {
         given(fileService.uploadFile(any(), any())).willThrow(new RuntimeException("디스크 오류"));
 
         assertThatCode(() -> archive(files, entries, results)).doesNotThrowAnyException();
-        assertThat(archiveAndCollect(files, entries, results))
-                .containsExactly("IT부(D01)/a.xlsx");
+        assertThat(archiveAndCollect(files, entries, results)).containsExactly("IT부(D01)/a.xlsx");
     }
 
     @Test
@@ -603,12 +603,10 @@ class RequestFormSourceFileArchiverTest {
                                 List.of("APF-3")));
 
         given(fileService.uploadFile(any(), any())).willReturn("FL-A", "FL-B");
-        given(fileService.linkExistingFile(any(), any()))
-                .willThrow(new RuntimeException("연결 오류"));
+        given(fileService.linkExistingFile(any(), any())).willThrow(new RuntimeException("연결 오류"));
 
         List<String> failedFileKeys = archiveAndCollect(files, entries, results);
-        assertThat(failedFileKeys)
-                .containsExactly("IT부(D01)/a.xlsx", "IT부(D01)/b.xlsx");
+        assertThat(failedFileKeys).containsExactly("IT부(D01)/a.xlsx", "IT부(D01)/b.xlsx");
     }
 
     @Test

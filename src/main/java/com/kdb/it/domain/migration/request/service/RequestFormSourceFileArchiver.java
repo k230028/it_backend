@@ -100,7 +100,7 @@ public class RequestFormSourceFileArchiver {
                         item,
                         targets,
                         new ArchiveGroupKey(item.archiveGroupKey(), item.effectiveDeptCode()),
-                         failedFileKeys);
+                        failedFileKeys);
         }
         return List.copyOf(failedFileKeys);
     }

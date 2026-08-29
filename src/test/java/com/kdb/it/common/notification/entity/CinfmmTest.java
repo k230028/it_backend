@@ -74,7 +74,8 @@ class CinfmmTest {
         notification.markDispatchFailed(message);
 
         assertThat(notification.getErrCone()).isEqualTo(message);
-        assertThat(notification.getErrCone().getBytes(StandardCharsets.UTF_8).length).isEqualTo(100);
+        assertThat(notification.getErrCone().getBytes(StandardCharsets.UTF_8).length)
+                .isEqualTo(100);
     }
 
     @Test

@@ -67,7 +67,7 @@ class BcostmUpdateCommandTest {
     @DisplayName("update - 담당자 빈값 요청은 기존 담당자(이름 저장 행 포함)를 지우지 않는다")
     void update_담당자빈값_기존값유지() {
         /* 행번 자리에 이름이 저장된 레거시 행: 조회 응답이 행번을 비워 내려보내므로
-           수정 저장이 빈값을 되돌려 보낸다 — 그대로 덮으면 이름이 삭제된다 */
+        수정 저장이 빈값을 되돌려 보낸다 — 그대로 덮으면 이름이 삭제된다 */
         Bcostm target = Bcostm.builder().costBgNo("COST-1").bgSno(1).cgprId("홍길동").build();
 
         target.update(Bcostm.UpdateCommand.builder().cgprId(null).build());

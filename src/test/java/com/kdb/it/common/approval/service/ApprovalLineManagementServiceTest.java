@@ -15,7 +15,8 @@ import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
-
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,9 +24,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
-
-import java.util.List;
-import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
 class ApprovalLineManagementServiceTest {
@@ -232,8 +230,7 @@ class ApprovalLineManagementServiceTest {
         Capplm application = application("1", "E001");
         Cdecim only = approver(1, "E002", "1");
         given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
-        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
-                .willReturn(List.of(only));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF)).willReturn(List.of(only));
         given(userRepository.findById("E004"))
                 .willReturn(
                         Optional.of(
@@ -284,8 +281,7 @@ class ApprovalLineManagementServiceTest {
         assertThat(last.getLstDcdYn()).isEqualTo("Y");
         verify(approverRepository).save(last);
         verify(approvalLineDelegate).removeApproverFromDetail(eq(application), eq(1));
-        verify(approvalLineDelegate)
-                .updateApprovalOrder(eq(application), eq(List.of(first, last)));
+        verify(approvalLineDelegate).updateApprovalOrder(eq(application), eq(List.of(first, last)));
     }
 
     @Test

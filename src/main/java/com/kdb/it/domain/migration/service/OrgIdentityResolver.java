@@ -246,6 +246,52 @@ public class OrgIdentityResolver {
                     : Resolution.suggested(name, suggestions);
         }
 
+        /** 사용자 마스터의 팀명(TEM_NM)을 팀코드(TEM_C)로 해석합니다. */
+        public Resolution resolveTeam(String name, String deptCodeHint) {
+            if (isBlankToken(name)) {
+                return Resolution.unresolved(name == null ? "" : name);
+            }
+
+            Resolution organizationResolution = resolveOrg(name);
+            if (organizationResolution.code() != null) {
+                return organizationResolution;
+            }
+
+            Map<String, String> teams = matchingTeams(name, deptCodeHint);
+            if (teams.isEmpty() && deptCodeHint != null && !deptCodeHint.isBlank()) {
+                teams = matchingTeams(name, null);
+            }
+            if (teams.size() == 1) {
+                Map.Entry<String, String> only = teams.entrySet().iterator().next();
+                return Resolution.of(only.getKey(), only.getValue());
+            }
+            if (!teams.isEmpty()) {
+                List<MigrationDto.Candidate> candidates =
+                        teams.entrySet().stream()
+                                .map(entry -> new MigrationDto.Candidate(entry.getKey(), entry.getValue()))
+                                .toList();
+                return Resolution.ambiguous(name, candidates);
+            }
+            return Resolution.unresolved(name);
+        }
+
+        private Map<String, String> matchingTeams(String name, String deptCodeHint) {
+            String normalizedName = normalize(name);
+            Map<String, String> teams = new LinkedHashMap<>();
+            for (CuserI user : allUsers) {
+                if (user.getTemC() == null || user.getTemC().isBlank() || user.getTemNm() == null) {
+                    continue;
+                }
+                if (deptCodeHint != null && !deptCodeHint.equals(user.getBbrC())) {
+                    continue;
+                }
+                if (normalizedName.equals(normalize(user.getTemNm()))) {
+                    teams.putIfAbsent(user.getTemC(), user.getTemNm());
+                }
+            }
+            return teams;
+        }
+
         /**
          * 이름이 하나도 걸리지 않았을 때 가장 비슷한 후보를 고릅니다.
          *

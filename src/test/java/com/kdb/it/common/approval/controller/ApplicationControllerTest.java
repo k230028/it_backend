@@ -33,9 +33,8 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
-
 import jakarta.servlet.http.Cookie;
-
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -46,8 +45,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.List;
 
 /**
  * ApplicationController @WebMvcTest
@@ -547,7 +544,8 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/applications/{apfMngNo}/approvers/{dcdSqn} - 관리자 삭제 → 204 + 관리자 권한 전달")
+    @DisplayName(
+            "DELETE /api/applications/{apfMngNo}/approvers/{dcdSqn} - 관리자 삭제 → 204 + 관리자 권한 전달")
     @WithMockUser(
             username = "90001",
             roles = {"USER", "ADMIN"})

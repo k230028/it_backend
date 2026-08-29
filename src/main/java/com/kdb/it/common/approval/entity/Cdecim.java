@@ -2,16 +2,13 @@ package com.kdb.it.common.approval.entity;
 
 import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.domain.entity.BaseEntity;
-
 import jakarta.persistence.*;
-
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-
-import java.time.LocalDate;
 
 /**
  * 결재 정보 관리 엔티티

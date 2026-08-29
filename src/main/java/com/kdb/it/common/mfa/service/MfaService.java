@@ -350,9 +350,7 @@ public class MfaService {
         }
         return MessageDigest.isEqual(
                 transaction.providerChallengeHash().getBytes(StandardCharsets.US_ASCII),
-                tokenFingerprint
-                        .forMfa(providerChallengeId)
-                        .getBytes(StandardCharsets.US_ASCII));
+                tokenFingerprint.forMfa(providerChallengeId).getBytes(StandardCharsets.US_ASCII));
     }
 
     private void throwFailedVerification(String tokenHash, Instant now) {

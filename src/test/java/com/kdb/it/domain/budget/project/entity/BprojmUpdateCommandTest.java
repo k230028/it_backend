@@ -73,7 +73,7 @@ class BprojmUpdateCommandTest {
     @DisplayName("update: 담당자 4개 컬럼은 빈값 요청이면 기존 값(이름 저장 행 포함)을 유지한다")
     void update_담당자빈값_기존값유지() {
         /* 행번 자리에 이름이 저장된 레거시 행: 조회 응답이 행번을 비워 내려보내므로
-           수정 저장이 빈값을 되돌려 보낸다 — 그대로 덮으면 이름이 삭제된다 */
+        수정 저장이 빈값을 되돌려 보낸다 — 그대로 덮으면 이름이 삭제된다 */
         Bprojm project =
                 Bprojm.builder()
                         .abusMngNo("PRJ-2026-0001")
@@ -85,10 +85,9 @@ class BprojmUpdateCommandTest {
 
         project.update(
                 new Bprojm.UpdateCommand(
-                        "사업명", "신규개발", "주관부서A", "IT부서B", null, null,
-                        null, " ", "", null,
+                        "사업명", "신규개발", "주관부서A", "IT부서B", null, null, null, " ", "", null, null,
                         null, null, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, null));
+                        null, null, null, null, null, null, null, null));
 
         assertThat(project.getUsid()).isEqualTo("홍길동");
         assertThat(project.getDvmUsid()).isEqualTo("K140024");
@@ -98,10 +97,9 @@ class BprojmUpdateCommandTest {
         /* 실제 행번이 들어오면 정상 갱신된다 */
         project.update(
                 new Bprojm.UpdateCommand(
-                        "사업명", "신규개발", "주관부서A", "IT부서B", null, null,
-                        "K000001", "K000002", "K000003", "K000004",
-                        null, null, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, null));
+                        "사업명", "신규개발", "주관부서A", "IT부서B", null, null, "K000001", "K000002",
+                        "K000003", "K000004", null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null, null, null, null, null));
 
         assertThat(project.getUsid()).isEqualTo("K000001");
         assertThat(project.getDvmUsid()).isEqualTo("K000002");

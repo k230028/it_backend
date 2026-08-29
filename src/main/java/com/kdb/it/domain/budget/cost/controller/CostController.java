@@ -157,14 +157,14 @@ public class CostController {
      * <p>검색 조건 예시:
      *
      * <ul>
-     *   <li>{@code GET /api/cost} → 전체 조회
+     *   <li>{@code GET /api/cost} → 일반 사용자는 소속 부서, 시스템관리자는 전체 조회
      *   <li>{@code GET /api/cost?apfSts=none} → 신청서가 없는 전산관리비만
      *   <li>{@code GET /api/cost?apfSts=결재중} → 결재중인 전산관리비만
      * </ul>
      *
-     * @param condition 검색 조건 (apfSts, costSvnDpmC, svnTemC, sectSysUtzYn, bseYy, myDeptOnly). 미입력 시
-     *     전체 조회
-     * @param user 인증 사용자 (myDeptOnly=true일 때 부서 범위 결정에 사용)
+     * @param condition 검색 조건 (apfSts, costSvnDpmC, svnTemC, sectSysUtzYn, bseYy, myDeptOnly). 일반 사용자는 항상 소속 부서로 제한되며,
+     *     관리자는 myDeptOnly=true일 때 소속 부서로 제한됩니다.
+     * @param user 인증 사용자 (목록 범위 결정에 사용)
      * @return HTTP 200 + 전산관리비 목록 ({@link CostDto.Response} 리스트)
      */
     @Operation(
@@ -174,7 +174,7 @@ public class CostController {
                             + "Query Parameter로 조건을 지정하면 필터링된 결과를 반환합니다. "
                             + "apfSts=none은 신청서가 없는 항목, "
                             + "apfSts=결재중/결재완료 등은 해당 결재상태의 항목을 조회합니다. "
-                            + "myDeptOnly=true는 로그인 사용자 소속 부서 항목만 조회합니다(시스템관리자는 전체).")
+                            + "일반 사용자는 항상 로그인 사용자 소속 부서 항목만 조회하고, 시스템관리자는 myDeptOnly=true일 때 부서 항목만 조회합니다.")
     @ApiResponses(
             value = {
                 @ApiResponse(

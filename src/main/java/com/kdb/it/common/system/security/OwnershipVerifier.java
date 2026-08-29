@@ -70,7 +70,8 @@ public final class OwnershipVerifier {
      * @param user 판정할 사용자
      * @return 수정 가능하면 {@code true}
      */
-    public static boolean canModify(String creatorEno, String resourceBbrC, CustomUserDetails user) {
+    public static boolean canModify(
+            String creatorEno, String resourceBbrC, CustomUserDetails user) {
         if (user == null) {
             return false;
         }

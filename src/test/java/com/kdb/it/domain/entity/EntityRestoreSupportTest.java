@@ -22,7 +22,8 @@ class EntityRestoreSupportTest {
                         .build();
         when(entityManager.find(Bpovwm.class, "ASCT-1")).thenReturn(deleted);
 
-        Bpovwm restored = EntityRestoreSupport.findAndRestore(entityManager, Bpovwm.class, "ASCT-1");
+        Bpovwm restored =
+                EntityRestoreSupport.findAndRestore(entityManager, Bpovwm.class, "ASCT-1");
 
         assertThat(restored).isSameAs(deleted);
         assertThat(restored.getDelYn()).isEqualTo("N");

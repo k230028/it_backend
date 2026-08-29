@@ -103,7 +103,9 @@ class AuthServiceTest {
                 AuthService.class.getDeclaredMethod(
                         "issueLoginTokens", CuserI.class, String.class, String.class);
 
-        assertThat(completeLogin.getAnnotation(org.springframework.transaction.annotation.Transactional.class))
+        assertThat(
+                        completeLogin.getAnnotation(
+                                org.springframework.transaction.annotation.Transactional.class))
                 .isNotNull();
         assertThat(
                         issueLoginTokens.getAnnotation(
@@ -838,9 +840,7 @@ class AuthServiceTest {
     @DisplayName("logoutByRefreshToken - 쿠키 값이 있어도 DB에 없으면 조회 실패로 삭제·이력 모두 생략한다")
     void logoutByRefreshToken_쿠키값DB미존재_삭제및이력생략() {
         // given: 쿠키 해시로 저장 행을 찾지 못하고, 인증 사번도 없는 경우 — 아무 폐기 대상도 없다.
-        given(
-                        refreshTokenRepository.findByEcyRnwPubTokCone(
-                                fingerprint("stale-token")))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint("stale-token")))
                 .willReturn(Optional.empty());
 
         authService.logoutByRefreshToken("stale-token", null, "127.0.0.1", "Agent");

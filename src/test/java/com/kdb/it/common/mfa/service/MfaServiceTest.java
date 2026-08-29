@@ -1043,8 +1043,7 @@ class MfaServiceTest {
                         "test-fixed-key",
                         java.util.Set.of()),
                 clock,
-                new TokenFingerprint(
-                        "test-secret-key-for-junit-test-minimum-256-bits-length-ok"));
+                new TokenFingerprint("test-secret-key-for-junit-test-minimum-256-bits-length-ok"));
     }
 
     private static MfaProvider successProvider() {
@@ -1086,8 +1085,7 @@ class MfaServiceTest {
     }
 
     private static String hash(String value) {
-        return new TokenFingerprint(
-                        "test-secret-key-for-junit-test-minimum-256-bits-length-ok")
+        return new TokenFingerprint("test-secret-key-for-junit-test-minimum-256-bits-length-ok")
                 .forMfa(value);
     }
 

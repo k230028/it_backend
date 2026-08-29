@@ -180,8 +180,7 @@ class BizplanServiceTest {
                             .guidPrgSno(1)
                             .delYn("Y")
                             .build();
-            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N"))
-                    .thenReturn(Optional.empty());
+            when(bizplanRepository.findByAbusMngNoAndDelYn(PRJ, "N")).thenReturn(Optional.empty());
             when(bizplanRepository.findById(PRJ)).thenReturn(Optional.of(deleted));
             when(bbizsmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());
             when(bbizgmRepository.findByAbusMngNoOrderBySnoAsc(PRJ)).thenReturn(List.of());

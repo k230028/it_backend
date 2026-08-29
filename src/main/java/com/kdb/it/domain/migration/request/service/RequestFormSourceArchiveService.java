@@ -90,10 +90,7 @@ public class RequestFormSourceArchiveService {
         }
         List<String> fileIds = request.fileIds();
         AttachmentArchiveSupport.validateSelection(
-                fileIds,
-                "선택 파일은 한 건 이상이어야 합니다.",
-                "파일매핑ID는 공백일 수 없습니다.",
-                "중복된 파일매핑ID를 선택할 수 없습니다.");
+                fileIds, "선택 파일은 한 건 이상이어야 합니다.", "파일매핑ID는 공백일 수 없습니다.", "중복된 파일매핑ID를 선택할 수 없습니다.");
     }
 
     private Set<String> resolveSelection(
@@ -120,7 +117,8 @@ public class RequestFormSourceArchiveService {
             archiveFiles.add(
                     new ArchiveFile(
                             file.getFlMpnId(),
-                            AttachmentArchiveSupport.uniqueEntryName(normalizedPath, usedEntryNames)));
+                            AttachmentArchiveSupport.uniqueEntryName(
+                                    normalizedPath, usedEntryNames)));
         }
         if (archiveFiles.isEmpty()) {
             throw new CustomGeneralException("다운로드할 수 있는 편성요청서 원본이 없습니다.");
@@ -131,7 +129,10 @@ public class RequestFormSourceArchiveService {
     private void writeZip(List<ArchiveFile> archiveFiles, OutputStream output) {
         AttachmentArchiveSupport.writeZip(
                 archiveFiles.stream()
-                        .map(file -> new AttachmentArchiveSupport.ArchiveFile(file.fileId(), file.entryName()))
+                        .map(
+                                file ->
+                                        new AttachmentArchiveSupport.ArchiveFile(
+                                                file.fileId(), file.entryName()))
                         .toList(),
                 output,
                 fileService,

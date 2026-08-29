@@ -143,11 +143,11 @@ class RequestFormImportServiceTest {
 
         RequestFormDto.ImportResponse response =
                 service(50)
-                .importBatch(
-                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
-                        manifest("자금운용실/요청서.xls"),
-                        "12345678",
-                        true);
+                        .importBatch(
+                                List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                                manifest("자금운용실/요청서.xls"),
+                                "12345678",
+                                true);
 
         assertThat(response.dryRun()).isTrue();
         org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.never())
@@ -241,7 +241,8 @@ class RequestFormImportServiceTest {
     @SuppressWarnings("unchecked")
     private static List<String> archiveFailedFileKeys(RequestFormDto.ImportSummary summary) {
         try {
-            return (List<String>) summary.getClass().getMethod("archiveFailedFileKeys").invoke(summary);
+            return (List<String>)
+                    summary.getClass().getMethod("archiveFailedFileKeys").invoke(summary);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
         }

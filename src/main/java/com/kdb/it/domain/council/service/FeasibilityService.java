@@ -213,9 +213,7 @@ public class FeasibilityService {
             if (existing == null) {
                 existing =
                         EntityRestoreSupport.findAndRestore(
-                                entityManager,
-                                Bchklm.class,
-                                new BchklmId(asctId, item.ckgItmC()));
+                                entityManager, Bchklm.class, new BchklmId(asctId, item.ckgItmC()));
             }
             if (existing != null) {
                 existing.update(item.ckgRcrd(), item.ckgOpnn());

@@ -74,10 +74,7 @@ public class BoardAttachmentArchiveService {
             throw new CustomGeneralException("게시물 관리번호는 필수입니다.");
         }
         AttachmentArchiveSupport.validateSelection(
-                fileIds,
-                "선택 파일은 한 건 이상이어야 합니다.",
-                "파일매핑ID는 공백일 수 없습니다.",
-                "중복된 파일매핑ID를 선택할 수 없습니다.");
+                fileIds, "선택 파일은 한 건 이상이어야 합니다.", "파일매핑ID는 공백일 수 없습니다.", "중복된 파일매핑ID를 선택할 수 없습니다.");
     }
 
     private Set<String> resolveSelection(
@@ -85,9 +82,7 @@ public class BoardAttachmentArchiveService {
         Set<String> authorizedIds = new HashSet<>();
         authorizedFiles.forEach(file -> authorizedIds.add(file.getFlMpnId()));
         return AttachmentArchiveSupport.resolveSelection(
-                requestedIds,
-                authorizedIds,
-                "선택한 게시판 첨부파일을 다운로드할 수 없습니다.");
+                requestedIds, authorizedIds, "선택한 게시판 첨부파일을 다운로드할 수 없습니다.");
     }
 
     private List<ArchiveFile> preflight(
@@ -125,7 +120,10 @@ public class BoardAttachmentArchiveService {
     private void writeZip(List<ArchiveFile> archiveFiles, OutputStream output) {
         AttachmentArchiveSupport.writeZip(
                 archiveFiles.stream()
-                        .map(file -> new AttachmentArchiveSupport.ArchiveFile(file.fileId(), file.entryName()))
+                        .map(
+                                file ->
+                                        new AttachmentArchiveSupport.ArchiveFile(
+                                                file.fileId(), file.entryName()))
                         .toList(),
                 output,
                 fileService,

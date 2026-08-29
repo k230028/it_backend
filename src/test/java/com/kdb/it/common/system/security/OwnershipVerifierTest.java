@@ -110,7 +110,8 @@ class OwnershipVerifierTest {
                         OwnershipVerifier.canModify(
                                 "10001",
                                 "D999",
-                                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "D001")))
+                                new CustomUserDetails(
+                                        "10001", List.of(CustomUserDetails.ATH_USER), "D001")))
                 .isTrue();
     }
 

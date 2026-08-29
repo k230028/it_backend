@@ -66,10 +66,10 @@ import org.springframework.test.context.ActiveProfiles;
  * 서비스·DB 계층의 실제 커밋/잠금 동작에만 집중한다.
  *
  * <p>DB 상태(REUSED/EXPIRED/ACTIVE)를 만들기 위해 {@link JwtUtil#generateRefreshToken(String)}으로 구조적으로 유효한
- * Refresh JWT를 발급하고, 그 HMAC-SHA256 지문을 {@code
- * ECY_RNW_PUB_TOK_CONE}으로 하는 {@code TPRMPP_CRTOKM} 행을 JDBC로 직접 시딩한다. JPA {@code save()}가 아닌 직접
- * INSERT를 쓰는 이유는 {@code AVL_YN}·{@code END_DTM}·{@code LST_CHG_DTM}(회전 grace 판단 기준)을 JPA
- * Auditing({@code @LastModifiedDate})의 개입 없이 원하는 과거/미래 값으로 정확히 고정해야 하기 때문이다.
+ * Refresh JWT를 발급하고, 그 HMAC-SHA256 지문을 {@code ECY_RNW_PUB_TOK_CONE}으로 하는 {@code TPRMPP_CRTOKM} 행을
+ * JDBC로 직접 시딩한다. JPA {@code save()}가 아닌 직접 INSERT를 쓰는 이유는 {@code AVL_YN}·{@code END_DTM}·{@code
+ * LST_CHG_DTM}(회전 grace 판단 기준)을 JPA Auditing({@code @LastModifiedDate})의 개입 없이 원하는 과거/미래 값으로 정확히
+ * 고정해야 하기 때문이다.
  */
 @Tag("it")
 @SpringBootTest(

@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -23,7 +22,10 @@ public final class AttachmentArchiveSupport {
 
     /** 선택 파일 ID의 공통 형식과 중복을 검증합니다. */
     public static void validateSelection(
-            List<String> fileIds, String emptyMessage, String blankMessage, String duplicateMessage) {
+            List<String> fileIds,
+            String emptyMessage,
+            String blankMessage,
+            String duplicateMessage) {
         if (fileIds == null) return;
         if (fileIds.isEmpty()) throw new CustomGeneralException(emptyMessage);
         if (fileIds.stream().anyMatch(fileId -> !StringUtils.hasText(fileId)))

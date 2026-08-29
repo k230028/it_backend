@@ -213,8 +213,8 @@ public class ProjectQueryAssembler {
      * <p>담당자 컬럼은 사번 또는 이름을 담으므로, 사번 조회가 비면 {@link UserNameResolver}가 저장값 자체를 이름으로 사용할지 판정합니다. 직위명은
      * 사용자 조회가 성공한 경우에만 채웁니다.
      *
-     * <p>행번이 비어 있으면 조인 해석을 건너뛰고, 해석에 실패해도 null로 덮지 않습니다 — 응답 초기값으로 실린 저장 스냅샷 이름(USR_NM·TLR_NM)을
-     * 유지해 행번 미해석 행의 이름이 화면에서 사라지지 않게 합니다.
+     * <p>행번이 비어 있으면 조인 해석을 건너뛰고, 해석에 실패해도 null로 덮지 않습니다 — 응답 초기값으로 실린 저장 스냅샷 이름(USR_NM·TLR_NM)을 유지해
+     * 행번 미해석 행의 이름이 화면에서 사라지지 않게 합니다.
      */
     private void applyUserName(
             String userId,

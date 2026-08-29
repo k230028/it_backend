@@ -246,7 +246,7 @@ public class CostQueryAssembler {
                         ? cost.getSvnTemNm()
                         : mapValue(data.organizationNames(), response.getSvnTemC()));
         /* 담당자명: 행번이 비어 있으면 조인 해석을 건너뛰고 저장 스냅샷(cgprNm 초기값)을 유지한다.
-           해석 실패(퇴직·미등록 행번)도 null로 덮지 않고 스냅샷을 남긴다 — 이름 삭제 방지. */
+        해석 실패(퇴직·미등록 행번)도 null로 덮지 않고 스냅샷을 남긴다 — 이름 삭제 방지. */
         String managerId = response.getCgprId();
         if (hasText(managerId)) {
             String managerName = mapValue(data.userNames(), managerId);
@@ -288,7 +288,7 @@ public class CostQueryAssembler {
                     .ifPresent(value -> response.setSvnTemNm(value.getBbrNm()));
         }
         /* 담당자명: 행번이 비어 있으면 조인 해석을 건너뛰고 저장 스냅샷(cgprNm 초기값)을 유지한다.
-           해석 실패(퇴직·미등록 행번)도 null로 덮지 않고 스냅샷을 남긴다 — 이름 삭제 방지. */
+        해석 실패(퇴직·미등록 행번)도 null로 덮지 않고 스냅샷을 남긴다 — 이름 삭제 방지. */
         if (hasText(response.getCgprId())) {
             String managerId = response.getCgprId();
             UserRepository.UserNameView view =

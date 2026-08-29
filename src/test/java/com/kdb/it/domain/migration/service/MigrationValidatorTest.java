@@ -992,9 +992,7 @@ class MigrationValidatorTest {
 
         assertThat(result)
                 .noneMatch(
-                        d ->
-                                "vendorName".equals(d.column())
-                                        && "LENGTH_EXCEEDED".equals(d.code()));
+                        d -> "vendorName".equals(d.column()) && "LENGTH_EXCEEDED".equals(d.code()));
     }
 
     @Test
@@ -1004,7 +1002,12 @@ class MigrationValidatorTest {
 
         List<MigrationDto.CellDiagnostic> result =
                 validator.validate(
-                        List.of(costSheet(row(2, costCells(Map.of("vendorName", overflowingVendor))))),
+                        List.of(
+                                costSheet(
+                                        row(
+                                                2,
+                                                costCells(
+                                                        Map.of("vendorName", overflowingVendor))))),
                         TestSnapshots.indexWithIoe("001", "국내전산임차료"),
                         TestSnapshots.empty("2026"),
                         Map.of(),

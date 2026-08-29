@@ -60,8 +60,7 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleCustomGeneralException(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody())
-                .containsEntry("message", "게시판을 찾을 수 없습니다: BLB-2026-0001");
+        assertThat(response.getBody()).containsEntry("message", "게시판을 찾을 수 없습니다: BLB-2026-0001");
     }
 
     @Test

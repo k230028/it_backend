@@ -15,9 +15,11 @@ class BoardPostSearchConditionBindingAdviceTest {
     @DisplayName("게시물 검색조건 바인더는 서버 전용 플래그를 막고 정상 필드는 그대로 바인딩한다")
     void binder_blocksServerOnlyField_andBindsNormalFields() throws Exception {
         Class<?> adviceType =
-                Class.forName("com.kdb.it.common.board.controller.BoardPostSearchConditionBindingAdvice");
+                Class.forName(
+                        "com.kdb.it.common.board.controller.BoardPostSearchConditionBindingAdvice");
         Object advice = adviceType.getDeclaredConstructor().newInstance();
-        Method initBinder = adviceType.getDeclaredMethod("initSearchConditionBinder", WebDataBinder.class);
+        Method initBinder =
+                adviceType.getDeclaredMethod("initSearchConditionBinder", WebDataBinder.class);
 
         BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
         WebDataBinder binder = new WebDataBinder(condition);

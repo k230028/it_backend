@@ -149,6 +149,10 @@ public class CostDto extends CostTerminalDto {
         @Schema(description = "담당자", example = "홍길동")
         private String cgprId;
 
+        /** 담당자명 스냅샷 */
+        @Schema(description = "담당자명 스냅샷", nullable = true)
+        private String cgprNm;
+
         /** 담당부서 (부서코드) */
         @Schema(description = "담당부서", example = "001")
         private String costSvnDpmC;
@@ -156,6 +160,14 @@ public class CostDto extends CostTerminalDto {
         /** 담당팀 (팀코드) */
         @Schema(description = "담당팀", example = "00101")
         private String svnTemC;
+
+        /** 담당부서명 스냅샷 */
+        @Schema(description = "담당부서명 스냅샷", nullable = true)
+        private String costSvnDpmNm;
+
+        /** 담당팀명 스냅샷 */
+        @Schema(description = "담당팀명 스냅샷", nullable = true)
+        private String svnTemNm;
 
         /** 사업코드 */
         @Schema(description = "사업코드", example = "ABUS01")
@@ -284,6 +296,10 @@ public class CostDto extends CostTerminalDto {
         @Schema(description = "담당자", example = "홍길동")
         private String cgprId;
 
+        /** 담당자명 스냅샷 */
+        @Schema(description = "담당자명 스냅샷", nullable = true)
+        private String cgprNm;
+
         /** 담당부서 */
         @Schema(description = "담당부서", example = "001")
         private String costSvnDpmC;
@@ -291,6 +307,14 @@ public class CostDto extends CostTerminalDto {
         /** 담당팀 */
         @Schema(description = "담당팀", example = "00101")
         private String svnTemC;
+
+        /** 담당부서명 스냅샷 */
+        @Schema(description = "담당부서명 스냅샷", nullable = true)
+        private String costSvnDpmNm;
+
+        /** 담당팀명 스냅샷 */
+        @Schema(description = "담당팀명 스냅샷", nullable = true)
+        private String svnTemNm;
 
         /** 사업코드 */
         @Schema(description = "사업코드", example = "ABUS01")
@@ -704,10 +728,10 @@ public class CostDto extends CostTerminalDto {
         /**
          * 소속 부서 한정 조회 여부
          *
-         * <p>true면 Service가 인증 사용자의 부점코드로 {@code costSvnDpmC}를 덮어씁니다. 부서코드는 클라이언트가 보낸 값이 아니라 인증
-         * 정보에서만 얻으므로 다른 부서로 범위를 넓힐 수 없습니다. 시스템관리자는 이 값과 무관하게 전체를 조회합니다.
+         * <p>일반 사용자는 이 값과 무관하게 Service가 인증 사용자의 부점코드로 {@code costSvnDpmC}를 덮어씁니다. 시스템관리자는 true이면 본인 부서,
+         * 그 외에는 전체를 조회합니다.
          */
-        @Schema(description = "true면 로그인 사용자 소속 부서 항목만 조회 (시스템관리자는 전체). 미입력 시 부서 제한 없음")
+        @Schema(description = "true면 로그인 사용자 소속 부서 항목만 조회 (관리자도 적용). 관리자가 false 또는 미입력 시 전체 조회")
         private Boolean myDeptOnly;
 
         /**

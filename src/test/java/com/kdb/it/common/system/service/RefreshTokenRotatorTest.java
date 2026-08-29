@@ -77,9 +77,7 @@ class RefreshTokenRotatorTest {
                         .avlYn("Y")
                         .endDtm(LocalDateTime.now().plusDays(7))
                         .build();
-        given(
-                        refreshTokenRepository.findByEcyRnwPubTokCone(
-                                fingerprint(oldRefresh)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(oldRefresh)))
                 .willReturn(Optional.of(stored));
         given(userRepository.findByEno("10001"))
                 .willReturn(
@@ -112,8 +110,7 @@ class RefreshTokenRotatorTest {
         // 새 토큰은 Crtokm.create(...)로 생성되어 소유자 eno가 감사자로 기록되어야 한다.
         assertThat(savedNew.getFstEnrUsid()).isEqualTo("10001");
         assertThat(savedNew.getLstChgUsid()).isEqualTo("10001");
-        assertThat(savedNew.getEcyRnwPubTokCone())
-                .isEqualTo(fingerprint("new-refresh"));
+        assertThat(savedNew.getEcyRnwPubTokCone()).isEqualTo(fingerprint("new-refresh"));
         // 갓 회전된 신규 토큰은 활성(AVL_YN='Y') 상태여야 한다 — 여기가 깨지면 다음 refresh 요청이 거부된다(SEC-01 단일활성 불변식).
         assertThat(savedNew.getAvlYn()).isEqualTo("Y");
         assertThat(savedNew.isRotated()).isFalse();
@@ -141,9 +138,7 @@ class RefreshTokenRotatorTest {
                         .avlYn("Y")
                         .endDtm(LocalDateTime.now().plusDays(7))
                         .build();
-        given(
-                        refreshTokenRepository.findByEcyRnwPubTokCone(
-                                fingerprint(oldRefresh)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(oldRefresh)))
                 .willReturn(Optional.of(stored));
         given(userRepository.findByEno("10001"))
                 .willReturn(
@@ -241,9 +236,7 @@ class RefreshTokenRotatorTest {
                         .avlYn("Y")
                         .endDtm(LocalDateTime.now().minusDays(1)) // 이미 만료
                         .build();
-        given(
-                        refreshTokenRepository.findByEcyRnwPubTokCone(
-                                fingerprint(tokenValue)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(tokenValue)))
                 .willReturn(Optional.of(expiredToken));
 
         // when & then
@@ -268,9 +261,7 @@ class RefreshTokenRotatorTest {
     void rotate_DB토큰없음_RefreshTokenNotFoundException() {
         // given: 조회값에 해당하는 저장 행이 아예 없는 상태(예: 만료 삭제·로그아웃 이후 재제출)
         String tokenValue = "missing-refresh-token";
-        given(
-                        refreshTokenRepository.findByEcyRnwPubTokCone(
-                                fingerprint(tokenValue)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(tokenValue)))
                 .willReturn(Optional.empty());
 
         // when & then: 타입 기반 마커 예외 — 이 시점엔 폐기할 패밀리가 없으므로 삭제 호출도 없어야 한다.
@@ -295,9 +286,7 @@ class RefreshTokenRotatorTest {
                         .avlYn("Y")
                         .endDtm(LocalDateTime.now().plusDays(7))
                         .build();
-        given(
-                        refreshTokenRepository.findByEcyRnwPubTokCone(
-                                fingerprint(tokenValue)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(tokenValue)))
                 .willReturn(Optional.of(refreshToken));
         given(userRepository.findByEno("10001")).willReturn(Optional.empty());
 
@@ -323,9 +312,7 @@ class RefreshTokenRotatorTest {
                         .avlYn("Y")
                         .endDtm(LocalDateTime.now().plusDays(7))
                         .build();
-        given(
-                        refreshTokenRepository.findByEcyRnwPubTokCone(
-                                fingerprint(oldRefresh)))
+        given(refreshTokenRepository.findByEcyRnwPubTokCone(fingerprint(oldRefresh)))
                 .willReturn(Optional.of(stored));
         given(userRepository.findByEno("10001"))
                 .willReturn(

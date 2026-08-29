@@ -447,8 +447,7 @@ class CapitalDeclaredAmountsTest {
     @Test
     @DisplayName("당해 합계와 이후 합계가 같아도 유일한 당해 품목을 예정금액으로 옮기지 않는다")
     void keepsOnlyCurrentItemWhenYearAndLaterTotalsAreEqual() {
-        FormAdapterOutput output =
-                adaptWithResource("20백만원", 10d, 10d, "기계장치(HW)", 10_000_000d);
+        FormAdapterOutput output = adaptWithResource("20백만원", 10d, 10d, "기계장치(HW)", 10_000_000d);
 
         assertThat(output.projects().getFirst().getItems())
                 .singleElement()

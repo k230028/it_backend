@@ -25,9 +25,10 @@ public class TokenFingerprint {
      * <p>{@code security.token-fingerprint-secret}는 JWT 서명키와 분리해 회전·권한 범위를 독립적으로 관리합니다.
      */
     public TokenFingerprint(@Value("${security.token-fingerprint-secret}") String secret) {
-        if (secret == null || secret.isBlank() || (secret.startsWith("${") && secret.endsWith("}"))) {
-            throw new IllegalStateException(
-                    "필수 프로퍼티 미설정: security.token-fingerprint-secret");
+        if (secret == null
+                || secret.isBlank()
+                || (secret.startsWith("${") && secret.endsWith("}"))) {
+            throw new IllegalStateException("필수 프로퍼티 미설정: security.token-fingerprint-secret");
         }
         if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalArgumentException(

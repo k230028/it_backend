@@ -26,7 +26,10 @@ import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
-
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,11 +41,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * CostService 단위 테스트
@@ -541,16 +539,10 @@ class CostServiceTest {
                         .terminals(List.of(terminal))
                         .build();
         CuserI manager =
-                CuserI.builder()
-                        .eno("10004")
-                        .usrNm("담당자")
-                        .bbrC("BBR004")
-                        .temC("18004")
-                        .build();
+                CuserI.builder().eno("10004").usrNm("담당자").bbrC("BBR004").temC("18004").build();
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
         given(btermmRepository.getNextSequenceValue()).willReturn(4L);
-        given(cuserIRepository.findByEnoIn(java.util.Set.of("10004")))
-                .willReturn(List.of(manager));
+        given(cuserIRepository.findByEnoIn(java.util.Set.of("10004"))).willReturn(List.of(manager));
         given(cuserIRepository.findByEno("10004")).willReturn(Optional.of(manager));
         given(orgNameResolver.resolveName("BBR004")).willReturn("디지털전략부");
         given(orgNameResolver.resolveName("18004")).willReturn("디지털전략팀");
@@ -753,8 +745,8 @@ class CostServiceTest {
     }
 
     @Test
-    @DisplayName("searchCostList: myDeptOnly=true라도 시스템관리자는 부서 조건이 강제되지 않는다")
-    void searchCostList_부서한정_관리자_전체조회() {
+    @DisplayName("searchCostList: myDeptOnly=true인 시스템관리자는 본인 부서로 제한된다")
+    void searchCostList_부서한정_관리자_본인부서로강제() {
         CustomUserDetails admin =
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "101");
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
@@ -766,16 +758,16 @@ class CostServiceTest {
         ArgumentCaptor<CostDto.SearchCondition> captor =
                 ArgumentCaptor.forClass(CostDto.SearchCondition.class);
         verify(costRepository).searchByCondition(captor.capture());
-        assertThat(captor.getValue().getCostSvnDpmC()).isNull();
+        assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("101");
     }
 
     @Test
-    @DisplayName("searchCostList: myDeptOnly=true인데 부점코드가 없으면 전체 조회 대신 빈 목록을 반환한다")
+    @DisplayName("searchCostList: 부서 제한 대상인데 부점코드가 없으면 전체 조회 대신 빈 목록을 반환한다")
     void searchCostList_부서한정_부점코드없음_빈목록() {
         CustomUserDetails user =
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), null);
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
-        condition.setMyDeptOnly(true);
+        condition.setMyDeptOnly(false);
 
         List<CostDto.Response> result = costService.searchCostList(condition, user);
 
@@ -784,8 +776,8 @@ class CostServiceTest {
     }
 
     @Test
-    @DisplayName("searchCostList: myDeptOnly가 없으면 부서 조건을 건드리지 않는다")
-    void searchCostList_부서한정아님_조건유지() {
+    @DisplayName("searchCostList: 일반 사용자는 myDeptOnly가 없어도 본인 부서로 제한된다")
+    void searchCostList_부서한정아님_일반사용자_본인부서로강제() {
         CustomUserDetails user =
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
@@ -793,6 +785,24 @@ class CostServiceTest {
         given(costRepository.searchByCondition(any())).willReturn(List.of());
 
         costService.searchCostList(condition, user);
+
+        ArgumentCaptor<CostDto.SearchCondition> captor =
+                ArgumentCaptor.forClass(CostDto.SearchCondition.class);
+        verify(costRepository).searchByCondition(captor.capture());
+        assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("101");
+    }
+
+    @Test
+    @DisplayName("searchCostList: 시스템관리자가 myDeptOnly=false이면 전체 조회한다")
+    void searchCostList_관리자_전체조회() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "101");
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setMyDeptOnly(false);
+        condition.setCostSvnDpmC("999");
+        given(costRepository.searchByCondition(any())).willReturn(List.of());
+
+        costService.searchCostList(condition, admin);
 
         ArgumentCaptor<CostDto.SearchCondition> captor =
                 ArgumentCaptor.forClass(CostDto.SearchCondition.class);
