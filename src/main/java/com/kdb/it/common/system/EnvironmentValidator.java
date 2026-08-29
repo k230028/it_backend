@@ -11,14 +11,16 @@ import org.springframework.stereotype.Component;
 /**
  * 구동 시 필수 비밀값 존재 여부를 검증하는 컴포넌트 — SEC-01
  *
- * <p>{@link PostConstruct}로 스프링 컨텍스트 초기화 직후 실행되며, 운영에 필요한 비밀값(DB 비밀번호, JWT 시크릿)이 빈값이면 즉시 기동을 중단합니다.
- * 단, {@code application.properties}에 기본값이 남아 있으면 환경변수 미설정도 통과하므로 운영 프로파일에서는 기본값 제거 또는 별도 검증이 필요합니다.
+ * <p>{@link PostConstruct}로 스프링 컨텍스트 초기화 직후 실행되며, 운영에 필요한 비밀값(DB 비밀번호, JWT 시크릿, 토큰 지문 시크릿)이
+ * 빈값이면 즉시 기동을 중단합니다. 단, {@code application.properties}에 기본값이 남아 있으면 환경변수 미설정도 통과하므로 운영 프로파일에서는
+ * 기본값 제거 또는 별도 검증이 필요합니다.
  *
  * <p>검증 대상:
  *
  * <ul>
  *   <li>{@code spring.datasource.password} → 환경변수 {@code DB_PASSWORD}
  *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}
+ *   <li>{@code security.token-fingerprint-secret} → 환경변수 {@code TOKEN_FINGERPRINT_SECRET}
  *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code
  *       cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code
  *       app.mfa.store}(운영 memory 금지 — SEC-13)/{@code app.frontend-url}/{@code
@@ -46,6 +48,7 @@ public class EnvironmentValidator {
         // 전 프로파일 공통: 비밀값 빈값 차단
         checkRequired("spring.datasource.password", "DB_PASSWORD");
         checkRequired("jwt.secret", "JWT_SECRET");
+        checkRequired("security.token-fingerprint-secret", "TOKEN_FINGERPRINT_SECRET");
 
         // 운영 프로파일에서만: 운영 필수 키 빈값/와일드카드/위험 토글 차단
         if (isProdProfile()) {
@@ -188,9 +191,14 @@ public class EnvironmentValidator {
 
     private void checkRequired(String propertyKey, String envVarName) {
         String value = environment.getProperty(propertyKey);
-        if (value == null || value.isBlank()) {
+        if (value == null || value.isBlank() || isUnresolvedPlaceholder(value)) {
             throw new IllegalStateException(
                     "필수 환경변수 미설정: " + envVarName + " — 운영 환경에서는 빈값을 허용하지 않습니다.");
         }
+    }
+
+    /** 환경변수 해석에 실패해 플레이스홀더 문자열이 그대로 남은 경우를 미설정으로 판정합니다. */
+    private boolean isUnresolvedPlaceholder(String value) {
+        return value.startsWith("${") && value.endsWith("}");
     }
 }

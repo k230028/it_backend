@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -42,6 +43,9 @@ class EnvironmentValidatorTest {
         given(environment.getProperty("spring.datasource.password")).willReturn("securePassword!");
         given(environment.getProperty("jwt.secret"))
                 .willReturn("super-secret-key-at-least-256-bits-long");
+        lenient()
+                .when(environment.getProperty("security.token-fingerprint-secret"))
+                .thenReturn("token-fingerprint-secret-at-least-256-bits");
 
         EnvironmentValidator validator = new EnvironmentValidator(environment);
         assertThatCode(validator::validate).doesNotThrowAnyException();
@@ -74,11 +78,28 @@ class EnvironmentValidatorTest {
     void validate_blankJwtSecret_throwsIllegalState() {
         given(environment.getProperty("spring.datasource.password")).willReturn("securePassword!");
         given(environment.getProperty("jwt.secret")).willReturn("   ");
+        lenient()
+                .when(environment.getProperty("security.token-fingerprint-secret"))
+                .thenReturn("token-fingerprint-secret-at-least-256-bits");
 
         EnvironmentValidator validator = new EnvironmentValidator(environment);
         assertThatThrownBy(validator::validate)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("JWT_SECRET");
+    }
+
+    @Test
+    @DisplayName("TOKEN_FINGERPRINT_SECRET 빈값 시 IllegalStateException 발생 — 메시지에 환경변수명 포함")
+    void validate_blankTokenFingerprintSecret_throwsIllegalState() {
+        given(environment.getProperty("spring.datasource.password")).willReturn("securePassword!");
+        given(environment.getProperty("jwt.secret"))
+                .willReturn("super-secret-key-at-least-256-bits-long");
+        given(environment.getProperty("security.token-fingerprint-secret")).willReturn("   ");
+
+        EnvironmentValidator validator = new EnvironmentValidator(environment);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("TOKEN_FINGERPRINT_SECRET");
     }
 
     // ── 운영 프로파일 전용 키 검증 (T8) ───────────────────────────────────
@@ -89,6 +110,9 @@ class EnvironmentValidatorTest {
         env.setProperty("spring.datasource.password", "pw");
         env.setProperty(
                 "jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        env.setProperty(
+                "security.token-fingerprint-secret",
+                "token-fingerprint-secret-at-least-256-bits-long-xxxxxxxxxxxx");
         env.setProperty("gemini.api.key", "gk-real-key");
         env.setProperty("eai.enabled", "true");
         env.setProperty("eai.url", "http://eai.internal/std");
@@ -423,6 +447,17 @@ class EnvironmentValidatorTest {
     }
 
     @Test
+    @DisplayName("운영 프로파일에서 TOKEN_FINGERPRINT_SECRET 빈값이면 기동 차단")
+    void validate_prodBlankTokenFingerprintSecret_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("security.token-fingerprint-secret", " ");
+        EnvironmentValidator validator = new EnvironmentValidator(env);
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("TOKEN_FINGERPRINT_SECRET");
+    }
+
+    @Test
     @DisplayName("운영 프로파일에서 eai.enabled=true인데 eai.url 빈값이면 기동 차단")
     void validate_prodEaiEnabledBlankUrl_throws() {
         MockEnvironment env = prodEnvWithAllRequired();
@@ -517,6 +552,9 @@ class EnvironmentValidatorTest {
         env.setProperty("spring.datasource.password", "pw");
         env.setProperty(
                 "jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        env.setProperty(
+                "security.token-fingerprint-secret",
+                "token-fingerprint-secret-at-least-256-bits-long-xxxxxxxxxxxx");
         // gemini/eai/cors/sso 미설정
         EnvironmentValidator validator = new EnvironmentValidator(env);
         assertThatCode(validator::validate).doesNotThrowAnyException();
@@ -569,6 +607,9 @@ class EnvironmentValidatorTest {
         requiredProperties.put("spring.datasource.password", "pw");
         requiredProperties.put(
                 "jwt.secret", "super-secret-key-at-least-256-bits-long-xxxxxxxxxxxxxxxxxxxxxxxx");
+        requiredProperties.put(
+                "security.token-fingerprint-secret",
+                "token-fingerprint-secret-at-least-256-bits-long-xxxxxxxxxxxx");
         requiredProperties.put("gemini.api.key", "gk-real-key");
         requiredProperties.put("eai.enabled", "false");
         requiredProperties.put("cors.allowed-origins", "https://it.kdb.co.kr");

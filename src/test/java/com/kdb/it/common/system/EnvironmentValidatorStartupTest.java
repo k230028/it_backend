@@ -69,6 +69,16 @@ class EnvironmentValidatorStartupTest {
     }
 
     @Test
+    @DisplayName("운영 프로파일에서 TOKEN_FINGERPRINT_SECRET 누락은 실제 기동 중 차단")
+    void prod_missingTokenFingerprintSecret_failsDuringStartup() {
+        assertStartupFailsWithEnvVar(
+                Map.of(
+                        "spring.profiles.active", "prod",
+                        "security.token-fingerprint-secret", ""),
+                "TOKEN_FINGERPRINT_SECRET");
+    }
+
+    @Test
     @DisplayName("active non-prod가 있으면 default prod보다 active를 우선해 정상 기동")
     void activeNonProdWithDefaultProd_startsSuccessfully() {
         assertStartupSucceeds(
@@ -91,6 +101,21 @@ class EnvironmentValidatorStartupTest {
                 .rootCause()
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("운영 보안 위반: " + propertyKey);
+    }
+
+    private void assertStartupFailsWithEnvVar(Map<String, String> overrides, String envVarName) {
+        SpringApplication application = application();
+
+        assertThatThrownBy(
+                        () -> {
+                            try (ConfigurableApplicationContext _ =
+                                    application.run(arguments(overrides))) {
+                                // 기동 성공 자체가 보안 경계 실패다.
+                            }
+                        })
+                .rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(envVarName);
     }
 
     private void assertStartupSucceeds(Map<String, String> overrides) {
@@ -120,6 +145,9 @@ class EnvironmentValidatorStartupTest {
         Map<String, String> properties = new LinkedHashMap<>();
         properties.put("spring.datasource.password", "test-db-password");
         properties.put("jwt.secret", "test-secret-key-for-junit-test-minimum-256-bits-length-ok");
+        properties.put(
+                "security.token-fingerprint-secret",
+                "test-token-fingerprint-secret-for-junit-minimum-256-bits-ok");
         properties.put("gemini.api.key", "test-gemini-key");
         properties.put("eai.enabled", "false");
         properties.put("cors.allowed-origins", "https://it.kdb.co.kr");

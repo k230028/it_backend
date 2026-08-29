@@ -6,6 +6,11 @@
       "description": "JWT 서명에 사용할 HMAC 시크릿입니다."
     },
     {
+      "name": "security.token-fingerprint-secret",
+      "type": "java.lang.String",
+      "description": "Refresh/MFA 토큰 지문 생성에 사용할 전용 HMAC 시크릿입니다."
+    },
+    {
       "name": "jwt.access-token-validity",
       "type": "java.lang.Long",
       "description": "Access Token 유효 시간(ms)입니다."
