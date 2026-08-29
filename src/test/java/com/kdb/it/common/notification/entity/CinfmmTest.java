@@ -66,6 +66,18 @@ class CinfmmTest {
     }
 
     @Test
+    @DisplayName("100바이트에 정확히 맞는 오류내용은 그대로 보존한다")
+    void markDispatchFailed_exactBoundary_keepsOriginalMessage() {
+        Cinfmm notification = pending();
+        String message = "a".repeat(97) + "가";
+
+        notification.markDispatchFailed(message);
+
+        assertThat(notification.getErrCone()).isEqualTo(message);
+        assertThat(notification.getErrCone().getBytes(StandardCharsets.UTF_8).length).isEqualTo(100);
+    }
+
+    @Test
     @DisplayName("5회 실패한 알림은 더 이상 재시도하지 않는다")
     void canRetry_exhausted_false() {
         Cinfmm notification = pending();

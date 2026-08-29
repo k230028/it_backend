@@ -1,5 +1,7 @@
 package com.kdb.it.domain.migration.request.service;
 
+import com.kdb.it.common.util.Utf8ByteLimit;
+
 /** 편성요청서 원본의 DB 메타데이터를 물리 컬럼 길이에 맞춥니다. */
 final class RequestFormArchiveMetadata {
 

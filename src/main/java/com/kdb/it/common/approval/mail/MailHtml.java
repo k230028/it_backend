@@ -1,7 +1,7 @@
 package com.kdb.it.common.approval.mail;
 
+import com.kdb.it.common.util.Utf8ByteLimit;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.Locale;
 import org.springframework.web.util.HtmlUtils;
@@ -57,7 +57,7 @@ final class MailHtml {
 
     /** UTF-8 바이트 길이. 전문 문자셋과 같은 기준으로 예산을 센다. */
     static int utf8Length(String html) {
-        return html == null ? 0 : html.getBytes(StandardCharsets.UTF_8).length;
+        return Utf8ByteLimit.length(html);
     }
 
     /**
@@ -73,25 +73,7 @@ final class MailHtml {
         if (value == null || value.isEmpty()) {
             return "";
         }
-        if (utf8Length(value) <= maxBytes) {
-            return value;
-        }
-        StringBuilder result = new StringBuilder();
-        int usedBytes = 0;
-        int i = 0;
-        while (i < value.length()) {
-            int codePoint = value.codePointAt(i);
-            int charCount = Character.charCount(codePoint);
-            String ch = value.substring(i, i + charCount);
-            int chBytes = utf8Length(ch);
-            if (usedBytes + chBytes > maxBytes) {
-                break;
-            }
-            result.append(ch);
-            usedBytes += chBytes;
-            i += charCount;
-        }
-        return result.toString();
+        return Utf8ByteLimit.truncate(value, maxBytes);
     }
 
     /** 머리글 셀 — 테두리·여백은 표가 주므로 배경색만 남긴다. */

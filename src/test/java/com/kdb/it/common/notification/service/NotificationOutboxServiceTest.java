@@ -122,6 +122,29 @@ class NotificationOutboxServiceTest {
         assertThat(captor.getValue().getInfmRcdUrl()).isNull();
     }
 
+    @Test
+    @DisplayName("enqueue는 정확히 4000바이트인 발송 페이로드는 null로 접지 않고 저장한다")
+    void enqueue_exactBoundarySdPayload_keepsPayload() {
+        given(repository.getNextVal()).willReturn(12L);
+        String exactPayload = "가".repeat(1333) + "a";
+        NotificationEvent event =
+                NotificationEvent.builder()
+                        .recipientEno("E0006")
+                        .itPtlInfmSvcTc(NotificationEvent.TYPE_APPROVAL_REQUEST)
+                        .ttl("결재요청")
+                        .infmMsgCone("본문")
+                        .itPtlSdTc("04")
+                        .sdPayload(exactPayload)
+                        .build();
+
+        service.enqueue(event);
+
+        ArgumentCaptor<Cinfmm> captor = ArgumentCaptor.forClass(Cinfmm.class);
+        verify(repository).saveAndFlush(captor.capture());
+        assertThat(utf8Length(captor.getValue().getSdDocCone())).isEqualTo(4000);
+        assertThat(captor.getValue().getSdDocCone()).isEqualTo(exactPayload);
+    }
+
     private static int utf8Length(String value) {
         return value == null ? 0 : value.getBytes(StandardCharsets.UTF_8).length;
     }

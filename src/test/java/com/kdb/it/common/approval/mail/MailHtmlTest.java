@@ -36,6 +36,24 @@ class MailHtmlTest {
     }
 
     @Test
+    @DisplayName("UTF-8 절단은 정확한 경계는 보존하고 1바이트 초과는 문자 경계에서 멈춘다")
+    void truncateUtf8_respectsExactBoundaryAndOneByteOverflow() {
+        String exactBoundary = "a".repeat(97) + "가";
+        String oneByteOverflow = "a".repeat(98) + "가";
+
+        assertThat(MailHtml.truncateUtf8(exactBoundary, 100)).isEqualTo(exactBoundary);
+        assertThat(MailHtml.truncateUtf8(oneByteOverflow, 100)).isEqualTo("a".repeat(98));
+    }
+
+    @Test
+    @DisplayName("UTF-8 절단은 서러게이트 쌍과 null empty를 안전하게 처리한다")
+    void truncateUtf8_handlesSurrogatePairAndNullEmpty() {
+        assertThat(MailHtml.truncateUtf8("a".repeat(97) + "😀", 100)).isEqualTo("a".repeat(97));
+        assertThat(MailHtml.truncateUtf8(null, 10)).isEmpty();
+        assertThat(MailHtml.truncateUtf8("", 10)).isEmpty();
+    }
+
+    @Test
     @DisplayName("머리글 셀만 배경색 인라인 스타일을 가진다")
     void cellsAndRow_carryInlineStyle() {
         String row = MailHtml.row(MailHtml.labelCell("구분"), MailHtml.textCell("정보화사업"));

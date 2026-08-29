@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.request.service.adapter;
 
 import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.request.dto.AmountUnit;
@@ -12,7 +13,6 @@ import com.kdb.it.domain.migration.request.service.AmountUnitResolver;
 import com.kdb.it.domain.migration.request.service.FormLexicon;
 import com.kdb.it.domain.migration.request.service.IoeHierarchyIndex;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
-import com.kdb.it.domain.migration.request.service.Utf8ByteLimit;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import java.math.BigDecimal;
 import java.util.ArrayList;

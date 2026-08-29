@@ -3,11 +3,7 @@ package com.kdb.it.common.notification.service;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
+import com.kdb.it.common.util.Utf8ByteLimit;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -95,19 +91,11 @@ public class NotificationOutboxService {
         if (value == null || value.isEmpty()) {
             return value;
         }
-        int actualBytes = value.getBytes(StandardCharsets.UTF_8).length;
+        int actualBytes = Utf8ByteLimit.length(value);
         if (actualBytes <= maxBytes) {
             return value;
         }
-
-        CharsetEncoder encoder =
-                StandardCharsets.UTF_8
-                        .newEncoder()
-                        .onMalformedInput(CodingErrorAction.REPLACE)
-                        .onUnmappableCharacter(CodingErrorAction.REPLACE);
-        CharBuffer in = CharBuffer.wrap(value);
-        encoder.encode(in, ByteBuffer.allocate(maxBytes), true);
-        String clamped = value.substring(0, in.position());
+        String clamped = Utf8ByteLimit.truncate(value, maxBytes);
 
         log.warn(
                 "알림 컬럼 폭 초과로 값을 잘랐습니다: column={}, 원본={}바이트, 예산={}바이트, 남긴 글자수={}/{}",
@@ -134,7 +122,7 @@ public class NotificationOutboxService {
         if (payload == null) {
             return null;
         }
-        int bytes = payload.getBytes(StandardCharsets.UTF_8).length;
+        int bytes = Utf8ByteLimit.length(payload);
         if (bytes <= SD_DOC_CONE_MAX_BYTES) {
             return payload;
         }

@@ -1,9 +1,8 @@
-package com.kdb.it.domain.migration.request.service;
+package com.kdb.it.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-import com.kdb.it.common.util.Utf8ByteLimit;
 import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class Utf8ByteLimitTest {
 
     @Test
-    @DisplayName("length는 null을 0으로, 문자 종류별 UTF-8 바이트 수를 반환한다")
+    @DisplayName("length는 null과 빈 문자열을 0으로, 문자 종류별 UTF-8 바이트 수를 반환한다")
     void length_문자종류별_바이트수반환() {
         assertThat(Utf8ByteLimit.length(null)).isZero();
         assertThat(Utf8ByteLimit.length("")).isZero();
@@ -27,17 +26,35 @@ class Utf8ByteLimitTest {
     }
 
     @Test
-    @DisplayName("truncate는 제한 이하의 문자열을 절단 없이 그대로 반환한다")
-    void truncate_제한이하_원본반환() {
-        String value = "가나다";
+    @DisplayName("truncate는 빈 문자열을 그대로 반환한다")
+    void truncate_빈문자열_그대로반환() {
+        assertThat(Utf8ByteLimit.truncate("", 10)).isEmpty();
+        assertThat(Utf8ByteLimit.truncate("", -1)).isEmpty();
+    }
 
-        assertThat(Utf8ByteLimit.truncate(value, 9)).isSameAs(value);
+    @Test
+    @DisplayName("truncate는 정확히 바이트 경계에 맞는 문자열을 그대로 반환한다")
+    void truncate_정확한경계_원본반환() {
+        String value = "a".repeat(97) + "가";
+
+        assertThat(Utf8ByteLimit.length(value)).isEqualTo(100);
+        assertThat(Utf8ByteLimit.truncate(value, 100)).isSameAs(value);
+    }
+
+    @Test
+    @DisplayName("truncate는 1바이트 초과 문자열을 코드포인트 경계에서 자른다")
+    void truncate_1바이트초과_코드포인트경계절단() {
+        String value = "a".repeat(98) + "가";
+
+        String fitted = Utf8ByteLimit.truncate(value, 100);
+
+        assertThat(fitted).isEqualTo("a".repeat(98));
+        assertThat(Utf8ByteLimit.length(fitted)).isEqualTo(98);
     }
 
     @Test
     @DisplayName("truncate는 한글 3바이트 경계에서 코드포인트를 쪼개지 않는다")
     void truncate_한글경계_코드포인트보존() {
-        // given: "가나다"는 9바이트, 8바이트 제한이면 세 번째 글자가 경계에 걸린다
         String fitted = Utf8ByteLimit.truncate("가나다", 8);
 
         assertThat(fitted).isEqualTo("가나");
@@ -57,13 +74,6 @@ class Utf8ByteLimitTest {
     @DisplayName("truncate는 0바이트 제한이면 빈 문자열을 반환한다")
     void truncate_제한0_빈문자열반환() {
         assertThat(Utf8ByteLimit.truncate("가나다", 0)).isEmpty();
-    }
-
-    @Test
-    @DisplayName("truncate는 음수 제한의 빈 문자열도 빈 문자열로 반환한다")
-    void truncate_음수제한_빈문자열반환() {
-        // given: 빈 문자열(0바이트)이 음수 제한을 넘어 절단 루프를 통과하는 방어적 경계
-        assertThat(Utf8ByteLimit.truncate("", -1)).isEmpty();
     }
 
     @Test

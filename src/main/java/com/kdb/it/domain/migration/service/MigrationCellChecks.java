@@ -1,11 +1,11 @@
 package com.kdb.it.domain.migration.service;
 
+import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.migration.dto.MigrationColumns;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -269,7 +269,7 @@ final class MigrationCellChecks {
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
         String value = MigrationDiagnostics.cell(row, column, overrides, sheet);
-        int bytes = value.getBytes(StandardCharsets.UTF_8).length;
+        int bytes = Utf8ByteLimit.length(value);
         if (bytes > maxBytes) {
             out.add(
                     MigrationDiagnostics.blocker(

@@ -1,15 +1,11 @@
 package com.kdb.it.common.notification.entity;
 
+import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -160,22 +156,10 @@ public class Cinfmm extends BaseEntity {
         if (value == null) {
             return null;
         }
-        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length <= maxBytes) {
+        if (Utf8ByteLimit.length(value) <= maxBytes) {
             return value;
         }
-        // 상한에서 잘린 마지막 불완전 바이트열은 IGNORE 정책으로 버려져 문자 깨짐이 생기지 않는다.
-        CharsetDecoder decoder =
-                StandardCharsets.UTF_8
-                        .newDecoder()
-                        .onMalformedInput(CodingErrorAction.IGNORE)
-                        .onUnmappableCharacter(CodingErrorAction.IGNORE);
-        try {
-            return decoder.decode(ByteBuffer.wrap(bytes, 0, maxBytes)).toString();
-        } catch (CharacterCodingException e) {
-            // IGNORE 정책에서는 도달하지 않지만, 오류내용 때문에 발송 상태 기록이 실패하지 않도록 방어한다.
-            return "";
-        }
+        return Utf8ByteLimit.truncate(value, maxBytes);
     }
 
     /** 최대 시도 횟수에 도달하지 않은 미발송 알림인지 반환합니다. */

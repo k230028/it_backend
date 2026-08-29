@@ -977,6 +977,49 @@ class MigrationValidatorTest {
                         });
     }
 
+    @Test
+    @DisplayName("계약업체명이 정확히 100바이트면 LENGTH_EXCEEDED를 내지 않는다")
+    void 계약업체명_정확히100바이트는_통과한다() {
+        String exactVendor = "a".repeat(97) + "가";
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("vendorName", exactVendor))))),
+                        TestSnapshots.indexWithIoe("001", "국내전산임차료"),
+                        TestSnapshots.empty("2026"),
+                        Map.of(),
+                        Map.of(SheetKind.COST, Set.of(2)));
+
+        assertThat(result)
+                .noneMatch(
+                        d ->
+                                "vendorName".equals(d.column())
+                                        && "LENGTH_EXCEEDED".equals(d.code()));
+    }
+
+    @Test
+    @DisplayName("계약업체명이 101바이트면 LENGTH_EXCEEDED를 낸다")
+    void 계약업체명_101바이트는_블로커다() {
+        String overflowingVendor = "a".repeat(98) + "가";
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(costSheet(row(2, costCells(Map.of("vendorName", overflowingVendor))))),
+                        TestSnapshots.indexWithIoe("001", "국내전산임차료"),
+                        TestSnapshots.empty("2026"),
+                        Map.of(),
+                        Map.of(SheetKind.COST, Set.of(2)));
+
+        assertThat(result)
+                .filteredOn(d -> "vendorName".equals(d.column()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.code()).isEqualTo("LENGTH_EXCEEDED");
+                            assertThat(d.message()).contains("101바이트");
+                        });
+    }
+
     // ===== CRITICAL-3: 미해석 셀도 보정 후보를 들고 온다 =====
 
     @Test
