@@ -155,7 +155,7 @@ public class ProjectBudgetSummaryService {
 
         Function<BudgetValues, BigDecimal> calcMpl =
                 item -> amountCalculator.toPlannedKrw(item.amountItem());
-        List<BudgetValues> mplItems = bitemms.stream().filter(i -> i.ioeC() != null).toList();
+        List<BudgetValues> mplItems = validItems;
         BigDecimal mplCpit = sumByIoe(mplItems, assetTypes, calcMpl);
         BigDecimal mplMngc = sumByIoe(mplItems, costTypes, calcMpl);
 
