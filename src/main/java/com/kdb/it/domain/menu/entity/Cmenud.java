@@ -32,4 +32,17 @@ public class Cmenud extends BaseEntity {
 
     @Column(name = "RMK", length = 300, comment = "비고")
     private String rmk;
+
+    /**
+     * 이관 업서트로 화면메뉴명·사용여부·비고를 한 번에 갱신합니다.
+     *
+     * @param sreMnuNm 화면메뉴명 (필수)
+     * @param useYn 사용여부 Y/N (필수)
+     * @param rmk 비고 (준비중 화면 안내문구로 사용자에게 노출되므로 내부 메모 금지)
+     */
+    public void updateForMigration(String sreMnuNm, String useYn, String rmk) {
+        this.sreMnuNm = sreMnuNm;
+        this.useYn = useYn;
+        this.rmk = rmk;
+    }
 }
