@@ -9,6 +9,7 @@ import com.kdb.it.domain.menu.entity.Cmenud;
 import com.kdb.it.domain.menu.entity.Cmenum;
 import com.kdb.it.domain.migration.commondata.dto.CommonDataMigrationDto;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -79,16 +80,16 @@ public class CommonDataMigrationPlanner {
         Map<String, String> menuDelYnByKey = snapshotDelYnMap(snapshot.allMenus(), Cmenum::getMnuId);
         Map<List<String>, String> menuAuthDelYnByKey =
                 snapshotDelYnMap(
-                        snapshot.allMenuAuths(), a -> List.of(a.getMnuId(), a.getAthId()));
+                        snapshot.allMenuAuths(), a -> Arrays.asList(a.getMnuId(), a.getAthId()));
         Map<String, String> routeDelYnByKey = snapshotDelYnMap(snapshot.allRoutes(), Cmenud::getSrePth);
         Map<List<String>, String> codeDelYnByKey =
                 snapshotDelYnMap(
                         snapshot.codesForFileCIds(),
-                        c -> List.of(c.getCId(), c.getCdva(), c.getSttDt()));
+                        c -> Arrays.asList(c.getCId(), c.getCdva(), c.getSttDt()));
         Map<List<String>, String> translationDelYnByKey =
                 snapshotDelYnMap(
                         snapshot.translationsForFileKeys(),
-                        t -> List.of(t.getTcIdCone(), t.getTcColNm(), t.getDttLanC()));
+                        t -> Arrays.asList(t.getTcIdCone(), t.getTcColNm(), t.getDttLanC()));
 
         Set<String> activeSnapshotMenuIds = activeKeys(snapshot.allMenus(), Cmenum::getMnuId);
         Set<String> activeSnapshotRoutePaths = activeKeys(snapshot.allRoutes(), Cmenud::getSrePth);
@@ -103,10 +104,12 @@ public class CommonDataMigrationPlanner {
             fileRoutePaths.add(row.srePth());
         }
 
-        // 시트 내 PK 중복 검사 (5개 시트 각각). 복합키는 문자열 결합 대신 List.of(...)를 맵/셋 키로 써서
+        // 시트 내 PK 중복 검사 (5개 시트 각각). 복합키는 문자열 결합 대신 Arrays.asList(...)를 맵/셋 키로 써서
         // 필드 경계가 다른 값끼리(예: cId="A::B"+cdva="C" vs cId="A"+cdva="B::C") 같은 키로 뭉치는
-        // 구분자 충돌 자체를 구조적으로 없앤다. 오류 메시지의 "(값: ...)"는 사람이 읽는 표기이므로
-        // 별도 displayFn으로 "/" 결합해 내부 키 표현과 분리한다.
+        // 구분자 충돌 자체를 구조적으로 없앤다. List.of(...)는 null 원소에서 NPE를 던져 필수값이 빈
+        // 행(오류 ①이 나중에 잡아야 할 케이스)에서 planner 자체가 죽으므로, null을 허용하는
+        // Arrays.asList를 쓴다(equals/hashCode는 List.of와 동일하게 원소 단위 비교). 오류 메시지의
+        // "(값: ...)"는 사람이 읽는 표기이므로 별도 displayFn으로 "/" 결합해 내부 키 표현과 분리한다.
         checkDuplicates(
                 errors,
                 SHEET_MENU,
@@ -120,7 +123,7 @@ public class CommonDataMigrationPlanner {
                 SHEET_MENU_AUTH,
                 request.menuAuths(),
                 CommonDataMigrationDto.MenuAuthRow::excelRow,
-                r -> List.of(r.mnuId(), r.athId()),
+                r -> Arrays.asList(r.mnuId(), r.athId()),
                 r -> r.mnuId() + "/" + r.athId(),
                 "메뉴ID/자격등급ID 조합이 중복되었습니다");
         checkDuplicates(
@@ -136,7 +139,7 @@ public class CommonDataMigrationPlanner {
                 SHEET_CODE,
                 request.codes(),
                 CommonDataMigrationDto.CodeRow::excelRow,
-                c -> List.of(c.cId(), c.cdva(), c.sttDt()),
+                c -> Arrays.asList(c.cId(), c.cdva(), c.sttDt()),
                 c -> c.cId() + "/" + c.cdva() + "/" + c.sttDt(),
                 "코드 키가 중복되었습니다");
         checkDuplicates(
@@ -144,7 +147,7 @@ public class CommonDataMigrationPlanner {
                 SHEET_TRANSLATION,
                 request.translations(),
                 CommonDataMigrationDto.TranslationRow::excelRow,
-                t -> List.of(t.tcIdCone(), t.tcColNm(), t.dttLanC()),
+                t -> Arrays.asList(t.tcIdCone(), t.tcColNm(), t.dttLanC()),
                 t -> t.tcIdCone() + "/" + t.tcColNm() + "/" + t.dttLanC(),
                 "다국어 키가 중복되었습니다");
 
@@ -179,7 +182,7 @@ public class CommonDataMigrationPlanner {
                 classify(
                         SHEET_MENU_AUTH,
                         request.menuAuths(),
-                        r -> List.of(r.mnuId(), r.athId()),
+                        r -> Arrays.asList(r.mnuId(), r.athId()),
                         menuAuthDelYnByKey);
         CommonDataMigrationDto.TableSummary routes =
                 classify(
@@ -188,13 +191,13 @@ public class CommonDataMigrationPlanner {
                 classify(
                         SHEET_CODE,
                         request.codes(),
-                        c -> List.of(c.cId(), c.cdva(), c.sttDt()),
+                        c -> Arrays.asList(c.cId(), c.cdva(), c.sttDt()),
                         codeDelYnByKey);
         CommonDataMigrationDto.TableSummary translations =
                 classify(
                         SHEET_TRANSLATION,
                         request.translations(),
-                        t -> List.of(t.tcIdCone(), t.tcColNm(), t.dttLanC()),
+                        t -> Arrays.asList(t.tcIdCone(), t.tcColNm(), t.dttLanC()),
                         translationDelYnByKey);
 
         return new Plan(menus, menuAuths, routes, codes, translations, warnings, errors);
@@ -404,9 +407,11 @@ public class CommonDataMigrationPlanner {
     /**
      * 오류 ⑩: 시트 내에서 같은 키가 두 번째 이상 나타나면 그 행에 중복 오류를 추가합니다.
      *
-     * <p>{@code keyFn}은 동등성 판정에만 쓰는 키(단일 필드는 String, 복합 필드는 {@link List#of}로 묶은 List)이고, {@code
+     * <p>{@code keyFn}은 동등성 판정에만 쓰는 키(단일 필드는 String, 복합 필드는 {@link Arrays#asList}로 묶은 List)이고, {@code
      * displayFn}은 오류 메시지의 "(값: ...)"에 넣을 사람이 읽는 표기입니다. 키를 문자열로 결합하면 필드 경계가 다른 값끼리(예: "A::B"+"C" vs
-     * "A"+"B::C") 같은 문자열로 뭉쳐 중복을 오판할 수 있어 표기와 동등성 판정을 분리했습니다.
+     * "A"+"B::C") 같은 문자열로 뭉쳐 중복을 오판할 수 있어 표기와 동등성 판정을 분리했습니다. 복합키는 {@code List.of}가 아니라 {@code
+     * Arrays.asList}를 씁니다 — {@code List.of}는 null 원소에서 NPE를 던져, 필수값이 빈 행에서 오류 ①(안전망)이 이 오류를 잡기도
+     * 전에 planner가 죽습니다.
      */
     private static <T, K> void checkDuplicates(
             List<String> errors,
@@ -432,8 +437,8 @@ public class CommonDataMigrationPlanner {
     /**
      * 분류 규칙: 스냅샷에 같은 키가 없으면 added, 있고 delYn='Y'면 restored, 그 외(활성)는 updated로 센다.
      *
-     * <p>{@code K}는 단일 필드 키(String)이거나 {@link List#of}로 묶은 복합 필드 키입니다. List는 원소 단위로 equals/hashCode를
-     * 계산하므로 문자열 결합과 달리 필드 경계 충돌이 없습니다.
+     * <p>{@code K}는 단일 필드 키(String)이거나 {@link Arrays#asList}로 묶은 복합 필드 키(null 허용)입니다. List는 원소
+     * 단위로 equals/hashCode를 계산하므로 문자열 결합과 달리 필드 경계 충돌이 없습니다.
      */
     private static <T, K> CommonDataMigrationDto.TableSummary classify(
             String table, List<T> rows, Function<T, K> keyFn, Map<K, String> snapshotDelYnByKey) {

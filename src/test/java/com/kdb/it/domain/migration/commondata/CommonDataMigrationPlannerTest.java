@@ -349,7 +349,7 @@ class CommonDataMigrationPlannerTest {
     void 복합키필드에구분자문자열이섞여도_다른행을_같은키로오판하지않는다() {
         // cId="CUR", cdva="A::B" 행과 cId="CUR::A", cdva="B" 행은 필드 경계가 다른데,
         // "::"로 이어붙이면 둘 다 "CUR::A::B::20200101"이 되어 중복으로 오판될 수 있었다.
-        // List.of(...)를 키로 쓰면 원소 단위 비교라 이런 충돌이 구조적으로 불가능하다.
+        // Arrays.asList(...)를 키로 쓰면 원소 단위 비교라 이런 충돌이 구조적으로 불가능하다.
         CommonDataMigrationDto.Request request =
                 new CommonDataMigrationDto.Request(
                         List.of(),
@@ -368,6 +368,27 @@ class CommonDataMigrationPlannerTest {
 
         assertThat(plan.errors()).noneMatch(e -> e.contains("중복"));
         assertThat(plan.codes().added()).isEqualTo(2);
+    }
+
+    @Test
+    void 복합키필드가null이어도_NPE없이_필수값오류로_분류한다() {
+        // List.of(...)를 복합키로 쓰면 null 원소에서 NPE를 던져, checkDuplicates/classify가
+        // validateCodeRow(필수값 검사)보다 먼저 실행되므로 오류 ①이 이 값을 잡기도 전에
+        // planner 자체가 죽는다. cId가 null인 행이 NPE 없이 "필수" 오류로 분류되는지 검증한다.
+        CommonDataMigrationDto.Request request =
+                new CommonDataMigrationDto.Request(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(
+                                new CommonDataMigrationDto.CodeRow(
+                                        2, null, "001", "20200101", null, null, null, null,
+                                        null, null, null, null, null, null)),
+                        List.of());
+
+        CommonDataMigrationPlanner.Plan plan = planner.plan(request, emptySnapshot());
+
+        assertThat(plan.errors()).anySatisfy(e -> assertThat(e).contains("필수"));
     }
 
     @Test
