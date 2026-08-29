@@ -146,7 +146,7 @@ public class RefreshTokenRotator {
     }
 
     /**
-     * Refresh Token 원문을 SHA-256 조회값으로 변환해 저장 행을 비관적 쓰기 잠금과 함께 조회한다.
+     * Refresh Token 원문을 HMAC-SHA256 지문으로 변환해 저장 행을 비관적 쓰기 잠금과 함께 조회한다.
      *
      * @throws RefreshTokenNotFoundException 조회값에 해당하는 저장 행이 없는 경우
      */

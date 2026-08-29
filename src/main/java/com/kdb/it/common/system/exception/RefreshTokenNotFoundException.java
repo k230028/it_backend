@@ -3,7 +3,7 @@ package com.kdb.it.common.system.exception;
 /**
  * DB에 활성 Refresh Token이 없음을 알리는 마커 예외.
  *
- * <p>{@link com.kdb.it.common.system.service.RefreshTokenRotator#rotate(String)}가 조회값(SHA-256
+ * <p>{@link com.kdb.it.common.system.service.RefreshTokenRotator#rotate(String)}가 조회값(HMAC-SHA256
  * HEX)으로 저장 행을 찾지 못하면 이 예외를 던진다. 원인은 서버 로그로만 구분하고 토큰 값은 남기지 않는다.
  *
  * <p>오케스트레이터(호출자, {@code AuthService})는 이 타입을 잡아 {@link

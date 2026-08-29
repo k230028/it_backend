@@ -273,14 +273,15 @@ public class BoardPostService {
     }
 
     /**
-     * 게시물 본문의 {@code @사번} 멘션을 추출하여 수신자별 알림 이벤트를 발행한다.
+     * 게시물 본문의 {@code @사번} 멘션과 프론트에서 명시 선택한 사번을 합쳐 수신자별 알림 이벤트를 발행한다.
      *
-     * <p>발행은 {@code @TransactionalEventListener(AFTER_COMMIT)} 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다. 멘션이 없으면
-     * 아무 동작도 하지 않는다.
+     * <p>발행은 {@code @TransactionalEventListener(AFTER_COMMIT)} 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다. 두 경로
+     * 모두에서 수신자가 나오지 않으면 아무 동작도 하지 않는다.
      *
      * @param post 저장 직후의 게시물 엔티티
      * @param authorEno 작성자 사번 (자기 멘션 제외용)
      * @param isComment true=댓글, false=게시물 — 알림 종류 분기에 사용
+     * @param explicitEnos 프론트 자동완성에서 명시 선택한 사번. null이면 본문 추출 결과만 사용한다
      */
     private void publishMentionNotifications(
             Cblbcm post, String authorEno, boolean isComment, java.util.List<String> explicitEnos) {

@@ -60,6 +60,8 @@ public final class FormAmount {
         try {
             return new Parsed(new BigDecimal(text), unit);
         } catch (NumberFormatException e) {
+            // 잡음 제거 후에도 숫자로 해석되지 않는 셀은 '금액 없음'으로 다룬다. 반입은 중단하지 않고
+            // 상위 어댑터가 미해석 항목을 진단으로 모아 관리자에게 보고한다.
             return null;
         }
     }

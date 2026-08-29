@@ -604,6 +604,8 @@ public class SsoController {
                 try {
                     return URLDecoder.decode(value, StandardCharsets.UTF_8);
                 } catch (IllegalArgumentException ignored) {
+                    // 손상된 인코딩은 쿠키가 없는 것과 같게 다룬다. 빈 값을 돌려주면 호출자가 세션 없음 경로로 진입해
+                    // SSO를 다시 태우므로, 예외를 올려 500을 내는 것보다 사용자 흐름이 자연스럽다.
                     return "";
                 }
             }

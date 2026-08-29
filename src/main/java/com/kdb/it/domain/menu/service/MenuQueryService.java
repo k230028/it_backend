@@ -224,10 +224,13 @@ public class MenuQueryService {
     /**
      * 메뉴 행을 트리 노드로 변환한다.
      *
+     * <p>메뉴명은 번역 맵이 있으면 해당 언어 값으로, 없으면 원본 {@code MNU_NM}으로 싣는다.
+     *
      * @param m 메뉴 행
      * @param iconColumnPresent {@code TPRMPP_CMENUM.IMK_NM}이 실제 스키마에 있는지 여부
-     * @return 트리 노드. 컬럼이 있으면 DB 값을 그대로 싣고(관리자가 비운 null도 그대로), 없으면 {@link MenuIconDefaults} 스냅샷으로
-     *     채운다
+     * @param translations 이 메뉴의 언어별 번역 맵. null이면 원본 메뉴명을 쓴다
+     * @return 트리 노드. 아이콘은 컬럼이 있으면 DB 값을 그대로 싣고(관리자가 비운 null도 그대로), 없으면 {@link MenuIconDefaults}
+     *     스냅샷으로 채운다
      */
     private MenuDto.Node toNode(
             MenuTreeRow m, boolean iconColumnPresent, Map<String, String> translations) {

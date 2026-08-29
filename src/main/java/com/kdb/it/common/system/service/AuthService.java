@@ -190,35 +190,27 @@ public class AuthService {
     }
 
     /**
-     * 로그인 및 JWT 토큰 발급
-     *
-     * <p>사번과 비밀번호를 검증하고, 성공 시 Access Token과 Refresh Token을 발급합니다. 실패 이력은 로그인 이력에 남기고, 10분 내 5회 실패한
-     * 사번은 잠금 처리합니다.
+     * 검증이 끝난 사용자에게 JWT를 발급하고 로그인 성공 이력을 남깁니다.
      *
      * <p>처리 흐름:
      *
      * <ol>
-     *   <li>DB에서 사번으로 사용자 조회 (없으면 로그인 실패 이력 기록 후 예외)
-     *   <li>비밀번호 검증 (불일치 시 로그인 실패 이력 기록 후 예외)
      *   <li>Access Token 생성 (단기 유효)
-     *   <li>Refresh Token 생성 및 DB 저장 (사번 기준 기존 토큰 삭제 후 신규 저장)
+     *   <li>Refresh Token 패밀리 신규 발급 및 DB 저장
      *   <li>로그인 성공 이력 기록
      *   <li>토큰 및 사용자 정보 반환 (컨트롤러에서 httpOnly 쿠키로 변환)
      * </ol>
      *
-     * <p>SEC-09: 사용자 미존재·비밀번호 불일치는 "예상된 로그인 거부"로 간주해 {@link LoginRejectedException}을 던집니다. {@code
-     * login()}은 {@code noRollbackFor = LoginRejectedException.class}로 선언되어 있어, 이 예외가 발생해도 트랜잭션은
-     * 롤백되지 않고 직전에 저장한 실패 이력이 그대로 커밋됩니다. 그래야 {@link LoginAttemptService#checkLocked}가 커밋된 이력을 기준으로
-     * 잠금 여부를 정확히 판단할 수 있습니다. 반대로 잠금 예외, 이력 저장 중 DB 오류, 토큰 발급 등 성공 경로 이후의 예기치 못한 오류는 이 타입으로 변환되지 않고
-     * 원래 예외 그대로 전파되어 트랜잭션이 정상적으로 롤백됩니다.
+     * <p>사용자 조회와 비밀번호 검증은 이 메서드의 책임이 아닙니다. 자격증명 검증은 {@link #verifyCredentials}, MFA 증표 소비와 사용자 확정은
+     * {@link #completeLogin}이 앞서 마친 상태로 호출됩니다.
      *
-     * @param eno 로그인할 사번
-     * @param password 입력한 비밀번호 (평문)
+     * <p>트랜잭션 경계는 호출자 {@link #completeLogin}이 소유합니다. private 메서드의 자기호출은 프록시를 거치지 않아 여기 선언한 트랜잭션 속성이
+     * 적용되지 않습니다.
+     *
+     * @param user 검증이 끝난 사용자 엔티티
      * @param ipAddress 클라이언트 IP 주소 (이력 기록용)
      * @param userAgent 클라이언트 User-Agent 문자열 (이력 기록용)
      * @return 로그인 응답 DTO (쿠키 생성에 사용할 토큰, 사번, 사용자명, 자격등급)
-     * @throws LoginRejectedException 사용자 미존재, 비밀번호 불일치 시 (실패 이력은 커밋됨)
-     * @throws RuntimeException 실패 횟수 초과로 계정이 잠긴 경우({@code CustomGeneralException}), 그 외 예기치 못한 오류 시
      */
     @Transactional(noRollbackFor = LoginRejectedException.class)
     private AuthDto.LoginResponse issueLoginTokens(
@@ -374,7 +366,7 @@ public class AuthService {
     }
 
     /**
-     * Refresh 쿠키의 SHA-256 조회값으로 토큰 소유자 패밀리를 폐기합니다.
+     * Refresh 쿠키의 HMAC-SHA256 지문으로 토큰 소유자 패밀리를 폐기합니다.
      *
      * <p>Access Token이 만료되어 SecurityContext가 비어 있어도 Refresh 쿠키가 유효하면 서버 토큰 패밀리를 삭제합니다. Access 사용자와
      * Refresh 소유자가 다르면 두 사용자의 패밀리를 모두 폐기하며, 토큰 값과 사번은 로그에 남기지 않습니다.

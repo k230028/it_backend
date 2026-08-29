@@ -175,7 +175,7 @@ public final class MfaTransaction {
         return expiresAt;
     }
 
-    /** 공급자 challenge의 SHA-256 해시이며 원문은 저장하지 않는다. */
+    /** 공급자 challenge의 HMAC-SHA256 지문이며 원문은 저장하지 않는다. */
     public String providerChallengeHash() {
         return providerChallengeHash;
     }
@@ -185,7 +185,7 @@ public final class MfaTransaction {
         return svcTrId;
     }
 
-    /** 검증 후 발급한 1회용 증표의 SHA-256 해시이며 원문은 저장하지 않는다. */
+    /** 검증 후 발급한 1회용 증표의 HMAC-SHA256 지문이며 원문은 저장하지 않는다. */
     public String proofHash() {
         return proofHash;
     }

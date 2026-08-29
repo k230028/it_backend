@@ -275,15 +275,6 @@ public class Bcostm extends BaseEntity {
     }
 
     /**
-     * 주관부서명/주관팀명 스냅샷 설정.
-     *
-     * <p>현재 엔티티에 설정된 담당부서코드/담당팀코드에 대응하는 조직명을 저장합니다. 코드가 설정/변경되는 지점(생성·수정) 직후, INSERT/UPDATE flush
-     * 이전에 호출합니다.
-     *
-     * @param svnDpmNm 주관부서명 (코드 미등록 시 null 허용)
-     * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)
-     */
-    /**
      * 담당자명 스냅샷 설정.
      *
      * <p>해석에 실패하면(퇴사 등으로 조인이 빔) <b>기존 값을 유지</b>합니다 — 조인으로 되살릴 수 없는 값이라 null로 덮으면 이 컬럼을 둔 이유가
@@ -295,6 +286,15 @@ public class Bcostm extends BaseEntity {
         if (cgprNm != null && !cgprNm.isBlank()) this.cgprNm = cgprNm;
     }
 
+    /**
+     * 주관부서명/주관팀명 스냅샷 설정.
+     *
+     * <p>현재 엔티티에 설정된 담당부서코드/담당팀코드에 대응하는 조직명을 저장합니다. 코드가 설정/변경되는 지점(생성·수정) 직후, INSERT/UPDATE flush
+     * 이전에 호출합니다.
+     *
+     * @param svnDpmNm 주관부서명 (코드 미등록 시 null 허용)
+     * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)
+     */
     public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;

@@ -17,6 +17,7 @@
 - 물리 모델은 `../it_database/migrations/`, ORM은 엔티티, 조회용 색인은 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)가 SoT입니다.
 - 엔티티·컬럼명은 `../meta/meta.txt`를 우선하고, 충돌 처리만 [컬럼 명명 가이드](docs/guides/persistence/column-naming.md)를 따릅니다.
 - Oracle 빈 문자열은 NULL이므로 빈 문자열과 NULL을 다른 업무 상태로 설계하지 않습니다.
+- 정보화사업 금액은 화면·서비스마다 다시 계산하지 않고 `ProjectAmountCalculator`가 산출한 스냅샷을 사용합니다. 저장 단위 반올림과 `NUMBER(18,3)` 범위 검증은 한 곳에 모아 적용하고, 통화별 환산 규칙과 컬럼별 원금 의미는 [데이터 모델의 정보화사업 금액 계약](docs/guides/persistence/data-model.md)과 [사업 집행 가이드](docs/guides/domains/project-execution.md)를 SoT로 따릅니다.
 - 복합키는 기존 `@IdClass` 패턴을 유지하고 equals/hashCode 계약을 함께 검증합니다.
 - 감사 필드와 NOT NULL 기본값은 [엔티티와 감사 로그](docs/guides/persistence/entities-and-audit.md)를 따릅니다.
 - QueryDSL·네이티브 타입·Jackson 경계는 [QueryDSL과 Oracle](docs/guides/persistence/querydsl-and-oracle.md)을 따릅니다.
@@ -32,6 +33,8 @@
 ## 4. API와 서비스
 
 - 요청은 Bean Validation으로 검증하고 공통 예외 응답 계약을 사용합니다.
+- `@ModelAttribute`로 바인딩하는 DTO의 서버 전용 필드는 setter를 만들지 않고(`@Setter(AccessLevel.NONE)`) 의미를 드러내는 전용 메서드로만 켭니다. `@Schema(hidden = true)`는 OpenAPI 노출만 막고 쿼리 파라미터 바인딩은 막지 못합니다.
+- 사용자·외부에서 온 HTML을 저장할 때는 서버가 `HtmlSanitizer`로 정화한 뒤 저장합니다. 프론트의 렌더 직전 정화는 이중 방어이지 서버 정화를 대신하지 않습니다.
 - 조회는 읽기 전용 트랜잭션, 명령은 Service의 명시적 트랜잭션 경계에서 처리합니다.
 - 목록 API는 필요한 필터와 정렬을 DB에 적용하고 메모리 전량 필터링을 만들지 않습니다.
 - DTO나 Controller 계약이 바뀌면 OpenAPI 계약 테스트와 프론트 `npm run codegen` 영향을 확인합니다.
@@ -43,7 +46,11 @@
 - 서버 권한은 `SecurityConfig`, `@PreAuthorize`, Service 데이터 범위 검사로 강제합니다. 프론트 가드를 보안 경계로 간주하지 않습니다.
 - `ROLE_INFOSEC_ADMIN`을 일반 `ROLE_ADMIN`과 합치지 않습니다. 협의회 심의유형 범위는 Service에서 검증합니다.
 - 부서·작성자·소유권 필터는 [데이터 접근 범위](docs/guides/security/data-scope.md)를 따릅니다.
-- 파일 업로드·다운로드·부모키 검증은 [파일 보안](docs/guides/security/file-security.md)을 따르며 경로 문자열만으로 권한을 판단하지 않습니다.
+- 파일 업로드·다운로드·연결 대상 검증은 [파일 보안](docs/guides/security/file-security.md)을 따르며 경로 문자열만으로 권한을 판단하지 않습니다.
+- 첨부파일 종류(`APG_FL_KD_NM`)를 새로 쓰려면 읽기 또는 쓰기 판정기를 먼저 등록합니다. 알려진 종류 목록은 손으로 관리하지 않고 판정기가 선언한 종류의 합집합이므로, 판정기 없는 종류가 업로드 경로로 조용히 생기지 않습니다. 쓰기 판정기를 추가할 때는 범용 파일 API의 수정·삭제를 열어 둘지(`allowsGenericMutation`)를 기본값에 맡기지 말고 종류마다 명시적으로 판단합니다.
+- 클라이언트 입력이 파일시스템 경로 세그먼트가 될 때는 허용문자 필터와 정규화 후 기준 디렉터리 포함 검증을 함께 겁니다. 읽기와 쓰기 양쪽에 같은 2단 검증을 적용합니다.
+- 인증 주체 판정은 fail-closed를 기본으로 합니다. principal이 기대한 타입이 아니면 권한 없음으로 처리하고, 권한 문자열만으로 관리자 여부를 단정하지 않습니다.
+- 보안 목적이 아닌 식별자라도 난수는 `SecureRandom`으로만 만듭니다. 미지원 환경을 위한 약한 난수 폴백을 두지 말고 명시적으로 실패시킵니다.
 - 수동 로그인과 사용자 전자결재 상태 변경은 사용자·용도에 귀속된 1회용 MFA 증표를 요구합니다. 조회·임시저장·SSO·개발 사용자 전환·외부 결재 콜백에는 적용하지 않습니다.
 - MFA 거래 상태를 서비스나 공급자의 인스턴스 로컬 필드에 두지 않습니다. 저장과 상태 전이는 `MfaTransactionStore`·`LoginPendingTransactionStore` 구현에만 맡기고, 전이는 조건부 UPDATE의 영향 행 수로 판정해 다중 인스턴스에서도 증표가 한 번만 소비되게 합니다.
 - 운영 프로파일은 비밀값·Origin·프론트 URL을 fail-fast로 검사하고 모의 SSO, 직접 사번, 개발 사용자 전환, Bearer 폴백, 비보안 쿠키를 허용하지 않습니다.
@@ -61,6 +68,7 @@
 - 게시판, 댓글, 첨부파일의 권한과 순서는 서버가 최종 검증합니다. 클라이언트가 보낸 작성자·부서·순서를 신뢰하지 않습니다.
 - 정보화사업 집행 계약은 [사업 집행 가이드](docs/guides/domains/project-execution.md)를 따릅니다.
 - Tiptap 변수 카탈로그와 해석 계약은 [Tiptap 변수](docs/guides/domains/tiptap-variables.md)를 따릅니다.
+- 사업 입력 길라잡이의 대상 필드는 서버 고정 카탈로그가 SoT입니다. 길라잡이 ID는 사업 유형 접두사로 범위를 구분하고, 카탈로그에 없는 ID는 저장하지 않습니다. 사용자 조회 API는 본문이 등록된 항목만 돌려주고 카탈로그 전체 조회와 등록·삭제는 관리자 전용입니다.
 - 메뉴명과 공통코드 표시명은 DB 번역 데이터가 SoT입니다. 분기와 저장에는 번역명이 아니라 코드값을 사용합니다.
 - 준비중 메뉴는 화면 경로를 사람이 입력받지 않고 `/preparing/{mnuId 소문자}`로 채번해 라우트 카탈로그에 함께 등록합니다. 준비중을 해제하거나 메뉴를 삭제할 때 회수하는 대상은 이 규칙으로 자동 생성한 경로뿐이며, 사람이 직접 등록한 준비중 경로는 다른 메뉴가 참조할 수 있으므로 회수하지 않습니다. 준비중 화면의 안내 문구는 그 카탈로그 행의 비고(RMK)를 사용자에게 그대로 보여주므로 비고에 내부 메모를 적지 않습니다.
 

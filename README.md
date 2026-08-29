@@ -111,7 +111,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `common.mfa`                                                                  | 추가 인증 거래 발급·검증·소비와 공유 저장소            | 수동 로그인과 전자결재 명령의 증표를 `common.system`·`common.approval`에 제공 |
 | `common.i18n`                                                                 | 메뉴명·공통코드 표시명 번역과 변경 이력                | 메뉴·코드 조회 응답의 표시명을 언어별로 제공                         |
 | `common.notification`                                                         | 인앱 알림 저장, 소유권 검증, 채널 라우팅               | 결재·게시판 이벤트와 `infra.eai` 연결                                |
-| `domain.budget`                                                               | 정보화사업, 비용, 계획, 문서 검토, 예산 현황·작업      | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
+| `domain.budget`                                                               | 정보화사업, 비용, 계획, 문서 검토, 예산 현황·작업. `budget.document.formguide`는 사업 입력 길라잡이를 서버 고정 카탈로그 기준으로 등록·조회 | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
 | `domain.bizplan`                                                              | 정보기술부문 계획에 포함된 사업의 사업계획             | `budget.plan`, `budget.project`의 계획 관계·사업·품목·단계 상태 사용 |
 | `domain.council`                                                              | 정보화실무협의회 일정·평가·질의·결과                   | 결재 완료 이벤트를 같은 트랜잭션에서 상태에 반영                     |
 | `domain.estimate`, `domain.deliberation`, `domain.contract`, `domain.payment` | 사업 집행의 소요예산·심의·계약·지급 단계               | 정보화사업을 기준으로 단계별 문서와 상태를 관리                      |
@@ -119,7 +119,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `domain.banner`                                                               | `/info` 홈 배너 등록·노출·활성 전환                    | 전용 테이블 없이 `infra.file`의 공통첨부파일을 규약(`APG_FL_KD_NM='배너'`)으로 재사용 |
 | `domain.log`                                                                  | 업무 엔티티 변경 스냅샷                                | `@LogTarget`이 지정된 엔티티의 생성·수정·논리삭제를 기록             |
 | `domain.migration`                                                            | 수기 엑셀(편성요청서) 반입 — 검증·진단, 원장 생성, 결재완료 표식, 원본 파일 보관 | `budget`의 원장(`BPROJM`·`BCOSTM`), `common.approval` 신청서, `infra.file` 첨부에 연결 |
-| `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동             | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |
+| `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동. `infra.file.authz`는 첨부파일 종류별 읽기·쓰기 판정기를 등록해 부모 자원 권한으로 접근을 판정 | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |
 
 ## 사업계획(`bizplan`) 흐름
 
@@ -148,6 +148,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 - `@LogTarget` 엔티티는 대응하는 `BaseLogEntity` 하위 로그 엔티티에 생성·수정·논리삭제 스냅샷을 남깁니다.
 - 단순 CRUD는 `JpaRepository`를 사용하고 동적 검색·집계·다중 조인은 `*RepositoryCustom`과 `*RepositoryImpl`의 QueryDSL 구현으로 분리합니다.
 - 공통코드, 메뉴 권한, 알림 미읽음 수, Tiptap 메타데이터는 Caffeine 캐시를 사용합니다. 캐시 쓰기는 트랜잭션 완료와 연동하고, 원본 변경 서비스가 `@CacheEvict`로 즉시 무효화하며 TTL은 누락에 대한 안전망으로 사용합니다.
+- 정보화사업 금액은 화면·조회마다 다시 더하지 않고 활성 품목과 지급금액으로 한 번 계산해 사업 스냅샷에 기록합니다. 저장 단위 반올림과 `NUMBER(18,3)` 범위 검증을 한 곳에 모아, 외화 환산이 끼어드는 경로에서도 컬럼별 통화 의미가 갈리지 않게 합니다. 계약은 [사업 집행 가이드](docs/guides/domains/project-execution.md)와 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)가 SoT입니다.
 - 물리 스키마 변경의 기준은 `C:\it\it_database\migrations`이며, 엔티티 매핑과 마이그레이션을 함께 검토합니다. 상세 매핑은 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)를 확인합니다.
 
 ## 환경 설정
@@ -316,6 +317,7 @@ Controller 계약은 MockMvc 슬라이스 테스트, 서비스 규칙은 Mockito
 - 쿠키 기반 JWT는 Stateless여도 CSRF 검토 대상입니다.
 - CORS는 허용 Origin을 제한하고 `allowCredentials=true`와 와일드카드를 함께 사용하지 않습니다.
 - 관리자 화면 숨김은 보안 경계가 아니며 API 권한 검증이 필요합니다.
+- 첨부파일 접근은 경로나 파일명이 아니라 첨부파일 종류에 등록된 판정기가 부모 자원 권한으로 판정합니다. 알려진 종류 목록은 손으로 관리하지 않고 판정기가 선언한 종류의 합집합이라, 판정기 없는 종류를 클라이언트가 지어내 업로드하는 경로가 구조적으로 막힙니다.
 
 세부 정책의 SoT는 [CLAUDE.md](CLAUDE.md)와 [인증·인가 가이드](docs/guides/security/authentication-authorization.md)입니다.
 

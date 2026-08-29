@@ -133,7 +133,7 @@ public class JwtUtil {
      * <p>Access Token과 동일한 구조지만 유효시간이 더 깁니다 (기본 7일).
      *
      * <p>{@code jti}(JWT ID) 클레임에 UUID를 넣어 발급마다 토큰 문자열이 고유하도록 보장합니다. JWT 시각 클레임(iat/exp)은 초 단위라,
-     * jti 없이는 같은 사용자에게 같은 초 안에 2회 발급 시 완전히 동일한 토큰이 생성되어 TPRMPP_CRTOKM의 SHA-256 조회값 유니크 인덱스
+     * jti 없이는 같은 사용자에게 같은 초 안에 2회 발급 시 완전히 동일한 토큰이 생성되어 TPRMPP_CRTOKM의 HMAC-SHA256 지문 유니크 인덱스
      * (IX_TPRMPP_CRTOKM_02)와 충돌합니다(ORA-00001).
      *
      * @param eno 토큰의 subject로 사용할 사번

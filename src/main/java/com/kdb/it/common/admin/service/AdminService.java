@@ -573,7 +573,7 @@ public class AdminService {
     // =========================================================================
 
     /**
-     * 전체 갱신토큰 목록을 조회합니다. 원문 대신 SHA-256 조회값의 앞 20자만 마스킹해 표시합니다.
+     * 전체 갱신토큰 목록을 조회합니다. 원문 대신 HMAC-SHA256 지문의 앞 20자만 마스킹해 표시합니다.
      *
      * @return 갱신토큰 응답 DTO 목록
      */
@@ -583,7 +583,7 @@ public class AdminService {
                 .toList();
     }
 
-    /** 갱신토큰 프로젝션을 TokenResponse DTO로 변환합니다. DB에는 원문이 없으므로 SHA-256 조회값만 마스킹합니다. */
+    /** 갱신토큰 프로젝션을 TokenResponse DTO로 변환합니다. DB에는 원문이 없으므로 HMAC-SHA256 지문만 마스킹합니다. */
     private AdminDto.TokenResponse toTokenResponse(RefreshTokenRepository.AdminTokenView t) {
         String lookupValue = t.getEcyRnwPubTokCone();
         String masked =

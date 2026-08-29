@@ -51,11 +51,11 @@ public class Crtokm extends BaseEntity {
     @Column(name = "LGN_LOG_SNO", comment = "토큰일련번호 (물리컬럼 LGN_LOG_SNO=메타표준 로그인로그일련번호)")
     private Long tokSno;
 
-    /** API토큰내용: 운영 NOT NULL 계약을 충족하기 위해 Refresh Token 원문이 아닌 SHA-256 HEX 값을 저장합니다. */
+    /** API토큰내용: 운영 NOT NULL 계약을 충족하기 위해 Refresh Token 원문이 아닌 HMAC-SHA256 HEX 지문을 저장합니다. */
     @Column(name = "API_TOK_CONE", nullable = false, length = 2000, comment = "API토큰내용")
     private String apiTokCone;
 
-    /** 암호화갱신발행토큰내용: Refresh Token 원문 대신 조회에 사용하는 SHA-256 HEX 값 */
+    /** 암호화갱신발행토큰내용: Refresh Token 원문 대신 조회에 사용하는 HMAC-SHA256 HEX 지문 */
     @Column(name = "ECY_RNW_PUB_TOK_CONE", length = 900, comment = "암호화갱신발행토큰내용")
     private String ecyRnwPubTokCone;
 
@@ -85,8 +85,8 @@ public class Crtokm extends BaseEntity {
      * 흐름이 대부분이므로, 토큰 소유자 사번({@code eno})을 최초·최종 감사자로 명시적으로 기록합니다. 신규 토큰은 항상 활성({@code avlYn = "Y"})
      * 상태로 생성됩니다.
      *
-     * @param apiTokCone API토큰내용 (Refresh Token 원문의 SHA-256 HEX 해시)
-     * @param ecyRnwPubTokCone 암호화갱신발행토큰내용 (조회용 SHA-256 HEX 해시)
+     * @param apiTokCone API토큰내용 (Refresh Token 원문의 HMAC-SHA256 HEX 지문)
+     * @param ecyRnwPubTokCone 암호화갱신발행토큰내용 (조회용 HMAC-SHA256 HEX 지문)
      * @param eno 토큰 소유자 사번 (감사자로도 함께 기록됨)
      * @param famNm 토큰 패밀리명
      * @param endDtm 토큰 종료일시
