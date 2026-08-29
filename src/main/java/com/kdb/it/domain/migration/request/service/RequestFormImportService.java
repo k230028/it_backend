@@ -133,11 +133,12 @@ public class RequestFormImportService {
         }
         // 원장 반영(파일별 REQUIRES_NEW)이 모두 끝난 뒤에 보관한다. 순서를 뒤집으면 첨부 실패가
         // 정상 반입을 통째로 되돌린다. 보관은 예외를 던지지 않으므로 여기서 감싸지 않는다.
-        if (!dryRun) {
-            sourceFileArchiver.archive(archivePlan);
-        }
+        List<String> archiveFailedFileKeys =
+                dryRun ? List.of() : sourceFileArchiver.archive(archivePlan);
         return new RequestFormDto.ImportResponse(
-                dryRun, summarize(files.size(), results), List.copyOf(results));
+                dryRun,
+                withArchiveFailures(summarize(files.size(), results), archiveFailedFileKeys),
+                List.copyOf(results));
     }
 
     /** 요청서 파싱 대상이 하나도 없는 원본 보관 그룹별 대표 파일 인덱스를 찾습니다. */
@@ -277,6 +278,17 @@ public class RequestFormImportService {
             created = created.plus(result.counts());
         }
         return new RequestFormDto.ImportSummary(totalFiles, applied, blocked, created);
+    }
+
+    /** 원장 반영 요약에 원본 보관 실패 파일 목록을 결합합니다. */
+    private RequestFormDto.ImportSummary withArchiveFailures(
+            RequestFormDto.ImportSummary summary, List<String> archiveFailedFileKeys) {
+        return new RequestFormDto.ImportSummary(
+                summary.totalFiles(),
+                summary.appliedFiles(),
+                summary.blockedFiles(),
+                summary.created(),
+                archiveFailedFileKeys);
     }
 
     private RequestFormDto.FileResult failed(

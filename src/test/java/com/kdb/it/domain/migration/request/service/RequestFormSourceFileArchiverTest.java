@@ -14,6 +14,7 @@ import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.service.FileService;
 import java.nio.charset.StandardCharsets;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -71,6 +72,30 @@ class RequestFormSourceFileArchiverTest {
                             results.get(i)));
         }
         archiver.archive(plan);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> archiveAndCollect(
+            List<MultipartFile> files,
+            List<RequestFormDto.FileEntry> entries,
+            List<RequestFormDto.FileResult> results) {
+        List<RequestFormSourceFileArchiver.ArchivePlanItem> plan = new ArrayList<>();
+        for (int i = 0; i < files.size(); i++) {
+            plan.add(
+                    new RequestFormSourceFileArchiver.ArchivePlanItem(
+                            files.get(i),
+                            entries.get(i).fileKey(),
+                            RequestFormArchiveGroup.keyOf(entries.get(i).fileKey()),
+                            entries.get(i).deptName(),
+                            results.get(i)));
+        }
+        try {
+            Method archive = RequestFormSourceFileArchiver.class.getDeclaredMethod("archive", List.class);
+            Object result = archive.invoke(archiver, plan);
+            return result == null ? List.of() : (List<String>) result;
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
     }
 
     @Test
@@ -500,6 +525,8 @@ class RequestFormSourceFileArchiverTest {
         given(fileService.uploadFile(any(), any())).willThrow(new RuntimeException("디스크 오류"));
 
         assertThatCode(() -> archive(files, entries, results)).doesNotThrowAnyException();
+        assertThat(archiveAndCollect(files, entries, results))
+                .containsExactly("IT부(D01)/a.xlsx");
     }
 
     @Test
@@ -521,5 +548,66 @@ class RequestFormSourceFileArchiverTest {
 
         then(fileService).should(times(1)).uploadFile(any(), any());
         then(fileService).should(never()).linkExistingFile(any(), any());
+    }
+
+    @Test
+    @DisplayName("연결 실패도 파일 키로 보고하고 업로드 실패 키는 encounter order로 중복 제거한다")
+    void archive_reportsLinkFailuresAndDeduplicatesFailureKeys() {
+        List<MultipartFile> files = List.of(file("a.xlsx"), file("a-copy.xlsx"), file("b.xlsx"));
+        List<RequestFormDto.FileEntry> entries =
+                List.of(
+                        entry("IT부(D01)/a.xlsx", "IT부(D01)"),
+                        entry("IT부(D01)/a.xlsx", "IT부(D01)"),
+                        entry("IT부(D01)/b.xlsx", "IT부(D01)"));
+        List<RequestFormDto.FileResult> results =
+                List.of(
+                        result(
+                                "IT부(D01)/a.xlsx",
+                                "IT부(D01)",
+                                RequestFormDto.FileStatus.APPLIED,
+                                List.of("APF-1", "APF-2")),
+                        result(
+                                "IT부(D01)/a.xlsx",
+                                "IT부(D01)",
+                                RequestFormDto.FileStatus.APPLIED,
+                                List.of("APF-3")),
+                        result(
+                                "IT부(D01)/b.xlsx",
+                                "IT부(D01)",
+                                RequestFormDto.FileStatus.APPLIED,
+                                List.of("APF-4")));
+
+        given(fileService.uploadFile(any(), any())).willThrow(new RuntimeException("디스크 오류"));
+
+        assertThat(archiveAndCollect(files, entries, results))
+                .containsExactly("IT부(D01)/a.xlsx", "IT부(D01)/b.xlsx");
+    }
+
+    @Test
+    @DisplayName("원본 연결 실패도 해당 파일 키만 결과에 담고 예외를 전파하지 않는다")
+    void archive_reportsLinkFailureByFileKey() {
+        List<MultipartFile> files = List.of(file("a.xlsx"), file("b.xlsx"));
+        List<RequestFormDto.FileEntry> entries =
+                List.of(entry("IT부(D01)/a.xlsx", "IT부(D01)"), entry("IT부(D01)/b.xlsx", "IT부(D01)"));
+        List<RequestFormDto.FileResult> results =
+                List.of(
+                        result(
+                                "IT부(D01)/a.xlsx",
+                                "IT부(D01)",
+                                RequestFormDto.FileStatus.APPLIED,
+                                List.of("APF-1", "APF-2")),
+                        result(
+                                "IT부(D01)/b.xlsx",
+                                "IT부(D01)",
+                                RequestFormDto.FileStatus.APPLIED,
+                                List.of("APF-3")));
+
+        given(fileService.uploadFile(any(), any())).willReturn("FL-A", "FL-B");
+        given(fileService.linkExistingFile(any(), any()))
+                .willThrow(new RuntimeException("연결 오류"));
+
+        List<String> failedFileKeys = archiveAndCollect(files, entries, results);
+        assertThat(failedFileKeys)
+                .containsExactly("IT부(D01)/a.xlsx", "IT부(D01)/b.xlsx");
     }
 }

@@ -143,11 +143,11 @@ class RequestFormImportServiceTest {
 
         RequestFormDto.ImportResponse response =
                 service(50)
-                        .importBatch(
-                                List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
-                                manifest("자금운용실/요청서.xls"),
-                                "12345678",
-                                true);
+                .importBatch(
+                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                        manifest("자금운용실/요청서.xls"),
+                        "12345678",
+                        true);
 
         assertThat(response.dryRun()).isTrue();
         org.mockito.Mockito.verify(fileImporter, org.mockito.Mockito.never())
@@ -189,14 +189,16 @@ class RequestFormImportServiceTest {
     void dryRun_doesNotArchive() {
         when(fileImporter.preview(any(), any(), anyString())).thenReturn(applied("자금운용실/요청서.xls"));
 
-        service(50)
-                .importBatch(
-                        List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
-                        manifest("자금운용실/요청서.xls"),
-                        "12345678",
-                        true);
+        RequestFormDto.ImportResponse response =
+                service(50)
+                        .importBatch(
+                                List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                                manifest("자금운용실/요청서.xls"),
+                                "12345678",
+                                true);
 
         org.mockito.Mockito.verify(sourceFileArchiver, org.mockito.Mockito.never()).archive(any());
+        assertThat(archiveFailedFileKeys(response.summary())).isEmpty();
     }
 
     @Test
@@ -213,6 +215,36 @@ class RequestFormImportServiceTest {
                         false);
 
         org.mockito.Mockito.verify(sourceFileArchiver).archive(any());
+    }
+
+    @Test
+    @DisplayName("commit의 원본 보관 실패 키를 순서대로 요약에 전달한다")
+    void commit_reportsArchiveFailuresInSummary() {
+        when(fileImporter.apply(any(), any(), anyString(), anyString()))
+                .thenReturn(applied("자금운용실/요청서.xls"));
+        org.mockito.Mockito.doAnswer(invocation -> List.of("자금운용실/요청서.xls", "자금운용실/증빙.pdf"))
+                .when(sourceFileArchiver)
+                .archive(any());
+
+        RequestFormDto.ImportResponse response =
+                service(50)
+                        .importBatch(
+                                List.of(file("요청서.xls", RequestFormFixtures.fullFormXls())),
+                                manifest("자금운용실/요청서.xls"),
+                                "12345678",
+                                false);
+
+        assertThat(archiveFailedFileKeys(response.summary()))
+                .containsExactly("자금운용실/요청서.xls", "자금운용실/증빙.pdf");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> archiveFailedFileKeys(RequestFormDto.ImportSummary summary) {
+        try {
+            return (List<String>) summary.getClass().getMethod("archiveFailedFileKeys").invoke(summary);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
     }
 
     @Test

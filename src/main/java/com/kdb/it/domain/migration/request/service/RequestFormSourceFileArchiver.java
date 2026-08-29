@@ -60,7 +60,8 @@ public class RequestFormSourceFileArchiver {
      *
      * @param plan 업로드 파일·실제 적용 부서코드·파일별 반영 결과를 묶은 내부 계획
      */
-    void archive(List<ArchivePlanItem> plan) {
+    List<String> archive(List<ArchivePlanItem> plan) {
+        Set<String> failedFileKeys = new LinkedHashSet<>();
         Map<ArchiveGroupKey, Set<String>> apfMngNosByGroup = new LinkedHashMap<>();
 
         for (ArchivePlanItem item : plan) {
@@ -98,8 +99,10 @@ public class RequestFormSourceFileArchiver {
                 archiveOne(
                         item,
                         targets,
-                        new ArchiveGroupKey(item.archiveGroupKey(), item.effectiveDeptCode()));
+                        new ArchiveGroupKey(item.archiveGroupKey(), item.effectiveDeptCode()),
+                         failedFileKeys);
         }
+        return List.copyOf(failedFileKeys);
     }
 
     /**
@@ -107,7 +110,11 @@ public class RequestFormSourceFileArchiver {
      *
      * <p>첫 신청서번호에만 디스크에 쓰고, 나머지는 그 물리 파일을 공유하는 메타행만 만듭니다.
      */
-    private void archiveOne(ArchivePlanItem item, Set<String> apfMngNos, ArchiveGroupKey groupKey) {
+    private void archiveOne(
+            ArchivePlanItem item,
+            Set<String> apfMngNos,
+            ArchiveGroupKey groupKey,
+            Set<String> failedFileKeys) {
         MultipartFile file = item.file();
         Iterator<String> applicationNumbers = apfMngNos.iterator();
         String firstApfMngNo = applicationNumbers.next();
@@ -123,6 +130,7 @@ public class RequestFormSourceFileArchiver {
                     firstApfMngNo,
                     file.getOriginalFilename(),
                     e);
+            failedFileKeys.add(item.fileKey());
             return;
         }
 
@@ -139,6 +147,7 @@ public class RequestFormSourceFileArchiver {
                         apfMngNo,
                         file.getOriginalFilename(),
                         e);
+                failedFileKeys.add(item.fileKey());
             }
         }
     }

@@ -394,7 +394,22 @@ public final class RequestFormDto {
             @Schema(description = "차단된 파일 수", requiredMode = Schema.RequiredMode.REQUIRED)
                     int blockedFiles,
             @Schema(description = "원장 종류별 합계", requiredMode = Schema.RequiredMode.REQUIRED)
-                    RecordCounts created) {}
+                    RecordCounts created,
+            @Schema(
+                            description = "원본 보관 실패 파일 상대경로",
+                            requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<String> archiveFailedFileKeys) {
+
+        public ImportSummary {
+            archiveFailedFileKeys =
+                    archiveFailedFileKeys == null ? List.of() : List.copyOf(archiveFailedFileKeys);
+        }
+
+        /** 기존 내부 호출부와의 호환을 위한 원본 보관 실패 목록 없는 생성자입니다. */
+        public ImportSummary(int totalFiles, int appliedFiles, int blockedFiles, RecordCounts created) {
+            this(totalFiles, appliedFiles, blockedFiles, created, List.of());
+        }
+    }
 
     /**
      * 반입 응답입니다. dry-run과 commit이 같은 형태를 씁니다.
