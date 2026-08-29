@@ -610,4 +610,25 @@ class RequestFormSourceFileArchiverTest {
         assertThat(failedFileKeys)
                 .containsExactly("IT부(D01)/a.xlsx", "IT부(D01)/b.xlsx");
     }
+
+    @Test
+    @DisplayName("절대경로 입력 실패는 원본 경로를 결과에 그대로 노출하지 않는다")
+    void archive_doesNotExposeAbsoluteFailureKey() {
+        MultipartFile file = file("a.xlsx");
+        String absoluteKey = "C:\\server\\private\\a.xlsx";
+        List<RequestFormDto.FileEntry> entries = List.of(entry(absoluteKey, "IT부(D01)"));
+        List<RequestFormDto.FileResult> results =
+                List.of(
+                        result(
+                                absoluteKey,
+                                "IT부(D01)",
+                                RequestFormDto.FileStatus.APPLIED,
+                                List.of("APF-1")));
+        given(fileService.uploadFile(any(), any())).willThrow(new RuntimeException("디스크 오류"));
+
+        List<String> failed = archiveAndCollect(List.of(file), entries, results);
+
+        assertThat(failed).containsExactly("a.xlsx");
+        assertThat(failed).noneMatch(value -> value.matches("^[A-Za-z]:[\\\\/].*"));
+    }
 }

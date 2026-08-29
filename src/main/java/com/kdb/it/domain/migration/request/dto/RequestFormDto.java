@@ -384,6 +384,7 @@ public final class RequestFormDto {
      * @param appliedFiles 반영된 파일 수. dry-run이면 반영 가능한 파일 수
      * @param blockedFiles BLOCKER가 남은 파일 수
      * @param created 반영된 파일들의 원장 종류별 합계. dry-run이면 반영 시 생길 합계
+     * @param archiveFailedFileKeys 원본 보관에 실패한 파일의 안전한 상대 식별자 목록
      */
     @Schema(name = "RequestFormImportSummary", description = "반입 배치 요약")
     public record ImportSummary(

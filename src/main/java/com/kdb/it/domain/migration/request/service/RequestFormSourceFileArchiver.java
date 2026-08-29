@@ -130,7 +130,7 @@ public class RequestFormSourceFileArchiver {
                     firstApfMngNo,
                     file.getOriginalFilename(),
                     e);
-            failedFileKeys.add(item.fileKey());
+            failedFileKeys.add(failureKey(item));
             return;
         }
 
@@ -147,7 +147,7 @@ public class RequestFormSourceFileArchiver {
                         apfMngNo,
                         file.getOriginalFilename(),
                         e);
-                failedFileKeys.add(item.fileKey());
+                failedFileKeys.add(failureKey(item));
             }
         }
     }
@@ -160,6 +160,19 @@ public class RequestFormSourceFileArchiver {
                 apfMngNo,
                 RequestFormArchiveMetadata.fitRelativePath(relativePath),
                 displayFileName);
+    }
+
+    /** 실패 보고에 사용할 안전한 상대 식별자를 만듭니다. 잘못된 키는 업로드 파일명으로 대체합니다. */
+    private String failureKey(ArchivePlanItem item) {
+        String displayFileName =
+                RequestFormArchiveMetadata.fitFileName(item.file().getOriginalFilename());
+        try {
+            RequestFormRelativePath.normalize(item.fileKey(), displayFileName);
+            if (item.fileKey() == null || item.fileKey().isBlank()) return displayFileName;
+            return RequestFormArchiveMetadata.fitRelativePath(item.fileKey().replace('\\', '/'));
+        } catch (RuntimeException ignored) {
+            return displayFileName;
+        }
     }
 
     /**
