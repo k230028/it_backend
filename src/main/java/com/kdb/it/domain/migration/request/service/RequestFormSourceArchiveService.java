@@ -4,20 +4,16 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.migration.request.dto.RequestFormSourceArchiveRequest;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.dto.FileDto;
+import com.kdb.it.infra.file.service.AttachmentArchiveSupport;
 import com.kdb.it.infra.file.service.FileService;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -93,31 +89,19 @@ public class RequestFormSourceArchiveService {
             throw new CustomGeneralException("편성요청서 관리번호는 필수입니다.");
         }
         List<String> fileIds = request.fileIds();
-        if (fileIds == null) {
-            return;
-        }
-        if (fileIds.isEmpty()) {
-            throw new CustomGeneralException("선택 파일은 한 건 이상이어야 합니다.");
-        }
-        if (fileIds.stream().anyMatch(fileId -> !StringUtils.hasText(fileId))) {
-            throw new CustomGeneralException("파일매핑ID는 공백일 수 없습니다.");
-        }
-        if (new HashSet<>(fileIds).size() != fileIds.size()) {
-            throw new CustomGeneralException("중복된 파일매핑ID를 선택할 수 없습니다.");
-        }
+        AttachmentArchiveSupport.validateSelection(
+                fileIds,
+                "선택 파일은 한 건 이상이어야 합니다.",
+                "파일매핑ID는 공백일 수 없습니다.",
+                "중복된 파일매핑ID를 선택할 수 없습니다.");
     }
 
     private Set<String> resolveSelection(
             List<String> requestedIds, List<FileDto.Response> authorizedFiles) {
-        if (requestedIds == null) {
-            return null;
-        }
         Set<String> authorizedIds = new HashSet<>();
         authorizedFiles.forEach(file -> authorizedIds.add(file.getFlMpnId()));
-        if (!authorizedIds.containsAll(requestedIds)) {
-            throw new CustomGeneralException("선택한 파일을 다운로드할 수 없습니다.");
-        }
-        return Set.copyOf(requestedIds);
+        return AttachmentArchiveSupport.resolveSelection(
+                requestedIds, authorizedIds, "선택한 파일을 다운로드할 수 없습니다.");
     }
 
     private List<ArchiveFile> preflight(
@@ -135,7 +119,8 @@ public class RequestFormSourceArchiveService {
             String normalizedPath = RequestFormRelativePath.normalize(storedPath, file.getFlNm());
             archiveFiles.add(
                     new ArchiveFile(
-                            file.getFlMpnId(), uniqueEntryName(normalizedPath, usedEntryNames)));
+                            file.getFlMpnId(),
+                            AttachmentArchiveSupport.uniqueEntryName(normalizedPath, usedEntryNames)));
         }
         if (archiveFiles.isEmpty()) {
             throw new CustomGeneralException("다운로드할 수 있는 편성요청서 원본이 없습니다.");
@@ -143,41 +128,15 @@ public class RequestFormSourceArchiveService {
         return archiveFiles;
     }
 
-    private String uniqueEntryName(String requestedName, Set<String> usedNames) {
-        if (usedNames.add(requestedName)) {
-            return requestedName;
-        }
-
-        int slashIndex = requestedName.lastIndexOf('/');
-        int dotIndex = requestedName.lastIndexOf('.');
-        boolean hasExtension = dotIndex > slashIndex + 1;
-        String stem = hasExtension ? requestedName.substring(0, dotIndex) : requestedName;
-        String extension = hasExtension ? requestedName.substring(dotIndex) : "";
-        int sequence = 2;
-        String candidate;
-        do {
-            candidate = stem + "(" + sequence++ + ")" + extension;
-        } while (!usedNames.add(candidate));
-        return candidate;
-    }
-
     private void writeZip(List<ArchiveFile> archiveFiles, OutputStream output) {
-        try (ZipOutputStream zip =
-                zipOutputStreamFactory.apply(CloseShieldOutputStream.wrap(output))) {
-            for (ArchiveFile archiveFile : archiveFiles) {
-                FileService.FileDownloadResult download =
-                        fileService.downloadFile(archiveFile.fileId());
-                zip.putNextEntry(new ZipEntry(archiveFile.entryName()));
-                try (InputStream input =
-                        Objects.requireNonNull(download.resource().getInputStream())) {
-                    input.transferTo(zip);
-                } finally {
-                    zip.closeEntry();
-                }
-            }
-        } catch (IOException e) {
-            throw new CustomGeneralException("편성요청서 원본 ZIP 생성에 실패했습니다.", e);
-        }
+        AttachmentArchiveSupport.writeZip(
+                archiveFiles.stream()
+                        .map(file -> new AttachmentArchiveSupport.ArchiveFile(file.fileId(), file.entryName()))
+                        .toList(),
+                output,
+                fileService,
+                "편성요청서 원본 ZIP 생성에 실패했습니다.",
+                zipOutputStreamFactory);
     }
 
     /** 검증·권한 판정을 마친 ZIP 대상 목록 */

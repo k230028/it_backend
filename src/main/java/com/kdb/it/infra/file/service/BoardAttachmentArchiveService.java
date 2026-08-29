@@ -3,19 +3,14 @@ package com.kdb.it.infra.file.service;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.dto.FileDto;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -78,28 +73,21 @@ public class BoardAttachmentArchiveService {
         if (!StringUtils.hasText(nacMngNo)) {
             throw new CustomGeneralException("게시물 관리번호는 필수입니다.");
         }
-        if (fileIds == null) return;
-        if (fileIds.isEmpty()) {
-            throw new CustomGeneralException("선택 파일은 한 건 이상이어야 합니다.");
-        }
-        if (fileIds.stream().anyMatch(fileId -> !StringUtils.hasText(fileId))) {
-            throw new CustomGeneralException("파일매핑ID는 공백일 수 없습니다.");
-        }
-        if (new HashSet<>(fileIds).size() != fileIds.size()) {
-            throw new CustomGeneralException("중복된 파일매핑ID를 선택할 수 없습니다.");
-        }
+        AttachmentArchiveSupport.validateSelection(
+                fileIds,
+                "선택 파일은 한 건 이상이어야 합니다.",
+                "파일매핑ID는 공백일 수 없습니다.",
+                "중복된 파일매핑ID를 선택할 수 없습니다.");
     }
 
     private Set<String> resolveSelection(
             List<String> requestedIds, List<FileDto.Response> authorizedFiles) {
-        if (requestedIds == null) return null;
-
         Set<String> authorizedIds = new HashSet<>();
         authorizedFiles.forEach(file -> authorizedIds.add(file.getFlMpnId()));
-        if (!authorizedIds.containsAll(requestedIds)) {
-            throw new CustomGeneralException("선택한 게시판 첨부파일을 다운로드할 수 없습니다.");
-        }
-        return Set.copyOf(requestedIds);
+        return AttachmentArchiveSupport.resolveSelection(
+                requestedIds,
+                authorizedIds,
+                "선택한 게시판 첨부파일을 다운로드할 수 없습니다.");
     }
 
     private List<ArchiveFile> preflight(
@@ -110,7 +98,9 @@ public class BoardAttachmentArchiveService {
             if (selection != null && !selection.contains(file.getFlMpnId())) continue;
             String safeName = safeEntryName(file.getFlNm(), file.getFlMpnId());
             archiveFiles.add(
-                    new ArchiveFile(file.getFlMpnId(), uniqueEntryName(safeName, usedEntryNames)));
+                    new ArchiveFile(
+                            file.getFlMpnId(),
+                            AttachmentArchiveSupport.uniqueEntryName(safeName, usedEntryNames)));
         }
         if (archiveFiles.isEmpty()) {
             throw new CustomGeneralException("다운로드할 수 있는 게시판 첨부파일이 없습니다.");
@@ -132,37 +122,15 @@ public class BoardAttachmentArchiveService {
         return ".".equals(result) || "..".equals(result) ? result.replace('.', '_') : result;
     }
 
-    private String uniqueEntryName(String requestedName, Set<String> usedNames) {
-        if (usedNames.add(requestedName)) return requestedName;
-
-        int dotIndex = requestedName.lastIndexOf('.');
-        boolean hasExtension = dotIndex > 0;
-        String stem = hasExtension ? requestedName.substring(0, dotIndex) : requestedName;
-        String extension = hasExtension ? requestedName.substring(dotIndex) : "";
-        int sequence = 2;
-        String candidate;
-        do {
-            candidate = stem + "(" + sequence++ + ")" + extension;
-        } while (!usedNames.add(candidate));
-        return candidate;
-    }
-
     private void writeZip(List<ArchiveFile> archiveFiles, OutputStream output) {
-        try (ZipOutputStream zip = new ZipOutputStream(CloseShieldOutputStream.wrap(output))) {
-            for (ArchiveFile archiveFile : archiveFiles) {
-                FileService.FileDownloadResult download =
-                        fileService.downloadFile(archiveFile.fileId());
-                zip.putNextEntry(new ZipEntry(archiveFile.entryName()));
-                try (InputStream input =
-                        Objects.requireNonNull(download.resource().getInputStream())) {
-                    input.transferTo(zip);
-                } finally {
-                    zip.closeEntry();
-                }
-            }
-        } catch (IOException error) {
-            throw new CustomGeneralException("게시판 첨부파일 ZIP 생성에 실패했습니다.", error);
-        }
+        AttachmentArchiveSupport.writeZip(
+                archiveFiles.stream()
+                        .map(file -> new AttachmentArchiveSupport.ArchiveFile(file.fileId(), file.entryName()))
+                        .toList(),
+                output,
+                fileService,
+                "게시판 첨부파일 ZIP 생성에 실패했습니다.",
+                ZipOutputStream::new);
     }
 
     /** 검증·권한 판정을 마친 ZIP 대상 목록 */
