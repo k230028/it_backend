@@ -3,16 +3,28 @@ package com.kdb.it.common.approval.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.approval.entity.Cdecim;
-import com.kdb.it.support.AbstractOracleRepositoryTest;
+import com.kdb.it.config.QuerydslConfig;
+import com.kdb.it.support.OracleAvailableCondition;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 
 /** PK 구성요소를 바꾸는 네이티브 UPDATE가 영속성 컨텍스트를 비우는지 검증한다. */
-class ApproverRepositoryModifyingQueryIt extends AbstractOracleRepositoryTest {
+@Tag("it")
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(QuerydslConfig.class)
+@ActiveProfiles("test-it")
+@org.junit.jupiter.api.extension.ExtendWith(OracleAvailableCondition.class)
+class ApproverRepositoryModifyingQueryIt {
 
     @Autowired private ApproverRepository approverRepository;
     @Autowired private EntityManager entityManager;
