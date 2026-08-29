@@ -563,6 +563,31 @@ class CostServiceTest {
         assertThat(captor.getValue().getSvnTemNm()).isEqualTo("디지털전략팀");
     }
 
+    @Test
+    @DisplayName("createCost: 단말기 조직명이 UTF-8 100바이트를 넘으면 단말기 저장 전에 거부한다")
+    void createCost_단말기조직명_UTF8_100바이트초과_저장전거부() {
+        CostDto.TerminalDto terminal =
+                CostDto.TerminalDto.builder()
+                        .tmnMngNo("TER-2026-0001")
+                        .sno(1)
+                        .termSvnDpmC("BBR-OVER")
+                        .curC("KRW")
+                        .build();
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .cttNm("단말기 조직명 검증")
+                        .terminals(List.of(terminal))
+                        .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(orgNameResolver.resolveName("BBR-OVER")).willReturn("a".repeat(101));
+
+        assertThatThrownBy(() -> costService.createCost(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("100바이트");
+        verify(btermmRepository, never()).save(any(Btermm.class));
+    }
+
     // ───────────────────────────────────────────────────────
     // updateCost (신규) — 정상 수정
     // ───────────────────────────────────────────────────────

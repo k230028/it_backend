@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.cost.entity;
 
 import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BtermmL;
@@ -12,6 +13,8 @@ import jakarta.persistence.IdClass;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -35,6 +38,8 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @SuperBuilder
 public class Btermm extends BaseEntity {
+
+    private static final int SVN_ORG_NAME_MAX_BYTES = 100;
 
     /** JPA가 단말기관리 엔티티를 복원할 때 사용하는 기본 생성자입니다. */
     protected Btermm() {}
@@ -244,8 +249,32 @@ public class Btermm extends BaseEntity {
 
     /** 현재 조직코드에 대응하는 조직명 스냅샷을 설정합니다. */
     public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
+        validateSvnOrgName("SVN_DPM_NM", svnDpmNm);
+        validateSvnOrgName("SVN_TEM_NM", svnTemNm);
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;
+    }
+
+    /** 직접 생성된 엔티티도 JDBC 호출 전에 조직명 바이트 제한을 검증합니다. */
+    @PrePersist
+    @PreUpdate
+    void validateSvnOrgNamesBeforePersist() {
+        validateSvnOrgName("SVN_DPM_NM", svnDpmNm);
+        validateSvnOrgName("SVN_TEM_NM", svnTemNm);
+    }
+
+    private static void validateSvnOrgName(String columnName, String value) {
+        int actualBytes = Utf8ByteLimit.length(value);
+        if (actualBytes > SVN_ORG_NAME_MAX_BYTES) {
+            throw new IllegalArgumentException(
+                    "단말기 "
+                            + columnName
+                            + "은 UTF-8 기준 "
+                            + SVN_ORG_NAME_MAX_BYTES
+                            + "바이트를 초과할 수 없습니다. (현재: "
+                            + actualBytes
+                            + "바이트)");
+        }
     }
 
     /**

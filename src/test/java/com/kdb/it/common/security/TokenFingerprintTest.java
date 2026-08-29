@@ -1,6 +1,7 @@
 package com.kdb.it.common.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,5 +27,13 @@ class TokenFingerprintTest {
         assertThat(fingerprint.forMfa("sample-token"))
                 .isEqualTo("545ecd32668bf3afdb40be141cd1a06d1e3eeb937e32260a9364e29a80827b29")
                 .isNotEqualTo(fingerprint.forRefreshToken("sample-token"));
+    }
+
+    @Test
+    @DisplayName("토큰 지문 전용 키가 32바이트보다 짧으면 생성하지 않는다")
+    void rejectsFingerprintSecretShorterThanSha256Minimum() {
+        assertThatThrownBy(() -> new TokenFingerprint("short-secret"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("32바이트");
     }
 }

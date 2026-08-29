@@ -1,6 +1,7 @@
 package com.kdb.it.common.system;
 
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.web.server.Cookie;
@@ -49,6 +50,8 @@ public class EnvironmentValidator {
         checkRequired("spring.datasource.password", "DB_PASSWORD");
         checkRequired("jwt.secret", "JWT_SECRET");
         checkRequired("security.token-fingerprint-secret", "TOKEN_FINGERPRINT_SECRET");
+        checkMinimumUtf8Bytes(
+                "security.token-fingerprint-secret", "TOKEN_FINGERPRINT_SECRET", 32);
 
         // 운영 프로파일에서만: 운영 필수 키 빈값/와일드카드/위험 토글 차단
         if (isProdProfile()) {
@@ -200,5 +203,21 @@ public class EnvironmentValidator {
     /** 환경변수 해석에 실패해 플레이스홀더 문자열이 그대로 남은 경우를 미설정으로 판정합니다. */
     private boolean isUnresolvedPlaceholder(String value) {
         return value.startsWith("${") && value.endsWith("}");
+    }
+
+    /** HMAC 지문 키가 SHA-256 최소 키 길이를 만족하는지 확인합니다. */
+    private void checkMinimumUtf8Bytes(String propertyKey, String envVarName, int minimumBytes) {
+        String value = environment.getProperty(propertyKey);
+        if (value != null
+                && !value.isBlank()
+                && !isUnresolvedPlaceholder(value)
+                && value.getBytes(StandardCharsets.UTF_8).length < minimumBytes) {
+            throw new IllegalStateException(
+                    "필수 환경변수 길이 부족: "
+                            + envVarName
+                            + " — UTF-8 기준 "
+                            + minimumBytes
+                            + "바이트 이상이어야 합니다.");
+        }
     }
 }

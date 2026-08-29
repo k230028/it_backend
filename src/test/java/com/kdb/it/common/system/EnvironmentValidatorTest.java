@@ -102,6 +102,20 @@ class EnvironmentValidatorTest {
                 .hasMessageContaining("TOKEN_FINGERPRINT_SECRET");
     }
 
+    @Test
+    @DisplayName("TOKEN_FINGERPRINT_SECRET가 UTF-8 32바이트보다 짧으면 기동 차단")
+    void validate_shortTokenFingerprintSecret_throwsIllegalState() {
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("spring.datasource.password", "securePassword!");
+        env.setProperty("jwt.secret", "super-secret-key-at-least-256-bits-long");
+        env.setProperty("security.token-fingerprint-secret", "short-secret");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("TOKEN_FINGERPRINT_SECRET")
+                .hasMessageContaining("32바이트");
+    }
+
     // ── 운영 프로파일 전용 키 검증 (T8) ───────────────────────────────────
 
     private MockEnvironment prodEnvWithAllRequired() {

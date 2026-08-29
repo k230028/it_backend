@@ -31,9 +31,10 @@ import org.springframework.web.bind.annotation.RestController;
                     + "org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration,"
                     + "org.springframework.boot.security.autoconfigure.actuate.web.servlet.ManagementWebSecurityAutoConfiguration,"
                     + "org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration",
-            "spring.datasource.password=test-db-password",
-            "jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok",
-            "gemini.api.key=test-gemini-key",
+             "spring.datasource.password=test-db-password",
+             "jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok",
+             "security.token-fingerprint-secret=test-token-fingerprint-secret-for-junit-minimum-256-bits-ok",
+             "gemini.api.key=test-gemini-key",
             "eai.enabled=false"
         })
 @ActiveProfiles("prod")

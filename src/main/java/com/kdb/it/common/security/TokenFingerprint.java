@@ -29,6 +29,10 @@ public class TokenFingerprint {
             throw new IllegalStateException(
                     "필수 프로퍼티 미설정: security.token-fingerprint-secret");
         }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException(
+                    "security.token-fingerprint-secret은 UTF-8 기준 32바이트 이상이어야 합니다.");
+        }
         this.key = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), ALGORITHM);
     }
 

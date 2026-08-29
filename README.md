@@ -162,6 +162,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `DB_PASSWORD`           | 애플리케이션 DB 비밀번호                                             |
 | `DB_SCHEMA`             | 객체 소유 스키마. 기본값은 `ITPOWN`                                 |
 | `JWT_SECRET`            | JWT 서명 키                                                          |
+| `TOKEN_FINGERPRINT_SECRET` | Refresh Token·MFA 지문 HMAC 키. `JWT_SECRET`과 분리하며 UTF-8 32바이트 이상이어야 함 |
 | `APP_FRONTEND_URL`      | SSO 기본 복귀 URL과 기본 CORS Origin                                 |
 | `CORS_ALLOWED_ORIGINS`  | 다중 CORS Origin이 필요할 때 콤마 구분으로 별도 지정                 |
 | `APP_TRUSTED_PROXIES`   | `X-Forwarded-For`를 신뢰할 프록시 IP 목록                            |
