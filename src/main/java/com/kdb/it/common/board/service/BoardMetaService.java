@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class BoardMetaService {
 
     private final BoardMetaRepository boardMetaRepository;
+    private final BoardTypeResolver boardTypeResolver;
 
     /**
      * 사이드바용 게시판 목록 조회.
@@ -52,6 +53,7 @@ public class BoardMetaService {
      */
     @Transactional
     public String createBoard(BoardMetaDto.CreateRequest request) {
+        validateSpecialBoardType(request.getItPtlBlbTc());
         Long seq = boardMetaRepository.getNextSequenceValue();
         String blbMngNo = String.format("BLBM-%04d", seq);
 
@@ -60,6 +62,18 @@ public class BoardMetaService {
         entity.update(request.toUpdateCommand());
         boardMetaRepository.save(entity);
         return blbMngNo;
+    }
+
+    private void validateSpecialBoardType(String typeCode) {
+        if (!BoardTypeResolver.FAQ_BOARD_TYPE.equals(typeCode)
+                && !BoardTypeResolver.QNA_BOARD_TYPE.equals(typeCode)) {
+            return;
+        }
+        if (!boardMetaRepository
+                .findAllByItPtlBlbTcAndUseYnAndDelYn(typeCode, "Y", "N")
+                .isEmpty()) {
+            throw new CustomGeneralException("고유 게시판은 활성 상태로 하나만 지정해야 합니다: " + typeCode);
+        }
     }
 
     /**

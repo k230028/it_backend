@@ -1,10 +1,12 @@
 package com.kdb.it.common.board.service;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.board.dto.BoardMetaDto;
@@ -28,6 +30,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BoardMetaServiceTest {
 
     @Mock private BoardMetaRepository boardMetaRepository;
+
+    @Mock private BoardTypeResolver boardTypeResolver;
 
     @InjectMocks private BoardMetaService service;
 
@@ -105,6 +109,19 @@ class BoardMetaServiceTest {
     }
 
     @Test
+    @DisplayName("FAQ·Q&A 게시판은 유형별로 하나만 활성화할 수 있다")
+    void createBoard_secondSpecialBoardIsRejected() {
+        given(boardMetaRepository.findAllByItPtlBlbTcAndUseYnAndDelYn("005", "Y", "N"))
+                .willReturn(List.of(boardWithType("BLBM-0427", "005")));
+
+        assertThatThrownBy(() -> service.createBoard(createRequestWithType("005")))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("고유 게시판");
+
+        verify(boardMetaRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("게시판 수정은 활성 엔티티에 변경 명령을 적용한다")
     void updateBoard_existingBoard_updatesEntity() {
         Cblbmm board = board("BLBM-2026-0001", "공지사항");
@@ -170,10 +187,18 @@ class BoardMetaServiceTest {
     }
 
     private static Cblbmm board(String id, String name) {
+        return boardWithType(id, "001", name);
+    }
+
+    private static Cblbmm boardWithType(String id, String type) {
+        return boardWithType(id, type, "게시판");
+    }
+
+    private static Cblbmm boardWithType(String id, String type, String name) {
         return Cblbmm.builder()
                 .blbMngNo(id)
                 .blbNm(name)
-                .itPtlBlbTc("001")
+                .itPtlBlbTc(type)
                 .repUseYn("Y")
                 .cmmtUseYn("Y")
                 .flEsnYn("N")
@@ -183,13 +208,6 @@ class BoardMetaServiceTest {
                 .build();
     }
 
-    /**
-     * 목록 프로젝션 테스트 픽스처 생성 헬퍼.
-     *
-     * @param id 게시판관리번호
-     * @param name 게시판명
-     * @return {@link BoardMetaListRow} 픽스처
-     */
     private static BoardMetaListRow metaRow(String id, String name) {
         return new BoardMetaListRow(id, name, "001", "Y", "Y", "N", "N", 1, "Y", null);
     }
@@ -202,6 +220,13 @@ class BoardMetaServiceTest {
         request.setCmmtUseYn("Y");
         request.setFlEsnYn("N");
         request.setSreSqnNo(1);
+        return request;
+    }
+
+    private static BoardMetaDto.CreateRequest createRequestWithType(String typeCode) {
+        BoardMetaDto.CreateRequest request = createRequest();
+        request.setItPtlBlbTc(typeCode);
+        request.setBlbNm("Q&A");
         return request;
     }
 

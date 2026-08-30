@@ -38,7 +38,7 @@ public class BoardMetaDto {
         private String blbNm;
 
         @Schema(
-                description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실, 003=일정)",
+                description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실, 003=일정, 004=FAQ, 005=Q&A)",
                 example = "001")
         private String itPtlBlbTc;
 
@@ -124,7 +124,7 @@ public class BoardMetaDto {
 
         @NotBlank
         @Schema(
-                description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실, 003=일정)",
+                description = "게시판구분코드 (공통코드 IT_PTL_BLB_TC: 001=공지사항, 002=자료실, 003=일정, 004=FAQ, 005=Q&A)",
                 example = "001",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private String itPtlBlbTc;
