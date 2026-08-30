@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.NotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +39,16 @@ class BoardTypeResolverTest {
                 .willReturn(List.of(faq));
 
         assertThat(resolver.requireUniqueActiveBoard("004")).isSameAs(faq);
+    }
+
+    @Test
+    void failsWhenNoActiveBoardExistsForTypeCode() {
+        given(boardMetaRepository.findAllByItPtlBlbTcAndUseYnAndDelYn("005", "Y", "N"))
+                .willReturn(List.of());
+
+        assertThatThrownBy(() -> resolver.requireUniqueActiveBoard("005"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("고유 게시판");
     }
 
     private static Cblbmm board(String blbMngNo) {

@@ -3,7 +3,6 @@ package com.kdb.it.common.board.service;
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
-import com.kdb.it.common.speeddial.event.FaqRegisteredEvent;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -11,6 +10,7 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.notification.util.NotificationMessageFormatter;
+import com.kdb.it.common.speeddial.event.FaqRegisteredEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
@@ -161,7 +161,10 @@ public class BoardPostService {
         postRepository.save(post);
         if (BoardTypeResolver.FAQ_BOARD_TYPE.equals(board.getItPtlBlbTc())) {
             String authorName =
-                    userRepository.findByEno(user.getEno()).map(value -> value.getUsrNm()).orElse(user.getEno());
+                    userRepository
+                            .findByEno(user.getEno())
+                            .map(value -> value.getUsrNm())
+                            .orElse(user.getEno());
             eventPublisher.publishEvent(
                     new FaqRegisteredEvent(
                             post.getNacMngNo(),
@@ -451,7 +454,8 @@ public class BoardPostService {
     /**
      * 게시물 등록 권한 검증
      *
-     * <p>공지사항(IT_PTL_BLB_TC='001')과 FAQ(IT_PTL_BLB_TC='004') 게시판은 관리자만 등록할 수 있으며, 그 외 게시판은 인증된 모든 사용자가 등록할 수 있습니다.
+     * <p>공지사항(IT_PTL_BLB_TC='001')과 FAQ(IT_PTL_BLB_TC='004') 게시판은 관리자만 등록할 수 있으며, 그 외 게시판은 인증된 모든
+     * 사용자가 등록할 수 있습니다.
      */
     private void verifyCanWrite(CustomUserDetails user, Cblbmm board) {
         if (user.isAdmin()) return;

@@ -522,7 +522,8 @@ class BoardPostServiceTest {
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-0426", "N"))
                 .willReturn(Optional.of(faqBoard));
         given(postRepository.getNextSequenceValue()).willReturn(17L);
-        given(postRepository.save(any(Cblbcm.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(postRepository.save(any(Cblbcm.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
 
         var request = new BoardPostDto.CreateRequest();
         request.setNacNm("FAQ 제목");
@@ -531,7 +532,8 @@ class BoardPostServiceTest {
         String postId = service.createPost("BLBM-0426", request, adminUser);
 
         assertThat(postId).startsWith("NAC-");
-        verify(eventPublisher).publishEvent(isA(com.kdb.it.common.speeddial.event.FaqRegisteredEvent.class));
+        verify(eventPublisher)
+                .publishEvent(isA(com.kdb.it.common.speeddial.event.FaqRegisteredEvent.class));
     }
 
     @Test

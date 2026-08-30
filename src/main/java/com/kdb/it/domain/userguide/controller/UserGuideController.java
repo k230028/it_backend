@@ -27,12 +27,11 @@ import org.springframework.web.multipart.MultipartFile;
  *
  * <p>기본 URL: {@code /api/user-guides}
  *
- * <p>사용자가이드는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용하며 {@code
- * APG_FL_KD_NM='사용자가이드'}·{@code APG_FL_LNK_CTZ_NM='HEADER'} 규약은 {@link UserGuideService}가
- * 강제한다.
+ * <p>사용자가이드는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용하며 {@code APG_FL_KD_NM='사용자가이드'}·{@code
+ * APG_FL_LNK_CTZ_NM='HEADER'} 규약은 {@link UserGuideService}가 강제한다.
  *
- * <p>파일 내려받기는 이 컨트롤러가 아니라 공통 {@code GET /api/files/{flMpnId}/download}를 쓴다. 종류
- * {@code 사용자가이드}의 읽기 권한은 {@code UserGuideFileReadAuthorizer}가 인증 사용자 전체로 판정한다.
+ * <p>파일 내려받기는 이 컨트롤러가 아니라 공통 {@code GET /api/files/{flMpnId}/download}를 쓴다. 종류 {@code 사용자가이드}의 읽기
+ * 권한은 {@code UserGuideFileReadAuthorizer}가 인증 사용자 전체로 판정한다.
  *
  * <p>보안: 현재 가이드 조회는 인증 사용자 전체, 나머지는 관리자 전용이다.
  */

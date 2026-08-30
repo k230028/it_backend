@@ -45,7 +45,10 @@ public class SpeedDialService {
                 .map(
                         post ->
                                 new SpeedDialDto.FaqResponse(
-                                        post.getNacMngNo(), post.getNacNm(), post.getNacCone(), post.getFstEnrDtm()))
+                                        post.getNacMngNo(),
+                                        post.getNacNm(),
+                                        post.getNacCone(),
+                                        post.getFstEnrDtm()))
                 .toList();
     }
 
@@ -98,6 +101,9 @@ public class SpeedDialService {
     }
 
     private String escape(String value) {
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 }

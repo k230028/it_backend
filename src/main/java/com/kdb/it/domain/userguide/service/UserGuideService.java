@@ -21,12 +21,11 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 사용자가이드 서비스
  *
- * <p>사용자가이드는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용한다. 이 서비스가 {@code
- * APG_FL_KD_NM='사용자가이드'}·{@code APG_FL_LNK_CTZ_NM='HEADER'}·{@code FL_TP_CONE='첨부파일'} 규약을
- * 강제하므로 클라이언트가 임의 값을 보낼 수 없다.
+ * <p>사용자가이드는 전용 테이블 없이 공통첨부파일기본(TPRMPP_CFILEM)을 재사용한다. 이 서비스가 {@code APG_FL_KD_NM='사용자가이드'}·{@code
+ * APG_FL_LNK_CTZ_NM='HEADER'}·{@code FL_TP_CONE='첨부파일'} 규약을 강제하므로 클라이언트가 임의 값을 보낼 수 없다.
  *
- * <p><b>단일 파일 교체 방식</b>: {@code DEL_YN='N'}인 행은 항상 0건 또는 1건이다. 업로드와 되돌리기 모두 같은
- * 트랜잭션에서 기존 활성 행을 먼저 내린다. 이전 파일은 이력으로 남고 물리 파일은 어느 쪽에서도 지우지 않는다.
+ * <p><b>단일 파일 교체 방식</b>: {@code DEL_YN='N'}인 행은 항상 0건 또는 1건이다. 업로드와 되돌리기 모두 같은 트랜잭션에서 기존 활성 행을 먼저
+ * 내린다. 이전 파일은 이력으로 남고 물리 파일은 어느 쪽에서도 지우지 않는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -146,9 +145,7 @@ public class UserGuideService {
                 fileRepository
                         .findById(flMpnId)
                         .orElseThrow(
-                                () ->
-                                        new CustomGeneralException(
-                                                "사용자가이드를 찾을 수 없습니다: " + flMpnId));
+                                () -> new CustomGeneralException("사용자가이드를 찾을 수 없습니다: " + flMpnId));
 
         if (!UserGuideFileReadAuthorizer.USER_GUIDE_KIND.equals(file.getApgFlKdNm())) {
             throw new AccessDeniedException("사용자가이드가 아닌 파일은 사용자가이드 API로 조회·변경할 수 없습니다.");

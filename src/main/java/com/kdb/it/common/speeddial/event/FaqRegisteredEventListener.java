@@ -45,13 +45,18 @@ public class FaqRegisteredEventListener {
                     dispatchService.dispatch(outboxId);
                 }
             } catch (RuntimeException ex) {
-                log.warn("FAQ 등록 메일 알림 처리가 실패했습니다: postId={}, recipient={}", event.postId(), recipient, ex);
+                log.warn(
+                        "FAQ 등록 메일 알림 처리가 실패했습니다: postId={}, recipient={}",
+                        event.postId(),
+                        recipient,
+                        ex);
             }
         }
     }
 
     private NotificationEvent toNotification(FaqRegisteredEvent event, String recipient) {
-        String title = NotificationMessageFormatter.abbreviate("FAQ 등록: " + safe(event.title()), 100);
+        String title =
+                NotificationMessageFormatter.abbreviate("FAQ 등록: " + safe(event.title()), 100);
         String body =
                 "<p>새 FAQ가 등록되었습니다.</p><p>제목: "
                         + escape(event.title())
@@ -66,7 +71,9 @@ public class FaqRegisteredEventListener {
                 .recipientEno(recipient)
                 .itPtlInfmSvcTc(NotificationEvent.TYPE_SYSTEM)
                 .ttl(title)
-                .infmMsgCone(NotificationMessageFormatter.abbreviate("새 FAQ가 등록되었습니다: " + safe(event.title()), 4000))
+                .infmMsgCone(
+                        NotificationMessageFormatter.abbreviate(
+                                "새 FAQ가 등록되었습니다: " + safe(event.title()), 4000))
                 .infmRcdUrl(event.faqUrl())
                 .itPtlSdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
                 .sdPayload(writeMailPayload(title, body))

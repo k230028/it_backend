@@ -120,6 +120,19 @@ class BoardMetaServiceTest {
     }
 
     @Test
+    @DisplayName("비어 있는 FAQ 고유 게시판은 등록할 수 있다")
+    void createBoard_firstFaqBoardIsAllowed() {
+        given(boardMetaRepository.findAllByItPtlBlbTcAndUseYnAndDelYn("004", "Y", "N"))
+                .willReturn(List.of());
+        given(boardMetaRepository.getNextSequenceValue()).willReturn(8L);
+
+        String boardId = service.createBoard(createRequestWithType("004"));
+
+        assertThat(boardId).isEqualTo("BLBM-0008");
+        verify(boardMetaRepository).save(any(Cblbmm.class));
+    }
+
+    @Test
     @DisplayName("게시판 수정은 활성 엔티티에 변경 명령을 적용한다")
     void updateBoard_existingBoard_updatesEntity() {
         Cblbmm board = board("BLBM-2026-0001", "공지사항");
