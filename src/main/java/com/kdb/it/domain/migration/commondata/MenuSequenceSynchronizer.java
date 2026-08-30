@@ -13,9 +13,9 @@ import org.springframework.stereotype.Component;
 /**
  * 메뉴 이관 후 {@code SQ_TPRMPP_CMENUM_1}을 파일 최대 메뉴 번호 이상으로 전진시킵니다.
  *
- * <p>ALTER SEQUENCE는 DDL이라 implicit commit으로 이관 트랜잭션의 원자성을 깨뜨리므로 쓰지 않고, NEXTVAL을
- * 반복 소비해 전진시킵니다(ITPAPP 계정은 시퀀스 SELECT 권한만으로 충분). 반드시 커밋 트랜잭션 밖에서 호출합니다.
- * 전진 실패는 이관 자체를 되돌릴 이유가 아니므로 예외 대신 경고 문자열을 반환합니다.
+ * <p>ALTER SEQUENCE는 DDL이라 implicit commit으로 이관 트랜잭션의 원자성을 깨뜨리므로 쓰지 않고, NEXTVAL을 반복 소비해
+ * 전진시킵니다(ITPAPP 계정은 시퀀스 SELECT 권한만으로 충분). 반드시 커밋 트랜잭션 밖에서 호출합니다. 전진 실패는 이관 자체를 되돌릴 이유가 아니므로 예외 대신
+ * 경고 문자열을 반환합니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -54,8 +54,7 @@ public class MenuSequenceSynchronizer {
                     return Optional.empty();
                 }
             }
-            return Optional.of(
-                    "메뉴 시퀀스를 " + maxSeq + " 이상으로 전진시키지 못했습니다. DBA 확인이 필요합니다.");
+            return Optional.of("메뉴 시퀀스를 " + maxSeq + " 이상으로 전진시키지 못했습니다. DBA 확인이 필요합니다.");
         } catch (RuntimeException e) {
             log.warn("메뉴 시퀀스 동기화에 실패했습니다. 이관 반영 자체는 완료된 상태입니다.", e);
             return Optional.of("메뉴 시퀀스 동기화에 실패했습니다. 신규 메뉴 생성 전 DBA 확인이 필요합니다 (ORA-00001 위험).");

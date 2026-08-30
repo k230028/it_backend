@@ -186,7 +186,9 @@ class ApiResponseOpenApiContractTest {
                 "cgprNm",
                 "tmnClsfCNm",
                 "tmnKdTcNm",
-                "dfrCleCNm");
+                "dfrCleCNm",
+                "termSvnTemNm",
+                "termSvnDpmNm");
         assertAllPropertiesRequired(CostDto.BulkResponse.class);
         assertEnum(CostDto.Response.class, "lstYn", "Y", "N");
         assertEnum(CostDto.Response.class, "sectSysUtzYn", "Y", "N");

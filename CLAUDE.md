@@ -17,6 +17,8 @@
 - 물리 모델은 `../it_database/migrations/`, ORM은 엔티티, 조회용 색인은 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)가 SoT입니다.
 - 엔티티·컬럼명은 `../meta/meta.txt`를 우선하고, 충돌 처리만 [컬럼 명명 가이드](docs/guides/persistence/column-naming.md)를 따릅니다.
 - Oracle 빈 문자열은 NULL이므로 빈 문자열과 NULL을 다른 업무 상태로 설계하지 않습니다.
+- 목록·대시보드 조회는 전체 엔티티보다 필요한 컬럼만 반환하는 projection/read view/Row DTO를 우선 사용하고 Service에서 API DTO로 변환합니다.
+- 네이티브 `Object[]` 결과는 중앙 `NativeRowMapper`와 전용 `fromRow` 팩토리로 변환하며, SELECT 컬럼 수·순서 불일치를 경계에서 검출합니다.
 - 정보화사업 금액은 화면·서비스마다 다시 계산하지 않고 `ProjectAmountCalculator`가 산출한 스냅샷을 사용합니다. 저장 단위 반올림과 `NUMBER(18,3)` 범위 검증은 한 곳에 모아 적용하고, 통화별 환산 규칙과 컬럼별 원금 의미는 [데이터 모델의 정보화사업 금액 계약](docs/guides/persistence/data-model.md)과 [사업 집행 가이드](docs/guides/domains/project-execution.md)를 SoT로 따릅니다.
 - 복합키는 기존 `@IdClass` 패턴을 유지하고 equals/hashCode 계약을 함께 검증합니다.
 - 감사 필드와 NOT NULL 기본값은 [엔티티와 감사 로그](docs/guides/persistence/entities-and-audit.md)를 따릅니다.
@@ -36,8 +38,13 @@
 - `@ModelAttribute`로 바인딩하는 DTO의 서버 전용 필드는 setter를 만들지 않고(`@Setter(AccessLevel.NONE)`) 의미를 드러내는 전용 메서드로만 켭니다. `@Schema(hidden = true)`는 OpenAPI 노출만 막고 쿼리 파라미터 바인딩은 막지 못합니다.
 - 사용자·외부에서 온 HTML을 저장할 때는 서버가 `HtmlSanitizer`로 정화한 뒤 저장합니다. 프론트의 렌더 직전 정화는 이중 방어이지 서버 정화를 대신하지 않습니다.
 - 조회는 읽기 전용 트랜잭션, 명령은 Service의 명시적 트랜잭션 경계에서 처리합니다.
+- 조회 중심 Service는 클래스 수준 `@Transactional(readOnly = true)`를 기본으로 두고, 쓰기 메서드만 `@Transactional`로 명시적으로 오버라이드합니다.
 - 목록 API는 필요한 필터와 정렬을 DB에 적용하고 메모리 전량 필터링을 만들지 않습니다.
+- 목록 API는 전체 엔티티 fetch 대신 필요한 컬럼의 projection/read view/Row DTO를 우선하고, 명시적 안정 정렬과 페이지 크기 또는 상한을 DB 쿼리에 함께 둡니다.
+- 여러 식별자를 조립하는 bulk 조회는 `IN` 배치 읽기와 bounded request size를 사용하며, 찾지 못한 식별자는 성공 데이터에 섞지 말고 호출자가 구분할 수 있게 보존합니다.
 - DTO나 Controller 계약이 바뀌면 OpenAPI 계약 테스트와 프론트 `npm run codegen` 영향을 확인합니다.
+- `@Schema(requiredProperties)`, nullable, enum 계약을 바꾸면 OpenAPI 계약 테스트와 프론트 `app/types/api.d.ts` 재생성을 같은 변경 묶음으로 완료합니다.
+- 설정·이관 입력은 값이 없을 때만 업무상 기본값을 적용합니다. malformed 값은 absent/default로 폴백하지 말고 셀 진단, 경고 또는 차단으로 구분합니다.
 - 업무 코드·상태·메뉴 경로 같은 식별자는 화면 표시명이 아니라 안정된 코드값을 사용합니다.
 
 ## 5. 인증·인가·데이터 범위
@@ -45,6 +52,7 @@
 - Access/Refresh Token은 httpOnly 쿠키로만 전달합니다. Bearer 폴백은 명시적으로 허용된 개발·API 테스트 환경에서만 사용합니다.
 - 서버 권한은 `SecurityConfig`, `@PreAuthorize`, Service 데이터 범위 검사로 강제합니다. 프론트 가드를 보안 경계로 간주하지 않습니다.
 - `ROLE_INFOSEC_ADMIN`을 일반 `ROLE_ADMIN`과 합치지 않습니다. 협의회 심의유형 범위는 Service에서 검증합니다.
+- `athIds`에서 역할로 변환하는 매핑은 명시적 allowlist로 유지하며, 미지원 자격등급을 관리자·특수 권한으로 매핑하지 않습니다. 새 역할은 매핑과 회귀 테스트를 함께 추가합니다.
 - 부서·작성자·소유권 필터는 [데이터 접근 범위](docs/guides/security/data-scope.md)를 따릅니다.
 - 파일 업로드·다운로드·연결 대상 검증은 [파일 보안](docs/guides/security/file-security.md)을 따르며 경로 문자열만으로 권한을 판단하지 않습니다.
 - 첨부파일 종류(`APG_FL_KD_NM`)를 새로 쓰려면 읽기 또는 쓰기 판정기를 먼저 등록합니다. 알려진 종류 목록은 손으로 관리하지 않고 판정기가 선언한 종류의 합집합이므로, 판정기 없는 종류가 업로드 경로로 조용히 생기지 않습니다. 쓰기 판정기를 추가할 때는 범용 파일 API의 수정·삭제를 열어 둘지(`allowsGenericMutation`)를 기본값에 맡기지 말고 종류마다 명시적으로 판단합니다.
@@ -53,6 +61,8 @@
 - 보안 목적이 아닌 식별자라도 난수는 `SecureRandom`으로만 만듭니다. 미지원 환경을 위한 약한 난수 폴백을 두지 말고 명시적으로 실패시킵니다.
 - 수동 로그인과 사용자 전자결재 상태 변경은 사용자·용도에 귀속된 1회용 MFA 증표를 요구합니다. 조회·임시저장·SSO·개발 사용자 전환·외부 결재 콜백에는 적용하지 않습니다.
 - MFA 거래 상태를 서비스나 공급자의 인스턴스 로컬 필드에 두지 않습니다. 저장과 상태 전이는 `MfaTransactionStore`·`LoginPendingTransactionStore` 구현에만 맡기고, 전이는 조건부 UPDATE의 영향 행 수로 판정해 다중 인스턴스에서도 증표가 한 번만 소비되게 합니다.
+- MFA pending/proof는 httpOnly·운영 Secure·SameSite=Lax 쿠키로만 전달하고 응답 본문이나 JavaScript 상태에 넣지 않습니다. 쿠키 수명은 서버 거래의 잔여 TTL을 넘기지 않습니다.
+- CSRF 토큰을 사용하지 않는 동안 unsafe 단순 Content-Type 요청은 `X-Requested-With` 헤더를 요구하며, 프론트 인증 fetch는 `credentials: 'include'`와 해당 헤더를 함께 보냅니다. 이 헤더 값 자체는 토큰으로 간주하지 않습니다.
 - 운영 프로파일은 비밀값·Origin·프론트 URL을 fail-fast로 검사하고 모의 SSO, 직접 사번, 개발 사용자 전환, Bearer 폴백, 비보안 쿠키를 허용하지 않습니다.
 - 전체 계약은 [인증과 인가](docs/guides/security/authentication-authorization.md)를 SoT로 사용합니다.
 

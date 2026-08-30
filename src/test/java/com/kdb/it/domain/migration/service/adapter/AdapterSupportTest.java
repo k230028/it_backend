@@ -56,13 +56,13 @@ class AdapterSupportTest {
     }
 
     @Test
-    @DisplayName("조정비율을 소수 배수로 그대로 읽고 빈 값·파싱 실패는 배수 1로 둔다")
+    @DisplayName("조정비율을 소수 배수로 읽고 빈 값만 배수 1로 둔다")
     void 조정비율을_소수배수로_읽는다() {
         assertThat(AdapterSupport.rateFraction("0.7")).isEqualByComparingTo("0.7");
         assertThat(AdapterSupport.rateFraction("1")).isEqualByComparingTo("1");
         assertThat(AdapterSupport.rateFraction("")).isEqualByComparingTo("1");
         assertThat(AdapterSupport.rateFraction(null)).isEqualByComparingTo("1");
-        assertThat(AdapterSupport.rateFraction("미정")).isEqualByComparingTo("1");
+        assertThat(AdapterSupport.rateFraction("미정")).isNull();
     }
 
     @Test

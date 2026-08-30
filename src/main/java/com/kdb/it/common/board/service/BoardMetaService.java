@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class BoardMetaService {
 
     private final BoardMetaRepository boardMetaRepository;
-    private final BoardTypeResolver boardTypeResolver;
 
     /**
      * 사이드바용 게시판 목록 조회.

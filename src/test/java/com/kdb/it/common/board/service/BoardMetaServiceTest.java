@@ -31,8 +31,6 @@ class BoardMetaServiceTest {
 
     @Mock private BoardMetaRepository boardMetaRepository;
 
-    @Mock private BoardTypeResolver boardTypeResolver;
-
     @InjectMocks private BoardMetaService service;
 
     @BeforeEach

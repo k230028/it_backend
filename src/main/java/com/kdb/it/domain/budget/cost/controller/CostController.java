@@ -162,8 +162,8 @@ public class CostController {
      *   <li>{@code GET /api/cost?apfSts=결재중} → 결재중인 전산관리비만
      * </ul>
      *
-     * @param condition 검색 조건 (apfSts, costSvnDpmC, svnTemC, sectSysUtzYn, bseYy, myDeptOnly). 일반 사용자는 항상 소속 부서로 제한되며,
-     *     관리자는 myDeptOnly=true일 때 소속 부서로 제한됩니다.
+     * @param condition 검색 조건 (apfSts, costSvnDpmC, svnTemC, sectSysUtzYn, bseYy, myDeptOnly). 일반
+     *     사용자는 항상 소속 부서로 제한되며, 관리자는 myDeptOnly=true일 때 소속 부서로 제한됩니다.
      * @param user 인증 사용자 (목록 범위 결정에 사용)
      * @return HTTP 200 + 전산관리비 목록 ({@link CostDto.Response} 리스트)
      */

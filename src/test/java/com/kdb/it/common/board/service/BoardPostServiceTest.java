@@ -486,6 +486,55 @@ class BoardPostServiceTest {
     }
 
     @Test
+    @DisplayName("FAQ(IT_PTL_BLB_TC='004') 게시판은 일반 사용자 등록을 차단한다")
+    void createPost_faq_normalUser_isRejected() {
+        Cblbmm faqBoard =
+                Cblbmm.builder()
+                        .blbMngNo("BLBM-0426")
+                        .blbNm("FAQ")
+                        .itPtlBlbTc("004")
+                        .useYn("Y")
+                        .delYn("N")
+                        .build();
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-0426", "N"))
+                .willReturn(Optional.of(faqBoard));
+
+        var request = new BoardPostDto.CreateRequest();
+        request.setNacNm("FAQ 제목");
+
+        assertThatThrownBy(() -> service.createPost("BLBM-0426", request, normalUser))
+                .isInstanceOf(CustomGeneralException.class)
+                .hasMessageContaining("FAQ")
+                .hasMessageContaining("관리자");
+    }
+
+    @Test
+    @DisplayName("FAQ 게시물 등록 시 FAQ 등록 이벤트를 발행한다")
+    void createPost_faq_admin_publishesFaqEvent() {
+        Cblbmm faqBoard =
+                Cblbmm.builder()
+                        .blbMngNo("BLBM-0426")
+                        .blbNm("FAQ")
+                        .itPtlBlbTc("004")
+                        .useYn("Y")
+                        .delYn("N")
+                        .build();
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-0426", "N"))
+                .willReturn(Optional.of(faqBoard));
+        given(postRepository.getNextSequenceValue()).willReturn(17L);
+        given(postRepository.save(any(Cblbcm.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        var request = new BoardPostDto.CreateRequest();
+        request.setNacNm("FAQ 제목");
+        request.setNacCone("<p>FAQ 본문</p>");
+
+        String postId = service.createPost("BLBM-0426", request, adminUser);
+
+        assertThat(postId).startsWith("NAC-");
+        verify(eventPublisher).publishEvent(isA(com.kdb.it.common.speeddial.event.FaqRegisteredEvent.class));
+    }
+
+    @Test
     @DisplayName("게시물 상세 GET은 조회수를 변경하지 않고 작성자 수정 가능 여부를 반환한다")
     void getPostDetail_owner_success() {
         Cblbmm writableBoard = writableBoard();

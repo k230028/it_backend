@@ -163,11 +163,11 @@ public final class AdapterSupport {
     /**
      * 조정비율 셀을 소수 배수로 읽습니다.
      *
-     * <p>엑셀 `조정구분` 시트가 `1`·`0.7`처럼 배수로 적기 때문에 값을 그대로 씁니다. 비었거나 숫자가 아니면 조정하지 않은 것으로 보고 1을 돌려줍니다 — 0을
-     * 돌려주면 조정비율 칸이 빈 사업의 편성액이 통째로 0이 됩니다.
+     * <p>엑셀 `조정구분` 시트가 `1`·`0.7`처럼 배수로 적기 때문에 값을 그대로 씁니다. 비어 있으면 조정하지 않은 것으로 보고 1을 돌려주지만, 숫자 형식 오류는
+     * null로 돌려 검증기가 BLOCKER로 막게 합니다.
      *
      * @param raw 조정비율 셀 원문
-     * @return 배수 (0.7·1 등). 파싱 실패는 1
+     * @return 배수 (0.7·1 등). 빈 값은 1, 파싱 실패는 null
      */
     public static BigDecimal rateFraction(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -176,7 +176,7 @@ public final class AdapterSupport {
         try {
             return new BigDecimal(raw.trim().replace(",", ""));
         } catch (NumberFormatException ignored) {
-            return BigDecimal.ONE;
+            return null;
         }
     }
 

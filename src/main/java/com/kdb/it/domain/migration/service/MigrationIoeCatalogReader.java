@@ -219,9 +219,9 @@ public class MigrationIoeCatalogReader {
             try {
                 return new BigDecimal(code.getCdvaDtlC().trim());
             } catch (NumberFormatException ignored) {
-                // TODO: 코드 부재(정상 기본값)와 달리 값 오염은 설정 실수이므로, 100 폴백 전에
-                // xcrByCurrency()처럼 warn 로그를 남겨 운영자가 인지할 수 있게 한다.
-                break;
+                String raw = code.getCdvaDtlC();
+                log.warn("공통코드 DUP_IOE_MNGC 편성률이 숫자가 아닙니다: {}", raw);
+                throw new IllegalStateException("DUP_IOE_MNGC 편성률이 숫자가 아닙니다: " + raw);
             }
         }
         return BigDecimal.valueOf(100);

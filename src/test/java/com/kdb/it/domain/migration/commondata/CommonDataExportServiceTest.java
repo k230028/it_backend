@@ -44,7 +44,8 @@ class CommonDataExportServiceTest {
                                         .whlMnuPth("/MNU0000001")
                                         .build()));
         when(cmenuaRepository.findAllActive())
-                .thenReturn(List.of(Cmenua.builder().mnuId("MNU0000001").athId("ITPAD001").build()));
+                .thenReturn(
+                        List.of(Cmenua.builder().mnuId("MNU0000001").athId("ITPAD001").build()));
         when(cmenudRepository.findAllActive())
                 .thenReturn(
                         List.of(

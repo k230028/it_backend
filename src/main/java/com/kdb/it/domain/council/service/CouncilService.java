@@ -577,6 +577,20 @@ public class CouncilService {
                         () -> new IllegalArgumentException("존재하지 않는 협의회입니다. asctId=" + asctId));
     }
 
+    /** 여러 협의회의 활성 행을 일괄 조회하여 ID별로 반환합니다. */
+    public Map<String, Basctm> findActiveCouncils(Collection<String> asctIds) {
+        if (asctIds == null || asctIds.isEmpty()) return Map.of();
+        Map<String, Basctm> councilsById =
+                councilRepository.findByItPtlAsctIdInAndDelYn(asctIds, "N").stream()
+                        .collect(Collectors.toMap(Basctm::getItPtlAsctId, council -> council));
+        for (String asctId : asctIds) {
+            if (!councilsById.containsKey(asctId)) {
+                throw new IllegalArgumentException("존재하지 않는 협의회입니다. asctId=" + asctId);
+            }
+        }
+        return councilsById;
+    }
+
     // =========================================================================
     // 권한 검증 (관리 액션 진입 가드) — 리뷰 PRD_c_20260701 1-1
     // =========================================================================

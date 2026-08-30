@@ -2,11 +2,13 @@ package com.kdb.it.domain.budget.cost.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.querydsl.core.types.EntityPath;
 import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -45,6 +47,8 @@ class CostRepositoryImplTest {
         given(queryFactory.select(any(Expression.class))).willReturn(mockQuery);
         given(mockQuery.from(any(EntityPath.class))).willReturn(mockQuery);
         given(mockQuery.where(any(Predicate.class))).willReturn(mockQuery);
+        given(mockQuery.orderBy(any(OrderSpecifier[].class))).willReturn(mockQuery);
+        given(mockQuery.limit(anyLong())).willReturn(mockQuery);
         given(mockQuery.fetch()).willReturn(List.of());
     }
 

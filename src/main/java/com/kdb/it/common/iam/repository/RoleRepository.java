@@ -54,4 +54,10 @@ public interface RoleRepository extends JpaRepository<CroleI, CroleIId> {
      * @return 해당 사용자의 모든 활성 자격등급 목록 (없으면 빈 리스트)
      */
     List<CroleI> findAllByIdEnoAndUseYnAndDelYn(String eno, String useYn, String delYn);
+
+    /** 활성 시스템관리자 권한을 보유한 활성 사용자 사번을 중복 없이 조회합니다. */
+    @Query(
+            "SELECT DISTINCT r.id.eno FROM CroleI r JOIN CuserI u ON u.eno = r.id.eno "
+                    + "WHERE r.id.athId = :athId AND r.useYn = 'Y' AND r.delYn = 'N' AND u.delYn = 'N'")
+    List<String> findActiveUserEnosByAthId(@Param("athId") String athId);
 }

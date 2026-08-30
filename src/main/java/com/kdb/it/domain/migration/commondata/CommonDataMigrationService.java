@@ -28,8 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 공통 데이터 이관 업로드를 검증(dry-run)하고 단일 트랜잭션으로 업서트(commit)합니다.
  *
- * <p>반영 순서는 참조 무결성을 따릅니다: 경로 → 메뉴 → 메뉴권한 → 공통코드 → 다국어. 모든 쓰기는 JPA 엔티티
- * 경유이므로 {@code @LogTarget} 변경로그와 BaseEntity 감사 컬럼이 자동으로 채워집니다.
+ * <p>반영 순서는 참조 무결성을 따릅니다: 경로 → 메뉴 → 메뉴권한 → 공통코드 → 다국어. 모든 쓰기는 JPA 엔티티 경유이므로 {@code @LogTarget}
+ * 변경로그와 BaseEntity 감사 컬럼이 자동으로 채워집니다.
  */
 @Service
 @RequiredArgsConstructor
@@ -89,15 +89,27 @@ public class CommonDataMigrationService {
                 cmenumRepository.findAll(),
                 cmenuaRepository.findAll(),
                 cmenudRepository.findAll(),
-                fileCIds.isEmpty() ? List.of() : codeRepository.findAllByCIdIn(fileCIds),
+                fileCIds.isEmpty() ? List.of() : loadCodesChunked(fileCIds),
                 loadTranslationsChunked(request.translations()),
                 authRepository.findAll().stream()
+                        .filter(auth -> !"Y".equals(auth.getDelYn()))
                         .map(auth -> auth.getAthId())
                         .collect(Collectors.toSet()));
     }
 
-    private List<Clangm> loadTranslationsChunked(
-            List<CommonDataMigrationDto.TranslationRow> rows) {
+    /** 공통코드 ID를 Oracle IN 절 제한보다 작은 청크로 나누어 읽습니다. */
+    private List<com.kdb.it.common.code.entity.Ccodem> loadCodesChunked(Set<String> cIds) {
+        List<com.kdb.it.common.code.entity.Ccodem> result = new ArrayList<>();
+        List<String> keys = cIds.stream().toList();
+        for (int i = 0; i < keys.size(); i += KEY_CHUNK_SIZE) {
+            result.addAll(
+                    codeRepository.findAllByCIdIn(
+                            keys.subList(i, Math.min(i + KEY_CHUNK_SIZE, keys.size()))));
+        }
+        return result;
+    }
+
+    private List<Clangm> loadTranslationsChunked(List<CommonDataMigrationDto.TranslationRow> rows) {
         List<String> keys =
                 rows.stream()
                         .map(CommonDataMigrationDto.TranslationRow::tcIdCone)
@@ -223,13 +235,10 @@ public class CommonDataMigrationService {
         // 메뉴권한과 같은 이유로 복합키는 Arrays.asList를 쓴다.
         Map<List<String>, Clangm> byKey = new HashMap<>();
         existing.forEach(
-                t ->
-                        byKey.put(
-                                Arrays.asList(t.getTcIdCone(), t.getTcColNm(), t.getDttLanC()), t));
+                t -> byKey.put(Arrays.asList(t.getTcIdCone(), t.getTcColNm(), t.getDttLanC()), t));
         List<Clangm> created = new ArrayList<>();
         for (CommonDataMigrationDto.TranslationRow row : rows) {
-            Clangm found =
-                    byKey.get(Arrays.asList(row.tcIdCone(), row.tcColNm(), row.dttLanC()));
+            Clangm found = byKey.get(Arrays.asList(row.tcIdCone(), row.tcColNm(), row.dttLanC()));
             if (found == null) {
                 created.add(
                         Clangm.builder()

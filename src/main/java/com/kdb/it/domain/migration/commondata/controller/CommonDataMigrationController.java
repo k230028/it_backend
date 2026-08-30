@@ -36,7 +36,9 @@ public class CommonDataMigrationController {
     private final MenuSequenceSynchronizer menuSequenceSynchronizer;
 
     /** 5개 테이블 활성 행 전량을 내려줍니다. 프론트가 xlsx 파일을 생성합니다. */
-    @Operation(summary = "공통 데이터 전량 내보내기", description = "메뉴·메뉴권한·경로·공통코드·다국어 활성 행 전량을 JSON으로 내려줍니다.")
+    @Operation(
+            summary = "공통 데이터 전량 내보내기",
+            description = "메뉴·메뉴권한·경로·공통코드·다국어 활성 행 전량을 JSON으로 내려줍니다.")
     @GetMapping("/export")
     public ResponseEntity<CommonDataMigrationDto.ExportResponse> export() {
         return ResponseEntity.ok(exportService.export());

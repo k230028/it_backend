@@ -135,6 +135,36 @@ class CouncilServiceTest {
         assertThat(result.getItPtlAsctId()).isEqualTo(ASCT_ID);
     }
 
+    @Test
+    @DisplayName("findActiveCouncils: ID가 없으면 빈 맵을 반환한다")
+    void findActiveCouncils_빈입력_빈맵반환() {
+        assertThat(councilService.findActiveCouncils(List.of())).isEmpty();
+        assertThat(councilService.findActiveCouncils(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findActiveCouncils: 여러 활성 협의회를 ID별로 반환한다")
+    void findActiveCouncils_존재하는협의회_맵반환() {
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctId()).willReturn(ASCT_ID);
+        given(councilRepository.findByItPtlAsctIdInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of(council));
+
+        assertThat(councilService.findActiveCouncils(List.of(ASCT_ID)))
+                .containsEntry(ASCT_ID, council);
+    }
+
+    @Test
+    @DisplayName("findActiveCouncils: 활성 행이 빠진 ID이면 예외를 던진다")
+    void findActiveCouncils_누락된협의회_예외발생() {
+        given(councilRepository.findByItPtlAsctIdInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+
+        assertThatThrownBy(() -> councilService.findActiveCouncils(List.of(ASCT_ID)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(ASCT_ID);
+    }
+
     // ───────────────────────────────────────────────────────
     // changeStatus
     // ───────────────────────────────────────────────────────

@@ -85,6 +85,10 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
             BigDecimal rate =
                     AdapterSupport.rateFraction(
                             AdapterSupport.cellOf(sheet, row, "adjustRate", ctx));
+            // 검증기가 malformed 비율을 BLOCKER로 막지만, 직접 호출되는 어댑터 경로도 1배로 오염시키지 않는다.
+            if (rate == null) {
+                rate = BigDecimal.ZERO;
+            }
             BigDecimal dev = amountOf(sheet, row, ctx, "devAmount");
             BigDecimal hw = amountOf(sheet, row, ctx, "hwAmount");
             BigDecimal sw = amountOf(sheet, row, ctx, "swAmount");

@@ -453,7 +453,7 @@ public class ApplicationService {
     public List<ApplicationDto.Response> getApplications() {
         // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회, findAll()과 동일하게 정렬 없음)
         List<ApplicationRepository.ApplicationReadView> views =
-                applicationRepository.findAllProjectedBy();
+                applicationRepository.findTop500ByOrderByApfMngNoAsc();
         List<String> apfMngNos = views.stream().map(value -> value.getApfMngNo()).toList();
 
         // 결재선 배치 조회 (N+1 제거): 신청번호별 결재자 목록 Map 선구성.
@@ -572,30 +572,19 @@ public class ApplicationService {
                                 (left, right) -> left));
     }
 
-    /**
-     * 일괄 조회 (여러 신청관리번호로 한 번에 조회)
-     *
-     * <p>요청 목록의 각 신청관리번호에 대해 {@link #getApplication(String)}을 호출합니다. 존재하지 않는 신청서는 결과에서 제외합니다 (null
-     * 필터링).
-     *
-     * @param request 일괄 조회 요청 DTO (신청관리번호 목록)
-     * @return 조회 성공 항목과 실패(미존재) ID 목록을 함께 담은 {@link ApplicationDto.BulkResponse}
-     */
+    /** 일괄 조회 (여러 신청관리번호를 배치로 읽어 응답 조립). */
     public ApplicationDto.BulkResponse getApplicationsByIds(ApplicationDto.BulkGetRequest request) {
-        List<ApplicationDto.Response> items = new java.util.ArrayList<>();
-        List<String> failedIds = new java.util.ArrayList<>();
-        for (String apfMngNo : request.getApfMngNos()) {
-            try {
-                items.add(getApplication(apfMngNo)); // 개별 신청서 조회
-            } catch (IllegalArgumentException e) {
-                // 미존재 ID는 조용히 버리지 않고 실패 목록에 수집해 호출자에게 노출한다.
-                failedIds.add(apfMngNo);
-            }
+        ApplicationDto.BulkResponse response =
+                ApplicationBulkReadSupport.read(
+                        request,
+                        applicationRepository,
+                        approverRepository,
+                        userRepository,
+                        organizationRepository);
+        if (!response.failedIds().isEmpty()) {
+            log.warn("bulk-get 누락: type=application, failedIds={}", response.failedIds());
         }
-        if (!failedIds.isEmpty()) {
-            log.warn("bulk-get 누락: type=application, failedIds={}", failedIds);
-        }
-        return new ApplicationDto.BulkResponse(items, failedIds);
+        return response;
     }
 
     /**

@@ -84,8 +84,7 @@ class CommonDataMigrationServiceTest {
 
     @Test
     void commit은_삭제된경로를_부활시킨다() {
-        Cmenud deleted =
-                Cmenud.builder().srePth("/admin/menus").sreMnuNm("옛이름").useYn("N").build();
+        Cmenud deleted = Cmenud.builder().srePth("/admin/menus").sreMnuNm("옛이름").useYn("N").build();
         deleted.delete();
         stubEmptySnapshot();
         when(cmenudRepository.findAll()).thenReturn(List.of(deleted));
@@ -104,11 +103,25 @@ class CommonDataMigrationServiceTest {
                 .thenReturn(Map.of("created", 1, "updated", 0));
         CommonDataMigrationDto.Request request =
                 new CommonDataMigrationDto.Request(
-                        List.of(), List.of(), List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
                         List.of(
                                 new CommonDataMigrationDto.CodeRow(
-                                        2, "PRJ_TP", "001", "20250101", null, "사업유형", "신규",
-                                        null, null, null, null, null, null, 1)),
+                                        2,
+                                        "PRJ_TP",
+                                        "001",
+                                        "20250101",
+                                        null,
+                                        "사업유형",
+                                        "신규",
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        1)),
                         List.of());
 
         service().commit(request);
@@ -123,7 +136,16 @@ class CommonDataMigrationServiceTest {
                 new CommonDataMigrationDto.Request(
                         List.of(
                                 new CommonDataMigrationDto.MenuRow(
-                                        2, "MNU0000001", null, "메뉴", "GRP", null, null, 1, "N", 1,
+                                        2,
+                                        "MNU0000001",
+                                        null,
+                                        "메뉴",
+                                        "GRP",
+                                        null,
+                                        null,
+                                        1,
+                                        "N",
+                                        1,
                                         "/MNU0000001")),
                         List.of(),
                         List.of(),
@@ -144,9 +166,20 @@ class CommonDataMigrationServiceTest {
                 new CommonDataMigrationDto.Request(
                         List.of(
                                 new CommonDataMigrationDto.MenuRow(
-                                        2, "MNU0000001", null, "메뉴", "GRP", null, null, 1, "N", 1,
+                                        2,
+                                        "MNU0000001",
+                                        null,
+                                        "메뉴",
+                                        "GRP",
+                                        null,
+                                        null,
+                                        1,
+                                        "N",
+                                        1,
                                         "/MNU0000001")),
-                        List.of(new CommonDataMigrationDto.MenuAuthRow(2, "MNU0000001", "ITPZZ001")),
+                        List.of(
+                                new CommonDataMigrationDto.MenuAuthRow(
+                                        2, "MNU0000001", "ITPZZ001")),
                         List.of(),
                         List.of(),
                         List.of());
@@ -192,7 +225,8 @@ class CommonDataMigrationServiceTest {
     void 빈요청은_아무것도저장하지않는다() {
         stubEmptySnapshot();
         CommonDataMigrationDto.Request emptyRequest =
-                new CommonDataMigrationDto.Request(List.of(), List.of(), List.of(), List.of(), List.of());
+                new CommonDataMigrationDto.Request(
+                        List.of(), List.of(), List.of(), List.of(), List.of());
 
         CommonDataMigrationDto.Response response = service().commit(emptyRequest);
 
@@ -212,9 +246,7 @@ class CommonDataMigrationServiceTest {
         lenient().when(cmenuaRepository.findAll()).thenReturn(List.of());
         lenient().when(cmenudRepository.findAll()).thenReturn(List.of());
         lenient().when(codeRepository.findAllByCIdIn(anyCollection())).thenReturn(List.of());
-        lenient()
-                .when(clangmRepository.findAllByTcIdConeIn(anyCollection()))
-                .thenReturn(List.of());
+        lenient().when(clangmRepository.findAllByTcIdConeIn(anyCollection())).thenReturn(List.of());
         lenient().when(authRepository.findAll()).thenReturn(List.of());
     }
 

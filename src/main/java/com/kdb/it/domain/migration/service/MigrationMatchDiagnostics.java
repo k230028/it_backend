@@ -265,9 +265,19 @@ public class MigrationMatchDiagnostics {
         if (sheet.kind() != SheetKind.CAPITAL_PROJECT) {
             return out;
         }
-        BigDecimal rate =
-                AdapterSupport.rateFraction(
-                        MigrationDiagnostics.cell(row, "adjustRate", overrides, sheet));
+        String rawRate = MigrationDiagnostics.cell(row, "adjustRate", overrides, sheet);
+        BigDecimal rate = AdapterSupport.rateFraction(rawRate);
+        if (!rawRate.isBlank() && rate == null) {
+            out.add(
+                    MigrationDiagnostics.blocker(
+                            sheet,
+                            row,
+                            "adjustRate",
+                            MigrationDiagnosticCode.RATE_UNPARSEABLE,
+                            "조정비율 '" + rawRate + "'을 숫자로 읽지 못했습니다. 값을 고친 뒤 다시 검증해 주세요.",
+                            List.of()));
+            return out;
+        }
 
         Map<String, String> baseToAdjustColumn = new LinkedHashMap<>();
         baseToAdjustColumn.put("devAmount", "devAdjustAmount");

@@ -5,10 +5,12 @@
 ## 기술 스택
 
 - Java 25 / Spring Boot 4.1
-- Gradle / Spring Data JPA / QueryDSL
+- Gradle 9.2.1 / Spring Data JPA / QueryDSL 5.1.0 (Jakarta)
 - Oracle Database
-- Spring Security / JWT
+- Spring Security / JWT (JJWT 0.13.0)
+- springdoc OpenAPI, Jsoup, Apache POI, Caffeine
 - JUnit 5 / Mockito / AssertJ
+- Spotless / JaCoCo 품질 게이트
 
 정확한 버전은 `build.gradle`과 Gradle lock·의존성 결과를 기준으로 확인합니다.
 
@@ -93,6 +95,7 @@ it_backend/
 ```text
 HTTP 요청
   → SecurityFilterChain(CORS·공개/관리자 URL 경계)
+  → SimpleRequestCsrfFilter(브라우저 단순 요청의 헤더 검증)
   → JwtAuthenticationFilter(Access Token 쿠키 검증)
   → Controller(DTO 변환·Bean Validation)
   → Service(권한·업무 규칙·트랜잭션)
@@ -101,6 +104,8 @@ HTTP 요청
 ```
 
 Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청은 `@Valid`로 검증합니다. 응답 DTO의 `@Schema`는 Swagger 문서용 장식이 아니라 프론트가 소비하는 계약입니다 — 프론트가 `/v3/api-docs`에서 TypeScript 타입을 생성하므로 여기의 `requiredMode`·`nullable`·`allowableValues`가 곧 프론트 타입이 되며, 그 계약은 `ApiResponseOpenApiContractTest`와 도메인별 `*OpenApiContractTest`가 고정합니다. 서비스는 JWT 인증 주체를 기준으로 역할·부서·소유권을 재검증하며, 조회와 쓰기 트랜잭션을 구분합니다. 처리 중 발생한 업무·검증 예외는 `GlobalExceptionHandler`가 `timestamp`, `status`, `message`를 가진 JSON 오류 응답으로 변환합니다.
+
+목록·bulk 조회는 전체 엔티티를 메모리로 가져오거나 ID별 상세 조회를 반복하지 않습니다. 필요한 컬럼의 projection/read view, DB의 명시적 정렬과 페이지 상한, 식별자 IN 배치 조회를 사용하고, 누락 식별자는 응답 조립 중 조용히 성공 처리하지 않습니다. 이관·설정 파싱에서는 값이 없는 경우와 malformed인 경우를 구분해 진단·경고·차단으로 표면화합니다.
 
 | 영역                                                                          | 주요 책임                                              | 연결되는 영역                                                        |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
@@ -136,8 +141,10 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 
 - 로그인과 토큰 갱신을 제외한 API는 기본적으로 인증이 필요합니다. `JwtAuthenticationFilter`가 Access Token 쿠키를 검증하고 `CustomUserDetails`를 보안 컨텍스트에 넣습니다.
 - Access Token과 Refresh Token은 httpOnly 쿠키로 전달하며 서버 세션은 만들지 않습니다. 관리자 API는 URL 규칙과 `@PreAuthorize`를 함께 사용하고, 일반 업무 API는 서비스에서 소유자·부서 범위를 추가로 검증합니다.
+- 업무 API는 Stateless JWT를 사용하지만 SSO 진행 상태와 인증 완료 사번은 콜백 왕복을 위해 `HttpSession`에 보관합니다. 이 세션은 업무 인증 토큰을 대신하지 않습니다.
 - 결재 상태처럼 원 업무와 반드시 함께 반영되어야 하는 변경은 동기 `@EventListener`로 같은 트랜잭션에서 처리합니다.
 - 알림은 `@TransactionalEventListener(AFTER_COMMIT)`에서 처리하고 저장이 필요하면 `REQUIRES_NEW` 트랜잭션을 사용합니다. 따라서 알림 실패가 이미 성공한 원 업무를 롤백하지 않습니다.
+- `AFTER_COMMIT` 알림 리스너 자체는 별도 비동기 스레드가 아니라 커밋 후 콜백으로 실행되며, 실패한 알림은 60초 주기 재시도 작업이 건당 최대 5회까지 처리합니다.
 - 알림 채널 라우터는 기본 인앱 채널과 EAI 그룹웨어 채널을 구분합니다. 외부 전송은 `EaiResult`의 성공·스킵·실패로 표현하며 예외나 실패를 원 알림 저장 흐름으로 전파하지 않습니다.
 
 ## 데이터 설계 결정
@@ -146,8 +153,10 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 - 업무 엔티티는 `BaseEntity`의 논리삭제, GUID, 등록·변경 감사 필드를 공유합니다. 복합키 테이블은 `@IdClass`로 기존 Oracle 물리 모델을 매핑하며, 물리 PK의 모든 컬럼을 `@Id`로 매핑합니다. 일부만 매핑하면 서로 다른 행이 같은 JPA 식별자를 갖게 되므로, 이 정합은 `PhysicalCompositeIdMappingTest`와 `PhysicalCompositeIdIsolationIt`가 고정합니다.
 - 응답 직렬화에만 쓰이는 조회는 엔티티 대신 필요한 컬럼만 담는 프로젝션(`*Row` record 또는 `*View` 인터페이스)으로 읽습니다. 쓰기 엔티티와 DDL은 그대로 두고 읽기 경로만 좁히는 방식이며, 엔티티 조회와의 결과·정렬·null 동등성은 `*ProjectionIt` Oracle 통합 테스트가 확인합니다.
 - `@LogTarget` 엔티티는 대응하는 `BaseLogEntity` 하위 로그 엔티티에 생성·수정·논리삭제 스냅샷을 남깁니다.
+- 감사 로그는 별도 `REQUIRES_NEW` 트랜잭션에서 `flush()`해 기록하므로 감사 기록 실패가 원 업무 트랜잭션을 롤백시키지 않습니다.
 - 단순 CRUD는 `JpaRepository`를 사용하고 동적 검색·집계·다중 조인은 `*RepositoryCustom`과 `*RepositoryImpl`의 QueryDSL 구현으로 분리합니다.
 - 공통코드, 메뉴 권한, 알림 미읽음 수, Tiptap 메타데이터는 Caffeine 캐시를 사용합니다. 캐시 쓰기는 트랜잭션 완료와 연동하고, 원본 변경 서비스가 `@CacheEvict`로 즉시 무효화하며 TTL은 누락에 대한 안전망으로 사용합니다.
+- 캐시 TTL은 공통코드·예산기간·메뉴권한 1시간, Tiptap 메타데이터 10분, 알림 미읽음 수 60초이며 모두 프로세스 로컬 Caffeine 캐시입니다.
 - 정보화사업 금액은 화면·조회마다 다시 더하지 않고 활성 품목과 지급금액으로 한 번 계산해 사업 스냅샷에 기록합니다. 저장 단위 반올림과 `NUMBER(18,3)` 범위 검증을 한 곳에 모아, 외화 환산이 끼어드는 경로에서도 컬럼별 통화 의미가 갈리지 않게 합니다. 계약은 [사업 집행 가이드](docs/guides/domains/project-execution.md)와 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)가 SoT입니다.
 - 물리 스키마 변경의 기준은 `C:\it\it_database\migrations`이며, 엔티티 매핑과 마이그레이션을 함께 검토합니다. 상세 매핑은 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)를 확인합니다.
 

@@ -268,7 +268,10 @@ public class OrgIdentityResolver {
             if (!teams.isEmpty()) {
                 List<MigrationDto.Candidate> candidates =
                         teams.entrySet().stream()
-                                .map(entry -> new MigrationDto.Candidate(entry.getKey(), entry.getValue()))
+                                .map(
+                                        entry ->
+                                                new MigrationDto.Candidate(
+                                                        entry.getKey(), entry.getValue()))
                                 .toList();
                 return Resolution.ambiguous(name, candidates);
             }

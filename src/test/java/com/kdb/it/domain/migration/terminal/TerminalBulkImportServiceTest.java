@@ -145,10 +145,15 @@ class TerminalBulkImportServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("빈 업로드 행");
         assertThatThrownBy(
-                        () -> service.dryRun(new TerminalBulkImportDto.Request(List.of(rowNoAmount()))))
+                        () ->
+                                service.dryRun(
+                                        new TerminalBulkImportDto.Request(List.of(rowNoAmount()))))
                 .hasMessageContaining("집행금액");
         assertThatThrownBy(
-                        () -> service.dryRun(new TerminalBulkImportDto.Request(List.of(rowFor("", "KRW", "신규")))))
+                        () ->
+                                service.dryRun(
+                                        new TerminalBulkImportDto.Request(
+                                                List.of(rowFor("", "KRW", "신규")))))
                 .hasMessageContaining("단말기명");
         assertThatThrownBy(
                         () ->
@@ -163,9 +168,17 @@ class TerminalBulkImportServiceTest {
                                                 List.of(rowFor("알 수 없는 단말기", "KRW", "신규")))))
                 .hasMessageContaining("단말기명 공통코드");
 
-        assertThat(service.dryRun(new TerminalBulkImportDto.Request(List.of(rowFor("블룸버그", "KRW", null)))).groups())
+        assertThat(
+                        service.dryRun(
+                                        new TerminalBulkImportDto.Request(
+                                                List.of(rowFor("블룸버그", "KRW", null))))
+                                .groups())
                 .hasSize(2);
-        assertThat(service.dryRun(new TerminalBulkImportDto.Request(List.of(rowFor("블룸버그", "KRW", "해지")))).groups())
+        assertThat(
+                        service.dryRun(
+                                        new TerminalBulkImportDto.Request(
+                                                List.of(rowFor("블룸버그", "KRW", "해지"))))
+                                .groups())
                 .hasSize(1);
         assertThat(
                         service.dryRun(
@@ -344,10 +357,8 @@ class TerminalBulkImportServiceTest {
         return switch (group) {
             case "CUR_C" -> List.of(code(group, "KRW", "한국원"), code(group, "USD", "미국달러"));
             case "IT_PTL_TMN_SVC_TC" -> List.of(code(group, "05", "블룸버그"));
-            case "IT_PTL_TMN_KD_TC" ->
-                    List.of(code(group, "01", "별도단말"), code(group, "02", "웹접속"));
-            case "DFR_CLE_C" ->
-                    List.of(code(group, "Q", "분기"), code(group, "Y", "연간"));
+            case "IT_PTL_TMN_KD_TC" -> List.of(code(group, "01", "별도단말"), code(group, "02", "웹접속"));
+            case "DFR_CLE_C" -> List.of(code(group, "Q", "분기"), code(group, "Y", "연간"));
             case "ABUS_TC" -> List.of(code(group, "10", "신규"), code(group, "20", "계속"));
             default -> List.of();
         };

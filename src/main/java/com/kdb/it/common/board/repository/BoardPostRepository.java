@@ -15,6 +15,9 @@ public interface BoardPostRepository
 
     Optional<Cblbcm> findByNacMngNoAndDelYn(String nacMngNo, String delYn);
 
+    List<Cblbcm> findTop50ByBlbMngNoAndDelYnAndXpoYnOrderByFstEnrDtmDescNacMngNoDesc(
+            String blbMngNo, String delYn, String xpoYn);
+
     Optional<Cblbcm> findByBlbMngNoAndNacMngNoAndDelYn(
             String blbMngNo, String nacMngNo, String delYn);
 

@@ -20,6 +20,7 @@ import com.kdb.it.domain.council.repository.BaskpmRepository;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -621,7 +622,8 @@ class CouncilSkipServiceTest {
             given(deleted.getDelYn()).willReturn("Y");
 
             given(baskpmRepository.findByDelYn("N")).willReturn(List.of(active));
-            given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
+            given(councilService.findActiveCouncils(any()))
+                    .willReturn(Map.of(ASCT_ID, mock(Basctm.class)));
 
             // Act
             List<CouncilDto.SkipRequestResponse> result =
@@ -673,10 +675,11 @@ class CouncilSkipServiceTest {
             given(b2.getItPtlAsctId()).willReturn("ASCT-2026-0002");
 
             given(baskpmRepository.findByDelYn("N")).willReturn(List.of(b1, b2));
-            given(councilService.findActiveCouncil("ASCT-2026-0001"))
-                    .willReturn(mock(Basctm.class));
-            given(councilService.findActiveCouncil("ASCT-2026-0002"))
-                    .willReturn(mock(Basctm.class));
+            given(councilService.findActiveCouncils(any()))
+                    .willReturn(
+                            Map.of(
+                                    "ASCT-2026-0001", mock(Basctm.class),
+                                    "ASCT-2026-0002", mock(Basctm.class)));
 
             // Act
             List<CouncilDto.SkipRequestResponse> result =

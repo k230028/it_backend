@@ -84,7 +84,7 @@ public class CacheConfig {
         CaffeineCacheManager manager = new CaffeineCacheManager();
 
         // 준정적 참조 데이터: 1시간 TTL (쓰기 시 @CacheEvict로 즉시 무효화 — §5.5.1)
-        // 현재 @Cacheable 사용처는 없으며 향후 공통코드 유형 캐시 도입을 위해 등록을 유지합니다.
+        // 공통코드·메뉴 권한 등 준정적 조회가 사용하는 캐시 이름을 애플리케이션과 맞춥니다.
         manager.registerCustomCache("codesByType", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
         manager.registerCustomCache("codesByCid", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
         manager.registerCustomCache("budgetPeriod", buildCache(STATIC_TTL, STATIC_MAX_SIZE));

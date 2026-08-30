@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.repository;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,9 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @return 협의회 (없으면 empty)
      */
     Optional<Basctm> findByItPtlAsctIdAndDelYn(String itPtlAsctId, String delYn);
+
+    /** 여러 협의회의 활성 행을 한 번에 조회합니다. */
+    List<Basctm> findByItPtlAsctIdInAndDelYn(Collection<String> itPtlAsctIds, String delYn);
 
     /**
      * 전체 협의회 목록 조회 (관리자용, 삭제되지 않은 항목)

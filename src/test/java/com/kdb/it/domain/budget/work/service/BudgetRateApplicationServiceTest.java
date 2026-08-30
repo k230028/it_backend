@@ -14,7 +14,6 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
-import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.budget.work.dto.BudgetWorkDto;
 import com.kdb.it.domain.budget.work.entity.Bbugtm;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
@@ -44,7 +43,6 @@ class BudgetRateApplicationServiceTest {
 
     @Mock private BbugtmRepository bbugtmRepository;
     @Mock private CodeRepository codeRepository;
-    @Mock private ProjectRepository projectRepository;
     @Mock private ProjectItemRepository projectItemRepository;
     @Mock private CostRepository costRepository;
     @Mock private BudgetWorkQueryRepository budgetWorkQueryRepository;
@@ -78,12 +76,7 @@ class BudgetRateApplicationServiceTest {
     void setUp() {
         ioeCatalog = new BudgetIoeCatalog(codeRepository);
         summaryService =
-                new BudgetSummaryService(
-                        bbugtmRepository,
-                        budgetWorkQueryRepository,
-                        projectRepository,
-                        projectItemRepository,
-                        ioeCatalog);
+                new BudgetSummaryService(bbugtmRepository, budgetWorkQueryRepository, ioeCatalog);
         budgetWorkService =
                 new BudgetRateApplicationService(
                         bbugtmRepository,

@@ -140,6 +140,7 @@ public final class MigrationDto {
                                 "PROJECT_NOT_FOUND",
                                 "AMOUNT_MISMATCH",
                                 "RATE_OUT_OF_RANGE",
+                                "RATE_UNPARSEABLE",
                                 "DATE_UNPARSEABLE",
                                 "LEDGER_NOT_MATCHED",
                                 "LEDGER_AMBIGUOUS",

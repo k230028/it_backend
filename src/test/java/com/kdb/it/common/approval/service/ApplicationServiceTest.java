@@ -583,7 +583,7 @@ class ApplicationServiceTest {
         ApplicationReadView v2 =
                 new ApplicationReadView(
                         "APF_202600000002", null, null, null, null, null, null, null);
-        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(v1, v2));
+        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(v1, v2));
         // 결재자 목록은 In-쿼리 1회 배치 조회 (빈 목록 반환)
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
@@ -600,7 +600,7 @@ class ApplicationServiceTest {
                 new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
         ApplicationReadView a2 =
                 new ApplicationReadView("APF-2", null, null, null, null, null, null, null);
-        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(a1, a2));
+        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(a1, a2));
         // APF-1 결재선 2건(순서 유지 검증), APF-2 결재선 없음
         ApproverReadView d1 = new ApproverReadView("APF-1", 1, "E001", "1", null, null, "N");
         ApproverReadView d2 =
@@ -635,7 +635,7 @@ class ApplicationServiceTest {
                         null);
         ApproverReadView legacyPending =
                 new ApproverReadView(APF_MNG_NO, 1, "E10001", "0", null, null, "Y");
-        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(view));
+        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(legacyPending));
 
@@ -649,7 +649,7 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 신청서가 없으면 빈 목록을 반환한다")
     void getApplications_신청서없음_빈목록반환() {
-        given(applicationRepository.findAllProjectedBy()).willReturn(List.of());
+        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of());
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 
@@ -666,11 +666,8 @@ class ApplicationServiceTest {
         // given: APF_MNG_NO는 존재, "APF_NONE"은 없음
         ApplicationReadView view =
                 new ApplicationReadView(APF_MNG_NO, null, null, null, null, null, null, null);
-        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
-                .willReturn(Optional.of(view));
-        given(applicationRepository.findReadViewByApfMngNo("APF_NONE"))
-                .willReturn(Optional.empty());
-        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+        given(applicationRepository.findReadViewsByApfMngNoIn(any())).willReturn(List.of(view));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
 
         ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
@@ -687,9 +684,8 @@ class ApplicationServiceTest {
     void getApplicationsByIds_partialMissing_returnsItemsAndFailedIds() {
         ApplicationReadView found =
                 new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
-        given(applicationRepository.findReadViewByApfMngNo("APF-1")).willReturn(Optional.of(found));
-        given(applicationRepository.findReadViewByApfMngNo("APF-X")).willReturn(Optional.empty());
-        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-1"))
+        given(applicationRepository.findReadViewsByApfMngNoIn(any())).willReturn(List.of(found));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
         ApplicationDto.BulkGetRequest req = new ApplicationDto.BulkGetRequest();
         req.setApfMngNos(List.of("APF-1", "APF-X"));
@@ -1080,8 +1076,9 @@ class ApplicationServiceTest {
     void getApplications_부서명null조직_제외() {
         ApplicationReadView view =
                 new ApplicationReadView(APF_MNG_NO, null, null, null, "10001", null, null, "18001");
-        given(applicationRepository.findAllProjectedBy()).willReturn(List.of(view));
-        given(approverRepository.findByDcdMngNoInOrderByDcrSqnSnoAsc(any())).willReturn(List.of());
+        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(view));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+                .willReturn(List.of());
         given(userRepository.findNameViewsByEnoIn(any()))
                 .willReturn(List.of(new NameView("10001", "홍길동")));
         // bbrNm이 null인 조직은 filter(bbrNm != null)에서 제외되는 분기 커버

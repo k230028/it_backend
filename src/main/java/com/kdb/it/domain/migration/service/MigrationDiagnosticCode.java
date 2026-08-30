@@ -48,6 +48,9 @@ enum MigrationDiagnosticCode {
     /** 조정비율이 허용 범위를 벗어났습니다. */
     RATE_OUT_OF_RANGE,
 
+    /** 조정비율을 숫자로 읽지 못했습니다. */
+    RATE_UNPARSEABLE,
+
     /** 값을 날짜(연월)로 읽지 못했습니다. */
     DATE_UNPARSEABLE,
 

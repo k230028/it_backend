@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.code.CommonCodeGroups;
@@ -236,7 +237,7 @@ class MigrationIoeCatalogReaderTest {
     }
 
     @Test
-    @DisplayName("DUP_IOE_MNGC 값이 숫자가 아니면 100을 기본값으로 돌려준다")
+    @DisplayName("DUP_IOE_MNGC 값이 숫자가 아니면 설정 오류를 알린다")
     void 일반관리비_편성률이_숫자가_아니면_100이다() {
         when(codeRepository.findByCIdWithValidDate("DUP_IOE", null))
                 .thenReturn(
@@ -248,7 +249,9 @@ class MigrationIoeCatalogReaderTest {
                                         .cdvaDtlC("해당없음")
                                         .build()));
 
-        assertThat(readerWithRepo().generalExpenseRate()).isEqualByComparingTo("100");
+        assertThatThrownBy(() -> readerWithRepo().generalExpenseRate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("DUP_IOE_MNGC");
     }
 
     @Test

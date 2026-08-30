@@ -10,6 +10,8 @@ import com.kdb.it.domain.council.entity.Baskpm;
 import com.kdb.it.domain.council.repository.BaskpmRepository;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,8 +199,15 @@ public class CouncilSkipService {
      * @return 삭제되지 않은 생략 판정 요청 목록
      */
     public List<CouncilDto.SkipRequestResponse> getActiveSkipRequests() {
-        return baskpmRepository.findByDelYn("N").stream()
-                .map(b -> toResponse(b, councilService.findActiveCouncil(b.getItPtlAsctId())))
+        List<Baskpm> requests = baskpmRepository.findByDelYn("N");
+        Map<String, Basctm> councilsById =
+                councilService.findActiveCouncils(
+                        requests.stream()
+                                .map(Baskpm::getItPtlAsctId)
+                                .distinct()
+                                .collect(Collectors.toList()));
+        return requests.stream()
+                .map(b -> toResponse(b, councilsById.get(b.getItPtlAsctId())))
                 .toList();
     }
 

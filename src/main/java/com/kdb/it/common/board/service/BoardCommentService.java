@@ -220,21 +220,15 @@ public class BoardCommentService {
     // ── 내부 헬퍼 ──
 
     private Cblbmm findUserActiveBoard(String blbMngNo) {
-        return metaRepository
-                .findByBlbMngNoAndUseYnAndDelYn(blbMngNo, "Y", "N")
-                .orElseThrow(() -> new NotFoundException("게시판을 찾을 수 없습니다: " + blbMngNo));
+        return BoardLookupSupport.findUserActiveBoard(metaRepository, blbMngNo);
     }
 
     private Cblbcm findPostInBoard(String blbMngNo, String nacMngNo) {
-        return postRepository
-                .findByBlbMngNoAndNacMngNoAndDelYn(blbMngNo, nacMngNo, "N")
-                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+        return BoardLookupSupport.findPost(postRepository, blbMngNo, nacMngNo);
     }
 
     private Cblbcm findPostInBoardForUpdate(String blbMngNo, String nacMngNo) {
-        return postRepository
-                .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(blbMngNo, nacMngNo, "N")
-                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+        return BoardLookupSupport.findPostForUpdate(postRepository, blbMngNo, nacMngNo);
     }
 
     private Ccmmtm findCommentInPostForUpdate(String nacMngNo, Long cmmtMngNo) {
@@ -349,6 +343,6 @@ public class BoardCommentService {
      * @return null이면 빈 문자열, 아니면 원본 문자열
      */
     private static String safe(String s) {
-        return s == null ? "" : s;
+        return BoardLookupSupport.safe(s);
     }
 }

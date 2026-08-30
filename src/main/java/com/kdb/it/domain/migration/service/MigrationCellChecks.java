@@ -174,9 +174,20 @@ final class MigrationCellChecks {
             String column,
             Map<String, String> overrides,
             List<MigrationDto.CellDiagnostic> out) {
-        BigDecimal rate =
-                MigrationAmounts.number(MigrationDiagnostics.cell(row, column, overrides, sheet));
+        String raw = MigrationDiagnostics.cell(row, column, overrides, sheet);
+        if (raw.isBlank()) {
+            return;
+        }
+        BigDecimal rate = MigrationAmounts.number(raw);
         if (rate == null) {
+            out.add(
+                    MigrationDiagnostics.blocker(
+                            sheet,
+                            row,
+                            column,
+                            MigrationDiagnosticCode.RATE_UNPARSEABLE,
+                            "조정비율 '" + raw + "'을 숫자로 읽지 못했습니다. 값을 고친 뒤 다시 검증해 주세요.",
+                            List.of()));
             return;
         }
         BigDecimal percent = rate.multiply(new BigDecimal("100"));

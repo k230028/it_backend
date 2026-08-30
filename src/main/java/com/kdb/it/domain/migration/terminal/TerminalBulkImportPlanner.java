@@ -68,9 +68,7 @@ public final class TerminalBulkImportPlanner {
 
     private static String normalizeGroupingText(String value) {
         String normalized = normalize(value);
-        return normalized == null
-                ? ""
-                : normalized.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+        return normalized == null ? "" : normalized.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
     }
 
     /** 블룸버그 옵션 표기(블룸버그(***) 등)는 기본 단말기명과 동일하게 취급합니다. */

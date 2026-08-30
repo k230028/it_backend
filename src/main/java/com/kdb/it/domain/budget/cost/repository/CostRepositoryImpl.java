@@ -37,6 +37,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 public class CostRepositoryImpl implements CostRepositoryCustom {
 
+    /** 목록 API가 한 요청에서 조립할 수 있는 최대 행 수입니다. */
+    private static final long MAX_LIST_ROWS = 500;
+
     /** QueryDSL 쿼리 팩토리: JPA 쿼리 생성 및 실행 담당 */
     private final JPAQueryFactory queryFactory;
 
@@ -84,7 +87,12 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
         QBcostm bcostm = QBcostm.bcostm;
         BooleanBuilder builder = buildConditionPredicate(condition);
 
-        return queryFactory.selectFrom(bcostm).where(builder).fetch();
+        return queryFactory
+                .selectFrom(bcostm)
+                .where(builder)
+                .orderBy(bcostm.costBgNo.asc(), bcostm.bgSno.asc())
+                .limit(MAX_LIST_ROWS)
+                .fetch();
     }
 
     /**
@@ -117,6 +125,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                 bcostm.delYn))
                 .from(bcostm)
                 .where(buildConditionPredicate(condition))
+                .orderBy(bcostm.costBgNo.asc(), bcostm.bgSno.asc())
+                .limit(MAX_LIST_ROWS)
                 .fetch();
     }
 

@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
@@ -77,11 +78,13 @@ public class CommonDataMigrationPlanner {
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
 
-        Map<String, String> menuDelYnByKey = snapshotDelYnMap(snapshot.allMenus(), Cmenum::getMnuId);
+        Map<String, String> menuDelYnByKey =
+                snapshotDelYnMap(snapshot.allMenus(), Cmenum::getMnuId);
         Map<List<String>, String> menuAuthDelYnByKey =
                 snapshotDelYnMap(
                         snapshot.allMenuAuths(), a -> Arrays.asList(a.getMnuId(), a.getAthId()));
-        Map<String, String> routeDelYnByKey = snapshotDelYnMap(snapshot.allRoutes(), Cmenud::getSrePth);
+        Map<String, String> routeDelYnByKey =
+                snapshotDelYnMap(snapshot.allRoutes(), Cmenud::getSrePth);
         Map<List<String>, String> codeDelYnByKey =
                 snapshotDelYnMap(
                         snapshot.codesForFileCIds(),
@@ -93,8 +96,19 @@ public class CommonDataMigrationPlanner {
 
         Set<String> activeSnapshotMenuIds = activeKeys(snapshot.allMenus(), Cmenum::getMnuId);
         Set<String> activeSnapshotRoutePaths = activeKeys(snapshot.allRoutes(), Cmenud::getSrePth);
-        Map<String, Cmenum> activeSnapshotMenuById = activeEntitiesByKey(snapshot.allMenus(), Cmenum::getMnuId);
-        Map<String, String> activeSnapshotMnuIdBySrePth = activeMenuIdsBySrePth(snapshot.allMenus());
+        Set<String> activeSnapshotCodeKeys =
+                snapshot.codesForFileCIds().stream()
+                        .filter(code -> !"Y".equals(code.getDelYn()))
+                        .map(CommonDataMigrationPlanner::codeKey)
+                        .collect(Collectors.toSet());
+        Set<String> fileCodeKeys =
+                request.codes().stream()
+                        .map(CommonDataMigrationPlanner::codeKey)
+                        .collect(Collectors.toSet());
+        Map<String, Cmenum> activeSnapshotMenuById =
+                activeEntitiesByKey(snapshot.allMenus(), Cmenum::getMnuId);
+        Map<String, String> activeSnapshotMnuIdBySrePth =
+                activeMenuIdsBySrePth(snapshot.allMenus());
 
         Set<String> fileMenuIds = new HashSet<>();
         for (CommonDataMigrationDto.MenuRow row : request.menus()) {
@@ -169,7 +183,14 @@ public class CommonDataMigrationPlanner {
             validateCodeRow(row, errors);
         }
         for (CommonDataMigrationDto.TranslationRow row : request.translations()) {
-            validateTranslationRow(row, fileMenuIds, activeSnapshotMenuIds, errors, warnings);
+            validateTranslationRow(
+                    row,
+                    fileMenuIds,
+                    activeSnapshotMenuIds,
+                    fileCodeKeys,
+                    activeSnapshotCodeKeys,
+                    errors,
+                    warnings);
         }
 
         // 메뉴 행이 있는데 메뉴권한 행이 0건이면 오류
@@ -179,7 +200,11 @@ public class CommonDataMigrationPlanner {
 
         // 분류: 스냅샷에 같은 PK 없으면 added, 있고 delYn='Y'면 restored, 활성이면 updated
         CommonDataMigrationDto.TableSummary menus =
-                classify(SHEET_MENU, request.menus(), CommonDataMigrationDto.MenuRow::mnuId, menuDelYnByKey);
+                classify(
+                        SHEET_MENU,
+                        request.menus(),
+                        CommonDataMigrationDto.MenuRow::mnuId,
+                        menuDelYnByKey);
         CommonDataMigrationDto.TableSummary menuAuths =
                 classify(
                         SHEET_MENU_AUTH,
@@ -188,7 +213,10 @@ public class CommonDataMigrationPlanner {
                         menuAuthDelYnByKey);
         CommonDataMigrationDto.TableSummary routes =
                 classify(
-                        SHEET_ROUTE, request.routes(), CommonDataMigrationDto.RouteRow::srePth, routeDelYnByKey);
+                        SHEET_ROUTE,
+                        request.routes(),
+                        CommonDataMigrationDto.RouteRow::srePth,
+                        routeDelYnByKey);
         CommonDataMigrationDto.TableSummary codes =
                 classify(
                         SHEET_CODE,
@@ -214,6 +242,12 @@ public class CommonDataMigrationPlanner {
         requireNotBlank(errors, SHEET_MENU, row.excelRow(), "메뉴ID", row.mnuId());
         requireNotBlank(errors, SHEET_MENU, row.excelRow(), "메뉴명", row.mnuNm());
         requireNotBlank(errors, SHEET_MENU, row.excelRow(), "전체메뉴경로", row.whlMnuPth());
+        validateLength(errors, SHEET_MENU, row.excelRow(), "메뉴ID", row.mnuId(), 10);
+        validateLength(errors, SHEET_MENU, row.excelRow(), "상위메뉴ID", row.hrkMnuId(), 10);
+        validateLength(errors, SHEET_MENU, row.excelRow(), "메뉴명", row.mnuNm(), 100);
+        validateLength(errors, SHEET_MENU, row.excelRow(), "메뉴유형", row.mnuTpC(), 3);
+        validateLength(errors, SHEET_MENU, row.excelRow(), "화면경로", row.srePth(), 300);
+        validateLength(errors, SHEET_MENU, row.excelRow(), "전체메뉴경로", row.whlMnuPth(), 500);
 
         if (row.mnuSotSqnSno() == null) {
             errors.add(message(SHEET_MENU, row.excelRow(), "메뉴정렬순서는 필수입니다."));
@@ -224,20 +258,29 @@ public class CommonDataMigrationPlanner {
         } else if (!MENU_TYPES.contains(row.mnuTpC())) {
             errors.add(
                     message(
-                            SHEET_MENU, row.excelRow(), "메뉴유형은 GRP/LNK/PGE만 허용합니다 (값: " + row.mnuTpC() + ")"));
+                            SHEET_MENU,
+                            row.excelRow(),
+                            "메뉴유형은 GRP/LNK/PGE만 허용합니다 (값: " + row.mnuTpC() + ")"));
         }
 
         if (row.hidYn() == null || row.hidYn().isBlank()) {
             errors.add(message(SHEET_MENU, row.excelRow(), "숨김여부는 필수입니다."));
         } else if (!YN.contains(row.hidYn())) {
-            errors.add(message(SHEET_MENU, row.excelRow(), "숨김여부는 Y/N만 허용합니다 (값: " + row.hidYn() + ")"));
+            errors.add(
+                    message(
+                            SHEET_MENU,
+                            row.excelRow(),
+                            "숨김여부는 Y/N만 허용합니다 (값: " + row.hidYn() + ")"));
         }
 
         if (row.mnuDep() == null) {
             errors.add(message(SHEET_MENU, row.excelRow(), "메뉴깊이는 필수입니다."));
         } else if (row.mnuDep() < MIN_MENU_DEPTH || row.mnuDep() > MAX_MENU_DEPTH) {
             errors.add(
-                    message(SHEET_MENU, row.excelRow(), "메뉴깊이는 1~4만 허용합니다 (값: " + row.mnuDep() + ")"));
+                    message(
+                            SHEET_MENU,
+                            row.excelRow(),
+                            "메뉴깊이는 1~4만 허용합니다 (값: " + row.mnuDep() + ")"));
         }
 
         if (row.hrkMnuId() != null
@@ -246,7 +289,9 @@ public class CommonDataMigrationPlanner {
                 && !activeSnapshotMenuIds.contains(row.hrkMnuId())) {
             errors.add(
                     message(
-                            SHEET_MENU, row.excelRow(), "상위메뉴ID가 존재하지 않습니다 (값: " + row.hrkMnuId() + ")"));
+                            SHEET_MENU,
+                            row.excelRow(),
+                            "상위메뉴ID가 존재하지 않습니다 (값: " + row.hrkMnuId() + ")"));
         }
     }
 
@@ -266,7 +311,9 @@ public class CommonDataMigrationPlanner {
                 && !activeSnapshotMenuIds.contains(row.mnuId())) {
             errors.add(
                     message(
-                            SHEET_MENU_AUTH, row.excelRow(), "메뉴ID가 존재하지 않습니다 (값: " + row.mnuId() + ")"));
+                            SHEET_MENU_AUTH,
+                            row.excelRow(),
+                            "메뉴ID가 존재하지 않습니다 (값: " + row.mnuId() + ")"));
         }
         if (row.athId() != null && !row.athId().isBlank() && !athIds.contains(row.athId())) {
             errors.add(
@@ -281,11 +328,18 @@ public class CommonDataMigrationPlanner {
     private static void validateRouteRow(CommonDataMigrationDto.RouteRow row, List<String> errors) {
         requireNotBlank(errors, SHEET_ROUTE, row.excelRow(), "화면경로", row.srePth());
         requireNotBlank(errors, SHEET_ROUTE, row.excelRow(), "화면메뉴명", row.sreMnuNm());
+        validateLength(errors, SHEET_ROUTE, row.excelRow(), "화면경로", row.srePth(), 300);
+        validateLength(errors, SHEET_ROUTE, row.excelRow(), "화면메뉴명", row.sreMnuNm(), 100);
+        validateLength(errors, SHEET_ROUTE, row.excelRow(), "비고", row.rmk(), 300);
 
         if (row.useYn() == null || row.useYn().isBlank()) {
             errors.add(message(SHEET_ROUTE, row.excelRow(), "사용여부는 필수입니다."));
         } else if (!YN.contains(row.useYn())) {
-            errors.add(message(SHEET_ROUTE, row.excelRow(), "사용여부는 Y/N만 허용합니다 (값: " + row.useYn() + ")"));
+            errors.add(
+                    message(
+                            SHEET_ROUTE,
+                            row.excelRow(),
+                            "사용여부는 Y/N만 허용합니다 (값: " + row.useYn() + ")"));
         }
     }
 
@@ -294,6 +348,18 @@ public class CommonDataMigrationPlanner {
         requireNotBlank(errors, SHEET_CODE, row.excelRow(), "공통코드ID", row.cId());
         requireNotBlank(errors, SHEET_CODE, row.excelRow(), "코드값ID", row.cdva());
         requireNotBlank(errors, SHEET_CODE, row.excelRow(), "시작일자", row.sttDt());
+        validateLength(errors, SHEET_CODE, row.excelRow(), "공통코드ID", row.cId(), 100);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "코드값ID", row.cdva(), 40);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "시작일자", row.sttDt(), 8);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "종료일자", row.endDt(), 8);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "공통코드명", row.cNm(), 100);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "코드값명", row.cdvaNm(), 200);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "코드값적요", row.cdvaDtl(), 2000);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "공통코드값약어명", row.cdvaDes(), 100);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "공통코드인스턴스명", row.cTp(), 200);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "공통코드인스턴스내용", row.cTpDes(), 500);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "공통코드값명", row.cdvaDtlC(), 500);
+        validateLength(errors, SHEET_CODE, row.excelRow(), "상위코드값ID", row.hrkC(), 40);
     }
 
     /** 오류 ①⑤⑥, 경고 ②: 다국어 행 필수값·언어코드 길이·구분명/컬럼명 조합·대상 메뉴 존재를 검증합니다. */
@@ -301,19 +367,27 @@ public class CommonDataMigrationPlanner {
             CommonDataMigrationDto.TranslationRow row,
             Set<String> fileMenuIds,
             Set<String> activeSnapshotMenuIds,
+            Set<String> fileCodeKeys,
+            Set<String> activeSnapshotCodeKeys,
             List<String> errors,
             List<String> warnings) {
         requireNotBlank(errors, SHEET_TRANSLATION, row.excelRow(), "구분코드ID내용", row.tcIdCone());
         requireNotBlank(errors, SHEET_TRANSLATION, row.excelRow(), "구분코드컬럼명", row.tcColNm());
         requireNotBlank(errors, SHEET_TRANSLATION, row.excelRow(), "구분코드설명", row.tcDes());
         requireNotBlank(errors, SHEET_TRANSLATION, row.excelRow(), "구분명", row.dttNm());
+        validateLength(errors, SHEET_TRANSLATION, row.excelRow(), "구분코드ID내용", row.tcIdCone(), 255);
+        validateLength(errors, SHEET_TRANSLATION, row.excelRow(), "구분코드컬럼명", row.tcColNm(), 255);
+        validateLength(errors, SHEET_TRANSLATION, row.excelRow(), "번역문", row.tcDes(), 2000);
+        validateLength(errors, SHEET_TRANSLATION, row.excelRow(), "구분명", row.dttNm(), 100);
 
         if (row.dttLanC() == null || row.dttLanC().isBlank()) {
             errors.add(message(SHEET_TRANSLATION, row.excelRow(), "언어코드는 필수입니다."));
         } else if (row.dttLanC().length() != LANGUAGE_CODE_LENGTH) {
             errors.add(
                     message(
-                            SHEET_TRANSLATION, row.excelRow(), "언어코드는 2자여야 합니다 (값: " + row.dttLanC() + ")"));
+                            SHEET_TRANSLATION,
+                            row.excelRow(),
+                            "언어코드는 2자여야 합니다 (값: " + row.dttLanC() + ")"));
         }
 
         if (row.dttNm() == null || row.dttNm().isBlank()) {
@@ -348,6 +422,62 @@ public class CommonDataMigrationPlanner {
                             row.excelRow(),
                             "대상 메뉴가 존재하지 않습니다 (값: " + row.tcIdCone() + ")"));
         }
+        if (target == TranslationTarget.COMMON_CODE
+                && row.tcIdCone() != null
+                && !row.tcIdCone().isBlank()) {
+            List<String> codeParts = parseCodeKey(row.tcIdCone());
+            if (codeParts == null) {
+                warnings.add(
+                        message(
+                                SHEET_TRANSLATION,
+                                row.excelRow(),
+                                "대상 공통코드 키 형식을 해석할 수 없습니다 (값: " + row.tcIdCone() + ")"));
+            } else {
+                if (!fileCodeKeys.contains(row.tcIdCone())
+                        && !activeSnapshotCodeKeys.contains(row.tcIdCone())) {
+                    warnings.add(
+                            message(
+                                    SHEET_TRANSLATION,
+                                    row.excelRow(),
+                                    "대상 공통코드가 존재하지 않습니다 (값: " + row.tcIdCone() + ")"));
+                }
+            }
+        }
+    }
+
+    /** 공통코드 복합키를 번역 마스터가 사용하는 길이-prefix 형식으로 만듭니다. */
+    private static String codeKey(CommonDataMigrationDto.CodeRow row) {
+        return prefixed(row.cId()) + prefixed(row.cdva()) + prefixed(row.sttDt());
+    }
+
+    private static String codeKey(Ccodem code) {
+        return prefixed(code.getCId()) + prefixed(code.getCdva()) + prefixed(code.getSttDt());
+    }
+
+    private static String prefixed(String value) {
+        return value == null ? "-1:" : value.length() + ":" + value;
+    }
+
+    /** 길이-prefix 공통코드 키를 세 구성요소로 해석합니다. 형식이 틀리면 null을 반환합니다. */
+    private static List<String> parseCodeKey(String value) {
+        List<String> parts = new ArrayList<>();
+        int cursor = 0;
+        while (parts.size() < 3) {
+            int colon = value.indexOf(':', cursor);
+            if (colon <= cursor) return null;
+            int length;
+            try {
+                length = Integer.parseInt(value.substring(cursor, colon));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+            int start = colon + 1;
+            int end = start + length;
+            if (length < 0 || end > value.length()) return null;
+            parts.add(value.substring(start, end));
+            cursor = end;
+        }
+        return cursor == value.length() ? parts : null;
     }
 
     /** 구분명 문자열을 dbName() 비교로 TranslationTarget에 매핑합니다. 못 찾으면 null입니다. */
@@ -389,7 +519,8 @@ public class CommonDataMigrationPlanner {
         if (!"PGE".equals(row.mnuTpC()) || row.srePth() == null || row.srePth().isBlank()) {
             return;
         }
-        if (!fileRoutePaths.contains(row.srePth()) && !activeSnapshotRoutePaths.contains(row.srePth())) {
+        if (!fileRoutePaths.contains(row.srePth())
+                && !activeSnapshotRoutePaths.contains(row.srePth())) {
             warnings.add(
                     message(
                             SHEET_MENU,
@@ -401,9 +532,8 @@ public class CommonDataMigrationPlanner {
     /**
      * 경고 ④: 파일 메뉴의 화면경로를 운영 스냅샷의 다른 활성 메뉴가 이미 쓰고 있으면 경고합니다.
      *
-     * <p>시드가 서버별 시퀀스로 메뉴를 채번해 dev/prod 메뉴ID가 어긋날 수 있다. 이때 파일이 dev 기준 메뉴ID로
-     * 새 메뉴를 추가하면서 운영에 이미 있는 화면경로를 그대로 쓰면, 반영 후 같은 경로를 가리키는 활성 메뉴가 2개가
-     * 된다. 자기 자신(같은 메뉴ID)을 갱신하는 정상 케이스는 제외한다.
+     * <p>시드가 서버별 시퀀스로 메뉴를 채번해 dev/prod 메뉴ID가 어긋날 수 있다. 이때 파일이 dev 기준 메뉴ID로 새 메뉴를 추가하면서 운영에 이미 있는
+     * 화면경로를 그대로 쓰면, 반영 후 같은 경로를 가리키는 활성 메뉴가 2개가 된다. 자기 자신(같은 메뉴ID)을 갱신하는 정상 케이스는 제외한다.
      */
     private static void warnPathUsedByOtherMenu(
             CommonDataMigrationDto.MenuRow row,
@@ -418,8 +548,11 @@ public class CommonDataMigrationPlanner {
                     message(
                             SHEET_MENU,
                             row.excelRow(),
-                            "같은 화면경로(" + row.srePth() + ")를 운영의 다른 메뉴("
-                                    + conflictingMnuId + ")가 사용 중입니다 — 반영 시 같은 경로의 활성 메뉴가 2개가 됩니다."));
+                            "같은 화면경로("
+                                    + row.srePth()
+                                    + ")를 운영의 다른 메뉴("
+                                    + conflictingMnuId
+                                    + ")가 사용 중입니다 — 반영 시 같은 경로의 활성 메뉴가 2개가 됩니다."));
         }
     }
 
@@ -431,14 +564,31 @@ public class CommonDataMigrationPlanner {
         }
     }
 
+    /** 문자열 컬럼의 물리 길이를 dry-run에서 미리 검증합니다. */
+    private static void validateLength(
+            List<String> errors, String sheet, int row, String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            errors.add(
+                    message(
+                            sheet,
+                            row,
+                            field
+                                    + "이(가) 최대 "
+                                    + maxLength
+                                    + "자를 초과했습니다 (현재: "
+                                    + value.length()
+                                    + "자)"));
+        }
+    }
+
     /**
      * 오류 ⑩: 시트 내에서 같은 키가 두 번째 이상 나타나면 그 행에 중복 오류를 추가합니다.
      *
-     * <p>{@code keyFn}은 동등성 판정에만 쓰는 키(단일 필드는 String, 복합 필드는 {@link Arrays#asList}로 묶은 List)이고, {@code
-     * displayFn}은 오류 메시지의 "(값: ...)"에 넣을 사람이 읽는 표기입니다. 키를 문자열로 결합하면 필드 경계가 다른 값끼리(예: "A::B"+"C" vs
-     * "A"+"B::C") 같은 문자열로 뭉쳐 중복을 오판할 수 있어 표기와 동등성 판정을 분리했습니다. 복합키는 {@code List.of}가 아니라 {@code
-     * Arrays.asList}를 씁니다 — {@code List.of}는 null 원소에서 NPE를 던져, 필수값이 빈 행에서 오류 ①(안전망)이 이 오류를 잡기도
-     * 전에 planner가 죽습니다.
+     * <p>{@code keyFn}은 동등성 판정에만 쓰는 키(단일 필드는 String, 복합 필드는 {@link Arrays#asList}로 묶은 List)이고,
+     * {@code displayFn}은 오류 메시지의 "(값: ...)"에 넣을 사람이 읽는 표기입니다. 키를 문자열로 결합하면 필드 경계가 다른 값끼리(예:
+     * "A::B"+"C" vs "A"+"B::C") 같은 문자열로 뭉쳐 중복을 오판할 수 있어 표기와 동등성 판정을 분리했습니다. 복합키는 {@code List.of}가
+     * 아니라 {@code Arrays.asList}를 씁니다 — {@code List.of}는 null 원소에서 NPE를 던져, 필수값이 빈 행에서 오류 ①(안전망)이 이
+     * 오류를 잡기도 전에 planner가 죽습니다.
      */
     private static <T, K> void checkDuplicates(
             List<String> errors,
@@ -464,8 +614,8 @@ public class CommonDataMigrationPlanner {
     /**
      * 분류 규칙: 스냅샷에 같은 키가 없으면 added, 있고 delYn='Y'면 restored, 그 외(활성)는 updated로 센다.
      *
-     * <p>{@code K}는 단일 필드 키(String)이거나 {@link Arrays#asList}로 묶은 복합 필드 키(null 허용)입니다. List는 원소
-     * 단위로 equals/hashCode를 계산하므로 문자열 결합과 달리 필드 경계 충돌이 없습니다.
+     * <p>{@code K}는 단일 필드 키(String)이거나 {@link Arrays#asList}로 묶은 복합 필드 키(null 허용)입니다. List는 원소 단위로
+     * equals/hashCode를 계산하므로 문자열 결합과 달리 필드 경계 충돌이 없습니다.
      */
     private static <T, K> CommonDataMigrationDto.TableSummary classify(
             String table, List<T> rows, Function<T, K> keyFn, Map<K, String> snapshotDelYnByKey) {
@@ -494,7 +644,8 @@ public class CommonDataMigrationPlanner {
         return map;
     }
 
-    private static <E extends BaseEntity> Set<String> activeKeys(List<E> entities, Function<E, String> keyFn) {
+    private static <E extends BaseEntity> Set<String> activeKeys(
+            List<E> entities, Function<E, String> keyFn) {
         Set<String> keys = new HashSet<>();
         for (E entity : entities) {
             if (!"Y".equals(entity.getDelYn())) {
@@ -519,7 +670,9 @@ public class CommonDataMigrationPlanner {
     private static Map<String, String> activeMenuIdsBySrePth(List<Cmenum> menus) {
         Map<String, String> map = new HashMap<>();
         for (Cmenum menu : menus) {
-            if (!"Y".equals(menu.getDelYn()) && menu.getSrePth() != null && !menu.getSrePth().isBlank()) {
+            if (!"Y".equals(menu.getDelYn())
+                    && menu.getSrePth() != null
+                    && !menu.getSrePth().isBlank()) {
                 map.put(menu.getSrePth(), menu.getMnuId());
             }
         }

@@ -80,6 +80,12 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      */
     List<ApplicationReadView> findAllProjectedBy();
 
+    /** 신청서 목록 API용 경량 read view를 안정된 순서와 상한으로 조회합니다. */
+    List<ApplicationReadView> findTop500ByOrderByApfMngNoAsc();
+
+    /** 여러 신청서를 응답 조립용 read view로 조회합니다. */
+    List<ApplicationReadView> findReadViewsByApfMngNoIn(Collection<String> apfMngNos);
+
     /**
      * 신청관리번호로 단건 신청서를 응답 조립용 read view로 조회합니다.
      *

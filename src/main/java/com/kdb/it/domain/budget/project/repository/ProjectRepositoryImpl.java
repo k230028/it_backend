@@ -33,6 +33,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
 
+    /** 목록 API가 한 요청에서 조립할 수 있는 최대 행 수입니다. */
+    private static final long MAX_LIST_ROWS = 500;
+
     /** QueryDSL 쿼리 팩토리: JPA 쿼리 생성 및 실행 담당 */
     private final JPAQueryFactory queryFactory;
 
@@ -50,7 +53,12 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         QBprojm bprojm = QBprojm.bprojm;
         BooleanBuilder builder = buildConditionPredicate(condition);
 
-        return queryFactory.selectFrom(bprojm).where(builder).fetch();
+        return queryFactory
+                .selectFrom(bprojm)
+                .where(builder)
+                .orderBy(bprojm.abusMngNo.asc(), bprojm.sno.asc())
+                .limit(MAX_LIST_ROWS)
+                .fetch();
     }
 
     /**
@@ -82,6 +90,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                 bprojm.delYn))
                 .from(bprojm)
                 .where(buildConditionPredicate(condition))
+                .orderBy(bprojm.abusMngNo.asc(), bprojm.sno.asc())
+                .limit(MAX_LIST_ROWS)
                 .fetch();
     }
 

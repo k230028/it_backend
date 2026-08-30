@@ -90,8 +90,7 @@ class TerminalBulkImportCostServiceTest {
         when(existing.getSpfTmnNm()).thenReturn("Bloomberg Service");
         when(existing.getTmnKdTc()).thenReturn("02");
         when(existing.getTmnClsfC()).thenReturn("05");
-        when(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(
-                        "COST-2025-0007", 1, "N"))
+        when(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-2025-0007", 1, "N"))
                 .thenReturn(List.of(existing));
 
         CostDto.TerminalDto terminal =

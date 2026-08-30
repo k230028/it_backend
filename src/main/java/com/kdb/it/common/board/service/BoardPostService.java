@@ -3,6 +3,7 @@ package com.kdb.it.common.board.service;
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
+import com.kdb.it.common.speeddial.event.FaqRegisteredEvent;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -158,6 +159,18 @@ public class BoardPostService {
                         .build();
         post.initGroupAsRoot();
         postRepository.save(post);
+        if (BoardTypeResolver.FAQ_BOARD_TYPE.equals(board.getItPtlBlbTc())) {
+            String authorName =
+                    userRepository.findByEno(user.getEno()).map(value -> value.getUsrNm()).orElse(user.getEno());
+            eventPublisher.publishEvent(
+                    new FaqRegisteredEvent(
+                            post.getNacMngNo(),
+                            post.getNacNm(),
+                            post.getNacCone(),
+                            user.getEno(),
+                            authorName,
+                            "/board/" + blbMngNo + "?postId=" + post.getNacMngNo()));
+        }
         publishMentionNotifications(post, user.getEno(), false, request.getMentionedEnos());
         return nacMngNo;
     }
@@ -351,7 +364,7 @@ public class BoardPostService {
     }
 
     private static String safe(String s) {
-        return s == null ? "" : s;
+        return BoardLookupSupport.safe(s);
     }
 
     // ── 권한 검증 (패키지 접근 허용 — BoardCommentService에서 위임 호출) ──
@@ -387,21 +400,15 @@ public class BoardPostService {
     // ── 내부 헬퍼 ──
 
     private Cblbmm findUserActiveBoard(String blbMngNo) {
-        return metaRepository
-                .findByBlbMngNoAndUseYnAndDelYn(blbMngNo, "Y", "N")
-                .orElseThrow(() -> new NotFoundException("게시판을 찾을 수 없습니다: " + blbMngNo));
+        return BoardLookupSupport.findUserActiveBoard(metaRepository, blbMngNo);
     }
 
     private Cblbcm findPostInBoard(String blbMngNo, String nacMngNo) {
-        return postRepository
-                .findByBlbMngNoAndNacMngNoAndDelYn(blbMngNo, nacMngNo, "N")
-                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+        return BoardLookupSupport.findPost(postRepository, blbMngNo, nacMngNo);
     }
 
     private Cblbcm findPostInBoardForUpdate(String blbMngNo, String nacMngNo) {
-        return postRepository
-                .findByBlbMngNoAndNacMngNoAndDelYnForUpdate(blbMngNo, nacMngNo, "N")
-                .orElseThrow(() -> new NotFoundException("게시물을 찾을 수 없습니다: " + nacMngNo));
+        return BoardLookupSupport.findPostForUpdate(postRepository, blbMngNo, nacMngNo);
     }
 
     private String findReplyGroupId(String blbMngNo, String nacMngNo) {
@@ -444,12 +451,15 @@ public class BoardPostService {
     /**
      * 게시물 등록 권한 검증
      *
-     * <p>공지사항(IT_PTL_BLB_TC='001') 게시판은 관리자만 등록할 수 있으며, 그 외 게시판은 인증된 모든 사용자가 등록할 수 있습니다.
+     * <p>공지사항(IT_PTL_BLB_TC='001')과 FAQ(IT_PTL_BLB_TC='004') 게시판은 관리자만 등록할 수 있으며, 그 외 게시판은 인증된 모든 사용자가 등록할 수 있습니다.
      */
     private void verifyCanWrite(CustomUserDetails user, Cblbmm board) {
         if (user.isAdmin()) return;
         if ("001".equals(board.getItPtlBlbTc())) {
             throw new CustomGeneralException("공지사항은 관리자만 등록할 수 있습니다.");
+        }
+        if (BoardTypeResolver.FAQ_BOARD_TYPE.equals(board.getItPtlBlbTc())) {
+            throw new CustomGeneralException("FAQ는 관리자만 등록할 수 있습니다.");
         }
     }
 

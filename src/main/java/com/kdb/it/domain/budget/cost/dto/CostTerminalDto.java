@@ -43,7 +43,9 @@ public class CostTerminalDto {
                 "tmnKdTcNm",
                 "dfrCleCNm",
                 "termSvnTemC",
+                "termSvnTemNm",
                 "termSvnDpmC",
+                "termSvnDpmNm",
                 "rmk"
             })
     public static class TerminalDto {

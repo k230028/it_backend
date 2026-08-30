@@ -217,6 +217,32 @@ class MigrationValidatorTest {
                 .satisfies(d -> assertThat(d.severity()).isEqualTo(MigrationDto.Severity.WARNING));
     }
 
+    @Test
+    @DisplayName("파싱 불가 조정비율은 RATE_UNPARSEABLE BLOCKER를 낸다")
+    void 파싱불가_조정비율은_블로커다() {
+        Map<String, String> cells = new LinkedHashMap<>(capitalCells());
+        cells.put("adjustRate", "미정");
+
+        List<MigrationDto.CellDiagnostic> result =
+                validator.validate(
+                        List.of(
+                                new MigrationDto.SheetPayload(
+                                        SheetKind.CAPITAL_PROJECT, "2026", List.of(row(2, cells)))),
+                        TestSnapshots.emptyIndex(),
+                        TestSnapshots.empty("2026"),
+                        Map.of(),
+                        Map.of());
+
+        assertThat(result)
+                .filteredOn(d -> "RATE_UNPARSEABLE".equals(d.code()))
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.column()).isEqualTo("adjustRate");
+                            assertThat(d.severity()).isEqualTo(MigrationDto.Severity.BLOCKER);
+                        });
+    }
+
     /** `'26.05` 형식이 아니면 WARNING이며 날짜를 null로 둔다. */
     @Test
     @DisplayName("파싱 불가 기간은 DATE_UNPARSEABLE WARNING을 낸다")

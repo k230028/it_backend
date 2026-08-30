@@ -728,8 +728,8 @@ public class CostDto extends CostTerminalDto {
         /**
          * 소속 부서 한정 조회 여부
          *
-         * <p>일반 사용자는 이 값과 무관하게 Service가 인증 사용자의 부점코드로 {@code costSvnDpmC}를 덮어씁니다. 시스템관리자는 true이면 본인 부서,
-         * 그 외에는 전체를 조회합니다.
+         * <p>일반 사용자는 이 값과 무관하게 Service가 인증 사용자의 부점코드로 {@code costSvnDpmC}를 덮어씁니다. 시스템관리자는 true이면 본인
+         * 부서, 그 외에는 전체를 조회합니다.
          */
         @Schema(description = "true면 로그인 사용자 소속 부서 항목만 조회 (관리자도 적용). 관리자가 false 또는 미입력 시 전체 조회")
         private Boolean myDeptOnly;

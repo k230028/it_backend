@@ -64,10 +64,8 @@ class TerminalBulkImportPlannerTest {
     void 신규ID는_같은연도_부서와단말기명기준으로_하나만만든다() {
         List<TerminalBulkImportDto.Row> rows =
                 List.of(
-                        rowWithDepartmentAndTerminal(
-                                3, "부서", "블룸버그", new BigDecimal("100")),
-                        rowWithDepartmentAndTerminal(
-                                4, "부서", "블룸버그(***)", new BigDecimal("200")));
+                        rowWithDepartmentAndTerminal(3, "부서", "블룸버그", new BigDecimal("100")),
+                        rowWithDepartmentAndTerminal(4, "부서", "블룸버그(***)", new BigDecimal("200")));
 
         List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(rows);
 
@@ -83,10 +81,8 @@ class TerminalBulkImportPlannerTest {
     void 신규ID는_부서가다르면_각각만든다() {
         List<TerminalBulkImportDto.Row> rows =
                 List.of(
-                        rowWithDepartmentAndTerminal(
-                                3, "부서A", "블룸버그", new BigDecimal("100")),
-                        rowWithDepartmentAndTerminal(
-                                4, "부서B", "블룸버그", new BigDecimal("200")));
+                        rowWithDepartmentAndTerminal(3, "부서A", "블룸버그", new BigDecimal("100")),
+                        rowWithDepartmentAndTerminal(4, "부서B", "블룸버그", new BigDecimal("200")));
 
         List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(rows);
 
