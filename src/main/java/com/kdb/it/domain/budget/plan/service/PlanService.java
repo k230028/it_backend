@@ -7,7 +7,7 @@ import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.system.security.OwnershipVerifier;
+import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -191,7 +191,7 @@ public class PlanService {
 
         // 연결된 프로젝트관리번호 목록 조회
         List<String> prjMngNos =
-                bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N").stream()
+                bplanaRepository.findAllByReqDocNoAndSnoAndDelYn(reqDocNo, plan.getSno(), "N").stream()
                         .map(value -> value.getPrjMngNo())
                         .toList();
 
@@ -201,7 +201,7 @@ public class PlanService {
     /**
      * 시스템관리자만 정보기술부문 계획 상세를 조회합니다.
      *
-     * <p>BPLANM은 부서 소유 컬럼이 없는 전사 계획 단일 키 모델이므로, 프로젝트·비용의 부서 범위 규칙 대신 기존 관리자 전용 계약을 서비스에서도 강제합니다.
+     * <p>계획의 주관부서, IT 조직, 시스템관리자에게 상세 열람을 허용합니다.
      *
      * @param reqDocNo 계획관리번호
      * @param actor 인증 사용자
@@ -209,8 +209,9 @@ public class PlanService {
      * @throws org.springframework.security.access.AccessDeniedException 시스템관리자가 아닌 경우
      */
     public PlanDto.DetailResponse getPlan(String reqDocNo, CustomUserDetails actor) {
-        OwnershipVerifier.verifyAdmin(actor);
-        return getPlan(reqDocNo);
+        PlanDto.DetailResponse plan = getPlan(reqDocNo);
+        BudgetDetailAccessVerifier.verifyReadable(plan.getSvnDpmC(), actor);
+        return plan;
     }
 
     /**
@@ -226,6 +227,12 @@ public class PlanService {
      */
     @Transactional
     public String createPlan(PlanDto.CreateRequest request) {
+        return createPlan(request, null);
+    }
+
+    /** 인증 사용자의 부서 코드를 신규 계획의 주관부서로 기록해 재신청 소유권 기준으로 사용합니다. */
+    @Transactional
+    public String createPlan(PlanDto.CreateRequest request, CustomUserDetails actor) {
         // 대상사업 유효성 검사 (프로젝트 또는 전산업무비 중 1개 이상 선택 필수)
         List<String> prjMngNos =
                 request.getPrjMngNos() != null ? request.getPrjMngNos() : List.of();
@@ -297,6 +304,9 @@ public class PlanService {
         Bplanm plan =
                 Bplanm.builder()
                         .reqDocNo(reqDocNo)
+                        .sno(1)
+                        .lstYn("Y")
+                        .svnDpmC(actor != null ? actor.getBbrC() : null)
                         .itPtlPlnTpC(request.getItPtlPlnTpC())
                         .bseYy(request.getBseYy())
                         .aduTotAmt(aduTotAmt)
@@ -313,12 +323,14 @@ public class PlanService {
 
         // 7. TPRMPP_BPLANA 저장 (prjMngNo 컬럼에 프로젝트/전산업무비 관리번호를 함께 저장)
         for (String prjMngNo : prjMngNos) {
-            Bplana relation = Bplana.builder().prjMngNo(prjMngNo).reqDocNo(reqDocNo).build();
+            Bplana relation =
+                    Bplana.builder().prjMngNo(prjMngNo).reqDocNo(reqDocNo).sno(1).build();
             bplanaRepository.save(relation);
             bprojaSyncService.upsert(prjMngNo, reqDocNo, "11"); // 계획 진행중
         }
         for (String itMngcNo : itMngcNos) {
-            Bplana relation = Bplana.builder().prjMngNo(itMngcNo).reqDocNo(reqDocNo).build();
+            Bplana relation =
+                    Bplana.builder().prjMngNo(itMngcNo).reqDocNo(reqDocNo).sno(1).build();
             bplanaRepository.save(relation);
         }
 
@@ -415,6 +427,8 @@ public class PlanService {
         Bplanm plan =
                 Bplanm.builder()
                         .reqDocNo(reqDocNo)
+                        .sno(1)
+                        .lstYn("Y")
                         .itPtlPlnTpC(plnTp)
                         .bseYy(bseYy)
                         .aduTotAmt(aduTotAmt)
@@ -425,7 +439,8 @@ public class PlanService {
         bplanmRepository.save(plan);
 
         for (String prjMngNo : projectNos) {
-            Bplana relation = Bplana.builder().prjMngNo(prjMngNo).reqDocNo(reqDocNo).build();
+            Bplana relation =
+                    Bplana.builder().prjMngNo(prjMngNo).reqDocNo(reqDocNo).sno(1).build();
             bplanaRepository.save(relation);
             bprojaSyncService.upsert(prjMngNo, reqDocNo, "11"); // 계획 진행중
         }
@@ -458,7 +473,8 @@ public class PlanService {
         bplanmRepository.save(plan);
 
         // 연결된 정보기술부문계획 관계 논리 삭제
-        List<Bplana> relations = bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N");
+        List<Bplana> relations =
+                bplanaRepository.findAllByReqDocNoAndSnoAndDelYn(reqDocNo, plan.getSno(), "N");
         for (Bplana relation : relations) {
             relation.delete();
             bplanaRepository.save(relation);
@@ -483,6 +499,51 @@ public class PlanService {
                                         new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND,
                                                 "존재하지 않는 계획입니다: " + reqDocNo));
+        plan.updateText(
+                request.getPrjDvmCone(),
+                request.getItBgCone(),
+                request.getItPrjRmk(),
+                request.getCpitBgRmk(),
+                request.getMngcBgRmk());
+        bplanmRepository.save(plan);
+    }
+
+    /** 명시적 개정 순번의 계획 상세와 그 순번의 연결 대상만 반환합니다. */
+    public PlanDto.DetailResponse getPlanVersion(
+            String reqDocNo, Integer sno, CustomUserDetails actor) {
+        Bplanm plan =
+                bplanmRepository
+                        .findByReqDocNoAndSnoAndDelYn(reqDocNo, sno, "N")
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND,
+                                                "존재하지 않는 계획 개정본입니다: " + reqDocNo));
+        BudgetDetailAccessVerifier.verifyReadable(plan.getSvnDpmC(), actor);
+        List<String> prjMngNos =
+                bplanaRepository.findAllByReqDocNoAndSnoAndDelYn(reqDocNo, sno, "N").stream()
+                        .map(Bplana::getPrjMngNo)
+                        .toList();
+        return PlanDto.DetailResponse.fromEntity(plan, prjMngNos);
+    }
+
+    /** 재신청 초안만 명시적 순번으로 수정합니다. */
+    @Transactional
+    public void updatePlanVersionText(
+            String reqDocNo, Integer sno, PlanDto.UpdateRequest request, CustomUserDetails actor) {
+        Bplanm plan =
+                bplanmRepository
+                        .findByReqDocNoAndSnoAndDelYn(reqDocNo, sno, "N")
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND,
+                                                "존재하지 않는 계획 개정본입니다: " + reqDocNo));
+        BudgetDetailAccessVerifier.verifyReadable(plan.getSvnDpmC(), actor);
+        if ("Y".equals(plan.getLstYn())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "최종 계획은 수정 후 재신청으로만 변경할 수 있습니다.");
+        }
         plan.updateText(
                 request.getPrjDvmCone(),
                 request.getItBgCone(),

@@ -4,6 +4,7 @@ import com.kdb.it.common.iam.entity.QCorgnI;
 import com.kdb.it.domain.bizplan.dto.BizplanDto;
 import com.kdb.it.domain.bizplan.entity.QBbizpm;
 import com.kdb.it.domain.budget.plan.entity.QBplana;
+import com.kdb.it.domain.budget.plan.entity.QBplanm;
 import com.kdb.it.domain.budget.project.entity.QBproja;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.querydsl.core.BooleanBuilder;
@@ -31,6 +32,7 @@ public class BizplanRepositoryImpl implements BizplanRepositoryCustom {
     @Override
     public List<BizplanDto.ListItem> search(String bbrC) {
         QBplana pa = QBplana.bplana;
+        QBplanm plan = QBplanm.bplanm;
         QBprojm p = QBprojm.bprojm;
         QBbizpm bp = QBbizpm.bbizpm;
         QBproja a = QBproja.bproja;
@@ -58,6 +60,13 @@ public class BizplanRepositoryImpl implements BizplanRepositoryCustom {
                                 bp.lstChgDtm)) // 사업계획 최종변경일시
                 .distinct()
                 .from(pa)
+                .join(plan)
+                .on(
+                        plan.reqDocNo
+                                .eq(pa.reqDocNo)
+                                .and(plan.sno.eq(pa.sno))
+                                .and(plan.lstYn.eq("Y"))
+                                .and(plan.delYn.eq("N")))
                 .join(p)
                 .on(p.abusMngNo.eq(pa.prjMngNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
                 .leftJoin(bp)

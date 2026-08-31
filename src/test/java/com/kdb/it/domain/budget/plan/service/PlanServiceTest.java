@@ -55,7 +55,11 @@ class PlanServiceTest {
             BigDecimal totXpAmt,
             java.time.LocalDateTime fstEnrDtm,
             String fstEnrUsid,
-            String redtConeInf)
+            String redtConeInf,
+            Integer sno,
+            String lstYn,
+            String svnDpmC,
+            java.time.LocalDateTime lstChgDtm)
             implements BplanmRepository.PlanListView {
         @Override
         public String getReqDocNo() {
@@ -100,6 +104,26 @@ class PlanServiceTest {
         @Override
         public String getRedtConeInf() {
             return redtConeInf;
+        }
+
+        @Override
+        public Integer getSno() {
+            return sno;
+        }
+
+        @Override
+        public String getLstYn() {
+            return lstYn;
+        }
+
+        @Override
+        public String getSvnDpmC() {
+            return svnDpmC;
+        }
+
+        @Override
+        public java.time.LocalDateTime getLstChgDtm() {
+            return lstChgDtm;
         }
     }
 
@@ -148,7 +172,19 @@ class PlanServiceTest {
         // given
         BplanmRepository.PlanListView plan =
                 new PlanListViewRow(
-                        "PLN-2026-0001", "신규", "2026", null, null, null, null, "USER001", null);
+                        "PLN-2026-0001",
+                        "신규",
+                        "2026",
+                        null,
+                        null,
+                        null,
+                        null,
+                        "USER001",
+                        null,
+                        1,
+                        "Y",
+                        "900",
+                        null);
         given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N"))
                 .willReturn(List.of(plan));
         given(cuserIRepository.findNameViewsByEnoIn(List.of("USER001")))
@@ -199,7 +235,11 @@ class PlanServiceTest {
                         null,
                         null,
                         "USER002",
-                        "{\"prjSnapshots\":[{\"id\":1,\"pulDtt\":\"001\"},{\"id\":2,\"pulDtt\":\"002\"},{\"id\":3,\"pulDtt\":\"001\"}]}");
+                        "{\"prjSnapshots\":[{\"id\":1,\"pulDtt\":\"001\"},{\"id\":2,\"pulDtt\":\"002\"},{\"id\":3,\"pulDtt\":\"001\"}]}",
+                        1,
+                        "Y",
+                        "900",
+                        null);
         given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N"))
                 .willReturn(List.of(plan));
         given(cuserIRepository.findNameViewsByEnoIn(List.of("USER002"))).willReturn(List.of());
@@ -231,7 +271,19 @@ class PlanServiceTest {
                         bprojaSyncService);
         BplanmRepository.PlanListView plan =
                 new PlanListViewRow(
-                        "PLN-2026-0003", null, null, null, null, null, null, "USER003", "{");
+                        "PLN-2026-0003",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "USER003",
+                        "{",
+                        1,
+                        "Y",
+                        "900",
+                        null);
         given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N"))
                 .willReturn(List.of(plan));
         given(cuserIRepository.findNameViewsByEnoIn(List.of("USER003"))).willReturn(List.of());
@@ -254,13 +306,16 @@ class PlanServiceTest {
         Bplanm plan =
                 Bplanm.builder()
                         .reqDocNo(reqDocNo)
+                        .sno(1)
+                        .lstYn("Y")
                         .bseYy("2026")
                         .itPtlPlnTpC("신규")
                         .aduTotAmt(BigDecimal.valueOf(100000000))
                         .build();
 
         given(bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(Optional.of(plan));
-        given(bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(List.of());
+        given(bplanaRepository.findAllByReqDocNoAndSnoAndDelYn(reqDocNo, 1, "N"))
+                .willReturn(List.of());
 
         // when
         PlanDto.DetailResponse result = planService.getPlan(reqDocNo);
@@ -288,9 +343,80 @@ class PlanServiceTest {
         CustomUserDetails user =
                 new CustomUserDetails(
                         "USER", List.of(CustomUserDetails.ATH_USER), "D100");
+        Bplanm plan =
+                Bplanm.builder()
+                        .reqDocNo("PLN-2026-0001")
+                        .sno(1)
+                        .lstYn("Y")
+                        .svnDpmC("D200")
+                        .build();
+        given(bplanmRepository.findByReqDocNoAndDelYn("PLN-2026-0001", "N"))
+                .willReturn(Optional.of(plan));
+        given(bplanaRepository.findAllByReqDocNoAndSnoAndDelYn("PLN-2026-0001", 1, "N"))
+                .willReturn(List.of());
 
         assertThatThrownBy(() -> planService.getPlan("PLN-2026-0001", user))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("getPlanVersion - 명시 순번의 초안과 그 순번 관계만 반환한다")
+    void getPlanVersion_명시순번초안과관계만반환한다() {
+        Bplanm draft =
+                Bplanm.builder()
+                        .reqDocNo("PLN-2026-0001")
+                        .sno(2)
+                        .lstYn("N")
+                        .svnDpmC("900")
+                        .build();
+        given(bplanmRepository.findByReqDocNoAndSnoAndDelYn("PLN-2026-0001", 2, "N"))
+                .willReturn(Optional.of(draft));
+        given(bplanaRepository.findAllByReqDocNoAndSnoAndDelYn("PLN-2026-0001", 2, "N"))
+                .willReturn(
+                        List.of(
+                                Bplana.builder()
+                                        .prjMngNo("PRJ-2026-0001")
+                                        .reqDocNo("PLN-2026-0001")
+                                        .sno(2)
+                                        .build()));
+
+        PlanDto.DetailResponse result =
+                planService.getPlanVersion(
+                        "PLN-2026-0001",
+                        2,
+                        new CustomUserDetails(
+                                "10000001", List.of(CustomUserDetails.ATH_USER), "900"));
+
+        assertThat(result.getSno()).isEqualTo(2);
+        assertThat(result.getLstYn()).isEqualTo("N");
+        assertThat(result.getPrjMngNos()).containsExactly("PRJ-2026-0001");
+    }
+
+    @Test
+    @DisplayName("updatePlanVersionText - 최종본은 직접 수정하지 못한다")
+    void updatePlanVersionText_최종본직접수정을거부한다() {
+        Bplanm current =
+                Bplanm.builder()
+                        .reqDocNo("PLN-2026-0001")
+                        .sno(2)
+                        .lstYn("Y")
+                        .svnDpmC("900")
+                        .build();
+        given(bplanmRepository.findByReqDocNoAndSnoAndDelYn("PLN-2026-0001", 2, "N"))
+                .willReturn(Optional.of(current));
+
+        assertThatThrownBy(
+                        () ->
+                                planService.updatePlanVersionText(
+                                        "PLN-2026-0001",
+                                        2,
+                                        new PlanDto.UpdateRequest(),
+                                        new CustomUserDetails(
+                                                "10000001",
+                                                List.of(CustomUserDetails.ATH_USER),
+                                                "900")))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("수정 후 재신청");
     }
 
     // =========================================================================
@@ -689,11 +815,12 @@ class PlanServiceTest {
     void deletePlan_정상삭제_SoftDelete() {
         // given
         String reqDocNo = "PLN-2026-0001";
-        Bplanm plan = Bplanm.builder().reqDocNo(reqDocNo).build();
-        Bplana relation = Bplana.builder().prjMngNo("PRJ-2026-0001").reqDocNo(reqDocNo).build();
+        Bplanm plan = Bplanm.builder().reqDocNo(reqDocNo).sno(1).lstYn("Y").build();
+        Bplana relation =
+                Bplana.builder().prjMngNo("PRJ-2026-0001").reqDocNo(reqDocNo).sno(1).build();
 
         given(bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(Optional.of(plan));
-        given(bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N"))
+        given(bplanaRepository.findAllByReqDocNoAndSnoAndDelYn(reqDocNo, 1, "N"))
                 .willReturn(List.of(relation));
 
         // when

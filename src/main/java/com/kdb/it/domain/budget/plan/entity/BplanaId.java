@@ -26,4 +26,8 @@ public class BplanaId implements Serializable {
     /** 요청문서번호 (예: PLN-2026-0001) */
     @Column(name = "REQ_DOC_NO", comment = "요청문서번호")
     private String reqDocNo;
+
+    /** 계획 개정 순번 */
+    @Column(name = "SNO", comment = "계획일련번호")
+    private Integer sno;
 }

@@ -64,6 +64,9 @@ class CouncilBaselineLookupIt extends AbstractOracleRepositoryTest {
     private Bplanm plan(String reqDocNo, String year, String planType, LocalDateTime createdAt) {
         return Bplanm.builder()
                 .reqDocNo(reqDocNo)
+                .sno(1)
+                .lstYn("Y")
+                .svnDpmC("900")
                 .bseYy(year)
                 .itPtlPlnTpC(planType)
                 .redtConeInf("{}")

@@ -84,6 +84,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                AND c.delYn = 'N'
                AND p.reqDocNo = c.abusMngNo
                AND p.delYn = 'N'
+               AND p.lstYn = 'Y'
                AND p.bseYy = :bseYy
                AND p.itPtlPlnTpC = :plnTp
                AND c.abusMngNo <> :currentReqDocNo
