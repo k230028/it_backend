@@ -118,7 +118,7 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("1-1과 1-2를 합쳐 사업 1건과 자본 품목 2건을 만든다")
+    @DisplayName("1-1과 1-2를 합쳐 사업 1건과 품목 3건(자본 2 + 일반관리비 1)을 만든다")
     void combinesOverviewAndResourceSheets() {
         FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
 
@@ -126,10 +126,10 @@ class CapitalProjectFormAdapterTest {
         ProjectDto.CreateRequest project = output.projects().get(0);
         assertThat(project.getAbusNm()).isEqualTo("국채전문유통시장 접속인프라 도입");
         assertThat(project.getOdnYn()).isEqualTo("N");
-        assertThat(project.getItems()).hasSize(2);
+        assertThat(project.getItems()).hasSize(3);
         assertThat(project.getItems())
                 .extracting(ProjectDto.BitemmDto::getSno)
-                .containsExactly(1, 2);
+                .containsExactly(1, 2, 3);
     }
 
     @Test
@@ -247,14 +247,22 @@ class CapitalProjectFormAdapterTest {
     }
 
     @Test
-    @DisplayName("일반관리비 블록은 정보화사업 BITEMM에 중복 적재하지 않는다")
-    void excludesGeneralExpenseItemsFromProject() {
+    @DisplayName("1-2 일반관리비 블록도 자본예산 블록에 이어 정보화사업 BITEMM에 담는다")
+    void includesGeneralExpenseItemsInProject() {
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls())).projects().get(0);
 
         assertThat(project.getItems())
                 .extracting(ProjectDto.BitemmDto::getGclNm)
-                .doesNotContain("전용망 회선 이용료");
+                .containsExactly("솔루션 패키지", "운영 서버", "전용망 회선 이용료");
+        // 비목도 일반관리비 계열(전산임차료 → 국내전산임차료)로 정해져야 원장에서 자본예산과 갈린다
+        assertThat(project.getItems().get(2))
+                .satisfies(
+                        item -> {
+                            assertThat(item.getIoeC()).isEqualTo("001");
+                            assertThat(item.getAmt()).isEqualByComparingTo("188624700");
+                            assertThat(item.getSno()).isEqualTo(3);
+                        });
     }
 
     @Test
@@ -280,7 +288,8 @@ class CapitalProjectFormAdapterTest {
     @Test
     @DisplayName("1-1 선언 금액에서 금액 3종을 산출한다")
     void derivesDeclaredAmountsFromOverview() {
-        // 총 사업금액 2,000백만원, 자본 당해 품목 1,077,000,000원, '26년도 이후 없음(0)
+        // 총 사업금액 2,000백만원, '26년도 이후 없음(0).
+        // 당해분은 1-1 요약표 총계(1,265,624,700)와 같은 자본 1,077,000,000 + 일반관리비 188,624,700이다
         FormAdapterOutput output = adapter.adapt(contextOf(RequestFormFixtures.fullFormXls()));
 
         assertThat(output.projectAmounts()).hasSize(1);
@@ -288,7 +297,7 @@ class CapitalProjectFormAdapterTest {
         assertThat(amounts.isPresent()).isTrue();
         assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
         assertThat(amounts.mplAmt()).isEqualByComparingTo("0");
-        assertThat(amounts.dfrAmt()).isEqualByComparingTo("923000000");
+        assertThat(amounts.dfrAmt()).isEqualByComparingTo("734375300");
     }
 
     @Test

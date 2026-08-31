@@ -108,7 +108,10 @@ class FormAdapterEdgeCaseTest {
     void generalExpenseReportsMissingAnchor() {
         GeneralExpenseFormAdapter adapter =
                 new GeneralExpenseFormAdapter(
-                        scanner, catalogReader, new FormApproverReader(scanner));
+                        scanner,
+                        catalogReader,
+                        new FormApproverReader(scanner),
+                        new ResourceTableReader(scanner));
 
         FormAdapterOutput output = adapter.adapt(contextOf(emptyShellWorkbook()));
 
@@ -127,7 +130,10 @@ class FormAdapterEdgeCaseTest {
 
         assertThat(
                         new GeneralExpenseFormAdapter(
-                                        scanner, catalogReader, new FormApproverReader(scanner))
+                                        scanner,
+                                        catalogReader,
+                                        new FormApproverReader(scanner),
+                                        new ResourceTableReader(scanner))
                                 .adapt(context)
                                 .costs())
                 .isEmpty();

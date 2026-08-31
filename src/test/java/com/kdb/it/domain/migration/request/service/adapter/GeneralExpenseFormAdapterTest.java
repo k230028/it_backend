@@ -36,7 +36,11 @@ class GeneralExpenseFormAdapterTest {
     private final SheetAnchorScanner scanner = new SheetAnchorScanner();
     private final MigrationIoeCatalogReader catalogReader = currencyCatalogReader();
     private final GeneralExpenseFormAdapter adapter =
-            new GeneralExpenseFormAdapter(scanner, catalogReader, new FormApproverReader(scanner));
+            new GeneralExpenseFormAdapter(
+                    scanner,
+                    catalogReader,
+                    new FormApproverReader(scanner),
+                    new ResourceTableReader(scanner));
 
     /** 통화 공통코드(`CUR_C`)만 답하는 카탈로그 리더. 실 DB의 통화 목록을 흉내 냅니다. */
     private static MigrationIoeCatalogReader currencyCatalogReader() {
@@ -568,6 +572,40 @@ class GeneralExpenseFormAdapterTest {
                         RequestFormDiagnosticCode.CODE_AMBIGUOUS);
         // 집계 행의 `소계`·`계`가 forward-fill로 아래 행에 물들지 않는다
         assertThat(output.costs()).extracting(CostDto.CreateRequest::getIoeC).containsOnly("010");
+    }
+
+    @Test
+    @DisplayName("1-2 일반관리비 블록과 계약명이 같은 행은 전산업무비로 적재하지 않고 경고를 남긴다")
+    void dropsRowsAlreadyDeclaredInCapitalResource() {
+        FormAdapterOutput output =
+                adapter.adapt(
+                        contextOf(
+                                RequestFormFixtures.duplicateGeneralExpenseXls(), AmountUnit.WON));
+
+        assertThat(output.costs())
+                .extracting(CostDto.CreateRequest::getCttNm)
+                .containsExactly("블룸버그 회선사용료");
+        assertThat(output.diagnostics())
+                .filteredOn(d -> d.code() == RequestFormDiagnosticCode.SUBSTITUTE_DROPPED)
+                .singleElement()
+                .satisfies(
+                        d -> {
+                            assertThat(d.excelRow()).isEqualTo(6);
+                            assertThat(d.subject()).isEqualTo("전용망 회선 이용료");
+                        });
+        // 버린 행이 파일을 막지 않는다
+        assertThat(output.diagnostics()).noneMatch(d -> d.code().blocks());
+    }
+
+    @Test
+    @DisplayName("1-2 일반관리비 블록에 없는 계약명은 그대로 적재한다")
+    void keepsRowsMissingFromCapitalResource() {
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(RequestFormFixtures.fullFormXls(), AmountUnit.WON));
+
+        assertThat(output.costs())
+                .extracting(CostDto.CreateRequest::getCttNm)
+                .containsExactly("블룸버그 회선사용료", "KINS 서버 유지보수");
     }
 
     @Test

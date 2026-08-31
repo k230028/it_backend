@@ -77,7 +77,10 @@ class FormAdapterResolutionPathTest {
                                 new MigrationDto.Candidate("GBP", "영국 파운드"),
                                 new MigrationDto.Candidate("JPY", "일본 엔")));
         return new GeneralExpenseFormAdapter(
-                scanner, catalogReader, new FormApproverReader(scanner));
+                scanner,
+                catalogReader,
+                new FormApproverReader(scanner),
+                new ResourceTableReader(scanner));
     }
 
     private FormAdapterContext contextOf(byte[] bytes, Map<String, String> overrides) {

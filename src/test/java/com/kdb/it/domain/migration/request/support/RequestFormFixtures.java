@@ -583,6 +583,34 @@ public final class RequestFormFixtures {
         }
     }
 
+    /**
+     * 1-2 일반관리비 블록의 항목을 시트 ③에도 그대로 옮겨 적은 .xls입니다.
+     *
+     * <p>시트 ③ 행 구성(0-based 시트 행 → 엑셀 행): 5→6 1-2 일반관리비 블록과 계약명이 같은 중복 행, 6→7 1-2에 없는 고유 행.
+     */
+    public static byte[] duplicateGeneralExpenseXls() {
+        try (Workbook wb = new HSSFWorkbook()) {
+            writeCapitalOverview(wb, "① (정보화사업) 1-1. 정보화사업 개요", 3);
+            writeCapitalResource(wb, "① (정보화사업) 1-2. 소요자원 상세내용", 18);
+            Sheet s = writeGeneralExpenseHeader(wb, "③ (일반관리비) 전산 일반관리비 편성요청서", false);
+            put(s, 5, 0, "전산 제비");
+            put(s, 5, 1, "회선사용료");
+            put(s, 5, 2, "전용망 회선 이용료");
+            put(s, 5, 3, "KRW");
+            putNumber(s, 5, 5, 188_624_700d);
+            put(s, 5, 6, "KT");
+            put(s, 5, 7, "√");
+            put(s, 6, 2, "블룸버그 회선사용료");
+            put(s, 6, 3, "KRW");
+            putNumber(s, 6, 5, 841_854_085d);
+            put(s, 6, 6, "Bloomberg");
+            put(s, 6, 7, "√");
+            return toBytes(wb);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** 시트 ③의 헤더만 있고 데이터 행이 없는 .xls (서식만 남은 제출본). */
     public static byte[] generalExpenseHeaderOnlyXls() {
         try (Workbook wb = new HSSFWorkbook()) {

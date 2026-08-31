@@ -192,7 +192,10 @@ class RequestForm2026SampleSmokeTest {
                         new RecurringProjectFormAdapter(
                                 labelReader, resourceReader, new FormApproverReader(scanner)),
                         new GeneralExpenseFormAdapter(
-                                scanner, catalogReader, new FormApproverReader(scanner)));
+                                scanner,
+                                catalogReader,
+                                new FormApproverReader(scanner),
+                                new ResourceTableReader(scanner)));
 
         OrgIdentityResolver orgResolver = mock(OrgIdentityResolver.class);
         OrgIdentityResolver.Index orgIndex = mock(OrgIdentityResolver.Index.class);
@@ -341,7 +344,10 @@ class RequestForm2026SampleSmokeTest {
                         new RecurringProjectFormAdapter(
                                 labelReader, resourceReader, new FormApproverReader(scanner)),
                         new GeneralExpenseFormAdapter(
-                                scanner, catalogReader, new FormApproverReader(scanner)));
+                                scanner,
+                                catalogReader,
+                                new FormApproverReader(scanner),
+                                new ResourceTableReader(scanner)));
         OrgIdentityResolver.Index orgIndex = mock(OrgIdentityResolver.Index.class);
         when(orgIndex.parentOrgNameOf(anyString())).thenReturn("디지털전략부");
 
@@ -442,16 +448,17 @@ class RequestForm2026SampleSmokeTest {
     }
 
     @Test
-    @DisplayName("자금운용실 자본 블록은 당해 1,014,981,660원만 품목으로 읽는다")
+    @DisplayName("자금운용실은 자본 2건과 일반관리비 3건을 모두 품목으로 읽는다")
     void adaptsFundingDeskDeclaredAmounts() throws IOException {
-        // 1-2 일반관리비가 `'27년 유지보수료`까지 담은 연간 금액이라 품목 합계(1,217,727,960)가
-        // `'26년도 합계`(1,211,418,360)보다 0.518% 크다. 품목 합계로는 요약표 배수를 확정하지 못하고
-        // `'26년도 필요예산 편성요청`(1,211백만원)과 대사해야 원 단위로 확정된다
+        // 자본 1,014,981,660 + 일반관리비 3건 202,746,300 = 1,217,727,960.
+        // 1-2 일반관리비가 `'27년 유지보수료`(6,309,600)까지 담은 연간 금액이라 품목 합계가
+        // `'26년도 합계`(1,211,418,360)보다 0.518% 크다. 당해 기준액은 자본 합계에 일반관리비를
+        // 앞에서부터 더해 가며 요약표와 맞는 지점(1,211,418,360)으로 정하고, 그 값으로 기지급금액을 낸다
         FormAdapterOutput output = adaptCapitalSample(FUNDING_DESK_SAMPLE_SUFFIX);
 
         assertThat(sumCurrentItems(output))
                 .as("items=%s", itemSummary(output))
-                .isEqualByComparingTo("1014981660");
+                .isEqualByComparingTo("1217727960");
         assertThat(sumPlannedItems(output)).isZero();
 
         assertThat(output.projectAmounts())
@@ -465,7 +472,8 @@ class RequestForm2026SampleSmokeTest {
                             assertThat(amounts.totRqmAmt()).isEqualByComparingTo("2000000000");
                             // '26년도 이후 총 계
                             assertThat(amounts.mplAmt()).isEqualByComparingTo("202746300");
-                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("782272040");
+                            // 2,000,000,000 − 202,746,300 − 1,211,418,360
+                            assertThat(amounts.dfrAmt()).isEqualByComparingTo("585835340");
                         });
         assertThat(output.diagnostics())
                 .noneMatch(diagnostic -> "declaredYearTotal".equals(diagnostic.field()));
@@ -649,7 +657,10 @@ class RequestForm2026SampleSmokeTest {
                                         "USD", "달러")));
         GeneralExpenseFormAdapter adapter =
                 new GeneralExpenseFormAdapter(
-                        scanner, catalogReader, new FormApproverReader(scanner));
+                        scanner,
+                        catalogReader,
+                        new FormApproverReader(scanner),
+                        new ResourceTableReader(scanner));
 
         try (Workbook workbook = reader.open(readSampleBytes(sample), "sample.xls")) {
             return adapter.adapt(

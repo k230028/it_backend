@@ -32,9 +32,13 @@ import org.springframework.stereotype.Component;
  * <p>품목 금액({@code BITEMM})의 원본은 원칙적으로 1-2입니다. 단, 1-2가 없는 단일 시트 양식은 1-1 요약표의 명시 단위와 비목별 합계로 품목을
  * 합성합니다. 사업 단위 금액 3종({@code TOT_RQM_AMT}·{@code MPL_AMT}·{@code DFR_AMT})은 1-1 선언값에서 산출합니다.
  *
- * <p>1-2가 있으면 항상 원 단위인 품목 합계와 대사해 1-1 배수를 역추정합니다. 품목 합계가 요약표와 맞지 않으면(실측: 1-2 일반관리비가 익년 이후 계약분까지 담은
- * 연간 금액) 1-1이 단위와 함께 한 번 더 적은 `'26년도 필요예산 편성요청` 칸을 두 번째 기준점으로 씁니다. 1-2가 없으면 1-1 표 제목에 명시된 단위를 씁니다.
+ * <p>1-2가 있으면 항상 원 단위인 품목 합계와 대사해 1-1 배수를 역추정합니다. 대사는 <b>자본 합계에서 시작해 일반관리비 행을 하나씩 더해 가며</b> 1-1
+ * `'26년도 합계`와 맞는 지점을 찾습니다 — 실측 제출본의 1-2 일반관리비는 익년 이후 계약분까지 담은 연간 금액이라 전액을 당해분으로 볼 수 없습니다. 어느 지점에서도
+ * 맞지 않으면 1-1이 단위와 함께 한 번 더 적은 `'26년도 필요예산 편성요청` 칸을 두 번째 기준점으로 씁니다. 1-2가 없으면 1-1 표 제목에 명시된 단위를 씁니다.
  * 환산 근거가 없거나 산출값을 신뢰할 수 없으면 <b>적재하지 않고 경고만</b> 내며 파일 반입 자체는 막지 않습니다.
+ *
+ * <p>시트 ③에도 같은 계약을 옮겨 적은 제출본이 있습니다. 중복은 <b>여기가 아니라 {@link GeneralExpenseFormAdapter}</b>가 거릅니다 —
+ * 1-2는 사업 품목의 원천이고 시트 ③은 전산업무비 원장이라, 사업에 속한 일반관리비를 사업에서 빼면 그 사업의 소요금액이 1-1 선언액과 어긋납니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -89,7 +93,9 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         List<ProjectDto.BitemmDto> items = itemRead.items();
         project.setItems(items);
 
-        BigDecimal itemTotal = sumItemAmounts(items);
+        // 대사의 출발점은 항상 자본 합계다. 일반관리비는 익년 이후 계약분까지 담은 연간 금액일 수 있어
+        // 전액이 당해분이라고 단정할 수 없고, 어디까지가 당해분인지는 closestCurrentBasis가 정한다
+        BigDecimal capitalTotal = sumItemAmounts(itemRead.capitalItems());
         BigDecimal declaredCurrent =
                 read.amounts().yearRequestWon() != null
                         ? read.amounts().yearRequestWon()
@@ -99,7 +105,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                                 : read.amounts().summaryUnit().toWon(read.amounts().yearTotalRaw());
         BigDecimal declaredCurrentBasis =
                 closestCurrentBasis(
-                        itemTotal,
+                        capitalTotal,
                         itemRead.generalExpenseAmounts(),
                         read.amounts().yearTotalRaw(),
                         declaredCurrent);
@@ -116,11 +122,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 declaredAmounts(
                         read.amounts(),
                         unit,
-                        itemTotal,
-                        !itemRead.generalExpenseAmounts().isEmpty()
-                                && AmountUnitResolver.inferUnit(
-                                                read.amounts().yearTotalRaw(), declaredCurrentBasis)
-                                        .isPresent(),
+                        declaredCurrentBasis,
                         hasForeignCurrencyItem(items),
                         project.getAbusNm(),
                         diagnostics);
@@ -165,7 +167,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 Map.copyOf(options));
     }
 
-    /** 1-2의 두 블록을 읽고, 시트가 없으면 1-1 비목별 요약 행으로 품목을 만듭니다. */
+    /** 1-2의 자본예산·일반관리비 두 블록을 이어 읽고, 둘 다 비면 1-1 비목별 요약 행으로 품목을 만듭니다. */
     private ItemReadResult readItems(
             FormAdapterContext context,
             CapitalOverviewReader.DeclaredAmounts declared,
@@ -174,8 +176,9 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         Sheet resource = context.sheets().get(FormSheetKind.CAPITAL_RESOURCE);
         List<ProjectDto.BitemmDto> items = new ArrayList<>();
         if (resource == null) {
-            return new ItemReadResult(
-                    summaryItems(declared, projectName, context, diagnostics), List.of());
+            List<ProjectDto.BitemmDto> synthesized =
+                    summaryItems(declared, projectName, context, diagnostics);
+            return new ItemReadResult(synthesized, synthesized, List.of());
         }
 
         int sno = 1;
@@ -195,16 +198,20 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 generalItems.add(toItem(row, context, sno++, diagnostics));
             }
         }
-        if (items.isEmpty()) {
+        // 1-1 요약표 합성은 1-2에서 두 블록 다 못 읽었을 때만 쓴다. 요약표는 자본예산과 일반관리비를
+        // 함께 담고 있어, 일반관리비 블록을 읽은 상태에서 합성까지 하면 같은 금액이 두 번 들어간다
+        if (items.isEmpty() && generalItems.isEmpty()) {
             items.addAll(summaryItems(declared, projectName, context, diagnostics));
         }
-        moveExactPlannedItem(items, declared);
         List<BigDecimal> generalExpenseAmounts =
                 generalItems.stream()
                         .map(ProjectDto.BitemmDto::getAmt)
                         .filter(Objects::nonNull)
                         .toList();
-        return new ItemReadResult(List.copyOf(items), generalExpenseAmounts);
+        List<ProjectDto.BitemmDto> capitalItems = List.copyOf(items);
+        items.addAll(generalItems);
+        moveExactPlannedItem(items, declared);
+        return new ItemReadResult(List.copyOf(items), capitalItems, generalExpenseAmounts);
     }
 
     /** 일반관리비가 당해·예정 순으로 이어진 양식은 당해 선언액에 가장 가까운 앞쪽 행까지만 대사합니다. */
@@ -239,11 +246,23 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         return best;
     }
 
-    /** 저장할 자본 품목과 1-1 금액 대사에만 쓸 일반관리비 행 금액을 함께 전달합니다. */
+    /**
+     * 저장할 품목 전체와, 1-1 대사에 쓸 자본 품목·일반관리비 금액을 함께 전달합니다.
+     *
+     * <p>{@code items}는 자본예산 블록에 일반관리비 블록을 이어 붙인 저장 대상이고, 나머지 둘은 1-1 요약표의 기재 단위를 역추정할 때 쓰는 재료입니다.
+     * 대사는 <b>자본 합계에서 시작해 일반관리비 행을 하나씩 더해 가며</b> 1-1과 맞는 지점을 찾으므로 두 값을 갈라 두어야 합니다({@link
+     * #closestCurrentBasis}).
+     *
+     * @param items 저장할 품목 전체 (자본예산 + 일반관리비)
+     * @param capitalItems 자본예산 블록 품목. 대사의 출발점입니다
+     * @param generalExpenseAmounts 일반관리비 행의 원화 금액. 시트에 적힌 순서를 지킵니다
+     */
     private record ItemReadResult(
-            List<ProjectDto.BitemmDto> items, List<BigDecimal> generalExpenseAmounts) {}
+            List<ProjectDto.BitemmDto> items,
+            List<ProjectDto.BitemmDto> capitalItems,
+            List<BigDecimal> generalExpenseAmounts) {}
 
-    /** 1-1 예정금액과 정확히 같은 단일 자본 품목은, 나머지가 당해 합계와 맞을 때만 예정 품목으로 분리합니다. */
+    /** 1-1 예정금액과 정확히 같은 단일 품목은, 나머지가 당해 합계와 맞을 때만 예정 품목으로 분리합니다. */
     private void moveExactPlannedItem(
             List<ProjectDto.BitemmDto> items, CapitalOverviewReader.DeclaredAmounts declared) {
         if (declared.summaryUnit() == null
@@ -483,6 +502,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
      *
      * @param declared 1-1이 읽어 온 선언 금액
      * @param unit 요약표 기재 단위. 판정에 실패했으면 빈 Optional
+     * @param currentBasis 1-2에서 산출한 당해분 합계 (자본예산 + 당해분 일반관리비). {@link #closestCurrentBasis}가 정합니다
      * @param foreignCurrencyItems 1-2에 원화 합계로 잡히지 않는 외화 품목이 있으면 true. 단위 미확정의 원인을 가르는 데만 씁니다
      * @param projectName 진단에 붙일 사업명
      * @param diagnostics 진단 수집 목록 (실패 시 경고가 추가됩니다)
@@ -491,8 +511,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
     private ProjectAmounts declaredAmounts(
             CapitalOverviewReader.DeclaredAmounts declared,
             Optional<AmountUnit> unit,
-            BigDecimal itemTotal,
-            boolean separateGeneralExpense,
+            BigDecimal currentBasis,
             boolean foreignCurrencyItems,
             String projectName,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
@@ -527,10 +546,9 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 declared.laterTotalRaw() == null
                         ? BigDecimal.ZERO
                         : resolved.toWon(declared.laterTotalRaw());
-        if (itemTotal.signum() > 0
-                && (separateGeneralExpense || isBelowCurrentAmountTolerance(year, itemTotal))) {
-            BigDecimal adjustedPaid = whole.subtract(later).subtract(itemTotal);
-            if (adjustedPaid.signum() >= 0) year = itemTotal;
+        if (currentBasis.signum() > 0 && isBelowCurrentAmountTolerance(year, currentBasis)) {
+            BigDecimal adjustedPaid = whole.subtract(later).subtract(currentBasis);
+            if (adjustedPaid.signum() >= 0) year = currentBasis;
         }
         BigDecimal paid = whole.subtract(later).subtract(year);
 

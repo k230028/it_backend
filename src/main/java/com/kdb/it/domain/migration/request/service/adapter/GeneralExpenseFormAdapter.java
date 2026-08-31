@@ -35,6 +35,10 @@ import org.springframework.stereotype.Component;
  *
  * <p>금액 단위는 자동 판정이 불가능합니다 — 헤더는 `천원`인데 원 단위로 적어 내는 부점이 있고 대사할 상대 시트가 없습니다. 배수가 지정되지 않으면 제안값을 계산해
  * 돌려주고 `UNIT_UNCERTAIN` 경고를 남깁니다.
+ *
+ * <p>같은 계약을 1-2 소요자원의 일반관리비 블록에도 옮겨 적은 제출본이 있습니다. <b>중복은 이쪽에서 거릅니다</b> — 1-2는 그 사업의 품목 ({@code
+ * BITEMM}) 원천이라 거기서 빼면 사업 소요금액이 1-1 선언액과 어긋나지만, 시트 ③은 사업에 매이지 않는 전산업무비 원장이라 한 건이 빠져도 다른 금액이 흔들리지
+ * 않습니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -60,6 +64,7 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
     private final SheetAnchorScanner scanner;
     private final MigrationIoeCatalogReader catalogReader;
     private final FormApproverReader approverReader;
+    private final ResourceTableReader resourceTableReader;
 
     @Override
     public FormSheetKind trigger() {
@@ -89,11 +94,18 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                     null);
         }
 
-        List<GeneralExpenseRow> rows =
+        List<GeneralExpenseRow> allRows =
                 new GeneralExpenseRowReader(sheet, header.get(), scanner).readAll();
-        if (rows.isEmpty()) return FormAdapterOutput.empty();
+        if (allRows.isEmpty()) return FormAdapterOutput.empty();
 
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>();
+        // 1-2에 이미 있는 계약을 먼저 뺀다. 통화·비목 해석보다 앞이어야 버릴 행이 BLOCKER를 내지 않고,
+        // 단위 추정 표본에도 끼지 않는다
+        List<GeneralExpenseRow> rows =
+                withoutCapitalResourceDuplicates(allRows, context, diagnostics);
+        if (rows.isEmpty()) {
+            return new FormAdapterOutput(List.of(), List.of(), List.copyOf(diagnostics), null);
+        }
         // 통화를 먼저 확정한다. 단위 판정이 "원화 행이 있는가"를 근거로 삼으므로 순서를 뒤집을 수 없다
         // 저장 경로(resolveXcr)와 같은 유효일자 기준으로 읽는다 — 기준이 어긋나면 유효기간이 닫힌 통화가
         // 선택지에 떠서 사전검증은 통과하고 반영에서 그 파일만 롤백된다(MIG-28).
@@ -137,6 +149,58 @@ public class GeneralExpenseFormAdapter implements FormSheetAdapter {
                             diagnostics));
         }
         return new FormAdapterOutput(List.of(), List.copyOf(costs), List.copyOf(diagnostics), unit);
+    }
+
+    /**
+     * 같은 묶음의 1-2 소요자원 일반관리비 블록에 이미 있는 계약을 뺍니다.
+     *
+     * <p>판정 기준은 <b>계약명 = 1-2 항목명</b>입니다(공백 제거 후 비교). 금액을 함께 보지 않는 이유는 시트 ③의 배수가 확정 전이고(`천원` 헤더에 원
+     * 단위로 적어 낸 제출본이 있습니다) 1-2 일반관리비는 익년 이후 계약분까지 담은 연간 금액이라, 같은 계약이라도 두 시트의 숫자가 어긋나는 것이 정상이기 때문입니다.
+     *
+     * <p>버린 행은 {@code SUBSTITUTE_DROPPED} 경고로 남깁니다 — 조용히 지우면 1-1이 빈 껍데기라 정보화사업이 만들어지지 않은 파일에서 그 금액이
+     * 어디에도 남지 않고 사라집니다.
+     *
+     * <p><b>한계:</b> 대조 상대는 {@code WorkbookReader.classifyGroups}가 짝지어 준 같은 순번의 1-2뿐입니다. 1-2가 여러 장인데
+     * 시트 ③이 한 장인 워크북에서는 두 번째 이후 사업의 일반관리비와는 대조하지 않습니다.
+     *
+     * @param rows 시트 ③에서 읽은 데이터 행
+     * @param context 어댑터 실행 맥락. 같은 묶음의 1-2 시트를 여기서 찾습니다
+     * @param diagnostics 진단 누적 목록. 버린 행마다 1건씩 더합니다
+     * @return 적재할 행. 1-2가 없거나 일반관리비 블록이 비어 있으면 입력 그대로
+     */
+    private List<GeneralExpenseRow> withoutCapitalResourceDuplicates(
+            List<GeneralExpenseRow> rows,
+            FormAdapterContext context,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        Sheet resource = context.sheets().get(FormSheetKind.CAPITAL_RESOURCE);
+        if (resource == null) return rows;
+
+        Set<String> declared = new LinkedHashSet<>();
+        for (ResourceRow row :
+                resourceTableReader
+                        .readCapitalResource(resource, 0, true)
+                        .map(ResourceTableReader.Result::rows)
+                        .orElseGet(List::of)) {
+            String name = SheetAnchorScanner.normalize(row.itemName());
+            if (!name.isEmpty()) declared.add(name);
+        }
+        if (declared.isEmpty()) return rows;
+
+        List<GeneralExpenseRow> kept = new ArrayList<>();
+        for (GeneralExpenseRow row : rows) {
+            if (!declared.contains(SheetAnchorScanner.normalize(row.contractName()))) {
+                kept.add(row);
+                continue;
+            }
+            diagnostics.add(
+                    diagnostic(
+                            row,
+                            "cttNm",
+                            RequestFormDiagnosticCode.SUBSTITUTE_DROPPED,
+                            "1-2 소요자원의 일반관리비에 같은 계약명이 있어 전산업무비로 적재하지 않았습니다. 이 금액은 해당 정보화사업의 품목으로 반입됩니다.",
+                            List.of()));
+        }
+        return List.copyOf(kept);
     }
 
     /**
