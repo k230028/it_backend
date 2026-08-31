@@ -3,7 +3,6 @@ package com.kdb.it.domain.budget.plan.controller;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
 import com.kdb.it.domain.budget.plan.service.PlanService;
-import com.kdb.it.domain.budget.plan.service.PlanVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -50,7 +49,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class PlanController {
 
     private final PlanService planService;
-    private final PlanVersionService planVersionService;
 
     /**
      * 전체 계획 목록 조회
@@ -110,6 +108,7 @@ public class PlanController {
      * @return 계획 상세 정보 (200 OK) 또는 404 Not Found
      */
     @GetMapping("/{plnMngNo}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "계획 상세 조회",
             description =
@@ -133,9 +132,8 @@ public class PlanController {
     public ResponseEntity<PlanDto.DetailResponse> getPlan(
             @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001")
                     @PathVariable("plnMngNo")
-                    String plnMngNo,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        return ResponseEntity.ok(planService.getPlan(plnMngNo, user));
+                    String plnMngNo) {
+        return ResponseEntity.ok(planService.getPlan(plnMngNo));
     }
 
     /**
@@ -188,7 +186,9 @@ public class PlanController {
                                           ]
                                         }
                                         """)))
-            @Valid @RequestBody PlanDto.CreateRequest request,
+                    @Valid
+                    @RequestBody
+                    PlanDto.CreateRequest request,
             @AuthenticationPrincipal CustomUserDetails user,
             UriComponentsBuilder uriBuilder) {
         String plnMngNo = planService.createPlan(request, user);
@@ -252,56 +252,4 @@ public class PlanController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 결재완료된 최종 계획을 다음 순번의 재신청 초안으로 생성합니다. */
-    @PostMapping("/{plnMngNo}/reapplications")
-    @Operation(summary = "계획 수정 후 재신청", description = "결재완료된 최종 계획만 다음 순번의 초안으로 복제합니다.")
-    public ResponseEntity<PlanDto.VersionResponse> createPlanReapplication(
-            @PathVariable("plnMngNo") String plnMngNo,
-            @AuthenticationPrincipal CustomUserDetails user,
-            UriComponentsBuilder uriBuilder) {
-        PlanVersionService.PlanVersion draft = planVersionService.createReapplication(plnMngNo, user);
-        URI location =
-                uriBuilder
-                        .path("/api/plans/{plnMngNo}/versions/{sno}")
-                        .buildAndExpand(draft.reqDocNo(), draft.sno())
-                        .toUri();
-        return ResponseEntity.created(location)
-                .body(
-                        PlanDto.VersionResponse.builder()
-                                .reqDocNo(draft.reqDocNo())
-                                .sno(draft.sno())
-                                .lstYn(draft.lstYn())
-                                .build());
-    }
-
-    /** 부모 계획관리번호 기준의 모든 개정본 이력을 반환합니다. */
-    @GetMapping("/{plnMngNo}/history")
-    @Operation(summary = "계획 이력 조회", description = "작성부서·IT 조직·시스템관리자에게만 이력을 반환합니다.")
-    public ResponseEntity<List<PlanDto.VersionResponse>> getPlanHistory(
-            @PathVariable("plnMngNo") String plnMngNo,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        return ResponseEntity.ok(planVersionService.findHistory(plnMngNo, user));
-    }
-
-    /** 부모 계획관리번호와 순번으로 명시적 개정본 상세를 반환합니다. */
-    @GetMapping("/{plnMngNo}/versions/{sno}")
-    @Operation(summary = "계획 이력 상세 조회", description = "명시한 순번의 계획 상세를 읽기 전용으로 조회합니다.")
-    public ResponseEntity<PlanDto.DetailResponse> getPlanVersion(
-            @PathVariable("plnMngNo") String plnMngNo,
-            @PathVariable("sno") Integer sno,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        return ResponseEntity.ok(planService.getPlanVersion(plnMngNo, sno, user));
-    }
-
-    /** 명시적 순번의 재신청 초안 텍스트만 갱신합니다. */
-    @PatchMapping("/{plnMngNo}/versions/{sno}")
-    @Operation(summary = "재신청 초안 텍스트 수정", description = "최종본이 아닌 재신청 초안의 텍스트 필드만 수정합니다.")
-    public ResponseEntity<Void> updatePlanVersionText(
-            @PathVariable("plnMngNo") String plnMngNo,
-            @PathVariable("sno") Integer sno,
-            @Valid @RequestBody PlanDto.UpdateRequest request,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        planService.updatePlanVersionText(plnMngNo, sno, request, user);
-        return ResponseEntity.noContent().build();
-    }
 }

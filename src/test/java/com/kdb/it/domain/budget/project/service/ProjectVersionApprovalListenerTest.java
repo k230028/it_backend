@@ -1,8 +1,8 @@
 package com.kdb.it.domain.budget.project.service;
 
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;

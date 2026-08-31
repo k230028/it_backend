@@ -6,7 +6,6 @@ import com.kdb.it.domain.log.entity.BplanmL;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -26,7 +25,6 @@ import lombok.experimental.SuperBuilder;
 @LogTarget(entity = BplanmL.class)
 @Entity
 @Table(name = "TPRMPP_BPLANM", comment = "정보기술부문계획")
-@IdClass(BplanmId.class)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,19 +35,6 @@ public class Bplanm extends BaseEntity {
     @Id
     @Column(name = "REQ_DOC_NO", length = 30, comment = "계획관리번호 (물리컬럼 REQ_DOC_NO=요청문서번호)")
     private String reqDocNo;
-
-    /** 같은 계획관리번호 안에서 증가하는 개정 순번. 기존 초본은 1이다. */
-    @Id
-    @Column(name = "SNO", nullable = false, comment = "일련번호")
-    private Integer sno;
-
-    /** 현재 후속 예산 업무에 사용할 최종 개정본 여부. */
-    @Column(name = "LST_YN", length = 1, nullable = false, comment = "최종여부")
-    private String lstYn;
-
-    /** 계획을 작성·재신청할 수 있는 주관부서 코드. */
-    @Column(name = "SVN_DPM_C", length = 3, comment = "주관부서코드")
-    private String svnDpmC;
 
     /** 계획구분 (신규, 조정) */
     @Column(name = "IT_PTL_PLN_TP_C", length = 2, comment = "계획구분 (물리컬럼 IT_PTL_PLN_TP_C)")
@@ -126,24 +111,4 @@ public class Bplanm extends BaseEntity {
             comment = "일반관리비 (물리컬럼 TOT_XP_AMT=총비용금액)")
     private BigDecimal totXpAmt;
 
-    /** 현재 계획 본문과 집계 스냅샷을 새 재신청 초안으로 복제합니다. */
-    public Bplanm createReapplicationDraft(Integer nextSno) {
-        return Bplanm.builder()
-                .reqDocNo(reqDocNo)
-                .sno(nextSno)
-                .lstYn("N")
-                .svnDpmC(svnDpmC)
-                .itPtlPlnTpC(itPtlPlnTpC)
-                .bseYy(bseYy)
-                .redtConeInf(redtConeInf)
-                .prjDvmCone(prjDvmCone)
-                .itBgCone(itBgCone)
-                .itPrjRmk(itPrjRmk)
-                .cpitBgRmk(cpitBgRmk)
-                .mngcBgRmk(mngcBgRmk)
-                .aduTotAmt(aduTotAmt)
-                .cpitBgApvAmt(cpitBgApvAmt)
-                .totXpAmt(totXpAmt)
-                .build();
-    }
 }

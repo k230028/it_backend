@@ -80,8 +80,45 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      */
     List<ApplicationReadView> findAllProjectedBy();
 
-    /** 신청서 목록 API용 경량 read view를 안정된 순서와 상한으로 조회합니다. */
-    List<ApplicationReadView> findTop500ByOrderByApfMngNoAsc();
+    /**
+     * 신청서 목록 API용 경량 read view를 안정된 순서와 상한으로 조회합니다.
+     *
+     * <p>정렬은 신청서식별번호 내림차순(최신 상신 우선)입니다. 상한(500건)에 걸려 잘리는 쪽이 항상 오래된 건이 되도록 하기 위한 것으로, 오름차순이면 최근 상신되어
+     * 지금 결재해야 할 건이 목록에서 사라집니다.
+     *
+     * @return 신청서 read view 목록 (최신순, 최대 500건)
+     */
+    List<ApplicationReadView> findTop500ByOrderByApfMngNoDesc();
+
+    /**
+     * 특정 결재자가 지금 처리해야 할 신청서 식별번호를 최신순으로 조회합니다.
+     *
+     * <p>판정 조건은 사이드바 배지({@link #countPendingByEno})와 같습니다. 신청서가 결재중({@code IT_PTL_APF_PRG_STS_C =
+     * '1'})이고, 그 결재선에 해당 결재자의 미처리({@code IT_PTL_DCD_STS_C = '1'}) 행이 있는 경우입니다. 동일 결재자가 1차·2차에 모두
+     * 지정되면 결재선 행은 2건이지만 결재 행위는 1건이므로 JOIN 대신 EXISTS로 신청서당 한 행만 반환합니다.
+     *
+     * <p>목록 상한을 두지 않습니다. 본인 결재 대기 건수는 전체 신청서 수와 달리 유한하며, 상한을 두면 배지 건수와 목록 건수가 어긋납니다.
+     *
+     * @param eno 결재자 사번
+     * @return 결재 대기 신청서 식별번호 목록 (최신순)
+     */
+    @Query(
+            value =
+                    """
+        SELECT a.APF_DCM_NO
+        FROM TPRMPP_CAPPLM a
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
+          AND EXISTS (
+            SELECT 1
+            FROM TPRMPP_CDECIM d
+            WHERE d.APF_DCM_NO = a.APF_DCM_NO
+              AND d.DCR_ENO = :eno
+              AND d.IT_PTL_DCD_STS_C = '1'
+          )
+        ORDER BY a.APF_DCM_NO DESC
+        """,
+            nativeQuery = true)
+    List<String> findPendingApfMngNosByEno(@Param("eno") String eno);
 
     /** 여러 신청서를 응답 조립용 read view로 조회합니다. */
     List<ApplicationReadView> findReadViewsByApfMngNoIn(Collection<String> apfMngNos);

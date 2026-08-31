@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.project.repository;
 
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
+import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.dto.ProjectListRow;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -45,19 +46,30 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
      * <p>[처리 순서] 1. DEL_YN='N' 기본 조건 설정 2. apfSts 조건 분기 처리 (none / 특정값 / null) 3. 나머지 단순 필드 조건 추가
      * (bgYy, prjSts, prjTp, itDpm, svnDpm) 4. BooleanBuilder로 조합된 WHERE 절로 쿼리 실행
      *
+     * <p>정렬은 사업관리번호 내림차순(최근 채번 우선)입니다. 상한이나 페이지 크기에 걸려 잘리는 쪽이 항상 오래된 건이 되도록 하기 위한 것으로, 오름차순이면 최근
+     * 등록한 사업이 목록에서 사라집니다. 페이지 경계에서 행이 겹치거나 빠지지 않도록 (사업관리번호, 순번)으로 안정 정렬합니다.
+     *
      * @param condition 검색 조건 DTO
-     * @return 조건에 맞는 정보화사업 목록
+     * @return 조건에 맞는 정보화사업 목록 (상한까지)
      */
     @Override
     public List<Bprojm> searchByCondition(ProjectDto.SearchCondition condition) {
+        return searchByCondition(condition, ListPageParams.unpaged());
+    }
+
+    @Override
+    public List<Bprojm> searchByCondition(
+            ProjectDto.SearchCondition condition, ListPageParams paging) {
         QBprojm bprojm = QBprojm.bprojm;
         BooleanBuilder builder = buildConditionPredicate(condition);
+        ListPageParams.Slice slice = paging.slice(MAX_LIST_ROWS);
 
         return queryFactory
                 .selectFrom(bprojm)
                 .where(builder)
-                .orderBy(bprojm.abusMngNo.asc(), bprojm.sno.asc())
-                .limit(MAX_LIST_ROWS)
+                .orderBy(bprojm.abusMngNo.desc(), bprojm.sno.asc())
+                .offset(slice.offset())
+                .limit(slice.limit())
                 .fetch();
     }
 
@@ -70,7 +82,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
     @Override
     public List<ProjectListRow> searchListByCondition(ProjectDto.SearchCondition condition) {
         QBprojm bprojm = QBprojm.bprojm;
-        // 동일 WHERE 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
+        ListPageParams.Slice slice = ListPageParams.unpaged().slice(MAX_LIST_ROWS);
+        // 동일 WHERE·정렬·구간 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
         return queryFactory
                 .select(
                         Projections.constructor(
@@ -90,8 +103,9 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                 bprojm.delYn))
                 .from(bprojm)
                 .where(buildConditionPredicate(condition))
-                .orderBy(bprojm.abusMngNo.asc(), bprojm.sno.asc())
-                .limit(MAX_LIST_ROWS)
+                .orderBy(bprojm.abusMngNo.desc(), bprojm.sno.asc())
+                .offset(slice.offset())
+                .limit(slice.limit())
                 .fetch();
     }
 
@@ -132,12 +146,15 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
 
         BooleanBuilder builder = new BooleanBuilder();
 
-        // 일반 업무 검색은 승인된 최종본만 노출합니다.
         builder.and(bprojm.delYn.eq("N"));
-        builder.and(bprojm.lstYn.eq("Y"));
 
         // === apfSts 필터 처리 ===
         String apfSts = condition.getApfSts();
+        // 일반 업무는 확정본만 쓰되, 결재 상신 대상 조회는 결재 전 재신청 초안(SNO+1)도 보여야 한다.
+        // 미상신 조건이 원본 결재완료본을 NOT EXISTS로 제외하므로 초안만 상신 대상으로 남는다.
+        if (!"none".equals(apfSts)) {
+            builder.and(bprojm.lstYn.eq("Y"));
+        }
         if (apfSts != null && !apfSts.isBlank()) {
             if ("none".equals(apfSts)) {
                 // 미상신(재상신 가능 포함): 활성(1 결재중) 또는 완료(2 결재완료)인 CAPPLM이 없는 경우.

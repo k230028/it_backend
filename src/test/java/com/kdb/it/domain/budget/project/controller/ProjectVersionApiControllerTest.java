@@ -70,7 +70,9 @@ class ProjectVersionApiControllerTest {
                                 Bprojm.builder().abusMngNo("PRJ-1").sno(1).lstYn("N").build(),
                                 Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").build()));
 
-        mockMvc.perform(get("/api/projects/PRJ-1/history").with(authentication(userAuthentication())))
+        mockMvc.perform(
+                        get("/api/projects/PRJ-1/history")
+                                .with(authentication(userAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sno").value(1))
                 .andExpect(jsonPath("$[0].lstYn").value("N"))
@@ -82,9 +84,12 @@ class ProjectVersionApiControllerTest {
     @DisplayName("GET /api/projects/{id}/versions/{sno}는 명시 개정본 상세를 반환한다")
     void 프로젝트명시개정본_조회() throws Exception {
         given(projectVersionService.findVersion(eq("PRJ-1"), eq(2), any()))
-                .willReturn(Optional.of(Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("N").build()));
+                .willReturn(
+                        Optional.of(Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("N").build()));
 
-        mockMvc.perform(get("/api/projects/PRJ-1/versions/2").with(authentication(userAuthentication())))
+        mockMvc.perform(
+                        get("/api/projects/PRJ-1/versions/2")
+                                .with(authentication(userAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.abusMngNo").value("PRJ-1"))
                 .andExpect(jsonPath("$.sno").value(2))
@@ -97,7 +102,9 @@ class ProjectVersionApiControllerTest {
         given(projectVersionService.createReapplication(eq("PRJ-1"), any()))
                 .willReturn(new ProjectVersionService.ProjectVersion("PRJ-1", 2, "N"));
 
-        mockMvc.perform(post("/api/projects/PRJ-1/reapplications").with(authentication(userAuthentication())))
+        mockMvc.perform(
+                        post("/api/projects/PRJ-1/reapplications")
+                                .with(authentication(userAuthentication())))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/projects/PRJ-1/versions/2"))
                 .andExpect(jsonPath("$.abusMngNo").value("PRJ-1"))

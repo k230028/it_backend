@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -67,14 +68,32 @@ class ProjectControllerTest {
         // given
         ProjectDto.Response project =
                 ProjectDto.Response.builder().abusMngNo("PRJ-2026-0001").abusNm("테스트 사업").build();
-        given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class)))
+        given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class), any()))
                 .willReturn(List.of(project));
 
         // when & then
         mockMvc.perform(get("/api/projects"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].abusMngNo").value("PRJ-2026-0001"))
-                .andExpect(jsonPath("$[0].abusNm").value("테스트 사업"));
+                .andExpect(jsonPath("$[0].abusNm").value("테스트 사업"))
+                // 페이지를 지정하지 않으면 총건수 헤더도, COUNT 쿼리도 없다
+                .andExpect(header().doesNotExist("X-Total-Count"));
+        org.mockito.Mockito.verify(projectService, org.mockito.Mockito.never())
+                .countProjectList(any());
+    }
+
+    @Test
+    @DisplayName("GET /api/projects?page=1&size=100 - 페이지 조회는 X-Total-Count로 전체 건수를 알린다")
+    @WithMockUser(username = "10001")
+    void getProjects_페이지지정_총건수헤더() throws Exception {
+        given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class), any()))
+                .willReturn(List.of());
+        given(projectService.countProjectList(any(ProjectDto.SearchCondition.class)))
+                .willReturn(1234L);
+
+        mockMvc.perform(get("/api/projects").param("page", "1").param("size", "100"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1234"));
     }
 
     @Test
@@ -152,6 +171,25 @@ class ProjectControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/projects - 필요성 300Byte 초과 → 400, 서비스 미호출")
+    @WithMockUser(username = "10001")
+    void createProject_필요성300Byte초과_400반환() throws Exception {
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusTc("10")
+                        .abusNcsCone("가".repeat(101))
+                        .build();
+
+        mockMvc.perform(
+                        post("/api/projects")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(projectService);
+    }
+
+    @Test
     @DisplayName("DELETE /api/projects/{prjMngNo} - 결재중 프로젝트 삭제 → 500 반환")
     @WithMockUser(username = "10001")
     void deleteProject_결재중_500반환() throws Exception {
@@ -175,6 +213,24 @@ class ProjectControllerTest {
 
         mockMvc.perform(
                         put("/api/projects/PRJ-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("PRJ-2026-0001"));
+    }
+
+    @Test
+    @DisplayName("PUT /api/projects/{prjMngNo}?sno={sno} - 재신청 초안 순번으로 수정 요청을 전달한다")
+    @WithMockUser(username = "10001")
+    void updateProject_재신청초안순번_200반환() throws Exception {
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder().abusNm("재신청 수정 사업").abusTc("20").build();
+        given(projectService.updateProject(eq("PRJ-2026-0001"), eq(2), any(ProjectDto.UpdateRequest.class)))
+                .willReturn("PRJ-2026-0001");
+
+        mockMvc.perform(
+                        put("/api/projects/PRJ-2026-0001")
+                                .queryParam("sno", "2")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

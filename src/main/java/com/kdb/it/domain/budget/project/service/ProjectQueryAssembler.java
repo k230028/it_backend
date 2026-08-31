@@ -113,8 +113,8 @@ public class ProjectQueryAssembler {
                 steps.stream().map(Bproja::getStsTc).filter(java.util.Objects::nonNull).toList());
         List<Bitemm> items =
                 "N".equals(project.getLstYn())
-                        ? itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYnAndLstYn(
-                                project.getAbusMngNo(), project.getSno(), "N", "N")
+                        ? itemRepository.findAllByAbusMngNoAndFntTbCrySnoAndDelYn(
+                                project.getAbusMngNo(), project.getSno(), "N")
                         : itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
                                 project.getAbusMngNo(), project.getSno(), "N");
         List<ProjectDto.BitemmDto> itemDtos =

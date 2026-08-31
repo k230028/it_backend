@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.same;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
@@ -109,6 +110,50 @@ class SpeedDialServiceTest {
         assertThat(captor.getValue().getNacCone())
                 .contains("화면 &lt;이름&gt;")
                 .contains("/info?filter=&lt;all&gt;");
+    }
+
+    @Test
+    void qnaTitleKeepsOnlyInquiryPrefixAndCategoryName() {
+        SpeedDialService service =
+                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+        given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
+                .willReturn(board("BLBM-QNA", "005"));
+        given(boardPostService.createPost(eq("BLBM-QNA"), any(), same(user)))
+                .willReturn("NAC-2026-0003");
+
+        service.createQna(
+                new SpeedDialDto.QnaCreateRequest("Q&A", "/board/qna", "IMPROVEMENT", "<p>문의</p>"),
+                user);
+
+        ArgumentCaptor<BoardPostDto.CreateRequest> captor =
+                ArgumentCaptor.forClass(BoardPostDto.CreateRequest.class);
+        verify(boardPostService).createPost(eq("BLBM-QNA"), captor.capture(), same(user));
+        assertThat(captor.getValue().getNacNm()).isEqualTo("[문의] 기능 개선");
+    }
+
+    @Test
+    void qnaAcceptsBudgetAndProjectCategories() {
+        SpeedDialService service =
+                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+        given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
+                .willReturn(board("BLBM-QNA", "005"));
+        given(boardPostService.createPost(eq("BLBM-QNA"), any(), same(user)))
+                .willReturn("NAC-2026-0004");
+
+        service.createQna(
+                new SpeedDialDto.QnaCreateRequest("예산 작성", "/budget/work", "BUDGET", "<p>문의</p>"),
+                user);
+        service.createQna(
+                new SpeedDialDto.QnaCreateRequest(
+                        "정보화사업", "/info/projects", "PROJECT", "<p>문의</p>"),
+                user);
+
+        ArgumentCaptor<BoardPostDto.CreateRequest> captor =
+                ArgumentCaptor.forClass(BoardPostDto.CreateRequest.class);
+        verify(boardPostService, times(2)).createPost(eq("BLBM-QNA"), captor.capture(), same(user));
+        assertThat(captor.getAllValues())
+                .extracting(BoardPostDto.CreateRequest::getNacNm)
+                .containsExactly("[문의] 예산", "[문의] 사업");
     }
 
     @Test

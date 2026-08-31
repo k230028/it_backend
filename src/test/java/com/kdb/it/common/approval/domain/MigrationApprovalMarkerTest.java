@@ -24,7 +24,7 @@ class MigrationApprovalMarkerTest {
     @DisplayName("이관 표식은 저장된 고정 문구와 정확히 일치한다")
     void note_고정문구() {
         assertThat(MigrationApprovalMarker.NOTE)
-                .isEqualTo("수기 엑셀 이관으로 생성된 결재완료 기록입니다. 실제 결재선을 거치지 않았습니다.");
+                .isEqualTo("수기등록");
     }
 
     @Test

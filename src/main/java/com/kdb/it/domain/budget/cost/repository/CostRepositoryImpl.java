@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.repository;
 
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
+import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
@@ -79,19 +80,30 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
      * )
      * }</pre>
      *
+     * <p>정렬은 예산번호 내림차순(최근 채번 우선)입니다. 상한이나 페이지 크기에 걸려 잘리는 쪽이 항상 오래된 건이 되도록 하기 위한 것으로, 오름차순이면 최근 등록한
+     * 전산업무비가 목록에서 사라집니다. 페이지 경계에서 행이 겹치거나 빠지지 않도록 (예산번호, 예산순번)으로 안정 정렬합니다.
+     *
      * @param condition 검색 조건 DTO
-     * @return 조건에 맞는 전산관리비 목록
+     * @return 조건에 맞는 전산관리비 목록 (상한까지)
      */
     @Override
     public List<Bcostm> searchByCondition(CostDto.SearchCondition condition) {
+        return searchByCondition(condition, ListPageParams.unpaged());
+    }
+
+    @Override
+    public List<Bcostm> searchByCondition(
+            CostDto.SearchCondition condition, ListPageParams paging) {
         QBcostm bcostm = QBcostm.bcostm;
         BooleanBuilder builder = buildConditionPredicate(condition);
+        ListPageParams.Slice slice = paging.slice(MAX_LIST_ROWS);
 
         return queryFactory
                 .selectFrom(bcostm)
                 .where(builder)
-                .orderBy(bcostm.costBgNo.asc(), bcostm.bgSno.asc())
-                .limit(MAX_LIST_ROWS)
+                .orderBy(bcostm.costBgNo.desc(), bcostm.bgSno.asc())
+                .offset(slice.offset())
+                .limit(slice.limit())
                 .fetch();
     }
 
@@ -104,7 +116,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
     @Override
     public List<CostDto.CostListRow> searchListByCondition(CostDto.SearchCondition condition) {
         QBcostm bcostm = QBcostm.bcostm;
-        // 동일 WHERE 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
+        ListPageParams.Slice slice = ListPageParams.unpaged().slice(MAX_LIST_ROWS);
+        // 동일 WHERE·정렬·구간 재사용 — searchByCondition과 결과 행 집합 동일, select만 경량화
         return queryFactory
                 .select(
                         Projections.constructor(
@@ -125,8 +138,9 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                 bcostm.delYn))
                 .from(bcostm)
                 .where(buildConditionPredicate(condition))
-                .orderBy(bcostm.costBgNo.asc(), bcostm.bgSno.asc())
-                .limit(MAX_LIST_ROWS)
+                .orderBy(bcostm.costBgNo.desc(), bcostm.bgSno.asc())
+                .offset(slice.offset())
+                .limit(slice.limit())
                 .fetch();
     }
 
@@ -167,12 +181,14 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
 
         BooleanBuilder builder = new BooleanBuilder();
 
-        // 일반 업무 목록은 삭제되지 않은 최종 전산업무비만 조회
+        // 미상신 목록은 LST_YN='N'인 재상신 초안도 보여야 하며, 그 외 업무는 최종본만 사용한다.
         builder.and(bcostm.delYn.eq("N"));
-        builder.and(bcostm.lstYn.eq("Y"));
+        String apfSts = condition.getApfSts();
+        if (!"none".equals(apfSts)) {
+            builder.and(bcostm.lstYn.eq("Y"));
+        }
 
         // === apfSts 필터 처리 ===
-        String apfSts = condition.getApfSts();
         if (apfSts != null && !apfSts.isBlank()) {
             if ("none".equals(apfSts)) {
                 // 미상신(재상신 가능 포함): 활성(001 결재중) 또는 완료(002 결재완료)인 CAPPLM이 없는 경우.

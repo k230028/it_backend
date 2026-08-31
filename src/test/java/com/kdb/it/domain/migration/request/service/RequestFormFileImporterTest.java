@@ -92,6 +92,17 @@ class RequestFormFileImporterTest {
     }
 
     @Test
+    @DisplayName("편성요청서로 생성한 프로젝트는 예산편성 요청 결재완료 이관 상태로 전환한다")
+    void marksImportedProjectAsMigrationApproved() {
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
+
+        importer().apply(outputWithOneProject(), ENTRY, "2026", "12345678");
+
+        verify(projectService).markRequestFormImportApproved("PRJ-2026-0001");
+    }
+
+    @Test
     @DisplayName("생성한 원장마다 수기등록 상태의 신청서 받이를 만든다")
     void stampsApprovalForEachLedger() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());

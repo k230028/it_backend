@@ -116,7 +116,7 @@ public class PlanEvaluationService {
 
         // 조정 협의회는 '직전 승인(수립) 계획'의 사업별 예산을 최초값으로 병합(예산 최초/조정 비교)
         Map<String, JsonNode> baselineByBiz = Map.of();
-        if ("조정".equals(plan.getItPtlPlnTpC())) {
+        if ("02".equals(plan.getItPtlPlnTpC())) {
             PlanDto.DetailResponse baselinePlan = findBaselinePlan(plan.getBseYy(), reqDocNo);
             if (baselinePlan != null) {
                 ParsedSnapshot baselineParsed =
@@ -335,7 +335,7 @@ public class PlanEvaluationService {
                         "02",
                         "13",
                         bseYy,
-                        "신규",
+                        "01",
                         currentReqDocNo,
                         org.springframework.data.domain.PageRequest.of(0, 1));
         if (reqDocNos.isEmpty()) {

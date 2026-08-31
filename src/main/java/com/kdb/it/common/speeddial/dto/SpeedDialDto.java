@@ -22,7 +22,7 @@ public final class SpeedDialDto {
                     @Size(max = 300)
                     @Pattern(regexp = "^/(?!/)(?!.*://).*", message = "화면 URL은 내부 경로만 입력할 수 있습니다.")
                     String screenUrl,
-            @NotBlank @Pattern(regexp = "IMPROVEMENT|BUG|OTHER") String category,
+            @NotBlank @Pattern(regexp = "BUDGET|PROJECT|IMPROVEMENT|BUG|OTHER") String category,
             @NotBlank @Size(max = 4000) String content) {}
 
     @Schema(name = "SpeedDialQnaCreateResponse", description = "스피드다이얼 문의 등록 결과")

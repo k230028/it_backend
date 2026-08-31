@@ -97,6 +97,28 @@ public class ProjectService {
     }
 
     /**
+     * 검색 조건에 맞는 정보화사업을 지정한 페이지 구간만 조회합니다.
+     *
+     * @param condition 검색 조건
+     * @param paging 페이지 파라미터 (미지정이면 상한까지)
+     * @return 해당 구간의 목록
+     */
+    public List<ProjectDto.Response> searchProjectList(
+            ProjectDto.SearchCondition condition, com.kdb.it.common.util.ListPageParams paging) {
+        return projectQueryService.searchProjectList(condition, paging);
+    }
+
+    /**
+     * 검색 조건에 맞는 정보화사업 전체 건수를 조회합니다.
+     *
+     * @param condition 검색 조건
+     * @return 조건에 맞는 전체 건수 (페이지 응답의 X-Total-Count 용도)
+     */
+    public long countProjectList(ProjectDto.SearchCondition condition) {
+        return projectQueryService.countProjectList(condition);
+    }
+
+    /**
      * 관리번호에 해당하는 정보화사업 상세를 조회합니다.
      *
      * @param prjMngNo 프로젝트관리번호
@@ -276,6 +298,12 @@ public class ProjectService {
         project.assignPersonNames(tlrNm, usrNm);
     }
 
+    /** 편성요청서 반입 프로젝트의 예산편성 상태를 결재완료 이관 코드로 전환합니다. */
+    @Transactional
+    public void markRequestFormImportApproved(String abusMngNo) {
+        bprojaSyncService.upsert(abusMngNo, abusMngNo, "10");
+    }
+
     /**
      * 품목 동기화 협력자를 만듭니다.
      *
@@ -347,13 +375,29 @@ public class ProjectService {
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public String updateProject(String prjMngNo, ProjectDto.UpdateRequest request) {
+        return updateProject(prjMngNo, null, request);
+    }
+
+    /**
+     * 지정한 개정 순번의 사업과 소요자원을 수정합니다.
+     *
+     * @param prjMngNo 사업관리번호
+     * @param sno 수정할 개정 순번. {@code null}이면 현재 최종본을 수정합니다
+     * @param request 수정 요청 DTO
+     * @return 수정된 사업관리번호
+     * @throws IllegalArgumentException 대상 개정본이 없으면 발생
+     */
+    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
+    @Transactional
+    public String updateProject(String prjMngNo, Integer sno, ProjectDto.UpdateRequest request) {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
         // 프로젝트 조회 (삭제되지 않은 항목만)
         Bprojm project =
-                projectRepository
-                        .findByAbusMngNoAndDelYn(prjMngNo, "N")
+                (sno == null
+                                ? projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
+                                : projectRepository.findByAbusMngNoAndSnoAndDelYn(prjMngNo, sno, "N"))
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -459,8 +503,11 @@ public class ProjectService {
      */
     private ProjectAmountSummary sumActiveItems(Bprojm project, BigDecimal paidAmt) {
         List<Bitemm> activeItems =
-                bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                        project.getAbusMngNo(), project.getSno(), "N");
+                "N".equals(project.getLstYn())
+                        ? bitemmRepository.findAllByAbusMngNoAndFntTbCrySnoAndDelYn(
+                                project.getAbusMngNo(), project.getSno(), "N")
+                        : bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                                project.getAbusMngNo(), project.getSno(), "N");
         return budgetSummaryService.calculateAmountSnapshot(activeItems, paidAmt);
     }
 
@@ -573,13 +620,21 @@ public class ProjectService {
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public void deleteProject(String prjMngNo) {
+        deleteProject(prjMngNo, null);
+    }
+
+    /** 미상신 재신청 초안을 지정한 개정 순번으로만 논리 삭제합니다. */
+    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
+    @Transactional
+    public void deleteProject(String prjMngNo, Integer sno) {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
         // 프로젝트 조회 (삭제되지 않은 항목만)
         Bprojm project =
-                projectRepository
-                        .findByAbusMngNoAndDelYn(prjMngNo, "N")
+                (sno == null
+                                ? projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
+                                : projectRepository.findByAbusMngNoAndSnoAndDelYn(prjMngNo, sno, "N"))
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(

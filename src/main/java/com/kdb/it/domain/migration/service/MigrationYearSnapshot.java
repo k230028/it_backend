@@ -234,7 +234,7 @@ public class MigrationYearSnapshot {
         }
 
         Set<String> planTypes = new LinkedHashSet<>();
-        for (String plnTp : List.of("신규", "조정")) {
+        for (String plnTp : List.of("01", "02")) {
             if (planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn(bseYy, plnTp, "N")) {
                 planTypes.add(plnTp);
             }

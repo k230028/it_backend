@@ -92,6 +92,22 @@ class ApplicationControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/applications/pending - 비인증 → 401")
+    void getPendingApplications_비인증_401() throws Exception {
+        mockMvc.perform(get("/api/applications/pending")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/applications/pending - 인증 주체 사번으로 조회한다")
+    @WithMockUser(username = "10001")
+    void getPendingApplications_인증_200() throws Exception {
+        given(applicationService.getPendingApplications("10001")).willReturn(List.of());
+        mockMvc.perform(get("/api/applications/pending"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
     @DisplayName("GET /api/applications/pending-count - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getPendingCount_인증_200() throws Exception {

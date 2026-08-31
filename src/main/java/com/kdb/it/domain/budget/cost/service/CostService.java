@@ -73,6 +73,13 @@ public class CostService {
         return response;
     }
 
+    /** 정확한 예산일련번호의 전산업무비를 부서 권한과 함께 조회합니다. */
+    public CostDto.Response getCost(String itMngcNo, Integer bgSno, CustomUserDetails user) {
+        CostDto.Response response = queryService.getCost(itMngcNo, bgSno);
+        verifyDeptReadable(response.getCostSvnDpmC(), user);
+        return response;
+    }
+
     /**
      * 삭제되지 않은 전산업무비 전체 목록을 조회합니다.
      *
@@ -105,19 +112,58 @@ public class CostService {
      */
     public List<CostDto.Response> searchCostList(
             CostDto.SearchCondition condition, CustomUserDetails user) {
+        return searchCostList(condition, user, com.kdb.it.common.util.ListPageParams.unpaged());
+    }
+
+    /**
+     * 부서 범위를 적용해 전산업무비 목록을 지정한 페이지 구간만 조회합니다.
+     *
+     * @param condition 검색 조건
+     * @param user 인증 사용자. null이면 조회를 거부
+     * @param paging 페이지 파라미터 (미지정이면 상한까지)
+     * @return 해당 구간의 목록. 부서 한정인데 사용자 부점코드가 없으면 빈 목록
+     */
+    public List<CostDto.Response> searchCostList(
+            CostDto.SearchCondition condition,
+            CustomUserDetails user,
+            com.kdb.it.common.util.ListPageParams paging) {
         if (user == null) {
             throw new AccessDeniedException("인증 정보가 없습니다.");
         }
         /* 관리자는 화면의 [부서|전체] 선택을 사용할 수 있다. */
         if (user.isAdmin() && !Boolean.TRUE.equals(condition.getMyDeptOnly())) {
-            return queryService.searchCostList(condition);
+            return queryService.searchCostList(condition, paging);
         }
         // SSO 미동기화 등으로 부점코드가 없는 계정에 전체 조회를 열지 않는다(데이터 접근 범위 가이드).
         if (!StringUtils.hasText(user.getBbrC())) {
             return List.of();
         }
         condition.setCostSvnDpmC(user.getBbrC());
-        return queryService.searchCostList(condition);
+        return queryService.searchCostList(condition, paging);
+    }
+
+    /**
+     * 목록과 같은 부서 범위를 적용해 전산업무비 전체 건수를 조회합니다.
+     *
+     * <p>범위 판정은 {@link #searchCostList(CostDto.SearchCondition, CustomUserDetails)}와 같아야 합니다. 다르면
+     * 페이지 응답의 {@code X-Total-Count}가 실제로 조회 가능한 건수와 어긋납니다.
+     *
+     * @param condition 검색 조건
+     * @param user 인증 사용자. null이면 조회를 거부
+     * @return 조건에 맞는 전체 건수. 부서 한정인데 사용자 부점코드가 없으면 0
+     */
+    public long countCostList(CostDto.SearchCondition condition, CustomUserDetails user) {
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
+        if (user.isAdmin() && !Boolean.TRUE.equals(condition.getMyDeptOnly())) {
+            return queryService.countCostList(condition);
+        }
+        if (!StringUtils.hasText(user.getBbrC())) {
+            return 0L;
+        }
+        condition.setCostSvnDpmC(user.getBbrC());
+        return queryService.countCostList(condition);
     }
 
     /**
@@ -305,25 +351,48 @@ public class CostService {
      */
     @Transactional
     public String updateCost(String itMngcNo, CostDto.UpdateRequest request) {
-        return updateCost(itMngcNo, request, false);
+        return updateCost(itMngcNo, null, request, false);
+    }
+
+    /** 정확한 예산일련번호의 미상신 개정본을 수정합니다. */
+    @Transactional
+    public String updateCost(String itMngcNo, Integer bgSno, CostDto.UpdateRequest request) {
+        return updateCost(itMngcNo, bgSno, request, false);
     }
 
     /** 관리자 금융정보단말기 일괄업로드용 수정 진입점입니다. */
     @Transactional
     public String updateCostForMigration(String itMngcNo, CostDto.UpdateRequest request) {
-        return updateCost(itMngcNo, request, true);
+        return updateCost(itMngcNo, null, request, true);
     }
 
     private String updateCost(
-            String itMngcNo, CostDto.UpdateRequest request, boolean preserveSubmittedAmounts) {
+            String itMngcNo,
+            Integer bgSno,
+            CostDto.UpdateRequest request,
+            boolean preserveSubmittedAmounts) {
         if (!preserveSubmittedAmounts) {
             codeService.validateBudgetPeriod();
         }
-        List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(itMngcNo, "N");
-        if (costs.isEmpty()) {
+        List<Bcostm> currentCosts =
+                bgSno == null
+                        ? costRepository.findByCostBgNoAndDelYn(itMngcNo, "N")
+                        : List.of();
+        if (bgSno == null && currentCosts.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
-        Bcostm target = CostRepresentativeSelector.pick(costs);
+        Bcostm target =
+                bgSno == null
+                        ? CostRepresentativeSelector.pick(currentCosts)
+                        : costRepository
+                                .findByCostBgNoAndBgSnoAndDelYn(itMngcNo, bgSno, "N")
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalArgumentException(
+                                                        "Cost not found with id: "
+                                                                + itMngcNo
+                                                                + ", sno: "
+                                                                + bgSno));
         if (!preserveSubmittedAmounts) {
             OwnershipVerifier.verifyModifiable(target.getFstEnrUsid(), target.getCostSvnDpmC());
         }
@@ -494,6 +563,28 @@ public class CostService {
                     .getOrDefault(terminalPk(cost.getCostBgNo(), cost.getBgSno()), List.of())
                     .forEach(Btermm::delete);
         }
+    }
+
+    /** 관리번호의 다른 이력은 보존하고 지정한 미상신 개정본만 논리 삭제합니다. */
+    @Transactional
+    public void deleteCost(String itMngcNo, Integer bgSno) {
+        codeService.validateBudgetPeriod();
+        Bcostm cost =
+                costRepository
+                        .findByCostBgNoAndBgSnoAndDelYn(itMngcNo, bgSno, "N")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Cost not found with id: "
+                                                        + itMngcNo
+                                                        + ", sno: "
+                                                        + bgSno));
+        if (!"N".equals(cost.getLstYn())) {
+            throw new IllegalArgumentException("미상신 재상신 개정본만 삭제할 수 있습니다.");
+        }
+        OwnershipVerifier.verifyModifiable(cost.getFstEnrUsid(), cost.getCostSvnDpmC());
+        cost.delete();
+        btermmRepository.findByTermBgNoAndTermBgSno(itMngcNo, bgSno).forEach(Btermm::delete);
     }
 
     private static Bcostm.UpdateCommand toUpdateCommand(CostDto.UpdateRequest request) {

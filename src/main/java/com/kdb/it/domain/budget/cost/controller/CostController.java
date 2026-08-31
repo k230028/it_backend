@@ -1,8 +1,10 @@
 package com.kdb.it.domain.budget.cost.controller;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -48,6 +50,7 @@ public class CostController {
 
     /** 전산관리비 비즈니스 로직 서비스 */
     private final CostService costService;
+    private final CostVersionService costVersionService;
 
     /**
      * 특정 전산관리비 단건 조회
@@ -88,8 +91,33 @@ public class CostController {
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
                     @PathVariable("itMngcNo")
                     String itMngcNo,
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(value = "sno", required = false) Integer bgSno) {
+        return ResponseEntity.ok(
+                bgSno == null
+                        ? costService.getCost(itMngcNo, user)
+                        : costService.getCost(itMngcNo, bgSno, user));
+    }
+
+    /** 결재 완료본을 다음 예산일련번호의 미상신 초안으로 복제합니다. */
+    @PostMapping("/{itMngcNo}/reapplications")
+    public ResponseEntity<CostVersionService.CostVersion> createReapplication(
+            @PathVariable("itMngcNo") String itMngcNo,
             @AuthenticationPrincipal CustomUserDetails user) {
-        return ResponseEntity.ok(costService.getCost(itMngcNo, user));
+        // 복제 전에 원본 상세와 동일한 부서/IT조직/관리자 권한을 적용합니다.
+        costService.getCost(itMngcNo, user);
+        return ResponseEntity.ok(costVersionService.createReapplication(itMngcNo));
+    }
+
+    /** 전산업무비의 개정 이력을 조회합니다. */
+    @GetMapping("/{itMngcNo}/history")
+    public ResponseEntity<List<CostDto.Response>> getHistory(
+            @PathVariable("itMngcNo") String itMngcNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(
+                costVersionService.findHistory(itMngcNo).stream()
+                        .map(cost -> costService.getCost(itMngcNo, cost.getBgSno(), user))
+                        .toList());
     }
 
     /**
@@ -117,10 +145,14 @@ public class CostController {
     @PutMapping("/{itMngcNo}")
     public ResponseEntity<String> updateCost(
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
-                    @PathVariable("itMngcNo")
+            @PathVariable("itMngcNo")
                     String itMngcNo,
+            @RequestParam(value = "sno", required = false) Integer bgSno,
             @Valid @RequestBody CostDto.UpdateRequest request) {
-        return ResponseEntity.ok(costService.updateCost(itMngcNo, request));
+        return ResponseEntity.ok(
+                bgSno == null
+                        ? costService.updateCost(itMngcNo, request)
+                        : costService.updateCost(itMngcNo, bgSno, request));
     }
 
     /**
@@ -144,8 +176,10 @@ public class CostController {
     public ResponseEntity<Void> deleteCost(
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
                     @PathVariable("itMngcNo")
-                    String itMngcNo) {
-        costService.deleteCost(itMngcNo);
+                    String itMngcNo,
+            @RequestParam(value = "sno", required = false) Integer bgSno) {
+        if (bgSno == null) costService.deleteCost(itMngcNo);
+        else costService.deleteCost(itMngcNo, bgSno);
         return ResponseEntity.noContent().build();
     }
 
@@ -160,10 +194,15 @@ public class CostController {
      *   <li>{@code GET /api/cost} → 일반 사용자는 소속 부서, 시스템관리자는 전체 조회
      *   <li>{@code GET /api/cost?apfSts=none} → 신청서가 없는 전산관리비만
      *   <li>{@code GET /api/cost?apfSts=결재중} → 결재중인 전산관리비만
+     *   <li>{@code GET /api/cost?bseYy=2026&page=0&size=100} → 해당 조건의 첫 100건
      * </ul>
+     *
+     * <p>{@code size}를 지정하면 그 구간만 조회하고 응답 헤더 {@code X-Total-Count}에 조건에 맞는 전체 건수를 담습니다. 지정하지 않으면
+     * 기존과 같이 목록 상한까지 한 번에 반환합니다.
      *
      * @param condition 검색 조건 (apfSts, costSvnDpmC, svnTemC, sectSysUtzYn, bseYy, myDeptOnly). 일반
      *     사용자는 항상 소속 부서로 제한되며, 관리자는 myDeptOnly=true일 때 소속 부서로 제한됩니다.
+     * @param paging 페이지 파라미터 (page, size). 미입력 시 상한까지 조회
      * @param user 인증 사용자 (목록 범위 결정에 사용)
      * @return HTTP 200 + 전산관리비 목록 ({@link CostDto.Response} 리스트)
      */
@@ -186,8 +225,18 @@ public class CostController {
     @GetMapping
     public ResponseEntity<List<CostDto.Response>> getCostList(
             @ParameterObject @ModelAttribute CostDto.SearchCondition condition,
+            @ParameterObject @ModelAttribute ListPageParams paging,
             @AuthenticationPrincipal CustomUserDetails user) {
-        return ResponseEntity.ok(costService.searchCostList(condition, user));
+        List<CostDto.Response> body = costService.searchCostList(condition, user, paging);
+        if (!paging.isPaged()) {
+            return ResponseEntity.ok(body);
+        }
+        // 건수도 목록과 같은 부서 범위로 집계한다 (범위가 다르면 총건수와 실제 조회 가능 건수가 어긋난다)
+        return ResponseEntity.ok()
+                .header(
+                        ListPageParams.TOTAL_COUNT_HEADER,
+                        String.valueOf(costService.countCostList(condition, user)))
+                .body(body);
     }
 
     /**

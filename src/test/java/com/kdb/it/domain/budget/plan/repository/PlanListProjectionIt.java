@@ -27,10 +27,9 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
         LocalDateTime oldTime = LocalDateTime.of(2026, 7, 20, 9, 0);
         LocalDateTime newTime = oldTime.plusHours(1);
 
-        entityManager.persist(plan(oldNo, 1, "Y", oldTime, "{\"prjSnapshots\":[]}", "N"));
-        entityManager.persist(plan(newNo, 1, "Y", newTime, "{\"prjSnapshots\":[{\"id\":1}]}", "N"));
-        entityManager.persist(plan(newNo, 2, "N", newTime.plusHours(1), "{}", "N"));
-        entityManager.persist(plan(deletedNo, 1, "Y", newTime.plusHours(2), "{}", "Y"));
+        entityManager.persist(plan(oldNo, oldTime, "{\"prjSnapshots\":[]}", "N"));
+        entityManager.persist(plan(newNo, newTime, "{\"prjSnapshots\":[{\"id\":1}]}", "N"));
+        entityManager.persist(plan(deletedNo, newTime.plusHours(2), "{}", "Y"));
         entityManager.flush();
         entityManager.clear();
 
@@ -50,14 +49,10 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(newView.getFstEnrDtm()).isEqualTo(newTime);
         assertThat(newView.getFstEnrUsid()).isEqualTo("BE03-TEST");
         assertThat(newView.getRedtConeInf()).isEqualTo("{\"prjSnapshots\":[{\"id\":1}]}");
-        assertThat(newView.getSno()).isEqualTo(1);
-        assertThat(newView.getLstYn()).isEqualTo("Y");
         assertThat(views)
                 .extracting(view -> view.getReqDocNo())
                 .contains(oldNo, newNo)
                 .doesNotContain(deletedNo);
-        assertThat(views.stream().filter(view -> newNo.equals(view.getReqDocNo())).toList())
-                .hasSize(1);
         assertThat(views.indexOf(newView))
                 .isLessThan(
                         views.indexOf(
@@ -65,21 +60,16 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
                                         .filter(view -> oldNo.equals(view.getReqDocNo()))
                                         .findFirst()
                                         .orElseThrow()));
-        assertThat(declaredMethodNames(BplanmRepository.PlanListView.class)).hasSize(13);
+        assertThat(declaredMethodNames(BplanmRepository.PlanListView.class)).hasSize(10);
     }
 
     private Bplanm plan(
             String reqDocNo,
-            Integer sno,
-            String lstYn,
             LocalDateTime createdAt,
             String snapshot,
             String delYn) {
         return Bplanm.builder()
                 .reqDocNo(reqDocNo)
-                .sno(sno)
-                .lstYn(lstYn)
-                .svnDpmC("900")
                 .itPtlPlnTpC("01")
                 .bseYy("2026")
                 .aduTotAmt(new BigDecimal("300"))

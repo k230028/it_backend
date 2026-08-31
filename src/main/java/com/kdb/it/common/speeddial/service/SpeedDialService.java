@@ -25,8 +25,14 @@ public class SpeedDialService {
 
     private static final int FAQ_LIMIT = 50;
 
+    /** 문의 구분 코드와 표시명. 화면 체크박스 노출 순서와 같게 유지합니다. */
     private static final Map<String, String> CATEGORY_NAMES =
-            Map.of("IMPROVEMENT", "기능 개선", "BUG", "오류/결함", "OTHER", "기타");
+            Map.of(
+                    "BUDGET", "예산",
+                    "PROJECT", "사업",
+                    "IMPROVEMENT", "기능 개선",
+                    "BUG", "오류/결함",
+                    "OTHER", "기타");
 
     private final BoardTypeResolver boardTypeResolver;
     private final BoardPostService boardPostService;
@@ -58,7 +64,7 @@ public class SpeedDialService {
         validateRequest(request);
         Cblbmm board = boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE);
         String categoryName = CATEGORY_NAMES.get(request.category());
-        String title = "[스피드다이얼 문의] " + categoryName + " - " + request.screenName().trim();
+        String title = "[문의] " + categoryName;
         String content =
                 "<p>화면(URL): "
                         + escape(request.screenName().trim())

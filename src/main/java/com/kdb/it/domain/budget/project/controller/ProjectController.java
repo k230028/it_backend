@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.controller;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.service.ProjectQueryAssembler;
 import com.kdb.it.domain.budget.project.service.ProjectService;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -71,9 +73,14 @@ public class ProjectController {
      *   <li>{@code GET /api/projects?apfSts=결재중} → 결재중인 프로젝트만
      *   <li>{@code GET /api/projects?bgYy=2026} → 2026년 사업만
      *   <li>{@code GET /api/projects?apfSts=none&bgYy=2026} → 복합 조건
+     *   <li>{@code GET /api/projects?bgYy=2026&page=0&size=100} → 해당 조건의 첫 100건
      * </ul>
      *
-     * @param condition 검색 조건 (apfSts, bgYy, prjSts, prjTp, itDpm, svnDpm). 미입력 시 전체 조회
+     * <p>{@code size}를 지정하면 그 구간만 조회하고 응답 헤더 {@code X-Total-Count}에 조건에 맞는 전체 건수를 담습니다. 지정하지 않으면
+     * 기존과 같이 목록 상한까지 한 번에 반환합니다.
+     *
+     * @param condition 검색 조건 (apfSts, bseYy, stsTc, bzTpC, dvmDpmC, svnDpmC, odnYn). 미입력 시 전체 조회
+     * @param paging 페이지 파라미터 (page, size). 미입력 시 상한까지 조회
      * @return HTTP 200 + 정보화사업 목록 ({@link ProjectDto.Response} 리스트)
      */
     @GetMapping
@@ -83,10 +90,20 @@ public class ProjectController {
                     "정보화사업 목록을 조회합니다. "
                             + "Query Parameter로 조건을 지정하면 필터링된 결과를 반환합니다. "
                             + "apfSts=none은 신청서가 없는 프로젝트, "
-                            + "apfSts=결재중/결재완료 등은 해당 결재상태의 프로젝트를 조회합니다.")
+                            + "apfSts=결재중/결재완료 등은 해당 결재상태의 프로젝트를 조회합니다. "
+                            + "size를 지정하면 해당 페이지만 반환하고 X-Total-Count 헤더에 전체 건수를 담습니다.")
     public ResponseEntity<List<ProjectDto.Response>> getProjects(
-            @ParameterObject @ModelAttribute ProjectDto.SearchCondition condition) {
-        return ResponseEntity.ok(projectService.searchProjectList(condition));
+            @ParameterObject @ModelAttribute ProjectDto.SearchCondition condition,
+            @ParameterObject @ModelAttribute ListPageParams paging) {
+        List<ProjectDto.Response> body = projectService.searchProjectList(condition, paging);
+        if (!paging.isPaged()) {
+            return ResponseEntity.ok(body);
+        }
+        return ResponseEntity.ok()
+                .header(
+                        ListPageParams.TOTAL_COUNT_HEADER,
+                        String.valueOf(projectService.countProjectList(condition)))
+                .body(body);
     }
 
     /**
@@ -166,7 +183,9 @@ public class ProjectController {
         ProjectVersionService.ProjectVersion draft =
                 projectVersionService.createReapplication(prjMngNo, user);
         return ResponseEntity.created(
-                        URI.create("/api/projects/%s/versions/%s".formatted(draft.abusMngNo(), draft.sno())))
+                        URI.create(
+                                "/api/projects/%s/versions/%s"
+                                        .formatted(draft.abusMngNo(), draft.sno())))
                 .body(draft);
     }
 
@@ -217,8 +236,12 @@ public class ProjectController {
     @Operation(summary = "정보화사업 수정", description = "정보화사업을 수정합니다.")
     public ResponseEntity<String> updateProject(
             @PathVariable("prjMngNo") String prjMngNo,
+            @RequestParam(value = "sno", required = false) Integer sno,
             @Valid @RequestBody ProjectDto.UpdateRequest request) {
-        String updatedPrjMngNo = projectService.updateProject(prjMngNo, request);
+        String updatedPrjMngNo =
+                sno == null
+                        ? projectService.updateProject(prjMngNo, request)
+                        : projectService.updateProject(prjMngNo, sno, request);
         return ResponseEntity.ok(updatedPrjMngNo);
     }
 
@@ -234,8 +257,11 @@ public class ProjectController {
      */
     @DeleteMapping("/{prjMngNo}")
     @Operation(summary = "정보화사업 삭제", description = "정보화사업을 삭제합니다.")
-    public ResponseEntity<Void> deleteProject(@PathVariable("prjMngNo") String prjMngNo) {
-        projectService.deleteProject(prjMngNo);
+    public ResponseEntity<Void> deleteProject(
+            @PathVariable("prjMngNo") String prjMngNo,
+            @RequestParam(value = "sno", required = false) Integer sno) {
+        if (sno == null) projectService.deleteProject(prjMngNo);
+        else projectService.deleteProject(prjMngNo, sno);
         return ResponseEntity.noContent().build();
     }
 

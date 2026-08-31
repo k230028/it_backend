@@ -1,10 +1,14 @@
 package com.kdb.it.domain.budget.project.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.common.system.validation.NotBlankUnlessAdmin;
+import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -126,6 +130,22 @@ public class ProjectDto {
         @Schema(description = "필요성")
         private String abusNcsCone;
 
+        /** 운영 DB의 BYTE 시맨틱 사업 본문 컬럼 상한을 확인합니다. */
+        @JsonIgnore
+        @AssertTrue(message = "사업 본문 입력값이 DB Byte 상한을 초과했습니다.")
+        public boolean isTextFieldsWithinByteLimit() {
+            return isProjectTextWithinByteLimit(
+                    abusNm,
+                    abusCone,
+                    cpnSafCone,
+                    abusNcsCone,
+                    dgogPpoCone,
+                    plmDes,
+                    abusRngCone,
+                    mnPrgCone,
+                    hrfPlnCone);
+        }
+
         /** 기대효과 (사업 완료 후 기대 효과) */
         @Schema(description = "기대효과")
         private String dgogPpoCone;
@@ -206,6 +226,7 @@ public class ProjectDto {
          * <p>프로젝트와 함께 등록할 품목({@link BitemmDto}) 목록입니다. 생성 시 품목도 함께 저장됩니다.
          */
         @Schema(description = "품목 목록")
+        @Valid
         private java.util.List<BitemmDto> items;
 
         /**
@@ -330,6 +351,22 @@ public class ProjectDto {
         @Schema(description = "필요성")
         private String abusNcsCone;
 
+        /** 운영 DB의 BYTE 시맨틱 사업 본문 컬럼 상한을 확인합니다. */
+        @JsonIgnore
+        @AssertTrue(message = "사업 본문 입력값이 DB Byte 상한을 초과했습니다.")
+        public boolean isTextFieldsWithinByteLimit() {
+            return isProjectTextWithinByteLimit(
+                    abusNm,
+                    abusCone,
+                    cpnSafCone,
+                    abusNcsCone,
+                    dgogPpoCone,
+                    plmDes,
+                    abusRngCone,
+                    mnPrgCone,
+                    hrfPlnCone);
+        }
+
         /** 기대효과 */
         @Schema(description = "기대효과")
         private String dgogPpoCone;
@@ -412,15 +449,16 @@ public class ProjectDto {
          * <p>수정 요청에 포함된 목록을 기준으로 기존 품목과 비교하여 추가/수정/삭제가 처리됩니다.
          */
         @Schema(description = "품목 목록")
+        @Valid
         private java.util.List<BitemmDto> items;
     }
 
     /**
      * 정보화사업 조회 응답 DTO. {@link Bprojm} 엔티티 필드 외에 조직명과 상태를 API 응답에 맞춰 제공합니다.
      *
-     * <p>품목 정보({@code items})는 배열 형태로 포함됩니다. {@link ProjectResponseMapper#fromEntity(Bprojm)}로 엔티티에서 변환하고, 서비스가 신청서 정보와 품목 목록을 별도로 설정합니다.
+     * <p>품목 정보({@code items})는 배열 형태로 포함됩니다. {@link ProjectResponseMapper#fromEntity(Bprojm)}로
+     * 엔티티에서 변환하고, 서비스가 신청서 정보와 품목 목록을 별도로 설정합니다.
      */
-
     @Getter
     @Setter
     @NoArgsConstructor
@@ -437,7 +475,9 @@ public class ProjectDto {
         private Integer sno;
 
         /** 최종여부 (Y=현재 최종본, N=과거 이력 또는 재신청 초안) */
-        @Schema(description = "최종여부", allowableValues = {"Y", "N"})
+        @Schema(
+                description = "최종여부",
+                allowableValues = {"Y", "N"})
         private String lstYn;
 
         /** 프로젝트명 */
@@ -876,6 +916,13 @@ public class ProjectDto {
         @Schema(description = "내년 이후 요청금액 (통화별 원금)")
         private BigDecimal mplAmt;
 
+        /** 운영 DB의 BYTE 시맨틱 품목명·예산근거 컬럼 상한을 확인합니다. */
+        @JsonIgnore
+        @AssertTrue(message = "소요자원 입력값이 DB Byte 상한을 초과했습니다.")
+        public boolean isTextFieldsWithinByteLimit() {
+            return isWithinByteLimit(gclNm, 100) && isWithinByteLimit(cncdFdtnCone, 600);
+        }
+
         /**
          * {@link com.kdb.it.domain.budget.project.entity.Bitemm} 엔티티를 DTO로 변환하는 정적 팩토리 메서드
          *
@@ -1013,4 +1060,29 @@ public class ProjectDto {
     public record BulkResponse(
             @Schema(description = "조회 성공 항목") java.util.List<Response> items,
             @Schema(description = "조회 실패(미존재) 프로젝트관리번호 목록") java.util.List<String> failedIds) {}
+
+    private static boolean isProjectTextWithinByteLimit(
+            String abusNm,
+            String abusCone,
+            String cpnSafCone,
+            String abusNcsCone,
+            String dgogPpoCone,
+            String plmDes,
+            String abusRngCone,
+            String mnPrgCone,
+            String hrfPlnCone) {
+        return isWithinByteLimit(abusNm, 100)
+                && isWithinByteLimit(abusCone, 1000)
+                && isWithinByteLimit(cpnSafCone, 1000)
+                && isWithinByteLimit(abusNcsCone, 300)
+                && isWithinByteLimit(dgogPpoCone, 4000)
+                && isWithinByteLimit(plmDes, 4000)
+                && isWithinByteLimit(abusRngCone, 600)
+                && isWithinByteLimit(mnPrgCone, 2000)
+                && isWithinByteLimit(hrfPlnCone, 300);
+    }
+
+    private static boolean isWithinByteLimit(String value, int maxBytes) {
+        return Utf8ByteLimit.length(value) <= maxBytes;
+    }
 }

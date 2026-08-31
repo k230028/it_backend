@@ -70,7 +70,8 @@ class CostQueryServiceTest {
     @DisplayName("단건 조회: 대표행 규칙으로 최신 활성 이력을 상세 응답에 사용한다")
     void getCost_복수이력_대표행상세반환() {
         Bcostm latest = cost("COST-DETAIL", 2, "Y");
-        given(costRepository.findByCostBgNoAndDelYn("COST-DETAIL", "N")).willReturn(List.of(latest));
+        given(costRepository.findByCostBgNoAndDelYn("COST-DETAIL", "N"))
+                .willReturn(List.of(latest));
 
         CostDto.Response result = queryService.getCost("COST-DETAIL");
 
@@ -106,7 +107,11 @@ class CostQueryServiceTest {
                         .bseYy("2027")
                         .delYn("N")
                         .build();
-        given(costRepository.searchByCondition(condition)).willReturn(List.of(cost));
+        given(
+                        costRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.eq(condition),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of(cost));
 
         List<CostDto.Response> result = queryService.searchCostList(condition);
 
@@ -169,6 +174,46 @@ class CostQueryServiceTest {
     @DisplayName("일괄 조회: 단말여부 null이어도 단건과 같은 활성 단말기를 한 번의 배치 조회로 반환한다")
     void getCostsByIds_단말여부Null_단건과단말기동등() {
         assertSingleAndBulkTerminalsEqual(null, "COST-TERMINAL-NULL", "TER-NULL");
+    }
+
+    @Test
+    @DisplayName("개정본 상세: 지정한 BG_SNO의 BCOSTM과 BTERMM만 함께 반환한다")
+    void getCost_개정순번_같은순번단말기만반환() {
+        String costBgNo = "COST-2027-0001";
+        Bcostm revision =
+                Bcostm.builder()
+                        .costBgNo(costBgNo)
+                        .bgSno(3)
+                        .costTotXpAmt(new java.math.BigDecimal("200000000"))
+                        .lstYn("N")
+                        .delYn("N")
+                        .build();
+        Btermm revisionTerminal =
+                Btermm.builder()
+                        .tmnMngNo("TER-REV-3")
+                        .sno(1)
+                        .termBgNo(costBgNo)
+                        .termBgSno(3)
+                        .termRqmBgAmt(new java.math.BigDecimal("200000000"))
+                        .delYn("N")
+                        .build();
+        given(costRepository.findByCostBgNoAndBgSnoAndDelYn(costBgNo, 3, "N"))
+                .willReturn(java.util.Optional.of(revision));
+        given(terminalRepository.findByTermBgNoAndTermBgSnoAndDelYn(costBgNo, 3, "N"))
+                .willReturn(List.of(revisionTerminal));
+
+        CostDto.Response result = queryService.getCost(costBgNo, 3);
+
+        assertThat(result.getBgSno()).isEqualTo(3);
+        assertThat(result.getCostTotXpAmt()).isEqualByComparingTo("200000000");
+        assertThat(result.getTerminals())
+                .singleElement()
+                .satisfies(
+                        terminal -> {
+                            assertThat(terminal.getTmnMngNo()).isEqualTo("TER-REV-3");
+                            assertThat(terminal.getTermRqmBgAmt())
+                                    .isEqualByComparingTo("200000000");
+                        });
     }
 
     private void assertSingleAndBulkTerminalsEqual(

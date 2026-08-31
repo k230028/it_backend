@@ -21,6 +21,7 @@ import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,7 @@ class CostControllerTest {
     @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private CostService costService;
+    @MockitoBean private CostVersionService costVersionService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
@@ -60,10 +62,26 @@ class CostControllerTest {
     @DisplayName("GET /api/cost - 인증된 사용자 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
     void getCostList_인증_200() throws Exception {
-        given(costService.searchCostList(any(), any())).willReturn(List.of());
+        given(costService.searchCostList(any(), any(), any())).willReturn(List.of());
         mockMvc.perform(get("/api/cost"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$").isArray())
+                // 페이지를 지정하지 않으면 총건수 헤더도, COUNT 쿼리도 없다
+                .andExpect(header().doesNotExist("X-Total-Count"));
+        org.mockito.Mockito.verify(costService, org.mockito.Mockito.never())
+                .countCostList(any(), any());
+    }
+
+    @Test
+    @DisplayName("GET /api/cost?page=1&size=50 - 페이지 조회는 X-Total-Count로 전체 건수를 알린다")
+    @WithMockUser(username = "10001")
+    void getCostList_페이지지정_총건수헤더() throws Exception {
+        given(costService.searchCostList(any(), any(), any())).willReturn(List.of());
+        given(costService.countCostList(any(), any())).willReturn(777L);
+
+        mockMvc.perform(get("/api/cost").param("page", "1").param("size", "50"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "777"));
     }
 
     @Test
@@ -88,6 +106,36 @@ class CostControllerTest {
                                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/cost/COST_2026_0001"));
+    }
+
+    @Test
+    @DisplayName("POST /api/cost/{itMngcNo}/reapplications - 경로 관리번호로 재상신 초안을 생성한다")
+    void createReapplication_경로변수해석_200() throws Exception {
+        given(costService.getCost(eq("COST_2027_0001"), any()))
+                .willReturn(new CostDto.Response());
+        given(costVersionService.createReapplication("COST_2027_0001"))
+                .willReturn(
+                        new CostVersionService.CostVersion("COST_2027_0001", 2, "N"));
+
+        mockMvc.perform(
+                        post("/api/cost/COST_2027_0001/reapplications")
+                                .with(authentication(adminAuthentication())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.costBgNo").value("COST_2027_0001"))
+                .andExpect(jsonPath("$.bgSno").value(2));
+    }
+
+    @Test
+    @DisplayName("재상신 API는 컴파일러 옵션과 무관하게 경로 변수명을 명시한다")
+    void createReapplication_경로변수명을_명시한다() throws Exception {
+        var method =
+                CostController.class.getDeclaredMethod(
+                        "createReapplication", String.class, CustomUserDetails.class);
+        var annotation =
+                method.getParameters()[0]
+                        .getAnnotation(org.springframework.web.bind.annotation.PathVariable.class);
+
+        org.assertj.core.api.Assertions.assertThat(annotation.value()).isEqualTo("itMngcNo");
     }
 
     @Test

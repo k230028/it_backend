@@ -40,6 +40,21 @@ public class CostQueryService {
         return queryAssembler.assembleDetail(CostRepresentativeSelector.pick(costs));
     }
 
+    /** 관리번호와 예산일련번호가 정확히 일치하는 개정본을 조회합니다. */
+    public CostDto.Response getCost(String costBgNo, Integer bgSno) {
+        Bcostm cost =
+                costRepository
+                        .findByCostBgNoAndBgSnoAndDelYn(costBgNo, bgSno, "N")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Cost not found with id: "
+                                                        + costBgNo
+                                                        + ", sno: "
+                                                        + bgSno));
+        return queryAssembler.assembleDetail(cost);
+    }
+
     /**
      * 삭제되지 않은 모든 전산업무비 목록을 조회합니다.
      *
@@ -56,7 +71,31 @@ public class CostQueryService {
      * @return 조건에 맞고 연관 정보가 조립된 목록
      */
     public List<CostDto.Response> searchCostList(CostDto.SearchCondition condition) {
-        return queryAssembler.assembleList(costRepository.searchByCondition(condition));
+        return searchCostList(condition, com.kdb.it.common.util.ListPageParams.unpaged());
+    }
+
+    /**
+     * 검색 조건에 맞는 전산업무비를 지정한 페이지 구간만 조회합니다.
+     *
+     * @param condition 검색 조건
+     * @param paging 페이지 파라미터 (미지정이면 상한까지)
+     * @return 해당 구간의 목록
+     */
+    public List<CostDto.Response> searchCostList(
+            CostDto.SearchCondition condition, com.kdb.it.common.util.ListPageParams paging) {
+        return queryAssembler.assembleList(costRepository.searchByCondition(condition, paging));
+    }
+
+    /**
+     * 검색 조건에 맞는 전산업무비 전체 건수를 조회합니다.
+     *
+     * <p>페이지 응답의 {@code X-Total-Count}에 사용합니다. 목록과 같은 WHERE를 공유하므로 페이지를 지정하지 않았을 때의 목록 건수와 일치합니다.
+     *
+     * @param condition 검색 조건 (page·size는 건수에 영향을 주지 않음)
+     * @return 조건에 맞는 전체 건수
+     */
+    public long countCostList(CostDto.SearchCondition condition) {
+        return costRepository.countBySearchCondition(condition);
     }
 
     /**

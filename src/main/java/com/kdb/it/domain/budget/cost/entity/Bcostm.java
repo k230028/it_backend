@@ -299,4 +299,38 @@ public class Bcostm extends BaseEntity {
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;
     }
+
+    /** 결재 완료본의 모든 업무 값을 보존한 재상신 초안을 만듭니다. */
+    public Bcostm createReapplicationDraft(Integer newBgSno) {
+        return Bcostm.builder()
+                .costBgNo(costBgNo)
+                .bgSno(newBgSno)
+                .lstYn("N")
+                .ioeC(ioeC)
+                .cttNm(cttNm)
+                .cttOppNm(cttOppNm)
+                .costTotXpAmt(costTotXpAmt)
+                .dfrCleC(dfrCleC)
+                .fstDfrDt(fstDfrDt)
+                .curC(curC)
+                .xcr(xcr)
+                .xcrBseDt(xcrBseDt)
+                .sectSysUtzYn(sectSysUtzYn)
+                .indRsn(indRsn)
+                .cgprId(cgprId)
+                .cgprNm(cgprNm)
+                .prlmHrkOgzCCone(prlmHrkOgzCCone)
+                .costSvnDpmC(costSvnDpmC)
+                .svnTemC(svnTemC)
+                .svnDpmNm(svnDpmNm)
+                .svnTemNm(svnTemNm)
+                .bseYy(bseYy)
+                .bgUntAbusC(bgUntAbusC)
+                .tmnYn(tmnYn)
+                .abusTc(abusTc)
+                .cncdRfrNo(cncdRfrNo)
+                .fcAmt(fcAmt)
+                .delYn("N")
+                .build();
+    }
 }

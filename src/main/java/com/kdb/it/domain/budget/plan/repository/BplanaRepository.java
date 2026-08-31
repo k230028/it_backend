@@ -22,17 +22,13 @@ public interface BplanaRepository extends JpaRepository<Bplana, BplanaId> {
             """
             SELECT a
               FROM Bplana a
-              JOIN Bplanm p ON p.reqDocNo = a.reqDocNo AND p.sno = a.sno
+              JOIN Bplanm p ON p.reqDocNo = a.reqDocNo
              WHERE a.reqDocNo = :reqDocNo
                AND a.delYn = :delYn
                AND p.delYn = :delYn
-               AND p.lstYn = 'Y'
             """)
     List<Bplana> findAllByReqDocNoAndDelYn(
             @Param("reqDocNo") String reqDocNo, @Param("delYn") String delYn);
-
-    /** 특정 계획 개정본의 연결 대상만 조회합니다. */
-    List<Bplana> findAllByReqDocNoAndSnoAndDelYn(String reqDocNo, Integer sno, String delYn);
 
     /**
      * 요청문서번호 목록과 삭제여부로 연결된 정보기술부문계획 관계 목록을 일괄 조회합니다.
@@ -45,11 +41,10 @@ public interface BplanaRepository extends JpaRepository<Bplana, BplanaId> {
             """
             SELECT a
               FROM Bplana a
-              JOIN Bplanm p ON p.reqDocNo = a.reqDocNo AND p.sno = a.sno
+              JOIN Bplanm p ON p.reqDocNo = a.reqDocNo
              WHERE a.reqDocNo IN :reqDocNos
                AND a.delYn = :delYn
                AND p.delYn = :delYn
-               AND p.lstYn = 'Y'
             """)
     List<Bplana> findAllByReqDocNoInAndDelYn(
             @Param("reqDocNos") Collection<String> reqDocNos, @Param("delYn") String delYn);
@@ -59,11 +54,10 @@ public interface BplanaRepository extends JpaRepository<Bplana, BplanaId> {
             """
             SELECT COUNT(a) > 0
               FROM Bplana a
-              JOIN Bplanm p ON p.reqDocNo = a.reqDocNo AND p.sno = a.sno
+              JOIN Bplanm p ON p.reqDocNo = a.reqDocNo
              WHERE a.prjMngNo = :prjMngNo
                AND a.delYn = :delYn
                AND p.delYn = :delYn
-               AND p.lstYn = 'Y'
             """)
     boolean existsByPrjMngNoAndDelYn(
             @Param("prjMngNo") String prjMngNo, @Param("delYn") String delYn);

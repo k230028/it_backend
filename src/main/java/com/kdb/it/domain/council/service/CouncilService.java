@@ -703,7 +703,7 @@ public class CouncilService {
         if ("02".equals(council.getItPtlAsctDbrTc())) {
             return bplanmRepository
                     .findByReqDocNoAndDelYn(council.getAbusMngNo(), "N")
-                    .map(plan -> "정보기술부문계획 " + ("조정".equals(plan.getItPtlPlnTpC()) ? "조정" : "수립"))
+                    .map(plan -> "정보기술부문계획 " + ("02".equals(plan.getItPtlPlnTpC()) ? "조정" : "수립"))
                     .orElse("정보기술부문계획");
         }
         return projectOverviewRepository

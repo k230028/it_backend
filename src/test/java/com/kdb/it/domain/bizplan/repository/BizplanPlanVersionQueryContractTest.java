@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** 사업계획 목록이 재신청 초안의 BPLANA 관계를 업무 대상으로 읽지 않는지 고정합니다. */
+/** 사업계획 목록이 단일 계획키로 BPLANA 관계를 조인하는지 고정합니다. */
 class BizplanPlanVersionQueryContractTest {
 
     private static final Path REPOSITORY_SOURCE =
@@ -26,16 +26,15 @@ class BizplanPlanVersionQueryContractTest {
                     "BizplanRepositoryImpl.java");
 
     @Test
-    @DisplayName("사업계획 목록은 BPLANA와 정확한 BPLANM 최종본 순번을 함께 조인한다")
-    void 사업계획목록은계획최종본관계만읽는다() throws IOException {
+    @DisplayName("사업계획 목록은 BPLANA와 BPLANM 요청문서번호를 함께 조인한다")
+    void 사업계획목록은단일계획관계만읽는다() throws IOException {
         String source = Files.readString(REPOSITORY_SOURCE, StandardCharsets.UTF_8);
 
         assertThat(source)
                 .contains("QBplanm plan = QBplanm.bplanm")
                 .contains(".join(plan)")
-                .contains("plan.reqDocNo.eq(pa.reqDocNo)")
-                .contains("plan.sno.eq(pa.sno)")
-                .contains("plan.lstYn.eq(\"Y\")")
+                .contains("plan.reqDocNo")
+                .contains(".eq(pa.reqDocNo)")
                 .contains("plan.delYn.eq(\"N\")");
     }
 }

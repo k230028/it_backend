@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RequestFormFileImporter {
 
     /** 이관 결재 받이의 제목 접두어. 정상 결재와 구분되도록 제목에 이관임을 남깁니다. */
-    private static final String APPROVAL_TITLE_PREFIX = "[편성요청서 반입]";
+    private static final String APPROVAL_TITLE_PREFIX = "[수기등록]";
 
     /** 결재 연결의 원천 일련번호. 반입은 사업·전산업무비마다 1번 행만 만듭니다. */
     private static final int SOURCE_SEQUENCE = 1;
@@ -101,6 +101,7 @@ public class RequestFormFileImporter {
                 project.setDfrAmt(amounts.dfrAmt());
             }
             String abusMngNo = projectService.createProject(project, true);
+            projectService.markRequestFormImportApproved(abusMngNo);
             projectService.assignImportedPersonNames(abusMngNo, tlrNm, usrNm);
             if (amounts.isPresent()) {
                 projectService.assignDeclaredAmounts(

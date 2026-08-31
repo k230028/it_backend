@@ -451,32 +451,42 @@ public class ApplicationService {
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
      */
     public List<ApplicationDto.Response> getApplications() {
-        // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회, findAll()과 동일하게 정렬 없음)
-        List<ApplicationRepository.ApplicationReadView> views =
-                applicationRepository.findTop500ByOrderByApfMngNoAsc();
-        List<String> apfMngNos = views.stream().map(value -> value.getApfMngNo()).toList();
+        // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회, 최신순 상한 500건)
+        return assembleList(applicationRepository.findTop500ByOrderByApfMngNoDesc());
+    }
 
-        // 결재선 배치 조회 (N+1 제거): 신청번호별 결재자 목록 Map 선구성.
-        // findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc가 DCR_SQN_SNO 오름차순으로 반환하므로
-        // groupingBy가 각 신청번호 그룹 내 결재자 순서를 보존한다.
-        java.util.Map<String, List<ApproverRepository.ApproverReadView>> approversByApf =
-                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
+    /**
+     * 특정 결재자의 결재 대기 신청서 목록을 DB에서 걸러 조회합니다(목록 상한에 밀려 누락되지 않고, 다른 사람의 결재 건도 실리지 않습니다).
+     *
+     * @param eno 결재자 사번 (인증 주체)
+     * @return 결재 대기 신청서 응답 DTO 목록 (최신순, 각각 결재자 목록 포함)
+     * @throws IllegalArgumentException 사번이 비어 있는 경우 (빈 결과와 구분한다)
+     */
+    public List<ApplicationDto.Response> getPendingApplications(String eno) {
+        if (eno == null || eno.isBlank()) {
+            throw new IllegalArgumentException("결재자 사번이 필요합니다.");
+        }
+        List<String> apfMngNos = applicationRepository.findPendingApfMngNosByEno(eno);
+        if (apfMngNos.isEmpty()) {
+            return List.of();
+        }
+        // findReadViewsByApfMngNoIn은 순서를 보장하지 않으므로 조회 순서(최신순)로 다시 정렬한다.
+        java.util.Map<String, ApplicationRepository.ApplicationReadView> viewsById =
+                applicationRepository.findReadViewsByApfMngNoIn(apfMngNos).stream()
                         .collect(
-                                java.util.stream.Collectors.groupingBy(
-                                        value -> value.getDcdMngNo()));
-        java.util.Map<String, String> requesterNamesByEno = resolveRequesterNames(views);
-        java.util.Map<String, String> requesterDeptNamesByBbrC = resolveRequesterDeptNames(views);
+                                java.util.stream.Collectors.toMap(
+                                        ApplicationRepository.ApplicationReadView::getApfMngNo,
+                                        value -> value,
+                                        (left, right) -> left));
+        return assembleList(
+                apfMngNos.stream().map(viewsById::get).filter(java.util.Objects::nonNull).toList());
+    }
 
-        return views.stream()
-                .map(
-                        view ->
-                                ApplicationDto.Response.fromReadViews(
-                                        view,
-                                        approversByApf.getOrDefault(view.getApfMngNo(), List.of()),
-                                        requesterName(requesterNamesByEno, view.getDcdReqUsid()),
-                                        requesterDeptName(
-                                                requesterDeptNamesByBbrC, view.getDcdReqBbrC())))
-                .toList();
+    /** 목록 조회의 응답 조립을 배치 읽기 지원 클래스에 위임합니다. */
+    private List<ApplicationDto.Response> assembleList(
+            List<ApplicationRepository.ApplicationReadView> views) {
+        return ApplicationBulkReadSupport.assembleList(
+                views, approverRepository, userRepository, organizationRepository);
     }
 
     /**

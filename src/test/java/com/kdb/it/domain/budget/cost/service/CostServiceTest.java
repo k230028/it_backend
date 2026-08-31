@@ -712,7 +712,11 @@ class CostServiceTest {
         given(cost.getCostBgNo()).willReturn(IT_MNGC_NO);
         given(cost.getBgSno()).willReturn(1);
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
-        given(costRepository.searchByCondition(condition)).willReturn(List.of(cost));
+        given(
+                        costRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.eq(condition),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of(cost));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(any(), any()))
                 .willReturn(List.of());
 
@@ -734,13 +738,18 @@ class CostServiceTest {
         condition.setMyDeptOnly(true);
         // 클라이언트가 다른 부서를 보내도 인증 정보의 부점코드로 덮어써야 한다
         condition.setCostSvnDpmC("999");
-        given(costRepository.searchByCondition(any())).willReturn(List.of());
+        given(
+                        costRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.any(),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
 
         costService.searchCostList(condition, user);
 
         ArgumentCaptor<CostDto.SearchCondition> captor =
                 ArgumentCaptor.forClass(CostDto.SearchCondition.class);
-        verify(costRepository).searchByCondition(captor.capture());
+        verify(costRepository)
+                .searchByCondition(captor.capture(), org.mockito.ArgumentMatchers.any());
         assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("101");
     }
 
@@ -751,13 +760,18 @@ class CostServiceTest {
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "101");
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
         condition.setMyDeptOnly(true);
-        given(costRepository.searchByCondition(any())).willReturn(List.of());
+        given(
+                        costRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.any(),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
 
         costService.searchCostList(condition, admin);
 
         ArgumentCaptor<CostDto.SearchCondition> captor =
                 ArgumentCaptor.forClass(CostDto.SearchCondition.class);
-        verify(costRepository).searchByCondition(captor.capture());
+        verify(costRepository)
+                .searchByCondition(captor.capture(), org.mockito.ArgumentMatchers.any());
         assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("101");
     }
 
@@ -772,7 +786,9 @@ class CostServiceTest {
         List<CostDto.Response> result = costService.searchCostList(condition, user);
 
         assertThat(result).isEmpty();
-        verify(costRepository, never()).searchByCondition(any());
+        verify(costRepository, never())
+                .searchByCondition(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -782,13 +798,18 @@ class CostServiceTest {
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
         condition.setCostSvnDpmC("999");
-        given(costRepository.searchByCondition(any())).willReturn(List.of());
+        given(
+                        costRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.any(),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
 
         costService.searchCostList(condition, user);
 
         ArgumentCaptor<CostDto.SearchCondition> captor =
                 ArgumentCaptor.forClass(CostDto.SearchCondition.class);
-        verify(costRepository).searchByCondition(captor.capture());
+        verify(costRepository)
+                .searchByCondition(captor.capture(), org.mockito.ArgumentMatchers.any());
         assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("101");
     }
 
@@ -800,13 +821,18 @@ class CostServiceTest {
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
         condition.setMyDeptOnly(false);
         condition.setCostSvnDpmC("999");
-        given(costRepository.searchByCondition(any())).willReturn(List.of());
+        given(
+                        costRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.any(),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
 
         costService.searchCostList(condition, admin);
 
         ArgumentCaptor<CostDto.SearchCondition> captor =
                 ArgumentCaptor.forClass(CostDto.SearchCondition.class);
-        verify(costRepository).searchByCondition(captor.capture());
+        verify(costRepository)
+                .searchByCondition(captor.capture(), org.mockito.ArgumentMatchers.any());
         assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("999");
     }
 
@@ -2148,6 +2174,73 @@ class CostServiceTest {
                                     .cncdRfrNo("COST-2025-1")
                                     .fcAmt(new BigDecimal("1000.000"))
                                     .build());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("updateCost: 재상신 순번을 지정하면 BCOSTM과 BTERMM의 수정 금액을 해당 초안에 저장한다")
+    void updateCost_재상신순번_Bcostm과Btermm_수정금액저장() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext context =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(context.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+
+        try {
+            Bcostm draft =
+                    Bcostm.builder()
+                            .costBgNo(IT_MNGC_NO)
+                            .bgSno(2)
+                            .lstYn("N")
+                            .costTotXpAmt(new BigDecimal("1000"))
+                            .curC("KRW")
+                            .costSvnDpmC("BBR001")
+                            .delYn("N")
+                            .build();
+            Btermm terminal =
+                    Btermm.builder()
+                            .tmnMngNo("TMN-2")
+                            .sno(2)
+                            .termBgNo(IT_MNGC_NO)
+                            .termBgSno(2)
+                            .termRqmBgAmt(new BigDecimal("1000"))
+                            .curC("KRW")
+                            .dfrCleC("0")
+                            .delYn("N")
+                            .build();
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+                    .willReturn(Optional.of(draft));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+                    .willReturn(List.of(terminal));
+            given(xcrLookupService.resolveXcr(eq("KRW"), any(LocalDate.class))).willReturn(null);
+
+            CostDto.TerminalDto terminalRequest =
+                    CostDto.TerminalDto.builder()
+                            .tmnMngNo("TMN-2")
+                            .sno(2)
+                            .termRqmBgAmt(new BigDecimal("2500"))
+                            .curC("KRW")
+                            .dfrCleC("0")
+                            .build();
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder()
+                            .costTotXpAmt(new BigDecimal("2500"))
+                            .curC("KRW")
+                            .costSvnDpmC("BBR001")
+                            .terminals(List.of(terminalRequest))
+                            .build();
+
+            costService.updateCost(IT_MNGC_NO, 2, request);
+
+            assertThat(draft.getCostTotXpAmt()).isEqualByComparingTo("2500");
+            assertThat(terminal.getTermRqmBgAmt()).isEqualByComparingTo("2500");
+            verify(costRepository, never()).findByCostBgNoAndDelYn(IT_MNGC_NO, "N");
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }

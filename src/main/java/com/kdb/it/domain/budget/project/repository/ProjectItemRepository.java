@@ -30,8 +30,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
                AND i.delYn = 'N'
                AND i.lstYn = 'Y'
             """)
-    int clearCurrentVersionItems(
-            @Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
+    int clearCurrentVersionItems(@Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
 
     /** 승인된 개정본에 속한 품목을 현재 품목으로 전환합니다. */
     @Modifying(flushAutomatically = true)
@@ -43,8 +42,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
                AND i.fntTbCrySno = :sno
                AND i.delYn = 'N'
             """)
-    int markVersionItemsCurrent(
-            @Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
+    int markVersionItemsCurrent(@Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
 
     /** 사업별 예산 합산에 필요한 품목 필드만 읽는 프로젝션입니다. */
     interface ProjectItemBudgetView {
@@ -74,6 +72,10 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      */
     List<Bitemm> findByAbusMngNoAndFntTbCrySno(String prjMngNo, Integer prjSno);
 
+    /** 부모 사업 순번에 속한 미삭제 품목을 품목 최종여부와 무관하게 조회합니다. */
+    List<Bitemm> findAllByAbusMngNoAndFntTbCrySnoAndDelYn(
+            String prjMngNo, Integer prjSno, String delYn);
+
     /**
      * 프로젝트 관리번호, 순번, 삭제여부로 품목 목록 조회
      *
@@ -86,7 +88,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      */
     default List<Bitemm> findByAbusMngNoAndFntTbCrySnoAndDelYn(
             String prjMngNo, Integer prjSno, String delYn) {
-        return findByAbusMngNoAndFntTbCrySnoAndDelYnAndLstYn(prjMngNo, prjSno, delYn, "Y");
+        return findAllByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, prjSno, delYn);
     }
 
     List<Bitemm> findByAbusMngNoAndFntTbCrySnoAndDelYnAndLstYn(
@@ -147,8 +149,12 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      */
     default List<Bitemm> findByAbusMngNoInAndDelYn(
             java.util.Collection<String> prjMngNos, String delYn) {
-        return findByAbusMngNoInAndDelYnAndLstYn(prjMngNos, delYn, "Y");
+        return findAllByAbusMngNoInAndDelYn(prjMngNos, delYn);
     }
+
+    /** 사업 개정 순번별 조립을 위해 관리번호 집합의 미삭제 품목을 최종여부와 무관하게 조회합니다. */
+    List<Bitemm> findAllByAbusMngNoInAndDelYn(
+            java.util.Collection<String> prjMngNos, String delYn);
 
     List<Bitemm> findByAbusMngNoInAndDelYnAndLstYn(
             java.util.Collection<String> prjMngNos, String delYn, String lstYn);

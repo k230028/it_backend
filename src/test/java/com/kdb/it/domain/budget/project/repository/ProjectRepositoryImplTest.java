@@ -58,6 +58,7 @@ class ProjectRepositoryImplTest {
         given(mockQuery.from(any(EntityPath.class))).willReturn(mockQuery);
         given(mockQuery.where(any(Predicate.class))).willReturn(mockQuery);
         given(mockQuery.orderBy(any(OrderSpecifier[].class))).willReturn(mockQuery);
+        given(mockQuery.offset(anyLong())).willReturn(mockQuery);
         given(mockQuery.limit(anyLong())).willReturn(mockQuery);
         given(mockQuery.fetch()).willReturn(List.of());
     }
@@ -174,6 +175,19 @@ class ProjectRepositoryImplTest {
         List<Bprojm> result = sut.searchByCondition(condition);
         // Assert
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("apfSts=none 결재 상신 대상 조회는 재신청 초안(LST_YN=N)을 제외하지 않는다")
+    void searchByCondition_apfStsNone_재신청초안포함() {
+        ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
+        condition.setApfSts("none");
+
+        sut.searchByCondition(condition);
+
+        ArgumentCaptor<Predicate> predicate = ArgumentCaptor.forClass(Predicate.class);
+        org.mockito.Mockito.verify(mockQuery).where(predicate.capture());
+        assertThat(predicate.getValue().toString()).doesNotContain("bprojm.lstYn = Y");
     }
 
     @Test

@@ -41,7 +41,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ProjectController.class)
-@Import({TestSecurityConfig.class, JacksonConfig.class, ProjectService.class, ProjectQueryService.class})
+@Import({
+    TestSecurityConfig.class,
+    JacksonConfig.class,
+    ProjectService.class,
+    ProjectQueryService.class
+})
 class ProjectDetailAccessControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -63,7 +68,13 @@ class ProjectDetailAccessControllerTest {
     @BeforeEach
     void setUp() {
         given(projectRepository.findByAbusMngNoAndDelYn("PRJ-1", "N"))
-                .willReturn(Optional.of(Bprojm.builder().abusMngNo("PRJ-1").sno(1).svnDpmC("D100").build()));
+                .willReturn(
+                        Optional.of(
+                                Bprojm.builder()
+                                        .abusMngNo("PRJ-1")
+                                        .sno(1)
+                                        .svnDpmC("D100")
+                                        .build()));
         given(projectQueryAssembler.assembleDetail(any(Bprojm.class)))
                 .willReturn(ProjectDto.Response.builder().abusMngNo("PRJ-1").build());
     }
@@ -86,7 +97,9 @@ class ProjectDetailAccessControllerTest {
     @ValueSource(strings = {"013", "180", "181", "182", "183", "185"})
     @DisplayName("GET /api/projects/{id}: IT 조직 사용자는 다른 부서 사업을 조회할 수 있다")
     void IT조직_사용자는_프로젝트상세를_조회할수있다(String itOrganizationCode) throws Exception {
-        mockMvc.perform(get("/api/projects/PRJ-1").with(authentication(actor(itOrganizationCode, false))))
+        mockMvc.perform(
+                        get("/api/projects/PRJ-1")
+                                .with(authentication(actor(itOrganizationCode, false))))
                 .andExpect(status().isOk());
     }
 
@@ -100,7 +113,9 @@ class ProjectDetailAccessControllerTest {
     private static UsernamePasswordAuthenticationToken actor(String bbrC, boolean admin) {
         CustomUserDetails user =
                 new CustomUserDetails(
-                        "USER", List.of(admin ? CustomUserDetails.ATH_ADMIN : CustomUserDetails.ATH_USER), bbrC);
+                        "USER",
+                        List.of(admin ? CustomUserDetails.ATH_ADMIN : CustomUserDetails.ATH_USER),
+                        bbrC);
         return new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
     }
 }

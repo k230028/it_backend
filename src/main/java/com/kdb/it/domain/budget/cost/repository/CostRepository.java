@@ -5,6 +5,8 @@ import com.kdb.it.domain.budget.cost.entity.BcostmId;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,6 +21,33 @@ import org.springframework.data.repository.query.Param;
  * <p>Soft Delete 패턴 적용: 조회 시 항상 {@code delYn='N'} 조건을 사용합니다.
  */
 public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRepositoryCustom {
+
+    /** 재상신 순번 채번 중 동일 예산의 현재 최종본을 잠급니다. */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+            "SELECT c FROM Bcostm c WHERE c.costBgNo = :costBgNo AND c.lstYn = 'Y' AND c.delYn = 'N'")
+    Optional<Bcostm> findCurrentVersionForUpdate(@Param("costBgNo") String costBgNo);
+
+    /** 최종본 전환 전에 승인 대상 개정본을 잠급니다. */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+            "SELECT c FROM Bcostm c WHERE c.costBgNo = :costBgNo AND c.bgSno = :bgSno AND c.delYn = 'N'")
+    Optional<Bcostm> findVersionForUpdate(
+            @Param("costBgNo") String costBgNo, @Param("bgSno") Integer bgSno);
+
+    /** 같은 예산번호의 이전 최종본을 해제합니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            "UPDATE Bcostm c SET c.lstYn = 'N' WHERE c.costBgNo = :costBgNo AND c.bgSno <> :bgSno AND c.delYn = 'N' AND c.lstYn = 'Y'")
+    int clearCurrentVersion(
+            @Param("costBgNo") String costBgNo, @Param("bgSno") Integer bgSno);
+
+    /** 승인된 정확한 개정본을 최종본으로 지정합니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            "UPDATE Bcostm c SET c.lstYn = 'Y' WHERE c.costBgNo = :costBgNo AND c.bgSno = :bgSno AND c.delYn = 'N'")
+    int markVersionCurrent(
+            @Param("costBgNo") String costBgNo, @Param("bgSno") Integer bgSno);
 
     /** 비용 대표행 선정과 계약명 표시에 필요한 필드만 읽는 프로젝션입니다. */
     interface CostRepresentativeView {
@@ -42,6 +71,9 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * @return 조건에 맞는 전산관리비 (없으면 {@link Optional#empty()})
      */
     Optional<Bcostm> findByCostBgNoAndBgSnoAndDelYn(String costBgNo, Integer bgSno, String delYn);
+
+    /** 상세 이력 다이얼로그에 사용할 미삭제 개정본 목록입니다. */
+    List<Bcostm> findByCostBgNoAndDelYnOrderByBgSnoAsc(String costBgNo, String delYn);
 
     /**
      * 전체 전산관리비 목록 조회 (삭제되지 않은 항목)

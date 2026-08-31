@@ -594,7 +594,11 @@ class ProjectServiceTest {
         ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
 
-        given(projectRepository.searchByCondition(condition)).willReturn(List.of(project));
+        given(
+                        projectRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.eq(condition),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of(project));
         given(capplaRepository.findByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(anyString(), anyList()))
                 .willReturn(List.of());
         given(corgnIRepository.findNameViewsByPrlmOgzCConeIn(anyList())).willReturn(List.of());
@@ -609,7 +613,10 @@ class ProjectServiceTest {
         List<ProjectDto.Response> result = projectService.searchProjectList(condition);
 
         // then: searchByCondition이 호출되었고 결과 1건 반환
-        verify(projectRepository).searchByCondition(condition);
+        verify(projectRepository)
+                .searchByCondition(
+                        org.mockito.ArgumentMatchers.eq(condition),
+                        org.mockito.ArgumentMatchers.any());
         assertThat(result).hasSize(1);
     }
 
@@ -648,6 +655,16 @@ class ProjectServiceTest {
 
         // then: 단계 key(CNCD_RFR_NO)=프로젝트관리번호 자신, 상태 '01'로 upsert
         verify(bprojaSyncService).upsert(result, result, "01");
+    }
+
+    @Test
+    @DisplayName("편성요청서 반입 프로젝트는 예산편성 요청 결재완료 이관 상태 10을 적재한다")
+    void markRequestFormImportApproved_BPROJA_결재완료이관10_적재() {
+        String projectNo = "PRJ-2026-0001";
+
+        projectService.markRequestFormImportApproved(projectNo);
+
+        verify(bprojaSyncService).upsert(projectNo, projectNo, "10");
     }
 
     // ───────────────────────────────────────────────────────
@@ -1711,6 +1728,51 @@ class ProjectServiceTest {
     }
 
     @Test
+    @DisplayName("deleteProject: 재신청 초안을 삭제해도 원본 사업과 품목은 보존한다")
+    void deleteProject_재신청초안삭제_원본사업과품목보존() {
+        String projectNo = "PRJ-2027-0600";
+        Bprojm original =
+                Bprojm.builder().abusMngNo(projectNo).sno(1).lstYn("Y").delYn("N").build();
+        Bprojm draft =
+                Bprojm.builder().abusMngNo(projectNo).sno(2).lstYn("N").delYn("N").build();
+        Bitemm originalItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-2026-0932")
+                        .sno(1)
+                        .abusMngNo(projectNo)
+                        .fntTbCrySno(1)
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        Bitemm draftItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-2026-0933")
+                        .sno(1)
+                        .abusMngNo(projectNo)
+                        .fntTbCrySno(2)
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        given(projectRepository.findByAbusMngNoAndSnoAndDelYn(projectNo, 2, "N"))
+                .willReturn(Optional.of(draft));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(projectNo), eq(2), anyList()))
+                .willReturn(false);
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(projectNo, 2))
+                .willReturn(List.of(draftItem));
+
+        projectService.deleteProject(projectNo, 2);
+
+        assertThat(draft.getDelYn()).isEqualTo("Y");
+        assertThat(draftItem.getDelYn()).isEqualTo("Y");
+        assertThat(original.getDelYn()).isEqualTo("N");
+        assertThat(originalItem.getDelYn()).isEqualTo("N");
+        verify(projectRepository, never()).findByAbusMngNoAndDelYn(projectNo, "N");
+        verify(bitemmRepository, never()).findByAbusMngNoAndFntTbCrySno(projectNo, 1);
+    }
+
+    @Test
     @DisplayName("getProjectList: 배치 보강으로 신청서, 부서명, 담당자명을 설정한다")
     void getProjectList_배치보강정보설정() {
         Bprojm project =
@@ -2496,6 +2558,59 @@ class ProjectServiceTest {
         assertThat(result).isEqualTo(prjMngNo);
         verify(bitemmRepository, times(1)).findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N");
         verify(bitemmRepository, never()).save(any(Bitemm.class));
+    }
+
+    @Test
+    @DisplayName("updateProject: 재신청 초안 순번을 지정하면 최종본이 아닌 해당 초안의 품목만 동기화한다")
+    void updateProject_재신청초안순번_초안품목만동기화() {
+        // given
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm draft = Bprojm.builder().abusMngNo(prjMngNo).sno(2).delYn("N").lstYn("N").build();
+        given(projectRepository.findByAbusMngNoAndSnoAndDelYn(prjMngNo, 2, "N"))
+                .willReturn(Optional.of(draft));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(2), anyList()))
+                .willReturn(false);
+        Bitemm draftItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-2026-0002")
+                        .sno(1)
+                        .abusMngNo(prjMngNo)
+                        .fntTbCrySno(2)
+                        .curC("KRW")
+                        .amt(new BigDecimal("100"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        given(bitemmRepository.findAllByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 2, "N"))
+                .willReturn(List.of(draftItem));
+
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("재신청 수정")
+                        .items(
+                                List.of(
+                                        ProjectDto.BitemmDto.builder()
+                                                .gclMngNo("GCL-2026-0002")
+                                                .curC("KRW")
+                                                .amt(new BigDecimal("250"))
+                                                .mplAmt(BigDecimal.ZERO)
+                                                .build()))
+                        .build();
+
+        // when
+        projectService.updateProject(prjMngNo, 2, request);
+
+        // then
+        verify(projectRepository).findByAbusMngNoAndSnoAndDelYn(prjMngNo, 2, "N");
+        verify(projectRepository, never()).findByAbusMngNoAndDelYn(prjMngNo, "N");
+        verify(bitemmRepository, times(2))
+                .findAllByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 2, "N");
+        verify(bitemmRepository, never()).findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N");
+        assertThat(draftItem.getAmt()).isEqualByComparingTo("250");
+        assertThat(draft.getTotRqmAmt()).isEqualByComparingTo("250");
     }
 
     // ───────────────────────────────────────────────────────

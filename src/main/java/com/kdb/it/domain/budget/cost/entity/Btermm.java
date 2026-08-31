@@ -287,4 +287,33 @@ public class Btermm extends BaseEntity {
         this.termBgNo = termBgNo;
         this.termBgSno = termBgSno;
     }
+
+    /** 원본 단말기의 업무 값을 새 전산업무비 순번에 그대로 복제합니다. */
+    public Btermm createReapplicationDraft(Integer newSno, Integer newCostBgSno) {
+        return Btermm.builder()
+                .tmnMngNo(tmnMngNo)
+                .sno(newSno)
+                .termBgNo(termBgNo)
+                .termBgSno(newCostBgSno)
+                .spfTmnNm(spfTmnNm)
+                .tmnKdTc(tmnKdTc)
+                .nsfUsgCone(nsfUsgCone)
+                .tmnClsfC(tmnClsfC)
+                .termRqmBgAmt(termRqmBgAmt)
+                .curC(curC)
+                .xcr(xcr)
+                .xcrBseDt(xcrBseDt)
+                .dfrCleC(dfrCleC)
+                .indRsn(indRsn)
+                .cgprId(cgprId)
+                .cgprNm(cgprNm)
+                .termSvnTemC(termSvnTemC)
+                .svnTemNm(svnTemNm)
+                .termSvnDpmC(termSvnDpmC)
+                .svnDpmNm(svnDpmNm)
+                .rmk(rmk)
+                .fcAmt(fcAmt)
+                .delYn("N")
+                .build();
+    }
 }

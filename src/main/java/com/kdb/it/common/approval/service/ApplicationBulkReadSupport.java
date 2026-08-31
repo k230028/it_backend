@@ -70,6 +70,45 @@ final class ApplicationBulkReadSupport {
         return new ApplicationDto.BulkResponse(items, failedIds);
     }
 
+    /**
+     * 신청서 read view 목록에 결재선·신청자·부서 정보를 배치로 붙여 응답 DTO로 조립합니다.
+     *
+     * <p>목록 조회(전체·본인 결재 대기)가 공유하는 조립 경로입니다. 결재선은 IN 배치 1회로 읽어 N+1을 만들지 않으며, {@code
+     * findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc}가 순번 오름차순으로 반환하므로 그룹 안의 결재자 순서가 보존됩니다.
+     *
+     * @param views 신청서 마스터 read view 목록 (입력 순서가 응답 순서가 된다)
+     * @param approverRepository 결재선 리포지토리
+     * @param userRepository 사용자 리포지토리 (신청자명)
+     * @param organizationRepository 조직 리포지토리 (신청부서명)
+     * @return 신청서 응답 DTO 목록
+     */
+    static List<ApplicationDto.Response> assembleList(
+            List<ApplicationRepository.ApplicationReadView> views,
+            ApproverRepository approverRepository,
+            UserRepository userRepository,
+            OrganizationRepository organizationRepository) {
+        List<String> apfMngNos =
+                views.stream().map(ApplicationRepository.ApplicationReadView::getApfMngNo).toList();
+        Map<String, List<ApproverRepository.ApproverReadView>> approversByApf =
+                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        ApproverRepository.ApproverReadView::getDcdMngNo));
+        Map<String, String> requesterNamesByEno = resolveRequesterNames(views, userRepository);
+        Map<String, String> requesterDeptNamesByBbrC =
+                resolveRequesterDeptNames(views, organizationRepository);
+        return views.stream()
+                .map(
+                        view ->
+                                ApplicationDto.Response.fromReadViews(
+                                        view,
+                                        approversByApf.getOrDefault(view.getApfMngNo(), List.of()),
+                                        requesterName(requesterNamesByEno, view.getDcdReqUsid()),
+                                        requesterDeptName(
+                                                requesterDeptNamesByBbrC, view.getDcdReqBbrC())))
+                .toList();
+    }
+
     private static Map<String, String> resolveRequesterNames(
             List<ApplicationRepository.ApplicationReadView> views, UserRepository userRepository) {
         Set<String> requesterEnos =

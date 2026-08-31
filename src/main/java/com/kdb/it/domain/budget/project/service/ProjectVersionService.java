@@ -99,7 +99,8 @@ public class ProjectVersionService {
      */
     public List<Bprojm> findHistory(String abusMngNo, CustomUserDetails actor) {
         List<Bprojm> history = findHistory(abusMngNo);
-        history.forEach(project -> BudgetDetailAccessVerifier.verifyReadable(project.getSvnDpmC(), actor));
+        history.forEach(
+                project -> BudgetDetailAccessVerifier.verifyReadable(project.getSvnDpmC(), actor));
         return history;
     }
 

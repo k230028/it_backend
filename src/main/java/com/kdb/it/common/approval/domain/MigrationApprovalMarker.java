@@ -13,7 +13,7 @@ package com.kdb.it.common.approval.domain;
 public final class MigrationApprovalMarker {
 
     /** 이관으로 생성된 신청서 기록임을 등록자결재요청내용에 남기는 고정 문구입니다. */
-    public static final String NOTE = "수기 엑셀 이관으로 생성된 결재완료 기록입니다. 실제 결재선을 거치지 않았습니다.";
+    public static final String NOTE = "수기등록";
 
     private MigrationApprovalMarker() {
         throw new UnsupportedOperationException("상수 컨테이너 — 인스턴스화 금지");

@@ -48,6 +48,7 @@ class CostRepositoryImplTest {
         given(mockQuery.from(any(EntityPath.class))).willReturn(mockQuery);
         given(mockQuery.where(any(Predicate.class))).willReturn(mockQuery);
         given(mockQuery.orderBy(any(OrderSpecifier[].class))).willReturn(mockQuery);
+        given(mockQuery.offset(anyLong())).willReturn(mockQuery);
         given(mockQuery.limit(anyLong())).willReturn(mockQuery);
         given(mockQuery.fetch()).willReturn(List.of());
     }

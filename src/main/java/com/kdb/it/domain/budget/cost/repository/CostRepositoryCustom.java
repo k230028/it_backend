@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.repository;
 
+import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import java.math.BigDecimal;
@@ -36,6 +37,19 @@ public interface CostRepositoryCustom {
      * @return 조건에 맞는 전산관리비 목록 (DEL_YN='N' 필터 항상 적용)
      */
     List<Bcostm> searchByCondition(CostDto.SearchCondition condition);
+
+    /**
+     * 검색 조건에 해당하는 전산관리비를 지정한 페이지 구간만 조회합니다.
+     *
+     * <p>페이지를 지정하지 않은 {@link #searchByCondition(CostDto.SearchCondition)}은 목록 상한까지 조회하는 이 메서드의 특수한
+     * 경우입니다.
+     *
+     * @param condition 검색 조건 DTO
+     * @param paging 페이지 파라미터 (미지정이면 상한까지)
+     * @return 해당 구간의 전산관리비 목록 (DEL_YN='N' 필터 항상 적용)
+     * @throws IllegalArgumentException 페이지 파라미터가 유효 범위를 벗어난 경우
+     */
+    List<Bcostm> searchByCondition(CostDto.SearchCondition condition, ListPageParams paging);
 
     /**
      * 검색 조건에 해당하는 전산관리비 건수 (COUNT 쿼리, 전체 적재 회피)

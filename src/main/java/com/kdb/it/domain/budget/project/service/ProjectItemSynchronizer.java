@@ -84,8 +84,11 @@ final class ProjectItemSynchronizer {
 
         // 1. 기존 품목 조회 (DEL_YN='N')
         List<Bitemm> existingItems =
-                itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                        project.getAbusMngNo(), project.getSno(), "N");
+                "N".equals(project.getLstYn())
+                        ? itemRepository.findAllByAbusMngNoAndFntTbCrySnoAndDelYn(
+                                project.getAbusMngNo(), project.getSno(), "N")
+                        : itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                                project.getAbusMngNo(), project.getSno(), "N");
 
         // 처리된 품목 관리번호 추적 (삭제 대상 식별용)
         Set<String> processedGclMngNos = new HashSet<>();
@@ -237,7 +240,7 @@ final class ProjectItemSynchronizer {
                 .dfrCleC(CodeDefaults.orNotApplicable(itemDto.getDfrCleC())) // 지급주기
                 .sectSysUtzYn(itemDto.getSectSysUtzYn()) // 정보보호여부(미기재는 null 유지)
                 .itrInfrYn(itemDto.getItrInfrYn()) // 통합인프라여부(미기재는 null 유지)
-                .lstYn("Y") // 최종여부
+                .lstYn(project.getLstYn()) // 부모 사업과 같은 개정 상태 유지
                 .amt(amounts.amt()) // 당해 요청금액(원화, 서버 재계산)
                 .fcAmt(amounts.fcAmt()) // 당해 외화 원금(외화 행에서만 유효)
                 .mplAmt(amounts.mplAmt()) // 내년 이후 요청금액(당해 금액과 독립)

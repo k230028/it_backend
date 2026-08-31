@@ -85,11 +85,6 @@ final class ProjectBatchAssembler {
         }
         List<String> projectIds = projects.stream().map(Bprojm::getAbusMngNo).toList();
         BatchData data = loadBatchData(projects, responses, false);
-        Map<String, List<ProjectItemRepository.ProjectItemBudgetView>> budgetViews =
-                itemRepository.findBudgetViewsByAbusMngNoInAndDelYn(projectIds, "N").stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        ProjectItemRepository.ProjectItemBudgetView::getAbusMngNo));
         Map<String, String[]> scheduleByProject = new HashMap<>();
         for (Object[] row : projectRepository.findBizplanScheduleRange(projectIds)) {
             String id = toNativeString(row[0]);
@@ -117,8 +112,6 @@ final class ProjectBatchAssembler {
                 response.setItems(itemDtos);
             }
             budgetSummaryService.applyBudgetSummary(response, items);
-            budgetSummaryService.applyBudgetSummaryViews(
-                    response, budgetViews.getOrDefault(project.getAbusMngNo(), List.of()));
             budgetSummaryService.applyStoredAmountSnapshot(
                     response, project.getTotRqmAmt(), project.getMplAmt(), project.getDfrAmt());
         }

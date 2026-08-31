@@ -18,8 +18,7 @@ class CostActiveQueryContractTest {
     void 일반비용단건조회는_최종본저장소메서드로위임한다() {
         CostRepository repository = mock(CostRepository.class, Answers.CALLS_REAL_METHODS);
         List<Bcostm> finalCosts = List.of(Bcostm.builder().costBgNo("COST-1").bgSno(2).build());
-        given(repository.findByCostBgNoAndDelYnAndLstYn("COST-1", "N", "Y"))
-                .willReturn(finalCosts);
+        given(repository.findByCostBgNoAndDelYnAndLstYn("COST-1", "N", "Y")).willReturn(finalCosts);
 
         List<Bcostm> result = repository.findByCostBgNoAndDelYn("COST-1", "N");
 

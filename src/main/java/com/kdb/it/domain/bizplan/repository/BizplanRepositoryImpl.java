@@ -64,8 +64,6 @@ public class BizplanRepositoryImpl implements BizplanRepositoryCustom {
                 .on(
                         plan.reqDocNo
                                 .eq(pa.reqDocNo)
-                                .and(plan.sno.eq(pa.sno))
-                                .and(plan.lstYn.eq("Y"))
                                 .and(plan.delYn.eq("N")))
                 .join(p)
                 .on(p.abusMngNo.eq(pa.prjMngNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))

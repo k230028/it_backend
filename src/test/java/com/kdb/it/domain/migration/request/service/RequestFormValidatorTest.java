@@ -297,6 +297,25 @@ class RequestFormValidatorTest {
     }
 
     @Test
+    @DisplayName("사업명은 같아도 총소요금액이 다르면 별도 사업으로 반입한다")
+    void keepsSameNamedProjectsWhenDeclaredAmountsDiffer() {
+        when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
+                .thenReturn(List.of(Bprojm.builder().abusNm("비설치형 보안 S/W 도입").totRqmAmt(new BigDecimal("100000000")).build()));
+        ProjectDto.CreateRequest imported = project("비설치형 보안 S/W 도입");
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(imported),
+                        List.of(),
+                        List.of(),
+                        null,
+                        List.of(new com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts(new BigDecimal("132000000"), BigDecimal.ZERO, BigDecimal.ZERO)));
+
+        FormAdapterOutput filtered = validator().withoutDuplicateProjects(output, "2026");
+
+        assertThat(filtered.projects()).containsExactly(imported);
+    }
+
+    @Test
     @DisplayName("품목의 비목코드와 금액도 함께 본다")
     void validatesItems() {
         ProjectDto.CreateRequest withBadItem = project("사업");

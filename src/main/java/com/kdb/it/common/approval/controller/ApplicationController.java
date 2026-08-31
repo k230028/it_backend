@@ -68,6 +68,24 @@ public class ApplicationController {
     }
 
     /**
+     * 본인 결재 대기 신청서 목록 조회
+     *
+     * <p>결재중인 신청서 중 인증 주체가 아직 처리하지 않은 결재선을 가진 건만 반환합니다. 대상 판정은 사이드바 배지(결재 대기 건수)와 같은 조건이므로 배지 건수와
+     * 목록 건수가 일치합니다.
+     *
+     * <p>대상 사번은 요청 파라미터가 아니라 인증 주체에서 얻습니다. 다른 사람의 결재함을 조회할 수 없습니다.
+     *
+     * @param auth 인증 정보 (결재자 사번)
+     * @return HTTP 200 + 결재 대기 신청서 목록 (최신순)
+     */
+    @GetMapping("/pending")
+    @Operation(summary = "본인 결재 대기 신청서 조회", description = "결재중이면서 본인 결재선이 미처리인 신청서만 최신순으로 조회합니다.")
+    public ResponseEntity<java.util.List<ApplicationDto.Response>> getPendingApplications(
+            Authentication auth) {
+        return ResponseEntity.ok(applicationService.getPendingApplications(auth.getName()));
+    }
+
+    /**
      * 미상신(결재 신청 이력 없음) 건수 조회
      *
      * <p>정보화사업(BPROJM)과 전산업무비(BCOSTM) 중 결재 신청이 없는 건수를 각각 집계하여 반환합니다. 사이드바의 [결재 상신] 메뉴 배지 등 건수 정보만

@@ -163,18 +163,6 @@ public class PlanDto {
         @Schema(description = "계획관리번호")
         private String reqDocNo;
 
-        /** 부모 계획의 현재 최종 개정 순번 */
-        @Schema(description = "계획 개정 순번")
-        private Integer sno;
-
-        /** 최종본 여부 */
-        @Schema(description = "최종본 여부")
-        private String lstYn;
-
-        /** 주관부서 코드 */
-        @Schema(description = "주관부서 코드")
-        private String svnDpmC;
-
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분")
         private String itPtlPlnTpC;
@@ -228,9 +216,6 @@ public class PlanDto {
         public static ListResponse fromEntity(Bplanm plan) {
             return ListResponse.builder()
                     .reqDocNo(plan.getReqDocNo())
-                    .sno(plan.getSno())
-                    .lstYn(plan.getLstYn())
-                    .svnDpmC(plan.getSvnDpmC())
                     .itPtlPlnTpC(plan.getItPtlPlnTpC())
                     .bseYy(plan.getBseYy())
                     .aduTotAmt(plan.getAduTotAmt())
@@ -253,9 +238,6 @@ public class PlanDto {
         public static ListResponse fromView(BplanmRepository.PlanListView plan) {
             return ListResponse.builder()
                     .reqDocNo(plan.getReqDocNo())
-                    .sno(plan.getSno())
-                    .lstYn(plan.getLstYn())
-                    .svnDpmC(plan.getSvnDpmC())
                     .itPtlPlnTpC(plan.getItPtlPlnTpC())
                     .bseYy(plan.getBseYy())
                     .aduTotAmt(plan.getAduTotAmt())
@@ -286,18 +268,6 @@ public class PlanDto {
         /** 계획관리번호 (PK) */
         @Schema(description = "계획관리번호")
         private String reqDocNo;
-
-        /** 부모 계획번호 안의 개정 순번 */
-        @Schema(description = "계획 개정 순번")
-        private Integer sno;
-
-        /** 현재 후속 업무에 사용하는 최종본 여부 */
-        @Schema(description = "최종본 여부")
-        private String lstYn;
-
-        /** 계획 작성부서 코드 */
-        @Schema(description = "주관부서 코드")
-        private String svnDpmC;
 
         /** 계획구분 (신규, 조정) */
         @Schema(description = "계획구분")
@@ -370,9 +340,6 @@ public class PlanDto {
         public static DetailResponse fromEntity(Bplanm plan, List<String> prjMngNos) {
             return DetailResponse.builder()
                     .reqDocNo(plan.getReqDocNo())
-                    .sno(plan.getSno())
-                    .lstYn(plan.getLstYn())
-                    .svnDpmC(plan.getSvnDpmC())
                     .itPtlPlnTpC(plan.getItPtlPlnTpC())
                     .bseYy(plan.getBseYy())
                     .aduTotAmt(plan.getAduTotAmt())
@@ -387,56 +354,6 @@ public class PlanDto {
                     .prjMngNos(prjMngNos)
                     .fstEnrDtm(plan.getFstEnrDtm())
                     .fstEnrUsid(plan.getFstEnrUsid())
-                    .build();
-        }
-    }
-
-    /** 계획 이력 다이얼로그와 재신청 생성 결과에 사용하는 개정본 요약입니다. */
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    @Schema(name = "PlanVersionResponse")
-    public static class VersionResponse {
-
-        /** 부모 계획관리번호 */
-        @Schema(description = "부모 계획관리번호")
-        private String reqDocNo;
-
-        /** 개정 순번 */
-        @Schema(description = "개정 순번")
-        private Integer sno;
-
-        /** 최종본 여부 */
-        @Schema(description = "최종본 여부")
-        private String lstYn;
-
-        /** 주관부서 코드 */
-        @Schema(description = "주관부서 코드")
-        private String svnDpmC;
-
-        /** 연결된 최신 전자결재 상태 코드 */
-        @Schema(description = "최신 전자결재 상태 코드", nullable = true)
-        private String approvalStatus;
-
-        /** 최초 등록 시각 */
-        @Schema(description = "최초 등록 시각")
-        private LocalDateTime fstEnrDtm;
-
-        /** 마지막 변경 시각 */
-        @Schema(description = "마지막 변경 시각")
-        private LocalDateTime lstChgDtm;
-
-        /** 엔티티와 최신 결재 상태로 이력 응답을 구성합니다. */
-        public static VersionResponse fromEntity(Bplanm plan, String approvalStatus) {
-            return VersionResponse.builder()
-                    .reqDocNo(plan.getReqDocNo())
-                    .sno(plan.getSno())
-                    .lstYn(plan.getLstYn())
-                    .svnDpmC(plan.getSvnDpmC())
-                    .approvalStatus(approvalStatus)
-                    .fstEnrDtm(plan.getFstEnrDtm())
-                    .lstChgDtm(plan.getLstChgDtm())
                     .build();
         }
     }

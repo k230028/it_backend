@@ -1,6 +1,10 @@
 HELP.md
 .gradle
 build/
+# 에이전트별 격리 Gradle 실행에서 생성되는 임시 빌드 산출물
+/build-codex-*/
+/.codex-*.init.gradle
+/plan-version-*.log
 .worktrees/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/

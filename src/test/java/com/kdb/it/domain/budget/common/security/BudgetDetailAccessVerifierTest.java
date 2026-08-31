@@ -17,7 +17,8 @@ class BudgetDetailAccessVerifierTest {
     @DisplayName("IT 조직 사용자는 다른 부서 예산 상세를 조회할 수 있다")
     void IT조직_사용자는_다른부서_예산상세를_조회할수있다(String itOrganizationCode) {
         CustomUserDetails actor =
-                new CustomUserDetails("IT-USER", List.of(CustomUserDetails.ATH_USER), itOrganizationCode);
+                new CustomUserDetails(
+                        "IT-USER", List.of(CustomUserDetails.ATH_USER), itOrganizationCode);
 
         assertThatCode(() -> BudgetDetailAccessVerifier.verifyReadable("D100", actor))
                 .doesNotThrowAnyException();

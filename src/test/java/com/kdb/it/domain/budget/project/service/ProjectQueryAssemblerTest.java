@@ -505,6 +505,64 @@ class ProjectQueryAssemblerTest {
     }
 
     @Test
+    @DisplayName("목록 조립: 품목 금액은 사업번호의 다른 개정본과 합산하지 않는다")
+    void assembleList_품목금액_다른개정본제외() {
+        String projectNo = "PRJ-2027-0600";
+        Bprojm original =
+                Bprojm.builder()
+                        .abusMngNo(projectNo)
+                        .sno(1)
+                        .lstYn("Y")
+                        .totRqmAmt(new BigDecimal("100000000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .dfrAmt(BigDecimal.ZERO)
+                        .delYn("N")
+                        .build();
+        Bitemm originalItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-2026-0932")
+                        .abusMngNo(projectNo)
+                        .fntTbCrySno(1)
+                        .ioeC("101")
+                        .amt(new BigDecimal("100000000"))
+                        .mplAmt(BigDecimal.ZERO)
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        given(itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(projectNo, 1, "N"))
+                .willReturn(List.of(originalItem));
+        given(itemRepository.findBudgetViewsByAbusMngNoInAndDelYn(List.of(projectNo), "N"))
+                .willReturn(
+                        List.of(
+                                new ItemBudgetView(
+                                        "GCL-2026-0932",
+                                        projectNo,
+                                        "101",
+                                        new BigDecimal("100000000"),
+                                        BigDecimal.ZERO,
+                                        "KRW",
+                                        null),
+                                new ItemBudgetView(
+                                        "GCL-2026-0934",
+                                        projectNo,
+                                        "101",
+                                        new BigDecimal("200000000"),
+                                        BigDecimal.ZERO,
+                                        "KRW",
+                                        null)));
+        given(projectRepository.findBizplanScheduleRange(List.of(projectNo))).willReturn(List.of());
+        stubIoeCode();
+
+        ProjectDto.Response result = assembler.assembleList(List.of(original)).getFirst();
+
+        assertThat(result.getItems())
+                .extracting(ProjectDto.BitemmDto::getAmt)
+                .containsExactly(new BigDecimal("100000000"));
+        assertThat(result.getAssetBg()).isEqualByComparingTo("100000000");
+        assertThat(result.getPrjBgAmt()).isEqualByComparingTo("100000000");
+    }
+
+    @Test
     @DisplayName("상세 조립: 품목 비목 코드가 전부 비어 있으면 코드명 조회 없이 품목을 반환한다")
     void assembleDetail_품목비목코드전부빈값_코드명조회생략() {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-NOIOE-001").sno(1).delYn("N").build();

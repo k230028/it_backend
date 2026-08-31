@@ -106,14 +106,14 @@ public class RequestFormValidator {
      */
     @Transactional(readOnly = true)
     public FormAdapterOutput withoutDuplicateProjects(FormAdapterOutput output, String bseYy) {
-        Set<String> existing = existingProjectNames(bseYy);
-        Set<String> withinBatch = new HashSet<>();
+        Set<ProjectImportKey> existing = existingProjectKeys(bseYy);
+        Set<ProjectImportKey> withinBatch = new HashSet<>();
         List<ProjectDto.CreateRequest> projects = new ArrayList<>();
         List<ProjectAmounts> amounts = new ArrayList<>();
         for (int index = 0; index < output.projects().size(); index++) {
             ProjectDto.CreateRequest project = output.projects().get(index);
-            String key = normalizeProjectName(project.getAbusNm());
-            if (!key.isEmpty() && (existing.contains(key) || !withinBatch.add(key))) continue;
+            ProjectImportKey key = projectKey(project, output.projectAmounts().get(index));
+            if (!key.name().isEmpty() && (existing.contains(key) || !withinBatch.add(key))) continue;
             projects.add(project);
             amounts.add(output.projectAmounts().get(index));
         }
@@ -123,6 +123,30 @@ public class RequestFormValidator {
                 output.diagnostics(),
                 output.suggestedGeneralExpenseUnit(),
                 List.copyOf(amounts));
+    }
+
+    /** 반입 중복 판정은 사업명과 총소요금액을 함께 씁니다. 금액이 다르면 같은 이름도 별도 사업입니다. */
+    private record ProjectImportKey(String name, BigDecimal totalAmount) {}
+
+    private Set<ProjectImportKey> existingProjectKeys(String bseYy) {
+        Set<ProjectImportKey> existing = new HashSet<>();
+        for (Bprojm project : projectRepository.findByBseYyAndLstYnAndDelYn(bseYy, "Y", "N")) {
+            existing.add(
+                    new ProjectImportKey(
+                            normalizeProjectName(project.getAbusNm()),
+                            normalizedAmount(project.getTotRqmAmt())));
+        }
+        return existing;
+    }
+
+    private static ProjectImportKey projectKey(
+            ProjectDto.CreateRequest project, ProjectAmounts amounts) {
+        BigDecimal totalAmount = normalizedAmount(amounts.totRqmAmt());
+        return new ProjectImportKey(normalizeProjectName(project.getAbusNm()), totalAmount);
+    }
+
+    private static BigDecimal normalizedAmount(BigDecimal amount) {
+        return amount == null ? null : amount.stripTrailingZeros();
     }
 
     /** 필드 id와 대상 이름(사업명·품목명·계약명)의 조합입니다. */

@@ -304,8 +304,11 @@ public class SecurityConfig {
                 List.of("Content-Type", "Authorization", "X-Requested-With"));
         // 쿠키, Authorization 헤더 등 자격증명 포함 허용
         configuration.setAllowCredentials(true);
-        // 브라우저가 읽을 수 있도록 노출할 응답 헤더 (201 Created 시 신규 리소스 경로 추출용)
-        configuration.setExposedHeaders(List.of("Location"));
+        // 브라우저가 읽을 수 있도록 노출할 응답 헤더
+        // - Location: 201 Created 시 신규 리소스 경로 추출용
+        // - X-Total-Count: 페이지 조회(page·size) 응답의 전체 건수. 노출하지 않으면 다른 출처의 스크립트가 읽지 못한다.
+        configuration.setExposedHeaders(
+                List.of("Location", com.kdb.it.common.util.ListPageParams.TOTAL_COUNT_HEADER));
 
         // SSO 콜백 전용 CORS 설정.
         // /sso/** 는 SPA의 XHR 대상이 아니라 ESSO(외부 인증서버)가 브라우저를 통해 교차 출처로

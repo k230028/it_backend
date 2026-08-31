@@ -17,6 +17,7 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostQueryService;
+import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import java.util.List;
@@ -45,13 +46,15 @@ class CostDetailAccessControllerTest {
     @MockitoBean private CodeService codeService;
     @MockitoBean private XcrLookupService xcrLookupService;
     @MockitoBean private CostQueryService costQueryService;
+    @MockitoBean private CostVersionService costVersionService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     @BeforeEach
     void setUp() {
         given(costQueryService.getCost("COST-1"))
-                .willReturn(CostDto.Response.builder().costBgNo("COST-1").costSvnDpmC("D100").build());
+                .willReturn(
+                        CostDto.Response.builder().costBgNo("COST-1").costSvnDpmC("D100").build());
     }
 
     @Test
@@ -72,7 +75,9 @@ class CostDetailAccessControllerTest {
     @ValueSource(strings = {"013", "180", "181", "182", "183", "185"})
     @DisplayName("GET /api/cost/{id}: IT 조직 사용자는 다른 부서 비용을 조회할 수 있다")
     void IT조직_사용자는_비용상세를_조회할수있다(String itOrganizationCode) throws Exception {
-        mockMvc.perform(get("/api/cost/COST-1").with(authentication(actor(itOrganizationCode, false))))
+        mockMvc.perform(
+                        get("/api/cost/COST-1")
+                                .with(authentication(actor(itOrganizationCode, false))))
                 .andExpect(status().isOk());
     }
 
@@ -86,7 +91,9 @@ class CostDetailAccessControllerTest {
     private static UsernamePasswordAuthenticationToken actor(String bbrC, boolean admin) {
         CustomUserDetails user =
                 new CustomUserDetails(
-                        "USER", List.of(admin ? CustomUserDetails.ATH_ADMIN : CustomUserDetails.ATH_USER), bbrC);
+                        "USER",
+                        List.of(admin ? CustomUserDetails.ATH_ADMIN : CustomUserDetails.ATH_USER),
+                        bbrC);
         return new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
     }
 }

@@ -583,7 +583,7 @@ class ApplicationServiceTest {
         ApplicationReadView v2 =
                 new ApplicationReadView(
                         "APF_202600000002", null, null, null, null, null, null, null);
-        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(v1, v2));
+        given(applicationRepository.findTop500ByOrderByApfMngNoDesc()).willReturn(List.of(v1, v2));
         // 결재자 목록은 In-쿼리 1회 배치 조회 (빈 목록 반환)
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
@@ -600,7 +600,7 @@ class ApplicationServiceTest {
                 new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
         ApplicationReadView a2 =
                 new ApplicationReadView("APF-2", null, null, null, null, null, null, null);
-        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(a1, a2));
+        given(applicationRepository.findTop500ByOrderByApfMngNoDesc()).willReturn(List.of(a1, a2));
         // APF-1 결재선 2건(순서 유지 검증), APF-2 결재선 없음
         ApproverReadView d1 = new ApproverReadView("APF-1", 1, "E001", "1", null, null, "N");
         ApproverReadView d2 =
@@ -635,7 +635,7 @@ class ApplicationServiceTest {
                         null);
         ApproverReadView legacyPending =
                 new ApproverReadView(APF_MNG_NO, 1, "E10001", "0", null, null, "Y");
-        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(view));
+        given(applicationRepository.findTop500ByOrderByApfMngNoDesc()).willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(legacyPending));
 
@@ -649,11 +649,57 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 신청서가 없으면 빈 목록을 반환한다")
     void getApplications_신청서없음_빈목록반환() {
-        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of());
+        given(applicationRepository.findTop500ByOrderByApfMngNoDesc()).willReturn(List.of());
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 
         assertThat(result).isEmpty();
+    }
+
+    // ───────────────────────────────────────────────────────
+    // getPendingApplications — 본인 결재 대기 목록 조회
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getPendingApplications: 결재 대기 신청서를 조회 순서(최신순) 그대로 반환한다")
+    void getPendingApplications_최신순반환() {
+        ApplicationReadView older =
+                new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
+        ApplicationReadView newer =
+                new ApplicationReadView("APF-2", null, null, null, null, null, null, null);
+        given(applicationRepository.findPendingApfMngNosByEno("E10001"))
+                .willReturn(List.of("APF-2", "APF-1"));
+        // findReadViewsByApfMngNoIn은 순서를 보장하지 않으므로 뒤섞인 순서로 돌려준다
+        given(applicationRepository.findReadViewsByApfMngNoIn(List.of("APF-2", "APF-1")))
+                .willReturn(List.of(older, newer));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+                .willReturn(List.of());
+
+        List<ApplicationDto.Response> result = applicationService.getPendingApplications("E10001");
+
+        assertThat(result)
+                .extracting(ApplicationDto.Response::getApfMngNo)
+                .containsExactly("APF-2", "APF-1");
+    }
+
+    @Test
+    @DisplayName("getPendingApplications: 결재 대기 건이 없으면 빈 목록을 반환하고 상세를 조회하지 않는다")
+    void getPendingApplications_대기없음_빈목록반환() {
+        given(applicationRepository.findPendingApfMngNosByEno("E10001")).willReturn(List.of());
+
+        List<ApplicationDto.Response> result = applicationService.getPendingApplications("E10001");
+
+        assertThat(result).isEmpty();
+        verify(applicationRepository, never()).findReadViewsByApfMngNoIn(any());
+    }
+
+    @Test
+    @DisplayName("getPendingApplications: 사번이 비어 있으면 빈 목록이 아니라 예외로 구분한다")
+    void getPendingApplications_사번없음_예외() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> applicationService.getPendingApplications("  "))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(applicationRepository, never()).findPendingApfMngNosByEno(any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -1076,7 +1122,7 @@ class ApplicationServiceTest {
     void getApplications_부서명null조직_제외() {
         ApplicationReadView view =
                 new ApplicationReadView(APF_MNG_NO, null, null, null, "10001", null, null, "18001");
-        given(applicationRepository.findTop500ByOrderByApfMngNoAsc()).willReturn(List.of(view));
+        given(applicationRepository.findTop500ByOrderByApfMngNoDesc()).willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
         given(userRepository.findNameViewsByEnoIn(any()))

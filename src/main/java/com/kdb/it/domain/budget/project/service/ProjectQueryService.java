@@ -43,7 +43,31 @@ public class ProjectQueryService {
      * @return 조건에 맞고 연관 정보가 조립된 목록
      */
     public List<ProjectDto.Response> searchProjectList(ProjectDto.SearchCondition condition) {
-        return queryAssembler.assembleList(projectRepository.searchByCondition(condition));
+        return searchProjectList(condition, com.kdb.it.common.util.ListPageParams.unpaged());
+    }
+
+    /**
+     * 검색 조건에 맞는 정보화사업을 지정한 페이지 구간만 조회합니다.
+     *
+     * @param condition 검색 조건
+     * @param paging 페이지 파라미터 (미지정이면 상한까지)
+     * @return 해당 구간의 목록
+     */
+    public List<ProjectDto.Response> searchProjectList(
+            ProjectDto.SearchCondition condition, com.kdb.it.common.util.ListPageParams paging) {
+        return queryAssembler.assembleList(projectRepository.searchByCondition(condition, paging));
+    }
+
+    /**
+     * 검색 조건에 맞는 정보화사업 전체 건수를 조회합니다.
+     *
+     * <p>페이지 응답의 {@code X-Total-Count}에 사용합니다. 목록과 같은 WHERE를 공유하므로 페이지를 지정하지 않았을 때의 목록 건수와 일치합니다.
+     *
+     * @param condition 검색 조건 (page·size는 건수에 영향을 주지 않음)
+     * @return 조건에 맞는 전체 건수
+     */
+    public long countProjectList(ProjectDto.SearchCondition condition) {
+        return projectRepository.countBySearchCondition(condition);
     }
 
     /**

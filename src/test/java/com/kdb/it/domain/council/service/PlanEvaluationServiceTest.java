@@ -200,7 +200,7 @@ class PlanEvaluationServiceTest {
         PlanDto.DetailResponse current =
                 PlanDto.DetailResponse.builder()
                         .bseYy("2026")
-                        .itPtlPlnTpC("조정")
+                        .itPtlPlnTpC("02")
                         .redtConeInf(
                                 "{\"projects\":[{\"prjMngNo\":\"PRJ-1\",\"prjBg\":250,\"assetBg\":150,\"costBg\":100}]}")
                         .build();
@@ -213,7 +213,7 @@ class PlanEvaluationServiceTest {
                                 org.mockito.ArgumentMatchers.eq("02"),
                                 org.mockito.ArgumentMatchers.eq("13"),
                                 org.mockito.ArgumentMatchers.eq("2026"),
-                                org.mockito.ArgumentMatchers.eq("신규"),
+                                org.mockito.ArgumentMatchers.eq("01"),
                                 org.mockito.ArgumentMatchers.eq("PLN-CURRENT"),
                                 any(Pageable.class)))
                 .willReturn(List.of("PLN-BASE"));
@@ -221,7 +221,7 @@ class PlanEvaluationServiceTest {
                 .willReturn(
                         PlanDto.DetailResponse.builder()
                                 .bseYy("2026")
-                                .itPtlPlnTpC("신규")
+                                .itPtlPlnTpC("01")
                                 .redtConeInf(
                                         "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"prjBg\":300,\"assetBg\":200,\"costBg\":100}]}")
                                 .build());
@@ -242,7 +242,7 @@ class PlanEvaluationServiceTest {
                         org.mockito.ArgumentMatchers.eq("02"),
                         org.mockito.ArgumentMatchers.eq("13"),
                         org.mockito.ArgumentMatchers.eq("2026"),
-                        org.mockito.ArgumentMatchers.eq("신규"),
+                        org.mockito.ArgumentMatchers.eq("01"),
                         org.mockito.ArgumentMatchers.eq("PLN-CURRENT"),
                         any(Pageable.class));
     }
@@ -259,7 +259,7 @@ class PlanEvaluationServiceTest {
         PlanDto.DetailResponse current =
                 PlanDto.DetailResponse.builder()
                         .bseYy("2026")
-                        .itPtlPlnTpC("조정")
+                        .itPtlPlnTpC("02")
                         .redtConeInf(
                                 "{\"prjSnapshots\":[{\"prjMngNo\":\"PRJ-1\",\"abusNm\":\"A사업\",\"prjBg\":250,\"assetBg\":150,\"costBg\":100}]}")
                         .build();
@@ -276,7 +276,7 @@ class PlanEvaluationServiceTest {
                 .willReturn(
                         PlanDto.DetailResponse.builder()
                                 .bseYy("2026")
-                                .itPtlPlnTpC("신규")
+                                .itPtlPlnTpC("01")
                                 .redtConeInf("{}")
                                 .build());
 
@@ -305,7 +305,7 @@ class PlanEvaluationServiceTest {
                 .willReturn(
                         PlanDto.DetailResponse.builder()
                                 .bseYy("2026")
-                                .itPtlPlnTpC("조정")
+                                .itPtlPlnTpC("02")
                                 .redtConeInf("{\"prjSnapshots\":[]}")
                                 .build());
         given(

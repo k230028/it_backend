@@ -29,11 +29,11 @@ class ProjectItemActiveQueryContractTest {
     }
 
     @Test
-    @DisplayName("사업 순번 활성 조회는 DEL=N과 LST=Y를 함께 강제한다")
+    @DisplayName("사업 순번 조회는 DEL=N과 부모 순번으로 개정본을 고정한다")
     void projectSequenceQuery_delegatesToLatestActiveQuery() {
         repository.findByAbusMngNoAndFntTbCrySnoAndDelYn("P1", 1, "N");
 
-        assertLastCall("findByAbusMngNoAndFntTbCrySnoAndDelYnAndLstYn", "P1", 1, "N", "Y");
+        assertLastCall("findAllByAbusMngNoAndFntTbCrySnoAndDelYn", "P1", 1, "N");
     }
 
     @Test
@@ -45,11 +45,11 @@ class ProjectItemActiveQueryContractTest {
     }
 
     @Test
-    @DisplayName("사업 집합 활성 조회는 과거 품목을 제외하는 LST=Y 쿼리로 위임한다")
+    @DisplayName("사업 집합 조회는 후속 조립이 부모 순번으로 나눌 수 있게 전체 개정 품목을 반환한다")
     void projectBatchQuery_delegatesToLatestActiveQuery() {
         repository.findByAbusMngNoInAndDelYn(List.of("P1", "P2"), "N");
 
-        assertLastCall("findByAbusMngNoInAndDelYnAndLstYn", List.of("P1", "P2"), "N", "Y");
+        assertLastCall("findAllByAbusMngNoInAndDelYn", List.of("P1", "P2"), "N");
     }
 
     @Test

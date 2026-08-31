@@ -109,7 +109,11 @@ class ProjectQueryServiceTest {
                         .bseYy("2027")
                         .delYn("N")
                         .build();
-        given(projectRepository.searchByCondition(condition)).willReturn(List.of(project));
+        given(
+                        projectRepository.searchByCondition(
+                                org.mockito.ArgumentMatchers.eq(condition),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of(project));
 
         List<ProjectDto.Response> result = queryService.searchProjectList(condition);
 
@@ -120,7 +124,10 @@ class ProjectQueryServiceTest {
                             assertThat(value.getAbusMngNo()).isEqualTo("PRJ-SEARCH-001");
                             assertThat(value.getBseYy()).isEqualTo("2027");
                         });
-        verify(projectRepository).searchByCondition(condition);
+        verify(projectRepository)
+                .searchByCondition(
+                        org.mockito.ArgumentMatchers.eq(condition),
+                        org.mockito.ArgumentMatchers.any());
     }
 
     @Test
