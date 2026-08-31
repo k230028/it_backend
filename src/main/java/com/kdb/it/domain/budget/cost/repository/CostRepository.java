@@ -49,9 +49,14 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * <p>DEL_YN 조건으로 삭제된 항목을 제외한 모든 목록을 반환합니다.
      *
      * @param delYn 삭제 여부 ('N'=미삭제)
-     * @return 삭제되지 않은 전산관리비 목록
+     * @return 삭제되지 않은 최종 전산관리비 목록
      */
-    List<Bcostm> findAllByDelYn(String delYn);
+    default List<Bcostm> findAllByDelYn(String delYn) {
+        return findAllByDelYnAndLstYn(delYn, "Y");
+    }
+
+    /** 일반 목록 화면에 노출할 미삭제 최종본만 조회합니다. */
+    List<Bcostm> findAllByDelYnAndLstYn(String delYn, String lstYn);
 
     /**
      * 관리번호별 전산관리비 목록 조회 (삭제되지 않은 항목)
@@ -60,9 +65,11 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      *
      * @param costBgNo 전산관리비 관리번호 (예: COST_2026_0001)
      * @param delYn 삭제 여부 ('N'=미삭제)
-     * @return 해당 관리번호의 삭제되지 않은 전산관리비 목록
+     * @return 해당 관리번호의 삭제되지 않은 최종 전산관리비 목록
      */
-    List<Bcostm> findByCostBgNoAndDelYn(String costBgNo, String delYn);
+    default List<Bcostm> findByCostBgNoAndDelYn(String costBgNo, String delYn) {
+        return findByCostBgNoAndDelYnAndLstYn(costBgNo, delYn, "Y");
+    }
 
     /** 예산연도와 현재 유효 버전까지 확인하는 단건 조회입니다. */
     Optional<Bcostm> findByCostBgNoAndBseYyAndLstYnAndDelYn(
@@ -80,9 +87,16 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      *
      * @param costBgNos 전산업무비 관리번호 집합
      * @param delYn 삭제 여부 ('N'=미삭제)
-     * @return 조건에 맞는 전산관리비 목록
+     * @return 조건에 맞는 최종 전산관리비 목록
      */
-    List<Bcostm> findByCostBgNoInAndDelYn(java.util.Collection<String> costBgNos, String delYn);
+    default List<Bcostm> findByCostBgNoInAndDelYn(
+            java.util.Collection<String> costBgNos, String delYn) {
+        return findByCostBgNoInAndDelYnAndLstYn(costBgNos, delYn, "Y");
+    }
+
+    /** 일반 일괄 조회에 노출할 미삭제 최종본만 조회합니다. */
+    List<Bcostm> findByCostBgNoInAndDelYnAndLstYn(
+            java.util.Collection<String> costBgNos, String delYn, String lstYn);
 
     /**
      * 비용관리번호 집합의 이력을 대표행 선정 전용 프로젝션으로 조회합니다.

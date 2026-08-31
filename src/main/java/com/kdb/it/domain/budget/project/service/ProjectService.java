@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.service;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
@@ -104,6 +105,18 @@ public class ProjectService {
      */
     public ProjectDto.Response getProject(String prjMngNo) {
         return projectQueryService.getProject(prjMngNo);
+    }
+
+    /**
+     * 인증 사용자의 부서 데이터 범위를 검증한 뒤 정보화사업 상세를 조회합니다.
+     *
+     * @param prjMngNo 프로젝트관리번호
+     * @param actor 인증 사용자
+     * @return 상세 응답
+     * @throws org.springframework.security.access.AccessDeniedException 조회 범위 밖인 경우
+     */
+    public ProjectDto.Response getProject(String prjMngNo, CustomUserDetails actor) {
+        return projectQueryService.getProject(prjMngNo, actor);
     }
 
     /**

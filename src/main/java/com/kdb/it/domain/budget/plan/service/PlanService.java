@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -194,6 +196,21 @@ public class PlanService {
                         .toList();
 
         return PlanDto.DetailResponse.fromEntity(plan, prjMngNos);
+    }
+
+    /**
+     * 시스템관리자만 정보기술부문 계획 상세를 조회합니다.
+     *
+     * <p>BPLANM은 부서 소유 컬럼이 없는 전사 계획 단일 키 모델이므로, 프로젝트·비용의 부서 범위 규칙 대신 기존 관리자 전용 계약을 서비스에서도 강제합니다.
+     *
+     * @param reqDocNo 계획관리번호
+     * @param actor 인증 사용자
+     * @return 계획 상세 응답 DTO
+     * @throws org.springframework.security.access.AccessDeniedException 시스템관리자가 아닌 경우
+     */
+    public PlanDto.DetailResponse getPlan(String reqDocNo, CustomUserDetails actor) {
+        OwnershipVerifier.verifyAdmin(actor);
+        return getPlan(reqDocNo);
     }
 
     /**

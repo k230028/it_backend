@@ -416,15 +416,11 @@ public class ProjectDto {
     }
 
     /**
-     * 정보화사업 조회 응답 DTO
+     * 정보화사업 조회 응답 DTO. {@link Bprojm} 엔티티 필드 외에 조직명과 상태를 API 응답에 맞춰 제공합니다.
      *
-     * <p>프로젝트의 모든 정보를 반환합니다. {@link Bprojm} 엔티티 필드 외에 조직명, 상태 등의 추가 정보를 API 응답에 맞춰 제공합니다.
-     *
-     * <p>품목 정보({@code items})는 배열 형태로 포함됩니다.
-     *
-     * <p>{@link ProjectResponseMapper#fromEntity(Bprojm)}로 엔티티에서 변환합니다. 신청서 정보와 품목 목록은 서비스에서 별도로
-     * {@code setApfMngNo()}, {@code setItems()}로 설정합니다.
+     * <p>품목 정보({@code items})는 배열 형태로 포함됩니다. {@link ProjectResponseMapper#fromEntity(Bprojm)}로 엔티티에서 변환하고, 서비스가 신청서 정보와 품목 목록을 별도로 설정합니다.
      */
+
     @Getter
     @Setter
     @NoArgsConstructor
@@ -439,6 +435,10 @@ public class ProjectDto {
         /** 프로젝트순번 (SNO, Oracle 트리거로 자동 증가) */
         @Schema(description = "프로젝트순번")
         private Integer sno;
+
+        /** 최종여부 (Y=현재 최종본, N=과거 이력 또는 재신청 초안) */
+        @Schema(description = "최종여부", allowableValues = {"Y", "N"})
+        private String lstYn;
 
         /** 프로젝트명 */
         @Schema(description = "프로젝트명")

@@ -2,6 +2,8 @@ package com.kdb.it.domain.budget.project.service;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -32,6 +34,24 @@ public class ProjectVersionService {
      */
     @Transactional
     public ProjectVersion createReapplication(String abusMngNo) {
+        return createReapplication(abusMngNo, null, false);
+    }
+
+    /**
+     * 인증 사용자의 부서 범위를 확인하고 결재완료 사업을 재신청 초안으로 복제합니다.
+     *
+     * @param abusMngNo 재신청할 사업관리번호
+     * @param actor 인증 사용자
+     * @return 생성된 초안의 명시적 버전 식별값
+     * @throws org.springframework.security.access.AccessDeniedException 대상 부서 조회 권한이 없는 경우
+     */
+    @Transactional
+    public ProjectVersion createReapplication(String abusMngNo, CustomUserDetails actor) {
+        return createReapplication(abusMngNo, actor, true);
+    }
+
+    private ProjectVersion createReapplication(
+            String abusMngNo, CustomUserDetails actor, boolean verifyActor) {
         Bprojm source =
                 projectRepository
                         .findCurrentVersionForUpdate(abusMngNo)
@@ -39,6 +59,9 @@ public class ProjectVersionService {
                                 () ->
                                         new IllegalArgumentException(
                                                 "재신청할 최종 사업이 없습니다: " + abusMngNo));
+        if (verifyActor) {
+            BudgetDetailAccessVerifier.verifyReadable(source.getSvnDpmC(), actor);
+        }
         if (source.getSvnDpmC() == null || source.getSvnDpmC().isBlank()) {
             throw new IllegalArgumentException("주관부서가 없는 사업은 재신청할 수 없습니다: " + abusMngNo);
         }
@@ -68,6 +91,19 @@ public class ProjectVersionService {
     }
 
     /**
+     * 인증 사용자의 부서 범위를 확인하고 정보화사업 이력을 조회합니다.
+     *
+     * @param abusMngNo 사업관리번호
+     * @param actor 인증 사용자
+     * @return 최종본과 재신청 초안을 모두 포함한 이력
+     */
+    public List<Bprojm> findHistory(String abusMngNo, CustomUserDetails actor) {
+        List<Bprojm> history = findHistory(abusMngNo);
+        history.forEach(project -> BudgetDetailAccessVerifier.verifyReadable(project.getSvnDpmC(), actor));
+        return history;
+    }
+
+    /**
      * 재신청 이력에서 정확한 개정본을 조회합니다.
      *
      * @param abusMngNo 사업관리번호
@@ -76,6 +112,23 @@ public class ProjectVersionService {
      */
     public Optional<Bprojm> findVersion(String abusMngNo, Integer sno) {
         return projectRepository.findByAbusMngNoAndSnoAndDelYn(abusMngNo, sno, "N");
+    }
+
+    /**
+     * 인증 사용자의 부서 범위를 확인하고 특정 정보화사업 개정본을 조회합니다.
+     *
+     * @param abusMngNo 사업관리번호
+     * @param sno 개정 순번
+     * @param actor 인증 사용자
+     * @return 해당 개정본. 삭제되었거나 없으면 빈 값
+     */
+    public Optional<Bprojm> findVersion(String abusMngNo, Integer sno, CustomUserDetails actor) {
+        return findVersion(abusMngNo, sno)
+                .map(
+                        project -> {
+                            BudgetDetailAccessVerifier.verifyReadable(project.getSvnDpmC(), actor);
+                            return project;
+                        });
     }
 
     /**

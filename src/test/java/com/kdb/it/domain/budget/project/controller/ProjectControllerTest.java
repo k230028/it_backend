@@ -21,7 +21,9 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.service.ProjectQueryAssembler;
 import com.kdb.it.domain.budget.project.service.ProjectService;
+import com.kdb.it.domain.budget.project.service.ProjectVersionService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,8 @@ class ProjectControllerTest {
     @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private ProjectService projectService;
+    @MockitoBean private ProjectVersionService projectVersionService;
+    @MockitoBean private ProjectQueryAssembler projectQueryAssembler;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
@@ -86,7 +90,8 @@ class ProjectControllerTest {
         // given
         ProjectDto.Response detail =
                 ProjectDto.Response.builder().abusMngNo("PRJ-2026-0001").abusNm("테스트 사업").build();
-        given(projectService.getProject("PRJ-2026-0001")).willReturn(detail);
+        given(projectService.getProject(org.mockito.ArgumentMatchers.eq("PRJ-2026-0001"), any()))
+                .willReturn(detail);
 
         // when & then
         mockMvc.perform(get("/api/projects/PRJ-2026-0001"))

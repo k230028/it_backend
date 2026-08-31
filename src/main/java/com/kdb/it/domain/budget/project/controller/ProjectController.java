@@ -1,7 +1,10 @@
 package com.kdb.it.domain.budget.project.controller;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.service.ProjectQueryAssembler;
 import com.kdb.it.domain.budget.project.service.ProjectService;
+import com.kdb.it.domain.budget.project.service.ProjectVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -10,6 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -46,6 +50,12 @@ public class ProjectController {
 
     /** 정보화사업 비즈니스 로직 서비스 */
     private final ProjectService projectService;
+
+    /** 정보화사업 재신청 이력 서비스 */
+    private final ProjectVersionService projectVersionService;
+
+    /** 정보화사업 명시 버전 상세 응답 조립기 */
+    private final ProjectQueryAssembler projectQueryAssembler;
 
     /**
      * 정보화사업 목록 조회 (검색 조건 지원)
@@ -90,9 +100,74 @@ public class ProjectController {
     @GetMapping("/{prjMngNo}")
     @Operation(summary = "특정 정보화사업 조회", description = "특정 정보화사업을 조회합니다.")
     public ResponseEntity<ProjectDto.Response> getProject(
-            @PathVariable("prjMngNo") String prjMngNo) {
-        ProjectDto.Response response = projectService.getProject(prjMngNo);
+            @PathVariable("prjMngNo") String prjMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        ProjectDto.Response response = projectService.getProject(prjMngNo, user);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 정보화사업의 최종본·과거본·재신청 초안 이력을 조회합니다.
+     *
+     * @param prjMngNo 프로젝트관리번호
+     * @param user 인증 사용자
+     * @return 순번 오름차순 이력 상세 목록
+     */
+    @GetMapping("/{prjMngNo}/history")
+    @Operation(summary = "정보화사업 이력 조회", description = "사업관리번호의 최종본과 재신청 이력을 조회합니다.")
+    public ResponseEntity<List<ProjectDto.Response>> getProjectHistory(
+            @PathVariable("prjMngNo") String prjMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(
+                projectVersionService.findHistory(prjMngNo, user).stream()
+                        .map(projectQueryAssembler::assembleDetail)
+                        .toList());
+    }
+
+    /**
+     * 정보화사업의 명시적 순번 상세를 조회합니다.
+     *
+     * @param prjMngNo 프로젝트관리번호
+     * @param sno 개정 순번
+     * @param user 인증 사용자
+     * @return 선택한 개정본의 상세
+     */
+    @GetMapping("/{prjMngNo}/versions/{sno}")
+    @Operation(summary = "정보화사업 개정본 상세 조회", description = "사업관리번호와 순번으로 과거본 또는 재신청 초안을 조회합니다.")
+    public ResponseEntity<ProjectDto.Response> getProjectVersion(
+            @PathVariable("prjMngNo") String prjMngNo,
+            @PathVariable("sno") Integer sno,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(
+                projectVersionService
+                        .findVersion(prjMngNo, sno, user)
+                        .map(projectQueryAssembler::assembleDetail)
+                        .orElseThrow(
+                                () ->
+                                        new com.kdb.it.exception.NotFoundException(
+                                                "정보화사업 개정본을 찾을 수 없습니다: "
+                                                        + prjMngNo
+                                                        + ", sno="
+                                                        + sno)));
+    }
+
+    /**
+     * 결재완료된 최종 정보화사업을 다음 순번의 재신청 초안으로 복제합니다.
+     *
+     * @param prjMngNo 프로젝트관리번호
+     * @param user 인증 사용자
+     * @return 생성된 초안의 관리번호·순번·최종여부
+     */
+    @PostMapping("/{prjMngNo}/reapplications")
+    @Operation(summary = "정보화사업 수정 후 재신청", description = "결재완료 최종 사업을 다음 순번의 비최종 초안으로 복제합니다.")
+    public ResponseEntity<ProjectVersionService.ProjectVersion> createProjectReapplication(
+            @PathVariable("prjMngNo") String prjMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        ProjectVersionService.ProjectVersion draft =
+                projectVersionService.createReapplication(prjMngNo, user);
+        return ResponseEntity.created(
+                        URI.create("/api/projects/%s/versions/%s".formatted(draft.abusMngNo(), draft.sno())))
+                .body(draft);
     }
 
     /**

@@ -63,7 +63,8 @@ class PlanControllerTest {
     @DisplayName("GET /api/plans/{plnMngNo} - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void getPlan_인증_200() throws Exception {
-        given(planService.getPlan("PLN-2026-0001")).willReturn(new PlanDto.DetailResponse());
+        given(planService.getPlan(org.mockito.ArgumentMatchers.eq("PLN-2026-0001"), org.mockito.ArgumentMatchers.any()))
+                .willReturn(new PlanDto.DetailResponse());
         mockMvc.perform(get("/api/plans/PLN-2026-0001")).andExpect(status().isOk());
     }
 

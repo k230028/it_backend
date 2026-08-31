@@ -167,8 +167,9 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
 
         BooleanBuilder builder = new BooleanBuilder();
 
-        // 기본 조건: 삭제되지 않은 전산관리비만 조회
+        // 일반 업무 목록은 삭제되지 않은 최종 전산업무비만 조회
         builder.and(bcostm.delYn.eq("N"));
+        builder.and(bcostm.lstYn.eq("Y"));
 
         // === apfSts 필터 처리 ===
         String apfSts = condition.getApfSts();
@@ -274,7 +275,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                         .where(
                                 bcostm.bseYy.eq(prevYear),
                                 bcostm.costBgNo.in(costBgNos),
-                                bcostm.delYn.eq("N"))
+                                bcostm.delYn.eq("N"),
+                                bcostm.lstYn.eq("Y"))
                         .groupBy(bcostm.costBgNo)
                         .fetch();
         return results.stream()

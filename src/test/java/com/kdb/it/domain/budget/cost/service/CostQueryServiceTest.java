@@ -69,16 +69,15 @@ class CostQueryServiceTest {
     @Test
     @DisplayName("단건 조회: 대표행 규칙으로 최신 활성 이력을 상세 응답에 사용한다")
     void getCost_복수이력_대표행상세반환() {
-        Bcostm old = cost("COST-DETAIL", 1, "N");
         Bcostm latest = cost("COST-DETAIL", 2, "Y");
-        given(costRepository.findByCostBgNoAndDelYn("COST-DETAIL", "N"))
-                .willReturn(List.of(old, latest));
+        given(costRepository.findByCostBgNoAndDelYn("COST-DETAIL", "N")).willReturn(List.of(latest));
 
         CostDto.Response result = queryService.getCost("COST-DETAIL");
 
         assertThat(result.getCostBgNo()).isEqualTo("COST-DETAIL");
         assertThat(result.getBgSno()).isEqualTo(2);
         assertThat(result.getTerminals()).isEmpty();
+        verify(costRepository).findByCostBgNoAndDelYn("COST-DETAIL", "N");
     }
 
     @Test
@@ -145,11 +144,10 @@ class CostQueryServiceTest {
     @DisplayName("일괄 조회: 부분 성공과 중복 요청을 입력 순서 그대로 반환한다")
     void getCostsByIds_부분성공과중복_입력순서보존() {
         Bcostm first = cost("COST-1", 1, "Y");
-        Bcostm thirdOld = cost("COST-3", 1, "N");
         Bcostm thirdLatest = cost("COST-3", 2, "Y");
         List<String> requested = List.of("COST-1", "COST-2", "COST-3", "COST-1");
         given(costRepository.findByCostBgNoInAndDelYn(requested, "N"))
-                .willReturn(List.of(thirdOld, first, thirdLatest));
+                .willReturn(List.of(first, thirdLatest));
         CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(requested, null);
 
         CostDto.BulkResponse result = queryService.getCostsByIds(request);

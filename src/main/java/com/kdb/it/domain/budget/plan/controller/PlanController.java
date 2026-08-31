@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.plan.controller;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
 import com.kdb.it.domain.budget.plan.service.PlanService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -128,8 +130,9 @@ public class PlanController {
     public ResponseEntity<PlanDto.DetailResponse> getPlan(
             @Parameter(description = "계획관리번호", required = true, example = "PLN-2026-0001")
                     @PathVariable("plnMngNo")
-                    String plnMngNo) {
-        return ResponseEntity.ok(planService.getPlan(plnMngNo));
+                    String plnMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(planService.getPlan(plnMngNo, user));
     }
 
     /**

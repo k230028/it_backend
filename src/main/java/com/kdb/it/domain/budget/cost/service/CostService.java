@@ -7,6 +7,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.UserNameResolver;
+import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
@@ -127,16 +128,7 @@ public class CostService {
      * @throws AccessDeniedException 인증 정보가 없거나 다른 부서 품목인 경우
      */
     private void verifyDeptReadable(String costSvnDpmC, CustomUserDetails user) {
-        if (user == null) {
-            throw new AccessDeniedException("인증 정보가 없습니다.");
-        }
-        if (user.isAdmin()) {
-            return;
-        }
-        if (StringUtils.hasText(user.getBbrC()) && user.getBbrC().equals(costSvnDpmC)) {
-            return;
-        }
-        throw new AccessDeniedException("소속 부서의 전산업무비만 조회할 수 있습니다.");
+        BudgetDetailAccessVerifier.verifyReadable(costSvnDpmC, user);
     }
 
     /**

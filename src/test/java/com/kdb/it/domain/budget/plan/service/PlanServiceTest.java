@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -279,6 +280,17 @@ class PlanServiceTest {
         assertThatThrownBy(() -> planService.getPlan("INVALID"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("존재하지 않는 계획입니다");
+    }
+
+    @Test
+    @DisplayName("getPlan - 일반 사용자는 서비스 계층에서 거부한다")
+    void getPlan_일반사용자_서비스계층에서거부() {
+        CustomUserDetails user =
+                new CustomUserDetails(
+                        "USER", List.of(CustomUserDetails.ATH_USER), "D100");
+
+        assertThatThrownBy(() -> planService.getPlan("PLN-2026-0001", user))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
     // =========================================================================

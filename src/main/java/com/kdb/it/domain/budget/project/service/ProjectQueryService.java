@@ -1,5 +1,7 @@
 package com.kdb.it.domain.budget.project.service;
 
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
@@ -52,6 +54,25 @@ public class ProjectQueryService {
      * @throws IllegalArgumentException 활성 프로젝트가 없는 경우
      */
     public ProjectDto.Response getProject(String prjMngNo) {
+        return queryAssembler.assembleDetail(findActiveProject(prjMngNo));
+    }
+
+    /**
+     * 인증 사용자의 데이터 범위를 검증한 뒤 정보화사업 상세를 조회합니다.
+     *
+     * @param prjMngNo 프로젝트관리번호
+     * @param actor 인증 사용자
+     * @return 신청서·품목·대표상태가 조립된 상세 응답
+     * @throws IllegalArgumentException 활성 프로젝트가 없는 경우
+     * @throws org.springframework.security.access.AccessDeniedException 조회 범위 밖인 경우
+     */
+    public ProjectDto.Response getProject(String prjMngNo, CustomUserDetails actor) {
+        Bprojm project = findActiveProject(prjMngNo);
+        BudgetDetailAccessVerifier.verifyReadable(project.getSvnDpmC(), actor);
+        return queryAssembler.assembleDetail(project);
+    }
+
+    private Bprojm findActiveProject(String prjMngNo) {
         Bprojm project =
                 projectRepository
                         .findByAbusMngNoAndDelYn(prjMngNo, "N")
@@ -59,7 +80,7 @@ public class ProjectQueryService {
                                 () ->
                                         new IllegalArgumentException(
                                                 "Project not found with id: " + prjMngNo));
-        return queryAssembler.assembleDetail(project);
+        return project;
     }
 
     /**

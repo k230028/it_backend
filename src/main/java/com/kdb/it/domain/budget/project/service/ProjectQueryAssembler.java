@@ -112,8 +112,11 @@ public class ProjectQueryAssembler {
         response.setBprojaStsCodes(
                 steps.stream().map(Bproja::getStsTc).filter(java.util.Objects::nonNull).toList());
         List<Bitemm> items =
-                itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                        project.getAbusMngNo(), project.getSno(), "N");
+                "N".equals(project.getLstYn())
+                        ? itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYnAndLstYn(
+                                project.getAbusMngNo(), project.getSno(), "N", "N")
+                        : itemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
+                                project.getAbusMngNo(), project.getSno(), "N");
         List<ProjectDto.BitemmDto> itemDtos =
                 items.stream().map(ProjectDto.BitemmDto::fromEntity).toList();
         enrichItemIoeNames(itemDtos);

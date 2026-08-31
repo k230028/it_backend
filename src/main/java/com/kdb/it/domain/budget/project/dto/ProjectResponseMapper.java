@@ -27,6 +27,7 @@ public final class ProjectResponseMapper {
         return ProjectDto.Response.builder()
                 .abusMngNo(project.getAbusMngNo()) // 프로젝트관리번호
                 .sno(project.getSno()) // 프로젝트순번
+                .lstYn(project.getLstYn()) // 최종여부
                 .abusNm(project.getAbusNm()) // 프로젝트명
                 .bzTpC(project.getBzTpC()) // 프로젝트유형
                 .svnDpmC(project.getSvnDpmC()) // 주관부서
