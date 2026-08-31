@@ -69,6 +69,37 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, CapplaId
             String fntTbNm, String pkColNm, Integer fntTbCrySno);
 
     /**
+     * 원천 개정본에 연결된 최신 신청서의 실제 상태를 조회합니다.
+     *
+     * @param fntTbNm 원천 테이블명
+     * @param pkColNm 원천 데이터 키
+     * @param fntTbCrySno 원천 데이터 개정 순번
+     * @return 최신 신청서 상태. 연결이 없으면 빈 값
+     */
+    @Query(
+            """
+            SELECT m.itPtlApfPrgStsC
+              FROM Cappla c
+              JOIN Capplm m ON c.apfDcmNo = m.apfMngNo
+             WHERE c.fntTbNm = :fntTbNm
+               AND c.pkColNm = :pkColNm
+               AND c.fntTbCrySno = :fntTbCrySno
+               AND c.delYn = 'N'
+               AND c.apfDcmNo = (
+                    SELECT MAX(c2.apfDcmNo)
+                      FROM Cappla c2
+                     WHERE c2.fntTbNm = :fntTbNm
+                       AND c2.pkColNm = :pkColNm
+                       AND c2.fntTbCrySno = :fntTbCrySno
+                       AND c2.delYn = 'N'
+               )
+            """)
+    java.util.Optional<String> findLatestApplicationStatus(
+            @Param("fntTbNm") String fntTbNm,
+            @Param("pkColNm") String pkColNm,
+            @Param("fntTbCrySno") Integer fntTbCrySno);
+
+    /**
      * 여러 원천 데이터 PK에 대해 신청서 관계 목록 일괄 조회 (최신 신청서 우선).
      *
      * @param fntTbNm 원천 테이블명 (예: 'BPROJM', 'BCOSTM')

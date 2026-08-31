@@ -132,8 +132,9 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
 
         BooleanBuilder builder = new BooleanBuilder();
 
-        // 기본 조건: 삭제되지 않은 프로젝트만 조회
+        // 일반 업무 검색은 승인된 최종본만 노출합니다.
         builder.and(bprojm.delYn.eq("N"));
+        builder.and(bprojm.lstYn.eq("Y"));
 
         // === apfSts 필터 처리 ===
         String apfSts = condition.getApfSts();

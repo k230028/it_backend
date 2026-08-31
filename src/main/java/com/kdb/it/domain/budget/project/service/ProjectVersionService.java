@@ -34,20 +34,24 @@ public class ProjectVersionService {
     public ProjectVersion createReapplication(String abusMngNo) {
         Bprojm source =
                 projectRepository
-                        .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
-                        .orElseThrow(() -> new IllegalArgumentException("재신청할 최종 사업이 없습니다: " + abusMngNo));
+                        .findCurrentVersionForUpdate(abusMngNo)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "재신청할 최종 사업이 없습니다: " + abusMngNo));
         if (source.getSvnDpmC() == null || source.getSvnDpmC().isBlank()) {
             throw new IllegalArgumentException("주관부서가 없는 사업은 재신청할 수 없습니다: " + abusMngNo);
         }
-        if (!applicationMapRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                PROJECT_TABLE,
-                abusMngNo,
-                source.getSno(),
-                java.util.List.of(ApprovalStatus.COMPLETED.code()))) {
+        String latestStatus =
+                applicationMapRepository
+                        .findLatestApplicationStatus(PROJECT_TABLE, abusMngNo, source.getSno())
+                        .orElse(null);
+        if (!ApprovalStatus.COMPLETED.code().equals(latestStatus)) {
             throw new IllegalArgumentException("결재완료된 사업만 재신청할 수 있습니다: " + abusMngNo);
         }
 
-        Bprojm draft = source.createReapplicationDraft(projectRepository.getNextVersionSno(abusMngNo));
+        Bprojm draft =
+                source.createReapplicationDraft(projectRepository.getNextVersionSno(abusMngNo));
         projectRepository.save(draft);
         cloneItems(source, draft);
         return new ProjectVersion(draft.getAbusMngNo(), draft.getSno(), draft.getLstYn());
@@ -82,8 +86,13 @@ public class ProjectVersionService {
      */
     @Transactional
     public void promoteApprovedVersion(String abusMngNo, Integer sno) {
+        projectRepository
+                .findVersionForUpdate(abusMngNo, sno)
+                .orElseThrow(() -> new IllegalArgumentException("승격할 사업 개정본이 없습니다: " + abusMngNo));
         projectRepository.clearCurrentVersion(abusMngNo, sno);
-        projectRepository.markVersionCurrent(abusMngNo, sno);
+        if (projectRepository.markVersionCurrent(abusMngNo, sno) != 1) {
+            throw new IllegalStateException("승격할 사업 개정본이 없습니다: " + abusMngNo);
+        }
         projectItemRepository.clearCurrentVersionItems(abusMngNo, sno);
         projectItemRepository.markVersionItemsCurrent(abusMngNo, sno);
     }
@@ -95,9 +104,10 @@ public class ProjectVersionService {
                 projectItemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
                         source.getAbusMngNo(), source.getSno(), "N")) {
             String gclMngNo =
-                    "GCL-%s-%04d".formatted(
-                            java.time.LocalDate.now().getYear(),
-                            projectItemRepository.getNextSequenceValue());
+                    "GCL-%s-%04d"
+                            .formatted(
+                                    java.time.LocalDate.now().getYear(),
+                                    projectItemRepository.getNextSequenceValue());
             projectItemRepository.save(
                     com.kdb.it.domain.budget.project.entity.Bitemm.builder()
                             .gclMngNo(gclMngNo)

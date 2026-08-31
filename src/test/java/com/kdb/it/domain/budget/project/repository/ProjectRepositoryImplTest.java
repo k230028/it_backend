@@ -91,6 +91,16 @@ class ProjectRepositoryImplTest {
         assertThat(result.get(0).getAbusMngNo()).isEqualTo("PRJ-2026-0001");
     }
 
+    @Test
+    @DisplayName("일반 검색은 최종본(LST_YN=Y)만 조건으로 사용한다")
+    void searchByCondition_최종본만_조회한다() {
+        sut.searchByCondition(new ProjectDto.SearchCondition());
+
+        ArgumentCaptor<Predicate> predicate = ArgumentCaptor.forClass(Predicate.class);
+        org.mockito.Mockito.verify(mockQuery).where(predicate.capture());
+        assertThat(predicate.getValue().toString()).contains("bprojm.lstYn = Y");
+    }
+
     // -----------------------------------------------------------------------
     // 성공 케이스 — 단순 필드 조건
     // -----------------------------------------------------------------------

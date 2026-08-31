@@ -4,12 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
+import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import java.time.LocalDate;
@@ -41,22 +42,19 @@ class ProjectVersionServiceTest {
                         .lstYn("Y")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "Y", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(source));
-        given(
-                        applicationMapRepository
-                                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                                        "BPROJM",
-                                        "PRJ-2026-0001",
-                                        1,
-                                        java.util.List.of(ApprovalStatus.COMPLETED.code())))
-                .willReturn(true);
+        given(applicationMapRepository.findLatestApplicationStatus("BPROJM", "PRJ-2026-0001", 1))
+                .willReturn(Optional.of(ApprovalStatus.COMPLETED.code()));
         given(projectRepository.getNextVersionSno("PRJ-2026-0001")).willReturn(2);
 
         var result = service.createReapplication("PRJ-2026-0001");
 
         assertThat(result.sno()).isEqualTo(2);
         assertThat(result.lstYn()).isEqualTo("N");
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(projectRepository);
+        inOrder.verify(projectRepository).findCurrentVersionForUpdate("PRJ-2026-0001");
+        inOrder.verify(projectRepository).getNextVersionSno("PRJ-2026-0001");
     }
 
     @Test
@@ -70,21 +68,37 @@ class ProjectVersionServiceTest {
                         .lstYn("Y")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "Y", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(source));
-        given(
-                        applicationMapRepository
-                                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                                        "BPROJM",
-                                        "PRJ-2026-0001",
-                                        1,
-                                        java.util.List.of(ApprovalStatus.COMPLETED.code())))
-                .willReturn(false);
+        given(applicationMapRepository.findLatestApplicationStatus("BPROJM", "PRJ-2026-0001", 1))
+                .willReturn(Optional.of(ApprovalStatus.REJECTED.code()));
 
         assertThatThrownBy(() -> service.createReapplication("PRJ-2026-0001"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("결재완료");
         verify(projectRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("과거 완료 이력이 있어도 최신 신청서가 반려면 재신청하지 못한다")
+    void 최신_신청서가_반려면_과거_완료이력이_있어도_재신청하지_못한다() {
+        Bprojm source =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .sno(1)
+                        .svnDpmC("D001")
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
+                .willReturn(Optional.of(source));
+        given(applicationMapRepository.findLatestApplicationStatus("BPROJM", "PRJ-2026-0001", 1))
+                .willReturn(Optional.of(ApprovalStatus.REJECTED.code()));
+
+        assertThatThrownBy(() -> service.createReapplication("PRJ-2026-0001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("결재완료");
+        verify(projectRepository, never()).getNextVersionSno("PRJ-2026-0001");
     }
 
     @Test
@@ -104,12 +118,58 @@ class ProjectVersionServiceTest {
     @Test
     @DisplayName("완료된 정확한 개정본만 최종본으로 승격한다")
     void 완료된_정확한_개정본만_최종본으로_승격한다() {
+        Bprojm target = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(2).delYn("N").build();
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 2))
+                .willReturn(Optional.of(target));
+        given(projectRepository.markVersionCurrent("PRJ-2026-0001", 2)).willReturn(1);
+
         service.promoteApprovedVersion("PRJ-2026-0001", 2);
 
         verify(projectRepository).clearCurrentVersion("PRJ-2026-0001", 2);
         verify(projectRepository).markVersionCurrent("PRJ-2026-0001", 2);
         verify(projectItemRepository).clearCurrentVersionItems("PRJ-2026-0001", 2);
         verify(projectItemRepository).markVersionItemsCurrent("PRJ-2026-0001", 2);
+    }
+
+    @Test
+    @DisplayName("승격 대상이 없으면 기존 최종본을 내리지 않는다")
+    void 승격_대상이_없으면_기존_최종본을_내리지_않는다() {
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 2))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.promoteApprovedVersion("PRJ-2026-0001", 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("승격할 사업 개정본");
+        verify(projectRepository, never()).clearCurrentVersion("PRJ-2026-0001", 2);
+        verify(projectRepository, never()).markVersionCurrent("PRJ-2026-0001", 2);
+    }
+
+    @Test
+    @DisplayName("승격 갱신 행이 없으면 트랜잭션을 롤백하도록 실패한다")
+    void 승격_갱신행이_없으면_트랜잭션을_롤백하도록_실패한다() {
+        Bprojm target = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(2).delYn("N").build();
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 2))
+                .willReturn(Optional.of(target));
+        given(projectRepository.markVersionCurrent("PRJ-2026-0001", 2)).willReturn(0);
+
+        assertThatThrownBy(() -> service.promoteApprovedVersion("PRJ-2026-0001", 2))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("승격할 사업 개정본");
+    }
+
+    @Test
+    @DisplayName("같은 승인 이벤트의 재처리는 같은 최종 상태 전환을 반복해도 안전하다")
+    void 같은_승인이벤트의_재처리는_멱등적이다() {
+        Bprojm target = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(2).delYn("N").build();
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 2))
+                .willReturn(Optional.of(target));
+        given(projectRepository.markVersionCurrent("PRJ-2026-0001", 2)).willReturn(1);
+
+        service.promoteApprovedVersion("PRJ-2026-0001", 2);
+        service.promoteApprovedVersion("PRJ-2026-0001", 2);
+
+        verify(projectRepository, times(2)).clearCurrentVersion("PRJ-2026-0001", 2);
+        verify(projectRepository, times(2)).markVersionCurrent("PRJ-2026-0001", 2);
     }
 
     @Test
@@ -134,19 +194,12 @@ class ProjectVersionServiceTest {
                         .lstYn("Y")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "Y", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(source));
-        given(
-                        applicationMapRepository
-                                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                                        "BPROJM",
-                                        "PRJ-2026-0001",
-                                        1,
-                                        java.util.List.of(ApprovalStatus.COMPLETED.code())))
-                .willReturn(true);
+        given(applicationMapRepository.findLatestApplicationStatus("BPROJM", "PRJ-2026-0001", 1))
+                .willReturn(Optional.of(ApprovalStatus.COMPLETED.code()));
         given(projectRepository.getNextVersionSno("PRJ-2026-0001")).willReturn(2);
-        given(projectItemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
-                        "PRJ-2026-0001", 1, "N"))
+        given(projectItemRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-2026-0001", 1, "N"))
                 .willReturn(java.util.List.of(sourceItem));
         given(projectItemRepository.getNextSequenceValue()).willReturn(9L);
 

@@ -2,10 +2,12 @@ package com.kdb.it.domain.budget.project.repository;
 
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.entity.BprojmId;
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,6 +34,31 @@ public interface ProjectRepository
             value = "SELECT NVL(MAX(SNO), 0) + 1 FROM TPRMPP_BPROJM WHERE ABUS_MNG_NO = :abusMngNo",
             nativeQuery = true)
     Integer getNextVersionSno(@Param("abusMngNo") String abusMngNo);
+
+    /** 재신청 채번 전에 현재 최종본을 잠가 같은 부모의 개정 순번 경쟁을 직렬화합니다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+            """
+            SELECT p
+              FROM Bprojm p
+             WHERE p.abusMngNo = :abusMngNo
+               AND p.lstYn = 'Y'
+               AND p.delYn = 'N'
+            """)
+    Optional<Bprojm> findCurrentVersionForUpdate(@Param("abusMngNo") String abusMngNo);
+
+    /** 최종본 전환 전에 승인 대상의 실제 개정본을 잠급니다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+            """
+            SELECT p
+              FROM Bprojm p
+             WHERE p.abusMngNo = :abusMngNo
+               AND p.sno = :sno
+               AND p.delYn = 'N'
+            """)
+    Optional<Bprojm> findVersionForUpdate(
+            @Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
 
     /** 소요예산 상세의 사업명 표시에 필요한 단건 프로젝션입니다. */
     interface ProjectNameView {
@@ -76,7 +103,13 @@ public interface ProjectRepository
      * @param delYn 삭제 여부 ('N'=미삭제)
      * @return 조건에 맞는 사업 목록
      */
-    List<Bprojm> findByAbusMngNoInAndDelYn(Collection<String> abusMngNos, String delYn);
+    default List<Bprojm> findByAbusMngNoInAndDelYn(Collection<String> abusMngNos, String delYn) {
+        return findByAbusMngNoInAndDelYnAndLstYn(abusMngNos, delYn, "Y");
+    }
+
+    /** 일반 업무의 일괄 조회에 노출할 최종본만 반환합니다. */
+    List<Bprojm> findByAbusMngNoInAndDelYnAndLstYn(
+            Collection<String> abusMngNos, String delYn, String lstYn);
 
     /**
      * 사업관리번호·최종여부·삭제여부로 현재 버전(최신 스냅샷) 사업 단건 조회
