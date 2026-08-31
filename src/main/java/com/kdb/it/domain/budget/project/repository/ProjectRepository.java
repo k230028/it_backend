@@ -6,7 +6,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * 정보화사업(Bprojm) 데이터 접근 리포지토리
@@ -19,6 +21,17 @@ import org.springframework.data.jpa.repository.Query;
  */
 public interface ProjectRepository
         extends JpaRepository<Bprojm, BprojmId>, ProjectRepositoryCustom {
+
+    /**
+     * 같은 사업관리번호에서 다음 개정 순번을 계산합니다.
+     *
+     * @param abusMngNo 사업관리번호
+     * @return 기존 최대 SNO 다음 값
+     */
+    @Query(
+            value = "SELECT NVL(MAX(SNO), 0) + 1 FROM TPRMPP_BPROJM WHERE ABUS_MNG_NO = :abusMngNo",
+            nativeQuery = true)
+    Integer getNextVersionSno(@Param("abusMngNo") String abusMngNo);
 
     /** 소요예산 상세의 사업명 표시에 필요한 단건 프로젝션입니다. */
     interface ProjectNameView {
@@ -43,7 +56,15 @@ public interface ProjectRepository
      * @param delYn 삭제 여부 ('N'=미삭제)
      * @return 조건에 맞는 프로젝트 (없으면 {@link Optional#empty()})
      */
-    Optional<Bprojm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn);
+    default Optional<Bprojm> findByAbusMngNoAndDelYn(String prjMngNo, String delYn) {
+        return findByAbusMngNoAndLstYnAndDelYn(prjMngNo, "Y", delYn);
+    }
+
+    /** 재신청 이력 화면을 위한 전체 개정본 조회입니다. */
+    List<Bprojm> findByAbusMngNoAndDelYnOrderBySnoAsc(String abusMngNo, String delYn);
+
+    /** 재신청 이력에서 선택한 정확한 개정본을 조회합니다. */
+    Optional<Bprojm> findByAbusMngNoAndSnoAndDelYn(String abusMngNo, Integer sno, String delYn);
 
     /**
      * 사업관리번호 집합 일괄 조회 (N+1 제거) — 사업명 매핑용
@@ -104,7 +125,37 @@ public interface ProjectRepository
      * @param delYn 삭제 여부 ('N'=미삭제, 'Y'=삭제)
      * @return 조건에 맞는 정보화사업 목록
      */
-    List<Bprojm> findAllByDelYn(String delYn);
+    default List<Bprojm> findAllByDelYn(String delYn) {
+        return findAllByDelYnAndLstYn(delYn, "Y");
+    }
+
+    /** 일반 업무 목록에 노출할 최종본만 조회합니다. */
+    List<Bprojm> findAllByDelYnAndLstYn(String delYn, String lstYn);
+
+    /** 같은 부모의 현재 최종본을 내립니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            """
+            UPDATE Bprojm p
+               SET p.lstYn = 'N'
+             WHERE p.abusMngNo = :abusMngNo
+               AND p.delYn = 'N'
+               AND p.sno <> :sno
+               AND p.lstYn = 'Y'
+            """)
+    int clearCurrentVersion(@Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
+
+    /** 결재가 완료된 정확한 개정본을 현재 최종본으로 올립니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            """
+            UPDATE Bprojm p
+               SET p.lstYn = 'Y'
+             WHERE p.abusMngNo = :abusMngNo
+               AND p.sno = :sno
+               AND p.delYn = 'N'
+            """)
+    int markVersionCurrent(@Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
 
     /**
      * 프로젝트 관리번호 목록 + 삭제여부 + 최종여부로 일괄 조회

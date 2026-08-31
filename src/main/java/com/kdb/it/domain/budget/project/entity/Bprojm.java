@@ -249,6 +249,61 @@ public class Bprojm extends BaseEntity {
     private String cncdRfrNo;
 
     /**
+     * 완료본을 같은 사업의 새 재신청 초안으로 복제합니다.
+     *
+     * @param nextSno 새 개정 순번
+     * @return 감사 필드를 제외한 업무 스냅샷을 보존하고 최종여부를 N으로 둔 새 엔티티
+     */
+    public Bprojm createReapplicationDraft(Integer nextSno) {
+        return Bprojm.builder()
+                .abusMngNo(abusMngNo)
+                .sno(nextSno)
+                .abusNm(abusNm)
+                .bzTpC(bzTpC)
+                .svnDpmC(svnDpmC)
+                .svnTemC(svnTemC)
+                .svnDpmNm(svnDpmNm)
+                .svnTemNm(svnTemNm)
+                .dvmDpmC(dvmDpmC)
+                .dvmTemC(dvmTemC)
+                .sttDtm(sttDtm)
+                .endDtm(endDtm)
+                .totRqmAmt(totRqmAmt)
+                .mplAmt(mplAmt)
+                .dfrAmt(dfrAmt)
+                .usid(usid)
+                .dvmUsid(dvmUsid)
+                .tlrUsid(tlrUsid)
+                .tlrNm(tlrNm)
+                .usrNm(usrNm)
+                .dvmTlrUsid(dvmTlrUsid)
+                .edrtTc(edrtTc)
+                .abusCone(abusCone)
+                .cpnSafCone(cpnSafCone)
+                .abusNcsCone(abusNcsCone)
+                .dgogPpoCone(dgogPpoCone)
+                .plmDes(plmDes)
+                .abusRngCone(abusRngCone)
+                .mnPrgCone(mnPrgCone)
+                .hrfPlnCone(hrfPlnCone)
+                .bzDttNm(bzDttNm)
+                .sklTpTc(sklTpTc)
+                .cstTpTc(cstTpTc)
+                .dplYn(dplYn)
+                .flfFsgDt(flfFsgDt)
+                .rprStsTc(rprStsTc)
+                .lstYn("N")
+                .exePttYn(exePttYn)
+                .bseYy(bseYy)
+                .prlmHrkOgzCCone(prlmHrkOgzCCone)
+                .odnYn(odnYn)
+                .abusTc(abusTc)
+                .cncdRfrNo(cncdRfrNo)
+                .delYn("N")
+                .build();
+    }
+
+    /**
      * 프로젝트 수정 파라미터 레코드 (DB-06)
      *
      * <p>35+ 개별 파라미터를 하나의 레코드로 압축하여 메서드 시그니처 가독성을 개선합니다. {@code ProjectService}의 수정 로직에서 사용합니다.

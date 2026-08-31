@@ -4,6 +4,9 @@ import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.BitemmId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * 정보화사업 품목(Bitemm) 데이터 접근 리포지토리
@@ -15,6 +18,33 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * <p>프로젝트와의 연관: {@code prjMngNo} + {@code prjSno}로 특정 프로젝트의 품목을 조회합니다.
  */
 public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
+
+    /** 이전 개정본에 속한 현재 품목을 비최종 상태로 전환합니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            """
+            UPDATE Bitemm i
+               SET i.lstYn = 'N'
+             WHERE i.abusMngNo = :abusMngNo
+               AND i.fntTbCrySno <> :sno
+               AND i.delYn = 'N'
+               AND i.lstYn = 'Y'
+            """)
+    int clearCurrentVersionItems(
+            @Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
+
+    /** 승인된 개정본에 속한 품목을 현재 품목으로 전환합니다. */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            """
+            UPDATE Bitemm i
+               SET i.lstYn = 'Y'
+             WHERE i.abusMngNo = :abusMngNo
+               AND i.fntTbCrySno = :sno
+               AND i.delYn = 'N'
+            """)
+    int markVersionItemsCurrent(
+            @Param("abusMngNo") String abusMngNo, @Param("sno") Integer sno);
 
     /** 사업별 예산 합산에 필요한 품목 필드만 읽는 프로젝션입니다. */
     interface ProjectItemBudgetView {
