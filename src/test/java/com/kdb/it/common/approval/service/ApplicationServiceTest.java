@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -257,9 +258,11 @@ class ApplicationServiceTest {
                         .build();
         ApplicationDto.RecallRequest request = new ApplicationDto.RecallRequest();
         request.setRecallOpnn("테스트 회수");
-        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(application));
+        given(applicationRepository.findByIdForUpdate(APF_MNG_NO))
+                .willReturn(Optional.of(application));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+        clearInvocations(applicationRepository);
 
         applicationService.recall(APF_MNG_NO, request, "E10001", false);
 

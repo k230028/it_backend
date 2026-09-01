@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -96,10 +97,11 @@ class ApprovalLineConcurrencyIT {
     @DisplayName("승인 트랜잭션이 잠금을 보유하면 결재선 교체는 대기 후 완료 상태를 다시 읽어 거부한다")
     void replacePendingApprovers_waitsForApproveThenRejectsCompletedApplication() throws Exception {
         CountDownLatch approvalLocked = new CountDownLatch(1);
-        CountDownLatch replacementEntered = new CountDownLatch(1);
+        CountDownLatch replacementStarted = new CountDownLatch(1);
         CountDownLatch approveNow = new CountDownLatch(1);
         CountDownLatch approvalCompletedButUncommitted = new CountDownLatch(1);
         CountDownLatch commitApproval = new CountDownLatch(1);
+        AtomicReference<Thread> replacementThread = new AtomicReference<>();
 
         try (var executor = Executors.newFixedThreadPool(2)) {
             Future<?> approval =
@@ -131,7 +133,8 @@ class ApprovalLineConcurrencyIT {
             Future<Throwable> replacement =
                     executor.submit(
                             () -> {
-                                replacementEntered.countDown();
+                                replacementThread.set(Thread.currentThread());
+                                replacementStarted.countDown();
                                 try {
                                     runAs(
                                             APPROVER_ENO,
@@ -147,7 +150,9 @@ class ApprovalLineConcurrencyIT {
                                     return failure;
                                 }
                             });
-            assertThat(replacementEntered.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(replacementStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(hasOracleJdbcCall(replacementThread.get())).isTrue();
+            assertThat(completesWithin(replacement, 1, TimeUnit.SECONDS)).isFalse();
 
             approveNow.countDown();
             assertThat(approvalCompletedButUncommitted.await(10, TimeUnit.SECONDS)).isTrue();
@@ -220,5 +225,17 @@ class ApprovalLineConcurrencyIT {
         } catch (TimeoutException expected) {
             return false;
         }
+    }
+
+    /** 첫 트랜잭션이 잠근 행을 얻으려는 실제 Oracle JDBC 호출 진입을 대기합니다. */
+    private boolean hasOracleJdbcCall(Thread thread) throws InterruptedException {
+        for (int attempt = 0; attempt < 400; attempt++) {
+            boolean inOracleJdbc =
+                    java.util.Arrays.stream(thread.getStackTrace())
+                            .anyMatch(frame -> frame.getClassName().startsWith("oracle.jdbc."));
+            if (inOracleJdbc) return true;
+            Thread.sleep(25);
+        }
+        return false;
     }
 }
