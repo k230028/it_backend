@@ -106,6 +106,9 @@ public class ApplicationService {
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
 
+    /** 전산업무비 원천 테이블명 — 개정 순번 검증 대상입니다. */
+    private static final String FNT_TB_BCOSTM = "BCOSTM";
+
     /**
      * 신청서 등록 (결재 요청)
      *
@@ -153,15 +156,13 @@ public class ApplicationService {
         // 하나의 신청서가 복수의 원천 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
         if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
             for (ApplicationDto.OrcItem item : request.getOrcItems()) {
+                Integer crySno = resolveSourceVersionSno(item);
                 Cappla cappla =
                         Cappla.builder()
                                 .apfDcmNo(apfMngNo)
                                 .fntTbNm(item.getFntTbNm())
                                 .pkColNm(item.getPkColNm())
-                                .fntTbCrySno(
-                                        item.getFntTbCrySno() != null
-                                                ? Integer.parseInt(item.getFntTbCrySno())
-                                                : null)
+                                .fntTbCrySno(crySno)
                                 .build();
                 applicationMapRepository.save(cappla);
 
@@ -199,6 +200,49 @@ public class ApplicationService {
         approvalRequestNotifier.notifyApprovalRequest(capplm);
 
         return apfMngNo; // 생성된 신청관리번호 반환
+    }
+
+    /**
+     * 상신 대상 원천 개정본의 순번을 검증해 반환합니다.
+     *
+     * <p>결재 매핑의 순번은 승인 완료 시 어느 개정본을 최종본으로 승격할지 결정합니다. 잘못된 순번이 실리면 승인 시점에 폐기된 구버전이 다시 최종본이 되거나(내용
+     * 롤백), 순번이 비어 있으면 승격 리스너가 예외를 던져 승인 트랜잭션 전체가 롤백됩니다. 두 경우 모두 결재자에게 원인을 알 수 없는 실패로 보이므로 상신 시점에
+     * 거절합니다.
+     *
+     * <p>순번 개념이 없는 원천 테이블은 검증 대상이 아니며 입력값을 그대로 씁니다.
+     *
+     * @param item 상신 요청의 원천 데이터 연결 항목
+     * @return 검증된 개정 순번 (검증 대상이 아니면 입력값 그대로, 없으면 null)
+     * @throws IllegalArgumentException 순번이 없거나 활성 개정본이 존재하지 않는 경우
+     */
+    private Integer resolveSourceVersionSno(ApplicationDto.OrcItem item) {
+        Integer sno =
+                item.getFntTbCrySno() != null && !item.getFntTbCrySno().isBlank()
+                        ? Integer.parseInt(item.getFntTbCrySno().trim())
+                        : null;
+        boolean versioned =
+                FNT_TB_BPROJM.equals(item.getFntTbNm()) || FNT_TB_BCOSTM.equals(item.getFntTbNm());
+        if (!versioned) {
+            return sno;
+        }
+        if (sno == null) {
+            throw new IllegalArgumentException(
+                    "상신 대상 개정본 순번이 없습니다: %s %s".formatted(item.getFntTbNm(), item.getPkColNm()));
+        }
+        boolean exists =
+                FNT_TB_BPROJM.equals(item.getFntTbNm())
+                        ? projectRepository
+                                .findByAbusMngNoAndSnoAndDelYn(item.getPkColNm(), sno, "N")
+                                .isPresent()
+                        : costRepository
+                                .findByCostBgNoAndBgSnoAndDelYn(item.getPkColNm(), sno, "N")
+                                .isPresent();
+        if (!exists) {
+            throw new IllegalArgumentException(
+                    "상신 대상 개정본이 없습니다: %s %s #%d"
+                            .formatted(item.getFntTbNm(), item.getPkColNm(), sno));
+        }
+        return sno;
     }
 
     /**

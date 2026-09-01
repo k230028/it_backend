@@ -1,5 +1,6 @@
 package com.kdb.it.domain.migration.service;
 
+import com.kdb.it.domain.budget.plan.PlanType;
 import com.kdb.it.domain.migration.dto.MigrationColumns;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.SheetKind;
@@ -459,7 +460,8 @@ public class MigrationValidator {
                             "이 사업이 같은 반영의 자본예산 시트에도, 포탈에도 없습니다. 자본예산 편성요구서를 함께 올리거나 사업명을 확인해 주세요.",
                             List.of()));
         }
-        if (snapshot.planExists("조정")) {
+        // 스냅샷은 저장 코드값('01','02')만 담으므로 라벨로 비교하면 어떤 입력에도 발화하지 않는다.
+        if (snapshot.planExists(PlanType.ADJUSTMENT.code())) {
             out.add(
                     MigrationDiagnostics.blocker(
                             sheet,

@@ -26,7 +26,12 @@ public final class BudgetDetailAccessVerifier {
         if (actor == null) {
             throw new AccessDeniedException("인증 정보가 없습니다.");
         }
-        if (actor.isAdmin() || IT_ORGANIZATION_CODES.contains(actor.getBbrC())) {
+        // Set.of(...)는 불변 집합이라 contains(null)이 NullPointerException을 던진다.
+        // SSO 미동기화 등으로 부점코드가 비어 있는 계정은 500이 아니라 권한 없음으로 처리한다.
+        String actorDepartmentCode = actor.getBbrC();
+        if (actor.isAdmin()
+                || (actorDepartmentCode != null
+                        && IT_ORGANIZATION_CODES.contains(actorDepartmentCode))) {
             return;
         }
         if (StringUtils.hasText(resourceDepartmentCode)

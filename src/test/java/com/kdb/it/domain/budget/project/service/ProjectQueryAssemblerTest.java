@@ -818,4 +818,33 @@ class ProjectQueryAssemblerTest {
         given(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .willReturn(List.of(ioe));
     }
+
+    @Test
+    @DisplayName("목록 조립: 미상신 초안 행이 구버전의 결재완료 정보를 물려받지 않는다")
+    void assembleList_초안행은_구버전_결재정보를_물려받지_않는다() {
+        Bprojm draft =
+                Bprojm.builder().abusMngNo("PRJ-VER-001").sno(2).lstYn("N").delYn("N").build();
+        // 같은 관리번호의 v1이 결재완료 상태로 남아 있다 — 초안 v2는 아직 상신 전이다.
+        ApplicationMapView v1Link = new ApplicationMapView("APF-010", "PRJ-VER-001", 1);
+        given(
+                        applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                "BPROJM", List.of("PRJ-VER-001")))
+                .willReturn(List.of(v1Link));
+        given(applicationRepository.findSummaryViewsByApfMngNoIn(List.of("APF-010")))
+                .willReturn(
+                        List.of(
+                                new ApplicationSummaryView(
+                                        "APF-010",
+                                        ApprovalStatus.COMPLETED.code(),
+                                        "v1 결재",
+                                        "10001",
+                                        LocalDate.of(2026, 8, 5),
+                                        "승인 요청")));
+
+        ProjectDto.Response result = assembler.assembleList(List.of(draft)).get(0);
+
+        assertThat(result.getApfSts()).isNull();
+        assertThat(result.getApfMngNo()).isNull();
+        assertThat(result.getApplicationInfo()).isNull();
+    }
 }

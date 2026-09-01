@@ -97,7 +97,8 @@ public interface ProjectRepository
      * 사업관리번호 집합 일괄 조회 (N+1 제거) — 사업명 매핑용
      *
      * <p>{@link #findByAbusMngNoAndDelYn(String, String)}의 단건 조회를 집합으로 묶어 1회로 수행합니다. 동일한 {@code
-     * DEL_YN} 필터를 유지하며, 호출부에서 abusMngNo별 첫 행 채택 규칙(원본 로직과 동일)을 적용합니다. (LST_YN 조건 없는 별도 메서드)
+     * DEL_YN} 필터와 {@code LST_YN='Y'} 조건을 유지하므로 최종본만 반환합니다. 재상신 초안까지 필요한 경우 {@link
+     * #findByAbusMngNoAndDelYnOrderBySnoAsc(String, String)}를 사용합니다.
      *
      * @param abusMngNos 사업관리번호 집합
      * @param delYn 삭제 여부 ('N'=미삭제)

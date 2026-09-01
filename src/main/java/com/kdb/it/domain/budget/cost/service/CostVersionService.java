@@ -33,6 +33,11 @@ public class CostVersionService {
                                 () ->
                                         new IllegalArgumentException(
                                                 "재상신할 최종 전산업무비가 없습니다: " + costBgNo));
+        // 원본을 잠근 뒤 미결 초안 존재를 확인한다. 잠금이 동시 요청을 직렬화하므로
+        // 두 번째 트랜잭션은 여기서 차단되어 초안이 중첩 생성되지 않는다.
+        if (costRepository.existsByCostBgNoAndLstYnAndDelYn(costBgNo, "N", "N")) {
+            throw new IllegalStateException("이미 재상신 초안이 있습니다: " + costBgNo);
+        }
         String latestStatus =
                 applicationMapRepository
                         .findLatestApplicationStatus(COST_TABLE, costBgNo, source.getBgSno())
@@ -71,12 +76,33 @@ public class CostVersionService {
         costRepository
                 .findVersionForUpdate(costBgNo, bgSno)
                 .orElseThrow(
-                        () ->
-                                new IllegalArgumentException(
-                                        "승격할 전산업무비 개정본이 없습니다: " + costBgNo));
+                        () -> new IllegalArgumentException("승격할 전산업무비 개정본이 없습니다: " + costBgNo));
+        verifyNotRegressing(costBgNo, bgSno);
         costRepository.clearCurrentVersion(costBgNo, bgSno);
         if (costRepository.markVersionCurrent(costBgNo, bgSno) != 1) {
             throw new IllegalStateException("승격할 전산업무비 개정본이 없습니다: " + costBgNo);
+        }
+    }
+
+    /**
+     * 현재 최종본보다 낮은 순번으로 되돌리는 승격을 막습니다.
+     *
+     * <p>초안이 중복 생성돼 둘 다 승인되거나 상신 시 잘못된 순번이 결재 매핑에 실려 오면, 나중 승격이 이미 승인된 최신본을 조용히 강등시킵니다.
+     *
+     * @param costBgNo 전산업무비예산번호
+     * @param bgSno 승격하려는 개정 순번
+     * @throws IllegalStateException 현재 최종본보다 낮은 순번인 경우
+     */
+    private void verifyNotRegressing(String costBgNo, Integer bgSno) {
+        Integer currentSno =
+                costRepository
+                        .findByCostBgNoAndLstYnAndDelYn(costBgNo, "Y", "N")
+                        .map(Bcostm::getBgSno)
+                        .orElse(null);
+        if (currentSno != null && bgSno != null && bgSno < currentSno) {
+            throw new IllegalStateException(
+                    "이전 개정본으로 되돌릴 수 없습니다: %s (현재 최종본 %d, 요청 %d)"
+                            .formatted(costBgNo, currentSno, bgSno));
         }
     }
 

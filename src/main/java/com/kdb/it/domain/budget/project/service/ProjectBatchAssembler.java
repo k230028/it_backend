@@ -84,7 +84,9 @@ final class ProjectBatchAssembler {
             return responses;
         }
         List<String> projectIds = projects.stream().map(Bprojm::getAbusMngNo).toList();
-        BatchData data = loadBatchData(projects, responses, false);
+        // 결재 매핑은 (관리번호, 개정순번) 단위로 찾는다. 관리번호만으로 찾으면 미상신 초안 행이
+        // 구버전의 결재완료 결재정보를 물려받아 '미상신' 필터 결과와 화면 배지가 모순된다.
+        BatchData data = loadBatchData(projects, responses, true);
         Map<String, String[]> scheduleByProject = new HashMap<>();
         for (Object[] row : projectRepository.findBizplanScheduleRange(projectIds)) {
             String id = toNativeString(row[0]);
@@ -96,7 +98,7 @@ final class ProjectBatchAssembler {
         for (int index = 0; index < projects.size(); index++) {
             Bprojm project = Objects.requireNonNull(projects.get(index));
             ProjectDto.Response response = Objects.requireNonNull(responses.get(index));
-            applyCommon(project, response, data, false);
+            applyCommon(project, response, data, true, false);
             String[] schedule = scheduleByProject.get(project.getAbusMngNo());
             if (schedule != null) {
                 response.setBizplanSttDt(schedule[0]);
@@ -139,7 +141,7 @@ final class ProjectBatchAssembler {
         for (int index = 0; index < projects.size(); index++) {
             Bprojm project = Objects.requireNonNull(projects.get(index));
             ProjectDto.Response response = Objects.requireNonNull(responses.get(index));
-            applyCommon(project, response, data, true);
+            applyCommon(project, response, data, true, true);
             List<Bitemm> items =
                     itemsByProject.getOrDefault(project.getAbusMngNo(), List.of()).stream()
                             .filter(item -> Objects.equals(item.getFntTbCrySno(), project.getSno()))
@@ -245,7 +247,11 @@ final class ProjectBatchAssembler {
     }
 
     private void applyCommon(
-            Bprojm project, ProjectDto.Response response, BatchData data, boolean keyBySequence) {
+            Bprojm project,
+            ProjectDto.Response response,
+            BatchData data,
+            boolean keyBySequence,
+            boolean includeStepCodes) {
         String applicationKey =
                 keyBySequence
                         ? project.getAbusMngNo() + "|" + project.getSno()
@@ -286,7 +292,7 @@ final class ProjectBatchAssembler {
         List<Bproja> steps = data.steps().getOrDefault(project.getAbusMngNo(), List.of());
         response.setStsTc(
                 ProjectQueryAssembler.representativeStatus(steps, project.getAbusMngNo()));
-        if (keyBySequence) {
+        if (includeStepCodes) {
             response.setBprojaStsCodes(
                     steps.stream().map(Bproja::getStsTc).filter(Objects::nonNull).toList());
         }

@@ -896,6 +896,9 @@ class ApplicationServiceTest {
         ApplicationDto.OrcItem cost = new ApplicationDto.OrcItem();
         cost.setFntTbNm("BCOSTM");
         cost.setPkColNm("COST-001");
+        cost.setFntTbCrySno("1");
+        givenActiveVersion("PRJ-001", 3);
+        givenActiveCostVersion("COST-001", 1);
 
         ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
         request.setApfNm("테스트 신청서");
@@ -912,7 +915,7 @@ class ApplicationServiceTest {
         verify(applicationMapRepository, times(2)).save(capplaCaptor.capture());
         assertThat(capplaCaptor.getAllValues())
                 .extracting(value -> value.getFntTbCrySno())
-                .containsExactly(3, null);
+                .containsExactly(3, 1);
         // 결재선 2건 초기 저장만 발생 (자동 승인 분기 제거됨)
         verify(approverRepository, times(2)).save(any(Cdecim.class));
     }
@@ -944,6 +947,8 @@ class ApplicationServiceTest {
             ApplicationDto.OrcItem item = new ApplicationDto.OrcItem();
             item.setFntTbNm("BPROJM");
             item.setPkColNm("PRJ-2026-000" + i);
+            item.setFntTbCrySno("1");
+            givenActiveVersion("PRJ-2026-000" + i, 1);
             items.add(item);
         }
         ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
@@ -969,9 +974,13 @@ class ApplicationServiceTest {
         ApplicationDto.OrcItem project = new ApplicationDto.OrcItem();
         project.setFntTbNm("BPROJM");
         project.setPkColNm("PRJ-2026-0001");
+        project.setFntTbCrySno("1");
         ApplicationDto.OrcItem cost = new ApplicationDto.OrcItem();
         cost.setFntTbNm("BCOSTM");
         cost.setPkColNm("COST-001");
+        cost.setFntTbCrySno("1");
+        givenActiveVersion("PRJ-2026-0001", 1);
+        givenActiveCostVersion("COST-001", 1);
 
         ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
         request.setApfNm("테스트 신청서");
@@ -1282,5 +1291,70 @@ class ApplicationServiceTest {
                                 pendingApproverService.changePendingApprover(
                                         APF_MNG_NO, 1, "20001", "10001", false))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("상신 시 원천 개정본 순번 검증")
+    class OrcItemVersionValidationTests {
+
+        private ApplicationDto.CreateRequest requestWith(String fntTbNm, String sno) {
+            ApplicationDto.CreateRequest request = new ApplicationDto.CreateRequest();
+            request.setApfNm("예산 상신");
+            request.setRqsEno("10001");
+            request.setApproverEnos(List.of("20001"));
+            ApplicationDto.OrcItem item = new ApplicationDto.OrcItem();
+            item.setFntTbNm(fntTbNm);
+            item.setPkColNm("PRJ-2026-0001");
+            item.setFntTbCrySno(sno);
+            request.setOrcItems(List.of(item));
+            return request;
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 개정 순번으로 상신하면 거절한다 — 승인 시점 구버전 재승격을 막는다")
+        void 존재하지않는_순번은_거절한다() {
+            given(projectRepository.findByAbusMngNoAndSnoAndDelYn("PRJ-2026-0001", 1, "N"))
+                    .willReturn(java.util.Optional.empty());
+
+            assertThatThrownBy(() -> applicationService.submit(requestWith("BPROJM", "1")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("개정본");
+
+            verify(applicationMapRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("개정 순번이 비어 있으면 거절한다 — 승인 리스너가 null 순번으로 예외를 던진다")
+        void 순번이_비어있으면_거절한다() {
+            assertThatThrownBy(() -> applicationService.submit(requestWith("BPROJM", null)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("개정본");
+
+            verify(applicationMapRepository, never()).save(any());
+        }
+    }
+
+    /** 상신 검증이 통과하도록 해당 사업 개정본이 활성 상태라고 설정합니다. */
+    private void givenActiveVersion(String abusMngNo, int sno) {
+        given(projectRepository.findByAbusMngNoAndSnoAndDelYn(abusMngNo, sno, "N"))
+                .willReturn(
+                        Optional.of(
+                                com.kdb.it.domain.budget.project.entity.Bprojm.builder()
+                                        .abusMngNo(abusMngNo)
+                                        .sno(sno)
+                                        .delYn("N")
+                                        .build()));
+    }
+
+    /** 상신 검증이 통과하도록 해당 전산업무비 개정본이 활성 상태라고 설정합니다. */
+    private void givenActiveCostVersion(String costBgNo, int bgSno) {
+        given(costRepository.findByCostBgNoAndBgSnoAndDelYn(costBgNo, bgSno, "N"))
+                .willReturn(
+                        Optional.of(
+                                com.kdb.it.domain.budget.cost.entity.Bcostm.builder()
+                                        .costBgNo(costBgNo)
+                                        .bgSno(bgSno)
+                                        .delYn("N")
+                                        .build()));
     }
 }

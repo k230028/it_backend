@@ -62,6 +62,11 @@ public class ProjectVersionService {
         if (verifyActor) {
             BudgetDetailAccessVerifier.verifyReadable(source.getSvnDpmC(), actor);
         }
+        // 원본을 잠근 뒤 미결 초안 존재를 확인한다. 잠금이 동시 요청을 직렬화하므로
+        // 두 번째 트랜잭션은 여기서 차단되어 초안 v2·v3가 함께 생기지 않는다.
+        if (projectRepository.existsByAbusMngNoAndLstYnAndDelYn(abusMngNo, "N", "N")) {
+            throw new IllegalStateException("이미 재신청 초안이 있습니다: " + abusMngNo);
+        }
         if (source.getSvnDpmC() == null || source.getSvnDpmC().isBlank()) {
             throw new IllegalArgumentException("주관부서가 없는 사업은 재신청할 수 없습니다: " + abusMngNo);
         }
@@ -143,12 +148,36 @@ public class ProjectVersionService {
         projectRepository
                 .findVersionForUpdate(abusMngNo, sno)
                 .orElseThrow(() -> new IllegalArgumentException("승격할 사업 개정본이 없습니다: " + abusMngNo));
+        verifyNotRegressing(abusMngNo, sno);
         projectRepository.clearCurrentVersion(abusMngNo, sno);
         if (projectRepository.markVersionCurrent(abusMngNo, sno) != 1) {
             throw new IllegalStateException("승격할 사업 개정본이 없습니다: " + abusMngNo);
         }
         projectItemRepository.clearCurrentVersionItems(abusMngNo, sno);
         projectItemRepository.markVersionItemsCurrent(abusMngNo, sno);
+    }
+
+    /**
+     * 현재 최종본보다 낮은 순번으로 되돌리는 승격을 막습니다.
+     *
+     * <p>초안이 중복 생성돼 둘 다 승인되거나, 상신 시 잘못된 순번이 결재 매핑에 실려 오면 나중 승격이 이미 승인된 최신본을 조용히 강등시킵니다. 사용자에게는 사업
+     * 내용이 과거로 롤백된 것처럼 보이므로 실패로 드러냅니다.
+     *
+     * @param abusMngNo 사업관리번호
+     * @param sno 승격하려는 개정 순번
+     * @throws IllegalStateException 현재 최종본보다 낮은 순번인 경우
+     */
+    private void verifyNotRegressing(String abusMngNo, Integer sno) {
+        Integer currentSno =
+                projectRepository
+                        .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
+                        .map(Bprojm::getSno)
+                        .orElse(null);
+        if (currentSno != null && sno != null && sno < currentSno) {
+            throw new IllegalStateException(
+                    "이전 개정본으로 되돌릴 수 없습니다: %s (현재 최종본 %d, 요청 %d)"
+                            .formatted(abusMngNo, currentSno, sno));
+        }
     }
 
     /** 원본 개정본에 속한 활성 품목을 새 식별자와 새 부모 순번으로 복제합니다. */

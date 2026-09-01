@@ -753,7 +753,13 @@ class MigrationImportServiceTest {
                                 "2026", "문자메시지안심마크도입", "PRJ-2026-0005"));
         stubLookupIndex();
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
-        when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any(), any()))
+        when(planService.createPlanForMigration(
+                        eq("2026"),
+                        eq(com.kdb.it.domain.budget.plan.PlanType.ADJUSTMENT.code()),
+                        any(),
+                        any(),
+                        any(),
+                        any()))
                 .thenReturn("PLN-2026-0009");
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
@@ -778,7 +784,12 @@ class MigrationImportServiceTest {
         // 이제 "조정이 품목을 건드리지 않는다"는 호출 검증이 아니라 구조로 보장된다.
         verify(planService)
                 .createPlanForMigration(
-                        eq("2026"), eq("조정"), eq(List.of("PRJ-2026-0005")), any(), any(), any());
+                        eq("2026"),
+                        eq(com.kdb.it.domain.budget.plan.PlanType.ADJUSTMENT.code()),
+                        eq(List.of("PRJ-2026-0005")),
+                        any(),
+                        any(),
+                        any());
     }
 
     /** 부문계획 대상 사업을 찾지 못하면 계획 생성을 건너뛰고 예외를 던지지 않는다. */
@@ -1541,7 +1552,13 @@ class MigrationImportServiceTest {
                                 "2026", "문자메시지안심마크도입", "PRJ-2026-0005"));
         stubLookupIndex();
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
-        when(planService.createPlanForMigration(eq("2026"), eq("조정"), any(), any(), any(), any()))
+        when(planService.createPlanForMigration(
+                        eq("2026"),
+                        eq(com.kdb.it.domain.budget.plan.PlanType.ADJUSTMENT.code()),
+                        any(),
+                        any(),
+                        any(),
+                        any()))
                 .thenReturn("PLN-2026-0009");
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));

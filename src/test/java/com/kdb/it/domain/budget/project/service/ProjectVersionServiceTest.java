@@ -213,4 +213,45 @@ class ProjectVersionServiceTest {
         assertThat(captor.getValue().getFntTbCrySno()).isEqualTo(2);
         assertThat(captor.getValue().getLstYn()).isEqualTo("N");
     }
+
+    @Test
+    @DisplayName("이미 미결 재신청 초안이 있으면 재신청을 거부한다 — 더블클릭·동시 요청으로 초안이 중첩되지 않는다")
+    void 활성_초안이_있으면_재신청을_거부한다() {
+        Bprojm source =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .sno(1)
+                        .svnDpmC("D001")
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
+                .willReturn(Optional.of(source));
+        given(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "N", "N"))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> service.createReapplication("PRJ-2026-0001"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("재신청 초안");
+
+        verify(projectRepository, never()).getNextVersionSno("PRJ-2026-0001");
+    }
+
+    @Test
+    @DisplayName("현재 최종본보다 낮은 순번으로는 승격하지 않는다 — 승인된 최신본이 조용히 강등되는 것을 막는다")
+    void 이전_순번으로의_승격을_거부한다() {
+        Bprojm current =
+                Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(2).lstYn("Y").delYn("N").build();
+        Bprojm stale =
+                Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).lstYn("N").delYn("N").build();
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 1))
+                .willReturn(Optional.of(stale));
+        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "Y", "N"))
+                .willReturn(Optional.of(current));
+
+        assertThatThrownBy(() -> service.promoteApprovedVersion("PRJ-2026-0001", 1))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(projectRepository, never()).clearCurrentVersion("PRJ-2026-0001", 1);
+    }
 }

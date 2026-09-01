@@ -69,4 +69,17 @@ class ProjectVersionAccessTest {
     private static CustomUserDetails otherDepartmentUser() {
         return new CustomUserDetails("USER", List.of(CustomUserDetails.ATH_USER), "D200");
     }
+
+    @Test
+    @DisplayName("부점코드가 없는 계정은 500이 아니라 403으로 거부한다")
+    void 부점코드가_없는_계정은_403으로_거부한다() {
+        Bprojm revision = Bprojm.builder().abusMngNo("PRJ-1").sno(1).svnDpmC("D100").build();
+        given(projectRepository.findByAbusMngNoAndSnoAndDelYn("PRJ-1", 1, "N"))
+                .willReturn(Optional.of(revision));
+        CustomUserDetails noDepartment =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), null);
+
+        assertThatThrownBy(() -> service.findVersion("PRJ-1", 1, noDepartment))
+                .isInstanceOf(AccessDeniedException.class);
+    }
 }

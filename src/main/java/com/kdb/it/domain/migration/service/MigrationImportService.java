@@ -5,6 +5,7 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostRepresentativeSelector;
 import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.plan.PlanType;
 import com.kdb.it.domain.budget.plan.service.PlanService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -700,7 +701,10 @@ public class MigrationImportService {
         return new AdjustmentPlan(
                 planService.createPlanForMigration(
                         bseYy,
-                        "조정",
+                        // 화면 표시명이 아니라 저장 코드값을 넣는다. IT_PTL_PLN_TP_C는
+                        // VARCHAR2(2 BYTE)라 라벨('조정' 6바이트)은 ORA-12899로 실패하고,
+                        // 저장돼도 PlanEvaluationService가 "02"와 비교해 조정계획으로 보지 않는다.
+                        PlanType.ADJUSTMENT.code(),
                         projectNos,
                         capitalAmounts,
                         generalAmounts,

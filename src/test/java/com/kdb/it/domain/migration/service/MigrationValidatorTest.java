@@ -437,7 +437,10 @@ class MigrationValidatorTest {
                                 new MigrationDto.SheetPayload(
                                         SheetKind.PLAN_ADJUSTMENT, "2026", List.of(row(2, cells)))),
                         TestSnapshots.emptyIndex(),
-                        TestSnapshots.snapshotWithPlanType("2026", "조정"),
+                        // 스냅샷은 실제 저장 코드값('02')으로 채워진다. 라벨을 넣으면 통과하는
+                        // 픽스처는 운영에서 발화하지 않는 죽은 검사를 감춘다.
+                        TestSnapshots.snapshotWithPlanType(
+                                "2026", com.kdb.it.domain.budget.plan.PlanType.ADJUSTMENT.code()),
                         Map.of(),
                         Map.of());
 

@@ -1,7 +1,9 @@
 package com.kdb.it.domain.budget.cost.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
@@ -52,14 +54,17 @@ class CostVersionServiceTest {
         given(costRepository.findCurrentVersionForUpdate(source.getCostBgNo()))
                 .willReturn(Optional.of(source));
         given(costRepository.getNextSnoValue(source.getCostBgNo())).willReturn(2);
-        given(applicationMapRepository.findLatestApplicationStatus("BCOSTM", source.getCostBgNo(), 1))
+        given(
+                        applicationMapRepository.findLatestApplicationStatus(
+                                "BCOSTM", source.getCostBgNo(), 1))
                 .willReturn(Optional.of(ApprovalStatus.COMPLETED.code()));
         given(terminalRepository.findByTermBgNoAndTermBgSnoAndDelYn(source.getCostBgNo(), 1, "N"))
                 .willReturn(List.of(terminal));
         given(terminalRepository.getNextSnoValue("TMN-1")).willReturn(2);
 
         CostVersionService service =
-                new CostVersionService(costRepository, terminalRepository, applicationMapRepository);
+                new CostVersionService(
+                        costRepository, terminalRepository, applicationMapRepository);
         CostVersionService.CostVersion result = service.createReapplication(source.getCostBgNo());
 
         assertThat(result.bgSno()).isEqualTo(2);
@@ -71,5 +76,46 @@ class CostVersionServiceTest {
         verify(terminalRepository).save(terminalCaptor.capture());
         assertThat(terminalCaptor.getValue().getTermBgSno()).isEqualTo(2);
         assertThat(terminalCaptor.getValue().getSpfTmnNm()).isEqualTo("단말 원본");
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("이미 미결 재상신 초안이 있으면 재상신을 거부한다")
+    void 활성_초안이_있으면_재상신을_거부한다() {
+        Bcostm source =
+                Bcostm.builder().costBgNo("COST-2027-0001").bgSno(1).lstYn("Y").delYn("N").build();
+        given(costRepository.findCurrentVersionForUpdate("COST-2027-0001"))
+                .willReturn(Optional.of(source));
+        given(costRepository.existsByCostBgNoAndLstYnAndDelYn("COST-2027-0001", "N", "N"))
+                .willReturn(true);
+        CostVersionService service =
+                new CostVersionService(
+                        costRepository, terminalRepository, applicationMapRepository);
+
+        assertThatThrownBy(() -> service.createReapplication("COST-2027-0001"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("재상신 초안");
+
+        verify(costRepository, never()).getNextSnoValue("COST-2027-0001");
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("현재 최종본보다 낮은 순번으로는 승격하지 않는다")
+    void 이전_순번으로의_승격을_거부한다() {
+        Bcostm current =
+                Bcostm.builder().costBgNo("COST-2027-0001").bgSno(2).lstYn("Y").delYn("N").build();
+        Bcostm stale =
+                Bcostm.builder().costBgNo("COST-2027-0001").bgSno(1).lstYn("N").delYn("N").build();
+        given(costRepository.findVersionForUpdate("COST-2027-0001", 1))
+                .willReturn(Optional.of(stale));
+        given(costRepository.findByCostBgNoAndLstYnAndDelYn("COST-2027-0001", "Y", "N"))
+                .willReturn(Optional.of(current));
+        CostVersionService service =
+                new CostVersionService(
+                        costRepository, terminalRepository, applicationMapRepository);
+
+        assertThatThrownBy(() -> service.promoteApprovedVersion("COST-2027-0001", 1))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(costRepository, never()).clearCurrentVersion("COST-2027-0001", 1);
     }
 }
