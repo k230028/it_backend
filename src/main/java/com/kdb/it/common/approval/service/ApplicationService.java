@@ -2,6 +2,7 @@ package com.kdb.it.common.approval.service;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.dto.ApplicationApproverDisplay;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
@@ -274,7 +275,7 @@ public class ApplicationService {
         // 신청서 마스터 조회 (없으면 예외)
         Capplm capplm =
                 applicationRepository
-                        .findById(apfMngNo)
+                        .findByIdForUpdate(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
 
@@ -480,11 +481,14 @@ public class ApplicationService {
         // 결재자 목록 조회 (순번 오름차순)
         List<ApproverRepository.ApproverReadView> approvers =
                 approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
+        java.util.Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
+                ApplicationBulkReadSupport.resolveApproverDisplays(approvers, userRepository);
         String requesterNm =
                 requesterName(resolveRequesterNames(List.of(view)), view.getDcdReqUsid());
         String requesterBbrNm =
                 requesterDeptName(resolveRequesterDeptNames(List.of(view)), view.getDcdReqBbrC());
-        return ApplicationDto.Response.fromReadViews(view, approvers, requesterNm, requesterBbrNm);
+        return ApplicationDto.Response.fromReadViews(
+                view, approvers, requesterNm, requesterBbrNm, approverDisplaysByEno);
     }
 
     /**
@@ -767,7 +771,7 @@ public class ApplicationService {
             boolean isAdmin) {
         Capplm capplm =
                 applicationRepository
-                        .findById(apfMngNo)
+                        .findByIdForUpdate(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
 

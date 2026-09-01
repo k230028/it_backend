@@ -3,6 +3,8 @@ package com.kdb.it.common.approval.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -17,11 +19,15 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -36,6 +42,193 @@ class ApprovalLineManagementServiceTest {
     @Mock private ApprovalLineDelegate approvalLineDelegate;
 
     @InjectMocks private ApprovalLineManagementService service;
+
+    @BeforeEach
+    void setUp() {
+        org.mockito.Mockito.lenient()
+                .when(applicationRepository.findByIdForUpdate(anyString()))
+                .thenAnswer(
+                        invocation -> applicationRepository.findById(invocation.getArgument(0)));
+    }
+
+    @Test
+    @DisplayName("중복 사번은 저장 전에 거부하고 기존 결재선을 변경하지 않는다")
+    void replacePendingApprovers_중복사번_롤백() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+
+        assertThatThrownBy(
+                        () ->
+                                service.replacePendingApprovers(
+                                        APF, List.of("E100", "E100"), "E001", false))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(approverRepository, never()).saveAll(anyCollection());
+        verify(approverRepository, never()).deleteAll(anyCollection());
+        verify(approvalLineDelegate, never()).replacePendingApproversInDetail(any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("승인 완료 결재자는 유지하고 미결재 결재자를 요청 순서로 일괄 교체한다")
+    void replacePendingApprovers_preservesCompletedPrefixAndReplacesPendingRows() {
+        Capplm application = application("1", "E001");
+        Cdecim approved = approver(1, "E001", "2");
+        Cdecim pending = approver(2, "E002", "1");
+        CuserI firstUser =
+                CuserI.builder().eno("E100").usrNm("새결재자1").ptCNm("과장").delYn("N").build();
+        CuserI secondUser =
+                CuserI.builder().eno("E101").usrNm("새결재자2").ptCNm("차장").delYn("N").build();
+        given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approved, pending));
+        given(userRepository.findByEnoIn(List.of("E100", "E101")))
+                .willReturn(List.of(firstUser, secondUser));
+
+        service.replacePendingApprovers(APF, List.of("E100", "E101"), "E001", false);
+
+        ArgumentCaptor<Iterable<Cdecim>> replacements = ArgumentCaptor.forClass(Iterable.class);
+        verify(approverRepository).deleteAll(List.of(pending));
+        verify(approverRepository).saveAll(replacements.capture());
+        assertThat(approved.getLstDcdYn()).isEqualTo("N");
+        assertThat(replacements.getValue())
+                .extracting(
+                        value ->
+                                value.getDcrSqnSno()
+                                        + ":"
+                                        + value.getDcrEno()
+                                        + ":"
+                                        + value.getLstDcdYn())
+                .containsExactly("2:E100:N", "3:E101:Y");
+
+        InOrder updates = Mockito.inOrder(approvalLineDelegate);
+        updates.verify(approvalLineDelegate)
+                .replacePendingApproversInDetail(
+                        eq(application),
+                        org.mockito.ArgumentMatchers.argThat(
+                                values ->
+                                        values.size() == 3
+                                                && values.get(0) == approved
+                                                && "E100".equals(values.get(1).getDcrEno())
+                                                && "E101".equals(values.get(2).getDcrEno())),
+                        eq(List.of(firstUser, secondUser)));
+        updates.verify(approvalLineDelegate)
+                .updateApprovalOrder(
+                        eq(application),
+                        org.mockito.ArgumentMatchers.argThat(
+                                values ->
+                                        values.size() == 3
+                                                && values.get(0) == approved
+                                                && "E100".equals(values.get(1).getDcrEno())
+                                                && "E101".equals(values.get(2).getDcrEno())));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 결재자가 포함되면 기존 미결재 결재선을 변경하지 않는다")
+    void replacePendingApprovers_미존재결재자_롤백() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+        given(userRepository.findByEnoIn(List.of("E100", "E404")))
+                .willReturn(List.of(CuserI.builder().eno("E100").delYn("N").build()));
+
+        assertThatThrownBy(
+                        () ->
+                                service.replacePendingApprovers(
+                                        APF, List.of("E100", "E404"), "E001", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("E404");
+
+        verify(approverRepository, never()).saveAll(anyCollection());
+        verify(approverRepository, never()).deleteAll(anyCollection());
+    }
+
+    @Test
+    @DisplayName("삭제된 결재자가 포함되면 기존 미결재 결재선을 변경하지 않는다")
+    void replacePendingApprovers_삭제된결재자_롤백() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+        given(userRepository.findByEnoIn(List.of("E100")))
+                .willReturn(List.of(CuserI.builder().eno("E100").delYn("Y").build()));
+
+        assertThatThrownBy(
+                        () -> service.replacePendingApprovers(APF, List.of("E100"), "E001", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("활성");
+
+        verify(approverRepository, never()).saveAll(anyCollection());
+        verify(approverRepository, never()).deleteAll(anyCollection());
+    }
+
+    @Test
+    @DisplayName("삭제여부가 null인 결재자는 기존 미결재 결재선을 변경하지 않는다")
+    void replacePendingApprovers_삭제여부null_롤백() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+        given(userRepository.findByEnoIn(List.of("E100")))
+                .willReturn(List.of(CuserI.builder().eno("E100").build()));
+
+        assertThatThrownBy(
+                        () -> service.replacePendingApprovers(APF, List.of("E100"), "E001", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("활성");
+
+        verify(approverRepository, never()).saveAll(anyCollection());
+        verify(approverRepository, never()).deleteAll(anyCollection());
+    }
+
+    @Test
+    @DisplayName("승인과 결재선 교체는 신청서 비관 잠금을 공유한다")
+    void replacePendingApprovers_승인과공유하는신청서잠금() throws Exception {
+        org.springframework.data.jpa.repository.Lock lock =
+                ApplicationRepository.class
+                        .getMethod("findByIdForUpdate", String.class)
+                        .getAnnotation(org.springframework.data.jpa.repository.Lock.class);
+
+        assertThat(lock).isNotNull();
+        assertThat(lock.value()).isEqualTo(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    @Test
+    @DisplayName("승인이 잠금 선점 후 완료되면 교체는 완료 행을 삭제하지 않는다")
+    void replacePendingApprovers_승인완료후_완료행삭제없음() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        Cdecim completed = approver(1, "E002", "2");
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(completed));
+
+        assertThatThrownBy(
+                        () -> service.replacePendingApprovers(APF, List.of("E100"), "E002", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("교체할 미결재 결재자가 없습니다");
+
+        assertThat(completed.getItPtlDcdStsC()).isEqualTo("2");
+        verify(approverRepository, never()).deleteAll(anyCollection());
+        verify(approverRepository, never()).saveAll(anyCollection());
+    }
+
+    @Test
+    @DisplayName("미결재 결재자가 비어 있는 요청은 기존 결재선을 변경하지 않는다")
+    void replacePendingApprovers_빈목록_거부() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+
+        assertThatThrownBy(() -> service.replacePendingApprovers(APF, List.of(), "E001", false))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(approverRepository, never()).saveAll(anyCollection());
+        verify(approverRepository, never()).deleteAll(anyCollection());
+    }
 
     @Test
     @DisplayName("결재중 결재선 참여자는 현재 결재선 뒤에 추가할 수 있다")

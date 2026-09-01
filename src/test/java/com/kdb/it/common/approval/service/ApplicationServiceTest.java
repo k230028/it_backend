@@ -3,8 +3,10 @@ package com.kdb.it.common.approval.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -22,6 +24,7 @@ import com.kdb.it.common.approval.notification.ApprovalRequestNotifier;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -31,6 +34,7 @@ import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -209,6 +213,9 @@ class ApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        given(applicationRepository.findByIdForUpdate(anyString()))
+                .willAnswer(
+                        invocation -> applicationRepository.findById(invocation.getArgument(0)));
         given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
         given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any())).willReturn(List.of());
     }
@@ -238,6 +245,28 @@ class ApplicationServiceTest {
         req.setDcdOpnn("테스트의견");
         req.setDcdSts(sts);
         return req;
+    }
+
+    @Test
+    @DisplayName("recall: 결재 상태 변경 전에 명령 전용 신청서 잠금을 획득한다")
+    void recall_명령잠금획득() {
+        Capplm application =
+                Capplm.builder()
+                        .apfMngNo(APF_MNG_NO)
+                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                        .dcdReqUsid("E10001")
+                        .build();
+        ApplicationDto.RecallRequest request = new ApplicationDto.RecallRequest();
+        request.setRecallOpnn("테스트 회수");
+        given(applicationRepository.findByIdForUpdate(APF_MNG_NO))
+                .willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+        clearInvocations(applicationRepository);
+
+        applicationService.recall(APF_MNG_NO, request, "E10001", false);
+
+        verify(applicationRepository).findByIdForUpdate(APF_MNG_NO);
     }
 
     /** JSON 결재선 갱신까지 검증하기 위한 실제 ObjectMapper 서비스 */
@@ -621,6 +650,47 @@ class ApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("getApplications: 결재자 표시 정보를 한 번에 해석한다")
+    void getApplications_결재자표시정보_배치해석() {
+        ApplicationReadView view =
+                new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
+        given(applicationRepository.findTop500ByOrderByApfMngNoDesc()).willReturn(List.of(view));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+                .willReturn(
+                        List.of(
+                                new ApproverReadView("APF-1", 1, "E001", "1", null, null, "N"),
+                                new ApproverReadView("APF-1", 2, "E002", "1", null, null, "Y")));
+        given(userRepository.findByEnoInWithOrganization(Set.of("E001", "E002")))
+                .willReturn(
+                        List.of(
+                                CuserI.builder()
+                                        .eno("E001")
+                                        .usrNm("김기획부장")
+                                        .ptCNm("부장")
+                                        .organization(CorgnI.builder().bbrNm("기획부").build())
+                                        .build(),
+                                CuserI.builder()
+                                        .eno("E002")
+                                        .usrNm("김기획팀장")
+                                        .ptCNm("팀장")
+                                        .organization(CorgnI.builder().bbrNm("기획팀").build())
+                                        .build()));
+
+        ApplicationDto.Response response = applicationService.getApplications().getFirst();
+
+        assertThat(response.getApprovers())
+                .extracting(ApplicationDto.ApproverResponse::getUsrNm)
+                .containsExactly("김기획부장", "김기획팀장");
+        assertThat(response.getApprovers())
+                .extracting(ApplicationDto.ApproverResponse::getPtCNm)
+                .containsExactly("부장", "팀장");
+        assertThat(response.getApprovers())
+                .extracting(ApplicationDto.ApproverResponse::getBbrNm)
+                .containsExactly("기획부", "기획팀");
+        verify(userRepository).findByEnoInWithOrganization(Set.of("E001", "E002"));
+    }
+
+    @Test
     @DisplayName("getApplications: 레거시 1자리 미결재 코드가 있어도 목록을 반환한다")
     void getApplications_레거시미결재코드_목록반환() {
         ApplicationReadView view =
@@ -740,6 +810,41 @@ class ApplicationServiceTest {
 
         assertThat(result.items()).hasSize(1);
         assertThat(result.failedIds()).containsExactly("APF-X");
+    }
+
+    @Test
+    @DisplayName("getApplicationsByIds: 결재자 표시 정보를 배치 해석한다")
+    void getApplicationsByIds_결재자표시정보_배치해석() {
+        ApplicationReadView view =
+                new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
+        given(applicationRepository.findReadViewsByApfMngNoIn(any())).willReturn(List.of(view));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+                .willReturn(
+                        List.of(new ApproverReadView("APF-1", 1, "E001", "1", null, null, "Y")));
+        given(userRepository.findByEnoInWithOrganization(Set.of("E001")))
+                .willReturn(
+                        List.of(
+                                CuserI.builder()
+                                        .eno("E001")
+                                        .usrNm("김기획부장")
+                                        .ptCNm("부장")
+                                        .organization(CorgnI.builder().bbrNm("기획부").build())
+                                        .build()));
+        ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
+        request.setApfMngNos(List.of("APF-1"));
+
+        ApplicationDto.ApproverResponse approver =
+                applicationService
+                        .getApplicationsByIds(request)
+                        .items()
+                        .getFirst()
+                        .getApprovers()
+                        .getFirst();
+
+        assertThat(approver.getUsrNm()).isEqualTo("김기획부장");
+        assertThat(approver.getPtCNm()).isEqualTo("부장");
+        assertThat(approver.getBbrNm()).isEqualTo("기획부");
+        verify(userRepository).findByEnoInWithOrganization(Set.of("E001"));
     }
 
     @Test
@@ -1109,6 +1214,35 @@ class ApplicationServiceTest {
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
         assertThat(result.getRqsNm()).isEqualTo("홍길동");
         assertThat(result.getRqsBbrNm()).isEqualTo("정보기술부");
+    }
+
+    @Test
+    @DisplayName("getApplication: 결재자 표시 정보를 배치 해석한다")
+    void getApplication_결재자표시정보_배치해석() {
+        ApplicationReadView view =
+                new ApplicationReadView(APF_MNG_NO, null, null, null, null, null, null, null);
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
+        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(
+                        List.of(new ApproverReadView(APF_MNG_NO, 1, "E001", "1", null, null, "Y")));
+        given(userRepository.findByEnoInWithOrganization(Set.of("E001")))
+                .willReturn(
+                        List.of(
+                                CuserI.builder()
+                                        .eno("E001")
+                                        .usrNm("김기획부장")
+                                        .ptCNm("부장")
+                                        .organization(CorgnI.builder().bbrNm("기획부").build())
+                                        .build()));
+
+        ApplicationDto.ApproverResponse approver =
+                applicationService.getApplication(APF_MNG_NO).getApprovers().getFirst();
+
+        assertThat(approver.getUsrNm()).isEqualTo("김기획부장");
+        assertThat(approver.getPtCNm()).isEqualTo("부장");
+        assertThat(approver.getBbrNm()).isEqualTo("기획부");
+        verify(userRepository).findByEnoInWithOrganization(Set.of("E001"));
     }
 
     @Test

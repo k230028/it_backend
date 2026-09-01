@@ -3,11 +3,13 @@ package com.kdb.it.common.approval.repository;
 import com.kdb.it.common.approval.dto.PendingApprovalRow;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.util.LabeledCountRow;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,6 +30,11 @@ import org.springframework.data.repository.query.Param;
  * </ul>
  */
 public interface ApplicationRepository extends JpaRepository<Capplm, String> {
+
+    /** 승인·결재선 변경 명령 전용 신청서 행 잠금 조회입니다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select application from Capplm application where application.apfMngNo = :apfMngNo")
+    Optional<Capplm> findByIdForUpdate(@Param("apfMngNo") String apfMngNo);
 
     /** 프로젝트·관리비 응답 조립에 필요한 신청서 마스터 최소 필드입니다. */
     interface ApplicationSummaryView {

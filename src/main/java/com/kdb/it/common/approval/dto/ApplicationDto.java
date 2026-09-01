@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -52,6 +53,16 @@ public class ApplicationDto {
     @Schema(name = "ApplicationAddApproverRequest", description = "추가 결재자 등록 요청")
     public static class AddApproverRequest {
         @NotBlank private String approverEno;
+    }
+
+    /** 미결재 결재선 전체 교체 요청 DTO입니다. */
+    @Getter
+    @Setter
+    @Schema(name = "ApplicationReplacePendingApproversRequest", description = "미결재 결재선 일괄 변경 요청")
+    public static class ReplacePendingApproversRequest {
+        @NotEmpty
+        @Schema(description = "변경 후 미결재 결재자 사번 목록 (결재 순서)")
+        private List<@NotBlank String> approverEnos;
     }
 
     /** 미결재 결재자 순서 변경 요청 DTO입니다. */
@@ -475,26 +486,28 @@ public class ApplicationDto {
                 List<ApproverRepository.ApproverReadView> approvers,
                 String requesterNm,
                 String requesterBbrNm) {
-            return Response.builder()
-                    .apfMngNo(view.getApfMngNo())
-                    .apfNm(view.getDcdReqTtl())
-                    .apfDtlCone(view.getDcdReqInf())
-                    .apfSts(
-                            view.getItPtlApfPrgStsC() == null
-                                    ? null
-                                    : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
-                                                    view.getItPtlApfPrgStsC())
-                                            .label())
-                    .apfStsC(view.getItPtlApfPrgStsC())
-                    .rqsEno(view.getDcdReqUsid())
-                    .rqsNm(requesterNm)
-                    .rqsBbrC(view.getDcdReqBbrC())
-                    .rqsBbrNm(requesterBbrNm)
-                    .rqsDt(view.getDcdReqDtm())
-                    .rqsOpnn(view.getRgprDcdReqCone())
-                    .migrated(MigrationApprovalMarker.isMigrated(view.getRgprDcdReqCone()))
-                    .approvers(approvers.stream().map(ApproverResponse::fromReadView).toList())
-                    .build();
+            return ApplicationResponseAssembler.fromReadViews(
+                    view, approvers, requesterNm, requesterBbrNm, Map.of());
+        }
+
+        /**
+         * 신청서 마스터 read view와 결재자 표시 정보를 응답 DTO로 변환합니다.
+         *
+         * @param view 신청서 마스터 read view
+         * @param approvers 결재 순번 오름차순 read view 목록
+         * @param requesterNm 신청자명
+         * @param requesterBbrNm 신청부서명
+         * @param approverDisplaysByEno 결재자 사번별 표시 정보
+         * @return 변환된 응답 DTO
+         */
+        public static Response fromReadViews(
+                ApplicationRepository.ApplicationReadView view,
+                List<ApproverRepository.ApproverReadView> approvers,
+                String requesterNm,
+                String requesterBbrNm,
+                Map<String, ApplicationApproverDisplay> approverDisplaysByEno) {
+            return ApplicationResponseAssembler.fromReadViews(
+                    view, approvers, requesterNm, requesterBbrNm, approverDisplaysByEno);
         }
     }
 
@@ -700,6 +713,18 @@ public class ApplicationDto {
         @Schema(description = "결재자 사원번호")
         private String dcdEno;
 
+        /** 결재자 성명 */
+        @Schema(description = "결재자 성명", nullable = true)
+        private String usrNm;
+
+        /** 결재자 직위명 */
+        @Schema(description = "결재자 직위명", nullable = true)
+        private String ptCNm;
+
+        /** 결재자 부서명 */
+        @Schema(description = "결재자 부서명", nullable = true)
+        private String bbrNm;
+
         /** 결재유형 (예: "결재", null이면 미결재) */
         @Schema(description = "결재유형", nullable = true)
         private String dcdTp;
@@ -750,26 +775,6 @@ public class ApplicationDto {
                                     ? null
                                     : DecisionStatus.ofCode(cdecim.getItPtlDcdStsC()).label())
                     .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
-                    .build();
-        }
-
-        /**
-         * 결재선 read view를 결재자 응답 DTO로 변환합니다.
-         *
-         * @param view 결재선 read view
-         * @return 변환된 결재자 응답 DTO
-         */
-        public static ApproverResponse fromReadView(ApproverRepository.ApproverReadView view) {
-            String status = view.getItPtlDcdStsC();
-            boolean pending = status == null || DecisionStatus.isPendingCode(status);
-            return ApproverResponse.builder()
-                    .dcdSqn(view.getDcrSqnSno())
-                    .dcdEno(view.getDcrEno())
-                    .dcdTp(pending ? null : "결재")
-                    .dcdDt(view.getDcdDtm())
-                    .dcdOpnn(view.getDcrOpnnCone())
-                    .dcdSts(pending ? null : DecisionStatus.ofCode(status).label())
-                    .lstDcdYn(view.getLstDcdYn())
                     .build();
         }
     }

@@ -210,6 +210,16 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
     List<CuserI> findByEnoIn(Collection<String> enos);
 
     /**
+     * 결재자 표시용 사번 목록을 조직 정보와 함께 일괄 조회합니다.
+     *
+     * @param enos 조회할 사번 컬렉션
+     * @return 조직을 적재한 사용자 목록
+     */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "organization")
+    @Query("SELECT u FROM CuserI u WHERE u.eno IN :enos")
+    List<CuserI> findByEnoInWithOrganization(Collection<String> enos);
+
+    /**
      * 사번(ENO) 존재 여부 확인
      *
      * <p>회원가입 시 중복 사번 검사에 사용됩니다.

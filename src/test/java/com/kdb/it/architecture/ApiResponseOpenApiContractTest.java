@@ -218,13 +218,15 @@ class ApiResponseOpenApiContractTest {
                 "rqsBbrC",
                 "rqsBbrNm",
                 "rqsOpnn");
-        assertAllPropertiesRequired(
+        assertPropertiesRequiredExcept(
                 ApplicationDto.ApproverResponse.class,
+                Set.of("usrNm", "ptCNm", "bbrNm"),
                 "dcdTp",
                 "dcdDt",
                 "dcdOpnn",
                 "dcdSts",
                 "lstDcdYn");
+        assertSchemaNullable(ApplicationDto.ApproverResponse.class, "usrNm", "ptCNm", "bbrNm");
         assertAllPropertiesRequired(ApplicationDto.DashboardResponse.class);
         assertAllPropertiesRequired(ApplicationDto.MonthlyCount.class);
         assertAllPropertiesRequired(ApplicationDto.PendingItem.class);
@@ -640,6 +642,15 @@ class ApiResponseOpenApiContractTest {
         Schema<?> schema = resolve(type);
         Set<String> properties = schema.getProperties().keySet();
         assertContract(type, properties, Set.of(nullableProperties));
+    }
+
+    private static void assertSchemaNullable(Class<?> type, String... properties) {
+        Schema<?> schema = resolve(type);
+        for (String name : properties) {
+            assertThat(Boolean.TRUE.equals(property(schema, name).getNullable()))
+                    .as("%s.%s nullable", type.getSimpleName(), name)
+                    .isTrue();
+        }
     }
 
     private static void assertPropertiesRequiredExcept(
