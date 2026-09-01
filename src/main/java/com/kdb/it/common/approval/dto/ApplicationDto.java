@@ -54,6 +54,16 @@ public class ApplicationDto {
         @NotBlank private String approverEno;
     }
 
+    /** 미결재 결재선 전체 교체 요청 DTO입니다. */
+    @Getter
+    @Setter
+    @Schema(name = "ApplicationReplacePendingApproversRequest", description = "미결재 결재선 일괄 변경 요청")
+    public static class ReplacePendingApproversRequest {
+        @NotEmpty
+        @Schema(description = "변경 후 미결재 결재자 사번 목록 (결재 순서)")
+        private List<@NotBlank String> approverEnos;
+    }
+
     /** 미결재 결재자 순서 변경 요청 DTO입니다. */
     @Getter
     @Setter

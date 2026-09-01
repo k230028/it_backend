@@ -5,11 +5,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.exception.CustomGeneralException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -167,6 +170,100 @@ public class ApprovalLineDelegate {
         } catch (JsonProcessingException e) {
             throw new CustomGeneralException("결재선 순서 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
         }
+    }
+
+    /**
+     * 상세 JSON의 완료 결재자 노드는 유지하고 미결재 결재자 노드만 교체한다.
+     *
+     * <p>정적 결재자 노드 뒤의 {@code additionalApprovers} 배열은 전체 결재선 길이에 맞춰 조정한다. 결재선 정보가 없는 기존 신청서식은 저장
+     * 내용을 바꾸지 않는다.
+     *
+     * @param capplm 상세 JSON을 갱신할 신청서
+     * @param orderedApprovers 완료 결재자를 포함한 최종 결재선 순서
+     * @param replacementUsers 미결재 구간에 배치할 사용자 정보
+     * @throws CustomGeneralException 상세 JSON을 파싱하거나 직렬화하지 못하면 발생
+     */
+    @Transactional
+    public void replacePendingApproversInDetail(
+            Capplm capplm, List<Cdecim> orderedApprovers, List<CuserI> replacementUsers) {
+        String json = capplm.getDcdReqInf();
+        if (json == null || json.isBlank()) return;
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode line = root.path("approvalLine");
+            if (!(line instanceof ObjectNode lineObject)) return;
+
+            int completedCount = completedPrefixCount(orderedApprovers);
+            List<ObjectNode> fixedApproverNodes = fixedApproverNodes(lineObject);
+            ArrayNode additionalApprovers = lineObject.withArray("additionalApprovers");
+            int requiredAdditionalCount =
+                    Math.max(0, orderedApprovers.size() - fixedApproverNodes.size());
+            while (additionalApprovers.size() > requiredAdditionalCount) {
+                additionalApprovers.remove(additionalApprovers.size() - 1);
+            }
+
+            for (int orderIndex = completedCount;
+                    orderIndex < orderedApprovers.size();
+                    orderIndex++) {
+                CuserI replacementUser = replacementUsers.get(orderIndex - completedCount);
+                if (orderIndex < fixedApproverNodes.size()) {
+                    updateApproverNode(fixedApproverNodes.get(orderIndex), replacementUser);
+                    continue;
+                }
+
+                int additionalIndex = orderIndex - fixedApproverNodes.size();
+                ObjectNode additionalNode;
+                JsonNode existing = additionalApprovers.get(additionalIndex);
+                if (existing instanceof ObjectNode existingObject) {
+                    additionalNode = existingObject;
+                } else {
+                    additionalNode = objectMapper.createObjectNode();
+                    additionalNode.put("date", "");
+                    if (additionalIndex < additionalApprovers.size()) {
+                        additionalApprovers.set(additionalIndex, additionalNode);
+                    } else {
+                        additionalApprovers.add(additionalNode);
+                    }
+                }
+                updateApproverNode(additionalNode, replacementUser);
+            }
+            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
+        } catch (JsonProcessingException e) {
+            throw new CustomGeneralException("미결재 결재선 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
+        }
+    }
+
+    private int completedPrefixCount(List<Cdecim> orderedApprovers) {
+        int count = 0;
+        for (Cdecim orderedApprover : orderedApprovers) {
+            if (DecisionStatus.isPendingCode(orderedApprover.getItPtlDcdStsC())) break;
+            count++;
+        }
+        return count;
+    }
+
+    private List<ObjectNode> fixedApproverNodes(ObjectNode lineObject) {
+        List<ObjectNode> nodes = new ArrayList<>();
+        Iterator<String> fields = lineObject.fieldNames();
+        while (fields.hasNext()) {
+            String fieldName = fields.next();
+            if ("drafter".equals(fieldName)
+                    || "order".equals(fieldName)
+                    || "additionalApprovers".equals(fieldName)) {
+                continue;
+            }
+            JsonNode value = lineObject.get(fieldName);
+            if (value instanceof ObjectNode objectNode && objectNode.has("id")) {
+                nodes.add(objectNode);
+            }
+        }
+        return nodes;
+    }
+
+    private void updateApproverNode(ObjectNode node, CuserI user) {
+        node.put("id", user.getEno());
+        node.put("name", user.getUsrNm() == null ? "" : user.getUsrNm());
+        node.put("rank", user.getPtCNm() == null ? "" : user.getPtCNm());
     }
 
     /**

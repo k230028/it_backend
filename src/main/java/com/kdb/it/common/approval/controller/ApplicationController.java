@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -286,6 +287,21 @@ public class ApplicationController {
                 auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
         approvalLineManagementService.addApprover(
                 apfMngNo, request.getApproverEno(), auth.getName(), isAdmin);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 결재 완료자를 유지한 채 미결재 결재선을 요청한 전체 순서로 교체합니다. */
+    @PutMapping("/{apfMngNo}/approvers")
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
+    @Operation(summary = "미결재 결재선 일괄 변경", description = "결재 완료자를 고정하고 미결재 결재자 전체를 교체합니다.")
+    public ResponseEntity<Void> replacePendingApprovers(
+            @PathVariable("apfMngNo") String apfMngNo,
+            @Valid @RequestBody ApplicationDto.ReplacePendingApproversRequest request,
+            Authentication auth) {
+        boolean isAdmin =
+                auth.getAuthorities().stream().anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
+        approvalLineManagementService.replacePendingApprovers(
+                apfMngNo, request.getApproverEnos(), auth.getName(), isAdmin);
         return ResponseEntity.noContent().build();
     }
 

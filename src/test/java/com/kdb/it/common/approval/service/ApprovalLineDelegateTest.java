@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -596,6 +598,59 @@ class ApprovalLineDelegateTest {
         // Act & Assert
         assertThatThrownBy(() -> delegate.removeApproverFromDetail(capplm, 0))
                 .isInstanceOf(CustomGeneralException.class);
+    }
+
+    // ───────────────────────────────────────────────────────
+    // replacePendingApproversInDetail
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("replacePendingApproversInDetail: 완료 노드는 보존하고 미결재 노드와 추가 결재자 배열을 교체한다")
+    void replacePendingApproversInDetail_완료노드보존_미결재노드교체() throws Exception {
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        given(capplm.getDcdReqInf())
+                .willReturn(
+                        "{\"approvalLine\":{\"teamLead\":{\"id\":\"E001\",\"name\":\"완료자\",\"rank\":\"부장\",\"date\":\"2026-09-01\"},"
+                                + "\"departmentHead\":{\"id\":\"E002\",\"name\":\"기존미결재자\",\"rank\":\"차장\",\"date\":\"\"},"
+                                + "\"additionalApprovers\":[{\"id\":\"E003\",\"name\":\"기존추가1\",\"rank\":\"과장\",\"date\":\"\"},{\"id\":\"E004\"}]}}");
+        Cdecim completed = approver("E001", "2");
+        Cdecim pendingFirst = approver("E100", "1");
+        Cdecim pendingSecond = approver("E101", "1");
+        CuserI firstUser = CuserI.builder().eno("E100").usrNm("새결재자1").ptCNm("과장").build();
+        CuserI secondUser = CuserI.builder().eno("E101").usrNm("새결재자2").ptCNm("차장").build();
+
+        delegate.replacePendingApproversInDetail(
+                capplm,
+                List.of(completed, pendingFirst, pendingSecond),
+                List.of(firstUser, secondUser));
+
+        org.mockito.ArgumentCaptor<String> jsonCaptor =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(capplm).updateDetailContent(jsonCaptor.capture());
+        com.fasterxml.jackson.databind.JsonNode line =
+                new ObjectMapper().readTree(jsonCaptor.getValue()).path("approvalLine");
+        assertThat(line.path("teamLead").path("id").asText()).isEqualTo("E001");
+        assertThat(line.path("teamLead").path("name").asText()).isEqualTo("완료자");
+        assertThat(line.path("departmentHead").path("id").asText()).isEqualTo("E100");
+        assertThat(line.path("departmentHead").path("name").asText()).isEqualTo("새결재자1");
+        assertThat(line.path("departmentHead").path("rank").asText()).isEqualTo("과장");
+        assertThat(line.path("additionalApprovers")).hasSize(1);
+        assertThat(line.path("additionalApprovers").get(0).path("id").asText()).isEqualTo("E101");
+        assertThat(line.path("additionalApprovers").get(0).path("name").asText())
+                .isEqualTo("새결재자2");
+        assertThat(line.path("additionalApprovers").get(0).path("rank").asText()).isEqualTo("차장");
+    }
+
+    private Cdecim approver(String eno, String status) {
+        return Cdecim.builder()
+                .dcdMngNo("APF-2026-00000001")
+                .dcrSqnSno(1)
+                .dcrEno(eno)
+                .itPtlDcdStsC(status)
+                .lstDcdYn("N")
+                .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
+                .build();
     }
 
     // ───────────────────────────────────────────────────────

@@ -135,6 +135,89 @@ public class ApprovalLineManagementService {
         approvalLineDelegate.updateApprovalOrder(application, reordered);
     }
 
+    /**
+     * 승인 완료 결재자는 유지하고 미결재 결재선을 요청한 전체 목록으로 원자적으로 교체합니다.
+     *
+     * @param apfMngNo 결재중인 신청서 관리번호
+     * @param approverEnos 변경 후 미결재 결재자 사번 목록
+     * @param currentEno 요청한 사용자 사번
+     * @param isAdmin 관리자 권한 여부
+     * @throws IllegalArgumentException 결재자 목록에 공백·중복·미존재 사번이 있거나 목록이 비어 있으면 발생
+     * @throws IllegalStateException 신청서가 결재중이 아니거나 교체할 미결재 결재자가 없으면 발생
+     * @throws AccessDeniedException 결재선 참여자 또는 관리자가 아닌 사용자가 요청하면 발생
+     */
+    @Transactional
+    public void replacePendingApprovers(
+            String apfMngNo, List<String> approverEnos, String currentEno, boolean isAdmin) {
+        Capplm application = getInProgressApplication(apfMngNo);
+        List<Cdecim> approvers = getApprovers(apfMngNo);
+        assertCanManage(approvers, currentEno, isAdmin);
+        validateReplacementApprovers(approverEnos);
+
+        List<Cdecim> completedApprovers = new ArrayList<>();
+        List<Cdecim> pendingApprovers = new ArrayList<>();
+        boolean pendingStarted = false;
+        for (Cdecim approver : approvers) {
+            if (isPending(approver)) {
+                pendingStarted = true;
+                pendingApprovers.add(approver);
+            } else {
+                if (pendingStarted) {
+                    throw new IllegalStateException("승인 완료 결재자는 미결재 결재자 뒤에 있을 수 없습니다.");
+                }
+                completedApprovers.add(approver);
+            }
+        }
+        if (pendingApprovers.isEmpty()) {
+            throw new IllegalStateException("교체할 미결재 결재자가 없습니다.");
+        }
+
+        List<CuserI> foundUsers = userRepository.findByEnoIn(approverEnos);
+        Map<String, CuserI> usersByEno = new HashMap<>();
+        for (CuserI user : foundUsers) {
+            usersByEno.put(user.getEno(), user);
+        }
+        List<CuserI> replacementUsers = new ArrayList<>();
+        for (String approverEno : approverEnos) {
+            CuserI user = usersByEno.get(approverEno);
+            if (user == null) {
+                throw new IllegalArgumentException("결재자를 찾을 수 없습니다: " + approverEno);
+            }
+            replacementUsers.add(user);
+        }
+
+        int nextSequence =
+                completedApprovers.isEmpty()
+                        ? 1
+                        : completedApprovers.get(completedApprovers.size() - 1).getDcrSqnSno() + 1;
+        List<Cdecim> replacements = new ArrayList<>();
+        for (int index = 0; index < approverEnos.size(); index++) {
+            replacements.add(
+                    Cdecim.builder()
+                            .dcdMngNo(apfMngNo)
+                            .dcrSqnSno(nextSequence + index)
+                            .dcrEno(approverEnos.get(index))
+                            .itPtlDcdStsC(DecisionStatus.PENDING.code())
+                            .lstDcdYn(index == approverEnos.size() - 1 ? "Y" : "N")
+                            .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
+                            .build());
+        }
+
+        List<Cdecim> completeOrder = new ArrayList<>(completedApprovers);
+        completeOrder.addAll(replacements);
+        for (int index = 0; index < completeOrder.size(); index++) {
+            completeOrder.get(index).markLast(index == completeOrder.size() - 1);
+        }
+
+        approverRepository.deleteAll(pendingApprovers);
+        approverRepository.flush();
+        approverRepository.saveAll(replacements);
+
+        approvalLineDelegate.replacePendingApproversInDetail(
+                application, completeOrder, replacementUsers);
+        approvalLineDelegate.updateApprovalOrder(application, completeOrder);
+    }
+
     private boolean isPending(Cdecim approver) {
         return DecisionStatus.isPendingCode(approver.getItPtlDcdStsC());
     }
@@ -147,6 +230,21 @@ public class ApprovalLineManagementService {
         if (requestedSet.size() != requested.size()
                 || !requestedSet.equals(new HashSet<>(expected))) {
             throw new IllegalArgumentException("미결재 결재자 순서가 현재 결재선과 일치하지 않습니다.");
+        }
+    }
+
+    private void validateReplacementApprovers(List<String> approverEnos) {
+        if (approverEnos == null || approverEnos.isEmpty()) {
+            throw new IllegalArgumentException("미결재 결재자를 한 명 이상 지정해야 합니다.");
+        }
+        Set<String> uniqueEnos = new HashSet<>();
+        for (String approverEno : approverEnos) {
+            if (approverEno == null || approverEno.isBlank()) {
+                throw new IllegalArgumentException("결재자 사번은 비어 있을 수 없습니다.");
+            }
+            if (!uniqueEnos.add(approverEno)) {
+                throw new IllegalArgumentException("결재자 사번은 중복될 수 없습니다.");
+            }
         }
     }
 

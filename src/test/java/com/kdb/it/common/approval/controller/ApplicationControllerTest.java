@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -478,6 +479,46 @@ class ApplicationControllerTest {
         verify(pendingApproverService, never())
                 .changePendingApprover(
                         anyString(), anyInt(), anyString(), anyString(), anyBoolean());
+    }
+
+    // ───────────────────────────────────────────────────────
+    // PUT /{apfMngNo}/approvers — 미결재 결재선 일괄 변경
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("PUT /api/applications/{apfMngNo}/approvers - MFA 결재선 일괄 변경을 서비스에 전달한다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void replacePendingApprovers_일반사용자_204() throws Exception {
+        mockMvc.perform(
+                        put("/api/applications/APF_202600000001/approvers")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"approverEnos\":[\"20001\",\"20002\"]}"))
+                .andExpect(status().isNoContent());
+
+        verify(approvalLineManagementService)
+                .replacePendingApprovers(
+                        eq("APF_202600000001"),
+                        eq(List.of("20001", "20002")),
+                        eq("10001"),
+                        eq(false));
+    }
+
+    @Test
+    @DisplayName("PUT /api/applications/{apfMngNo}/approvers - 빈 결재선은 400이고 서비스를 호출하지 않는다")
+    @WithMockUser(username = "10001", roles = "USER")
+    void replacePendingApprovers_빈목록_400() throws Exception {
+        mockMvc.perform(
+                        put("/api/applications/APF_202600000001/approvers")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"approverEnos\":[]}"))
+                .andExpect(status().isBadRequest());
+
+        verify(approvalLineManagementService, never())
+                .replacePendingApprovers(anyString(), any(), anyString(), anyBoolean());
     }
 
     // ───────────────────────────────────────────────────────
