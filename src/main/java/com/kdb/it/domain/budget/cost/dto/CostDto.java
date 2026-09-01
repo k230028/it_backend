@@ -770,7 +770,35 @@ public class CostDto extends CostTerminalDto {
         /** 편성예산 집계용 사업연도 (YYYY, 예: "2026") — TPRMPP_BBUGTM 조회 조건 */
         @Schema(description = "사업연도 (예: 2026). BBUGTM 편성예산 집계에 사용")
         private String bseYy;
+
+        /**
+         * 개정본을 명시하는 항목 (선택). 비우면 최종본({@code LST_YN='Y'})을 반환합니다.
+         *
+         * <p>재상신 초안을 화면에 띄운 채 보고서를 만들 때 최종본이 아니라 그 초안의 수치를 써야 합니다.
+         */
+        @Schema(description = "개정본 지정 (선택). 비우면 최종본을 반환")
+        private List<VersionRef> versions;
+
+        /**
+         * 버전 지정 없이 최종본을 조회하는 기존 호출부용 생성자입니다.
+         *
+         * @param costBgNos 전산업무비예산번호 목록
+         * @param bseYy 편성예산 집계용 사업연도
+         */
+        public BulkGetRequest(List<String> costBgNos, String bseYy) {
+            this.costBgNos = costBgNos;
+            this.bseYy = bseYy;
+        }
     }
+
+    /**
+     * 개정본 지정 참조입니다.
+     *
+     * @param mngNo 전산업무비예산번호
+     * @param sno 개정 순번
+     */
+    @Schema(name = "CostDto.VersionRef", description = "개정본 지정 참조")
+    public record VersionRef(String mngNo, Integer sno) {}
 
     /**
      * 전산관리비 일괄 조회 결과 DTO (부분 성공)

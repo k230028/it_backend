@@ -7,8 +7,11 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.exception.DataCorruptionException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -119,17 +122,7 @@ public class ProjectQueryService {
             return new ProjectDto.BulkResponse(List.of(), List.of());
         }
 
-        Map<String, Bprojm> projectById =
-                projectRepository.findByAbusMngNoInAndDelYn(request.getPrjMngNos(), "N").stream()
-                        .collect(
-                                Collectors.toMap(
-                                        Bprojm::getAbusMngNo,
-                                        java.util.function.Function.identity(),
-                                        (first, second) -> {
-                                            throw new DataCorruptionException(
-                                                    "활성 사업 기본행이 둘 이상입니다: abusMngNo="
-                                                            + first.getAbusMngNo());
-                                        }));
+        Map<String, Bprojm> projectById = loadBulkTargets(request);
         List<Bprojm> projects = new ArrayList<>();
         List<String> failedIds = new ArrayList<>();
         for (String prjMngNo : request.getPrjMngNos()) {
@@ -145,5 +138,62 @@ public class ProjectQueryService {
         }
         return new ProjectDto.BulkResponse(
                 queryAssembler.assembleBulk(projects, request.getBseYy()), failedIds);
+    }
+
+    /**
+     * bulk 조회 대상 개정본을 관리번호별로 한 건씩 확정합니다.
+     *
+     * <p>{@code versions}에 지정된 관리번호는 그 개정 순번을, 나머지는 최종본({@code LST_YN='Y'})을 씁니다. 지정된 개정본을 찾지 못하면
+     * 조용히 최종본으로 대체하지 않고 누락으로 남겨 호출자가 구분할 수 있게 합니다.
+     *
+     * @param request 일괄 조회 요청
+     * @return 관리번호 → 채택한 개정본
+     * @throws DataCorruptionException 최종본 경로에서 활성 기본행이 둘 이상인 경우
+     */
+    private Map<String, Bprojm> loadBulkTargets(ProjectDto.BulkGetRequest request) {
+        Map<String, Integer> requestedSnoByMngNo = new LinkedHashMap<>();
+        if (request.getVersions() != null) {
+            for (ProjectDto.VersionRef version : request.getVersions()) {
+                if (version != null && version.mngNo() != null && version.sno() != null) {
+                    requestedSnoByMngNo.put(version.mngNo(), version.sno());
+                }
+            }
+        }
+
+        Map<String, Bprojm> projectById = new LinkedHashMap<>();
+        if (!requestedSnoByMngNo.isEmpty()) {
+            List<Bprojm> versioned =
+                    projectRepository.findByAbusMngNoInAndDelYnAndSnoIn(
+                            List.copyOf(requestedSnoByMngNo.keySet()),
+                            "N",
+                            List.copyOf(new LinkedHashSet<>(requestedSnoByMngNo.values())));
+            for (Bprojm project : versioned) {
+                // 두 집합의 곱으로 읽었으므로 요청한 정확한 (관리번호, 순번) 쌍만 채택한다.
+                if (Objects.equals(
+                        requestedSnoByMngNo.get(project.getAbusMngNo()), project.getSno())) {
+                    projectById.put(project.getAbusMngNo(), project);
+                }
+            }
+        }
+
+        List<String> currentVersionIds =
+                request.getPrjMngNos().stream()
+                        .filter(id -> !requestedSnoByMngNo.containsKey(id))
+                        .distinct()
+                        .toList();
+        if (!currentVersionIds.isEmpty()) {
+            projectRepository.findByAbusMngNoInAndDelYn(currentVersionIds, "N").stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Bprojm::getAbusMngNo,
+                                    java.util.function.Function.identity(),
+                                    (first, second) -> {
+                                        throw new DataCorruptionException(
+                                                "활성 사업 기본행이 둘 이상입니다: abusMngNo="
+                                                        + first.getAbusMngNo());
+                                    }))
+                    .forEach(projectById::put);
+        }
+        return projectById;
     }
 }

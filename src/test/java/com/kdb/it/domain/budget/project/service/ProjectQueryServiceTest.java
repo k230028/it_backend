@@ -187,4 +187,46 @@ class ProjectQueryServiceTest {
                 .isInstanceOf(DataCorruptionException.class)
                 .hasMessageContaining("PRJ-DUP");
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("bulk 조회에 버전을 지정하면 최종본이 아니라 그 개정본을 반환한다")
+    void getProjectsByIds_버전을_지정하면_해당_개정본을_반환한다() {
+        Bprojm draft =
+                Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(2).lstYn("N").delYn("N").build();
+        given(
+                        projectRepository.findByAbusMngNoInAndDelYnAndSnoIn(
+                                List.of("PRJ-2026-0001"), "N", List.of(2)))
+                .willReturn(List.of(draft));
+
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of("PRJ-2026-0001"));
+        request.setVersions(List.of(new ProjectDto.VersionRef("PRJ-2026-0001", 2)));
+
+        ProjectDto.BulkResponse response = queryService.getProjectsByIds(request);
+
+        assertThat(response.failedIds()).isEmpty();
+        assertThat(response.items())
+                .singleElement()
+                .extracting(ProjectDto.Response::getSno)
+                .isEqualTo(2);
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("버전을 지정하지 않으면 종전대로 최종본을 반환한다")
+    void getProjectsByIds_버전미지정이면_최종본을_반환한다() {
+        Bprojm current =
+                Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).lstYn("Y").delYn("N").build();
+        given(projectRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-2026-0001"), "N"))
+                .willReturn(List.of(current));
+
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of("PRJ-2026-0001"));
+
+        ProjectDto.BulkResponse response = queryService.getProjectsByIds(request);
+
+        assertThat(response.items())
+                .singleElement()
+                .extracting(ProjectDto.Response::getSno)
+                .isEqualTo(1);
+    }
 }

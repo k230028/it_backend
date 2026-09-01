@@ -151,7 +151,8 @@ class CostQueryServiceTest {
         Bcostm first = cost("COST-1", 1, "Y");
         Bcostm thirdLatest = cost("COST-3", 2, "Y");
         List<String> requested = List.of("COST-1", "COST-2", "COST-3", "COST-1");
-        given(costRepository.findByCostBgNoInAndDelYn(requested, "N"))
+        // 조회는 중복을 제거해 보내고, 응답은 요청 순서와 중복을 그대로 보존한다.
+        given(costRepository.findByCostBgNoInAndDelYn(List.of("COST-1", "COST-2", "COST-3"), "N"))
                 .willReturn(List.of(first, thirdLatest));
         CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(requested, null);
 
@@ -263,5 +264,28 @@ class CostQueryServiceTest {
 
     private static Bcostm cost(String costBgNo, int bgSno, String lstYn) {
         return Bcostm.builder().costBgNo(costBgNo).bgSno(bgSno).lstYn(lstYn).delYn("N").build();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("bulk 조회에 버전을 지정하면 최종본이 아니라 그 개정본을 반환한다")
+    void getCostsByIds_버전을_지정하면_해당_개정본을_반환한다() {
+        Bcostm draft =
+                Bcostm.builder().costBgNo("COST-2026-0001").bgSno(2).lstYn("N").delYn("N").build();
+        given(
+                        costRepository.findByCostBgNoInAndDelYnAndBgSnoIn(
+                                java.util.List.of("COST-2026-0001"), "N", java.util.List.of(2)))
+                .willReturn(java.util.List.of(draft));
+
+        CostDto.BulkGetRequest request = new CostDto.BulkGetRequest();
+        request.setCostBgNos(java.util.List.of("COST-2026-0001"));
+        request.setVersions(java.util.List.of(new CostDto.VersionRef("COST-2026-0001", 2)));
+
+        CostDto.BulkResponse response = queryService.getCostsByIds(request);
+
+        assertThat(response.failedIds()).isEmpty();
+        assertThat(response.items())
+                .singleElement()
+                .extracting(CostDto.Response::getBgSno)
+                .isEqualTo(2);
     }
 }

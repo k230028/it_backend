@@ -109,21 +109,15 @@ public class CostQueryService {
             return new CostDto.BulkResponse(List.of(), List.of());
         }
 
-        Map<String, List<Bcostm>> historiesById =
-                costRepository.findByCostBgNoInAndDelYn(request.getCostBgNos(), "N").stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        Bcostm::getCostBgNo,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<String, Bcostm> costById = loadBulkTargets(request);
         List<Bcostm> selected = new ArrayList<>();
         List<String> failedIds = new ArrayList<>();
         for (String costBgNo : request.getCostBgNos()) {
-            List<Bcostm> histories = historiesById.get(costBgNo);
-            if (histories == null || histories.isEmpty()) {
+            Bcostm cost = costById.get(costBgNo);
+            if (cost == null) {
                 failedIds.add(costBgNo);
             } else {
-                selected.add(CostRepresentativeSelector.pick(histories));
+                selected.add(cost);
             }
         }
         if (!failedIds.isEmpty()) {
@@ -131,5 +125,59 @@ public class CostQueryService {
         }
         return new CostDto.BulkResponse(
                 queryAssembler.assembleBulk(selected, request.getBseYy()), failedIds);
+    }
+
+    /**
+     * bulk 조회 대상 개정본을 관리번호별로 한 건씩 확정합니다.
+     *
+     * <p>{@code versions}에 지정된 관리번호는 그 개정 순번을, 나머지는 최종본을 씁니다. 지정된 개정본을 찾지 못하면 조용히 최종본으로 대체하지 않고
+     * 누락으로 남깁니다.
+     *
+     * @param request 일괄 조회 요청
+     * @return 관리번호 → 채택한 개정본
+     */
+    private Map<String, Bcostm> loadBulkTargets(CostDto.BulkGetRequest request) {
+        Map<String, Integer> requestedSnoByMngNo = new LinkedHashMap<>();
+        if (request.getVersions() != null) {
+            for (CostDto.VersionRef version : request.getVersions()) {
+                if (version != null && version.mngNo() != null && version.sno() != null) {
+                    requestedSnoByMngNo.put(version.mngNo(), version.sno());
+                }
+            }
+        }
+
+        Map<String, Bcostm> costById = new LinkedHashMap<>();
+        if (!requestedSnoByMngNo.isEmpty()) {
+            List<Bcostm> versioned =
+                    costRepository.findByCostBgNoInAndDelYnAndBgSnoIn(
+                            List.copyOf(requestedSnoByMngNo.keySet()),
+                            "N",
+                            List.copyOf(
+                                    new java.util.LinkedHashSet<>(requestedSnoByMngNo.values())));
+            for (Bcostm cost : versioned) {
+                // 두 집합의 곱으로 읽었으므로 요청한 정확한 (관리번호, 순번) 쌍만 채택한다.
+                if (java.util.Objects.equals(
+                        requestedSnoByMngNo.get(cost.getCostBgNo()), cost.getBgSno())) {
+                    costById.put(cost.getCostBgNo(), cost);
+                }
+            }
+        }
+
+        List<String> currentVersionIds =
+                request.getCostBgNos().stream()
+                        .filter(id -> !requestedSnoByMngNo.containsKey(id))
+                        .distinct()
+                        .toList();
+        if (!currentVersionIds.isEmpty()) {
+            costRepository.findByCostBgNoInAndDelYn(currentVersionIds, "N").stream()
+                    .collect(
+                            Collectors.groupingBy(
+                                    Bcostm::getCostBgNo, LinkedHashMap::new, Collectors.toList()))
+                    .forEach(
+                            (costBgNo, histories) ->
+                                    costById.put(
+                                            costBgNo, CostRepresentativeSelector.pick(histories)));
+        }
+        return costById;
     }
 }
