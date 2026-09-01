@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -447,8 +448,8 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
+                .willReturn(List.of(project));
         // 결재중 신청서 존재
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -468,8 +469,8 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
+                .willReturn(List.of(project));
         // 결재중 신청서 없음
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -485,11 +486,36 @@ class ProjectServiceTest {
     }
 
     @Test
+    @DisplayName("deleteProject: 문서 삭제는 최종본뿐 아니라 남아 있는 재신청 초안까지 함께 지운다")
+    void deleteProject_문서삭제시_초안까지_함께삭제한다() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm current = mock(Bprojm.class);
+        Bprojm draft = mock(Bprojm.class);
+        given(current.getAbusMngNo()).willReturn(prjMngNo);
+        given(current.getSno()).willReturn(1);
+        given(current.getFstEnrUsid()).willReturn("10001");
+        given(current.getSvnDpmC()).willReturn("BBR001");
+        given(draft.getAbusMngNo()).willReturn(prjMngNo);
+        given(draft.getSno()).willReturn(2);
+        given(draft.getFstEnrUsid()).willReturn("10001");
+        given(draft.getSvnDpmC()).willReturn("BBR001");
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
+                .willReturn(List.of(current, draft));
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 1)).willReturn(List.of());
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 2)).willReturn(List.of());
+
+        projectService.deleteProject(prjMngNo);
+
+        verify(current).delete();
+        verify(draft).delete();
+    }
+
+    @Test
     @DisplayName("deleteProject - 미존재 프로젝트 삭제 시 IllegalArgumentException 발생")
     void deleteProject_미존재프로젝트_예외발생() {
         // given
-        given(projectRepository.findByAbusMngNoAndDelYn("INVALID", "N"))
-                .willReturn(Optional.empty());
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("INVALID", "N"))
+                .willReturn(List.of());
 
         // when & then
         assertThatThrownBy(() -> projectService.deleteProject("INVALID"))
@@ -1141,8 +1167,8 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
+                .willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
@@ -1712,8 +1738,8 @@ class ProjectServiceTest {
     void deleteProject_품목포함_함께논리삭제() {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
         Bitemm item = Bitemm.builder().gclMngNo("GCL-0001").sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+                .willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
@@ -1733,8 +1759,7 @@ class ProjectServiceTest {
         String projectNo = "PRJ-2027-0600";
         Bprojm original =
                 Bprojm.builder().abusMngNo(projectNo).sno(1).lstYn("Y").delYn("N").build();
-        Bprojm draft =
-                Bprojm.builder().abusMngNo(projectNo).sno(2).lstYn("N").delYn("N").build();
+        Bprojm draft = Bprojm.builder().abusMngNo(projectNo).sno(2).lstYn("N").delYn("N").build();
         Bitemm originalItem =
                 Bitemm.builder()
                         .gclMngNo("GCL-2026-0932")
@@ -2279,8 +2304,8 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+                .willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
@@ -2310,8 +2335,8 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+                .willReturn(List.of(project));
 
         // when & then
         assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001"))
@@ -2333,8 +2358,8 @@ class ProjectServiceTest {
                         .svnDpmC("101") // 같은 부서
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+                .willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
@@ -2364,8 +2389,8 @@ class ProjectServiceTest {
                         .svnDpmC("101") // 다른 부서
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+                .willReturn(List.of(project));
 
         // when & then
         assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001"))
@@ -2378,8 +2403,8 @@ class ProjectServiceTest {
         // given
         given(authentication.getPrincipal()).willReturn("anonymous");
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
-                .willReturn(Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+                .willReturn(List.of(project));
 
         // when & then
         assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001"))

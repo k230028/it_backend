@@ -7,6 +7,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.UserNameResolver;
+import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
 import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
@@ -33,6 +34,9 @@ import org.springframework.util.StringUtils;
 @Transactional(readOnly = true)
 public class CostService {
 
+    /** 결재 매핑(CAPPLA)에서 전산업무비를 가리키는 원본 테이블명입니다. */
+    private static final String COST_TABLE = "BCOSTM";
+
     private final CostRepository costRepository;
     private final BtermmRepository btermmRepository;
     private final UserRepository cuserIRepository;
@@ -40,6 +44,7 @@ public class CostService {
     private final com.kdb.it.common.code.service.CodeService codeService;
     private final XcrLookupService xcrLookupService;
     private final CostQueryService queryService;
+    private final ApprovalWriteGuard approvalWriteGuard;
 
     /** 단말기 서비스명 후보를 집계할 최근 예산연도 범위(당해 연도 포함) */
     private static final int SERVICE_NAME_LOOKBACK_YEARS = 3;
@@ -375,9 +380,7 @@ public class CostService {
             codeService.validateBudgetPeriod();
         }
         List<Bcostm> currentCosts =
-                bgSno == null
-                        ? costRepository.findByCostBgNoAndDelYn(itMngcNo, "N")
-                        : List.of();
+                bgSno == null ? costRepository.findByCostBgNoAndDelYn(itMngcNo, "N") : List.of();
         if (bgSno == null && currentCosts.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
@@ -395,6 +398,9 @@ public class CostService {
                                                                 + bgSno));
         if (!preserveSubmittedAmounts) {
             OwnershipVerifier.verifyModifiable(target.getFstEnrUsid(), target.getCostSvnDpmC());
+            // 결재중 개정본과 결재완료 최종본의 제자리 수정을 막는다. 이관 일괄업로드 경로는 대상에서 제외한다.
+            approvalWriteGuard.verifyWritable(
+                    COST_TABLE, target.getCostBgNo(), target.getBgSno(), "수정");
         }
 
         if (!preserveSubmittedAmounts) {
@@ -542,12 +548,17 @@ public class CostService {
     @Transactional
     public void deleteCost(String itMngcNo) {
         codeService.validateBudgetPeriod();
-        List<Bcostm> costs = costRepository.findByCostBgNoAndDelYn(itMngcNo, "N");
+        // 최종본만 지우면 재상신 초안이 남아 미상신 목록에 삭제 문서가 되살아난다. 모든 활성 개정본을 지운다.
+        List<Bcostm> costs = costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(itMngcNo, "N");
         if (costs.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
         Bcostm primary = CostRepresentativeSelector.pick(costs);
         OwnershipVerifier.verifyModifiable(primary.getFstEnrUsid(), primary.getCostSvnDpmC());
+        for (Bcostm cost : costs) {
+            approvalWriteGuard.verifyWritable(
+                    COST_TABLE, cost.getCostBgNo(), cost.getBgSno(), "삭제");
+        }
         List<String> costNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
         Map<String, List<Btermm>> terminalsByKey =
                 btermmRepository.findByTermBgNoInAndDelYn(costNos, "N").stream()
@@ -583,6 +594,8 @@ public class CostService {
             throw new IllegalArgumentException("미상신 재상신 개정본만 삭제할 수 있습니다.");
         }
         OwnershipVerifier.verifyModifiable(cost.getFstEnrUsid(), cost.getCostSvnDpmC());
+        // 결재중인 초안을 지우면 최종 승인 시 리스너가 승격 대상을 찾지 못해 승인 트랜잭션 전체가 롤백된다.
+        approvalWriteGuard.verifyWritable(COST_TABLE, itMngcNo, bgSno, "삭제");
         cost.delete();
         btermmRepository.findByTermBgNoAndTermBgSno(itMngcNo, bgSno).forEach(Btermm::delete);
     }

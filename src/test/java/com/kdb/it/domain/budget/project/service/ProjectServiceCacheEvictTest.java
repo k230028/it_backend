@@ -154,8 +154,8 @@ class ProjectServiceCacheEvictTest {
     void deleteProject_evictsTiptapMetadata() {
         Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
         given(project.getSno()).willReturn(1);
-        given(projectRepository.findByAbusMngNoAndDelYn(anyString(), anyString()))
-                .willReturn(java.util.Optional.of(project));
+        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(anyString(), anyString()))
+                .willReturn(java.util.List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 anyString(), anyString(), any(), any()))

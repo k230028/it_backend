@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.cost.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -240,7 +241,9 @@ class CostServiceTest {
                         orgNameResolver,
                         codeService,
                         xcrLookupService,
-                        queryService);
+                        queryService,
+                        new com.kdb.it.domain.budget.common.security.ApprovalWriteGuard(
+                                capplaRepository));
     }
 
     @Nested
@@ -347,7 +350,8 @@ class CostServiceTest {
     @Test
     @DisplayName("deleteCost: 존재하지 않는 관리번호이면 IllegalArgumentException을 던진다")
     void deleteCost_존재하지않는관리번호_IllegalArgumentException발생() {
-        given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of());
+        given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
+                .willReturn(List.of());
 
         assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -648,7 +652,8 @@ class CostServiceTest {
             given(cost.getFstEnrUsid()).willReturn("10001");
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
 
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(cost));
             // 연관 단말기 없음
             given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1)).willReturn(List.of());
 
@@ -1147,7 +1152,8 @@ class CostServiceTest {
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
             given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
             given(terminal.getTermBgSno()).willReturn(1);
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(cost));
             given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
                     .willReturn(List.of(terminal));
 
@@ -2365,7 +2371,7 @@ class CostServiceTest {
             given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
             given(terminal.getTermBgSno()).willReturn(1);
 
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
                     .willReturn(List.of(cost1, cost2));
             given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
                     .willReturn(List.of(terminal));
@@ -2414,6 +2420,144 @@ class CostServiceTest {
             assertThat(costService.getTerminalServiceNames("  ")).containsExactly("연합인포맥스");
             verify(btermmRepository).findServiceNames(expectedFromBseYy());
             verify(btermmRepository, never()).findServiceNamesByTmnClsfC(any(), any());
+        }
+    }
+
+    // ───────────────────────────────────────────────────────
+    // 결재 상태 가드와 삭제 범위 (재상신 개정본)
+    // ───────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("재상신 개정본의 쓰기 가드와 삭제 범위")
+    class ReapplicationWriteGuardTests {
+
+        private static final String IN_PROGRESS = "1";
+        private static final String COMPLETED = "2";
+
+        /** 인증 컨텍스트를 세우고 작업을 수행한 뒤 반드시 정리한다. */
+        private void asUser(boolean admin, Runnable body) {
+            CustomUserDetails user =
+                    new CustomUserDetails(
+                            "10001",
+                            admin
+                                    ? List.of(CustomUserDetails.ATH_ADMIN)
+                                    : List.of(CustomUserDetails.ATH_USER),
+                            "BBR001");
+            org.springframework.security.core.Authentication auth =
+                    mock(org.springframework.security.core.Authentication.class);
+            org.springframework.security.core.context.SecurityContext ctx =
+                    mock(org.springframework.security.core.context.SecurityContext.class);
+            given(auth.getPrincipal()).willReturn(user);
+            given(ctx.getAuthentication()).willReturn(auth);
+            org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+            try {
+                body.run();
+            } finally {
+                org.springframework.security.core.context.SecurityContextHolder.clearContext();
+            }
+        }
+
+        private Bcostm revision(int bgSno, String lstYn) {
+            Bcostm cost = mock(Bcostm.class);
+            given(cost.getCostBgNo()).willReturn(IT_MNGC_NO);
+            given(cost.getBgSno()).willReturn(bgSno);
+            given(cost.getLstYn()).willReturn(lstYn);
+            given(cost.getFstEnrUsid()).willReturn("10001");
+            given(cost.getCostSvnDpmC()).willReturn("BBR001");
+            return cost;
+        }
+
+        /** 해당 순번에 지정한 결재상태의 신청서가 걸려 있다고 설정한다. */
+        private void approvalOn(int bgSno, String... statuses) {
+            given(
+                            capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                    eq("BCOSTM"),
+                                    eq(IT_MNGC_NO),
+                                    eq(bgSno),
+                                    argThat(
+                                            given ->
+                                                    given != null
+                                                            && java.util.Arrays.stream(statuses)
+                                                                    .anyMatch(given::contains))))
+                    .willReturn(true);
+        }
+
+        @Test
+        @DisplayName("결재중인 재상신 초안은 삭제할 수 없다 — 승인 시점 리스너 예외로 승인 트랜잭션이 롤백되는 것을 막는다")
+        void deleteVersion_결재중이면_차단된다() {
+            Bcostm draft = revision(2, "N");
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+                    .willReturn(java.util.Optional.of(draft));
+            approvalOn(2, IN_PROGRESS);
+
+            asUser(
+                    true,
+                    () ->
+                            assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 2))
+                                    .isInstanceOf(IllegalStateException.class)
+                                    .hasMessageContaining("결재중"));
+
+            verify(draft, never()).delete();
+        }
+
+        @Test
+        @DisplayName("결재중인 개정본은 수정할 수 없다")
+        void updateVersion_결재중이면_차단된다() {
+            Bcostm draft = revision(2, "N");
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+                    .willReturn(java.util.Optional.of(draft));
+            approvalOn(2, IN_PROGRESS);
+
+            asUser(
+                    true,
+                    () ->
+                            assertThatThrownBy(
+                                            () ->
+                                                    costService.updateCost(
+                                                            IT_MNGC_NO,
+                                                            2,
+                                                            new CostDto.UpdateRequest()))
+                                    .isInstanceOf(IllegalStateException.class));
+
+            verify(draft, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("결재완료된 최종본은 일반 사용자가 수정할 수 없다 — 승인 스냅샷과 불일치를 막는다")
+        void updateVersion_결재완료본은_일반사용자에게_차단된다() {
+            Bcostm approved = revision(1, "Y");
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                    .willReturn(java.util.Optional.of(approved));
+            approvalOn(1, COMPLETED);
+
+            asUser(
+                    false,
+                    () ->
+                            assertThatThrownBy(
+                                            () ->
+                                                    costService.updateCost(
+                                                            IT_MNGC_NO,
+                                                            1,
+                                                            new CostDto.UpdateRequest()))
+                                    .isInstanceOf(IllegalStateException.class));
+
+            verify(approved, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("문서 삭제는 최종본뿐 아니라 남아 있는 재상신 초안까지 함께 지운다 — 삭제 문서 부활을 막는다")
+        void deleteDocument_초안까지_함께_삭제한다() {
+            Bcostm current = revision(1, "Y");
+            Bcostm draft = revision(2, "N");
+            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(current, draft));
+            given(btermmRepository.findByTermBgNoInAndDelYn(List.of(IT_MNGC_NO), "N"))
+                    .willReturn(List.of());
+
+            asUser(true, () -> costService.deleteCost(IT_MNGC_NO));
+
+            verify(current).delete();
+            verify(draft).delete();
         }
     }
 }

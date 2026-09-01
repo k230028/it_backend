@@ -1,11 +1,11 @@
 package com.kdb.it.domain.budget.project.service;
 
-import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.common.util.UserNameResolver;
+import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -325,13 +325,9 @@ public class ProjectService {
      * @return 현재 사용자 기준으로 쓰기가 막히면 true
      */
     private boolean isBlockedByApproval(String prjMngNo, Integer sno) {
-        List<String> blockingStatuses =
-                OwnershipVerifier.isCurrentUserAdmin()
-                        ? List.of(ApprovalStatus.IN_PROGRESS.code())
-                        : List.of(
-                                ApprovalStatus.IN_PROGRESS.code(), ApprovalStatus.COMPLETED.code());
+        // 차단 상태 판정은 전산업무비와 같은 규칙을 써야 하므로 공용 가드에 위임한다.
         return capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                "BPROJM", prjMngNo, sno, blockingStatuses);
+                "BPROJM", prjMngNo, sno, ApprovalWriteGuard.blockingStatuses());
     }
 
     /**
@@ -397,7 +393,8 @@ public class ProjectService {
         Bprojm project =
                 (sno == null
                                 ? projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
-                                : projectRepository.findByAbusMngNoAndSnoAndDelYn(prjMngNo, sno, "N"))
+                                : projectRepository.findByAbusMngNoAndSnoAndDelYn(
+                                        prjMngNo, sno, "N"))
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -630,32 +627,40 @@ public class ProjectService {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
-        // 프로젝트 조회 (삭제되지 않은 항목만)
-        Bprojm project =
-                (sno == null
-                                ? projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
-                                : projectRepository.findByAbusMngNoAndSnoAndDelYn(prjMngNo, sno, "N"))
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "Project not found with id: " + prjMngNo));
-
-        // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-        OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
-
-        // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
-        if (isBlockedByApproval(prjMngNo, project.getSno())) {
-            throw new IllegalStateException(approvalBlockMessage("삭제"));
+        // 순번을 지정하면 그 개정본만, 지정하지 않으면 문서 전체를 지운다.
+        // 문서 전체 삭제에서 최종본만 지우면 재신청 초안이 DEL_YN='N'으로 남아 미상신 목록에
+        // 삭제한 문서가 되살아나고, 그 초안을 상신·승인하면 문서 자체가 복구된다.
+        List<Bprojm> targets =
+                sno == null
+                        ? projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N")
+                        : projectRepository
+                                .findByAbusMngNoAndSnoAndDelYn(prjMngNo, sno, "N")
+                                .map(List::of)
+                                .orElseGet(List::of);
+        if (targets.isEmpty()) {
+            throw new IllegalArgumentException("Project not found with id: " + prjMngNo);
         }
 
-        // 1. 프로젝트 Soft Delete (DEL_YN='Y')
-        project.delete();
+        for (Bprojm project : targets) {
+            // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
+            OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
 
-        // 2. 관련 품목 전체 Soft Delete (DEL_YN 무관하게 모든 품목 조회 후 삭제)
-        List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms =
-                bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, project.getSno());
-        for (com.kdb.it.domain.budget.project.entity.Bitemm bitemm : bitemms) {
-            bitemm.delete(); // BaseEntity.delete() 호출 (DEL_YN='Y')
+            // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
+            if (isBlockedByApproval(prjMngNo, project.getSno())) {
+                throw new IllegalStateException(approvalBlockMessage("삭제"));
+            }
+        }
+
+        for (Bprojm project : targets) {
+            // 1. 프로젝트 Soft Delete (DEL_YN='Y')
+            project.delete();
+
+            // 2. 관련 품목 전체 Soft Delete (DEL_YN 무관하게 모든 품목 조회 후 삭제)
+            List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms =
+                    bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, project.getSno());
+            for (com.kdb.it.domain.budget.project.entity.Bitemm bitemm : bitemms) {
+                bitemm.delete(); // BaseEntity.delete() 호출 (DEL_YN='Y')
+            }
         }
     }
 

@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.cost.repository;
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.kdb.it.common.util.ListPageParams;
+import com.kdb.it.domain.budget.common.repository.BudgetListVersionScope;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.QBcostm;
@@ -181,16 +182,18 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
 
         BooleanBuilder builder = new BooleanBuilder();
 
-        // 미상신 목록은 LST_YN='N'인 재상신 초안도 보여야 하며, 그 외 업무는 최종본만 사용한다.
+        // 미상신·결재중·반려·회수 목록은 LST_YN='N'인 재상신 초안도 보여야 하며,
+        // 결재완료와 필터 없는 일반 업무는 최종본만 사용한다.
         builder.and(bcostm.delYn.eq("N"));
-        String apfSts = condition.getApfSts();
-        if (!"none".equals(apfSts)) {
+        // 라벨("결재중")로 들어온 입력을 코드("1")로 먼저 정규화해 이후 비교가 코드만 다루게 한다.
+        String apfSts = BudgetListVersionScope.normalize(condition.getApfSts());
+        if (!BudgetListVersionScope.includesDrafts(apfSts)) {
             builder.and(bcostm.lstYn.eq("Y"));
         }
 
         // === apfSts 필터 처리 ===
         if (apfSts != null && !apfSts.isBlank()) {
-            if ("none".equals(apfSts)) {
+            if (BudgetListVersionScope.SCOPE_NONE.equals(apfSts)) {
                 // 미상신(재상신 가능 포함): 활성(001 결재중) 또는 완료(002 결재완료)인 CAPPLM이 없는 경우.
                 // - 한 번도 상신 안 한 경우 → CAPPLA 자체 없음 → 자동 매칭
                 // - 반려(003)/회수(004)만 존재하는 경우 → 활성/완료가 없으므로 매칭 (재상신 허용)
@@ -221,13 +224,8 @@ public class CostRepositoryImpl implements CostRepositoryCustom {
                                         cappla.fntTbNm.eq("BCOSTM"),
                                         cappla.pkColNm.eq(bcostm.costBgNo),
                                         cappla.fntTbCrySno.eq(bcostm.bgSno),
-                                        capplm.itPtlApfPrgStsC.eq(
-                                                com.kdb.it.common.approval.domain.ApprovalStatus
-                                                                .hasLabel(apfSts)
-                                                        ? com.kdb.it.common.approval.domain
-                                                                .ApprovalStatus.ofLabel(apfSts)
-                                                                .code()
-                                                        : apfSts),
+                                        // apfSts는 앞단에서 코드로 정규화했다.
+                                        capplm.itPtlApfPrgStsC.eq(apfSts),
                                         // 해당 전산관리비에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사
                                         cappla.apfDcmNo.eq(
                                                 JPAExpressions.select(cappla2.apfDcmNo.max())

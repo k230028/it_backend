@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.project.repository;
 import com.kdb.it.common.approval.entity.QCappla;
 import com.kdb.it.common.approval.entity.QCapplm;
 import com.kdb.it.common.util.ListPageParams;
+import com.kdb.it.domain.budget.common.repository.BudgetListVersionScope;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.dto.ProjectListRow;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -149,14 +150,16 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         builder.and(bprojm.delYn.eq("N"));
 
         // === apfSts 필터 처리 ===
-        String apfSts = condition.getApfSts();
-        // 일반 업무는 확정본만 쓰되, 결재 상신 대상 조회는 결재 전 재신청 초안(SNO+1)도 보여야 한다.
-        // 미상신 조건이 원본 결재완료본을 NOT EXISTS로 제외하므로 초안만 상신 대상으로 남는다.
-        if (!"none".equals(apfSts)) {
+        // 라벨("결재중")로 들어온 입력을 코드("1")로 먼저 정규화해 이후 비교가 코드만 다루게 한다.
+        String apfSts = BudgetListVersionScope.normalize(condition.getApfSts());
+        // 일반 업무는 확정본만 쓰되, 결재 진행 중인 스코프는 재신청 초안(LST_YN='N')도 보여야 한다.
+        // 상신된 초안은 LST_YN='N'인 채 결재중이므로 여기서 최종본 조건을 걸면 미상신·결재중 어느
+        // 스코프에도 나타나지 않아 결재 완료 시까지 화면에서 사라진다. 판정은 스코프별로 한다.
+        if (!BudgetListVersionScope.includesDrafts(apfSts)) {
             builder.and(bprojm.lstYn.eq("Y"));
         }
         if (apfSts != null && !apfSts.isBlank()) {
-            if ("none".equals(apfSts)) {
+            if (BudgetListVersionScope.SCOPE_NONE.equals(apfSts)) {
                 // 미상신(재상신 가능 포함): 활성(1 결재중) 또는 완료(2 결재완료)인 CAPPLM이 없는 경우.
                 // - 한 번도 상신 안 한 경우 → CAPPLA 자체 없음 → 자동 매칭
                 // - 반려(3)/회수(4)만 존재하는 경우 → 활성/완료가 없으므로 매칭 (재상신 허용)
@@ -187,13 +190,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                         cappla.fntTbNm.eq("BPROJM"),
                                         cappla.pkColNm.eq(bprojm.abusMngNo),
                                         cappla.fntTbCrySno.eq(bprojm.sno),
-                                        capplm.itPtlApfPrgStsC.eq(
-                                                com.kdb.it.common.approval.domain.ApprovalStatus
-                                                                .hasLabel(apfSts)
-                                                        ? com.kdb.it.common.approval.domain
-                                                                .ApprovalStatus.ofLabel(apfSts)
-                                                                .code()
-                                                        : apfSts),
+                                        // apfSts는 앞단에서 코드로 정규화했다.
+                                        capplm.itPtlApfPrgStsC.eq(apfSts),
                                         // 해당 프로젝트에 연결된 신청서 중 가장 최신(APF_DCM_NO 최대)인 것만 검사
                                         cappla.apfDcmNo.eq(
                                                 JPAExpressions.select(cappla2.apfDcmNo.max())
