@@ -217,7 +217,7 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
      */
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "organization")
     @Query("SELECT u FROM CuserI u WHERE u.eno IN :enos")
-    List<CuserI> findByEnoInWithOrganization(Collection<String> enos);
+    List<CuserI> findByEnoInWithOrganization(@Param("enos") Collection<String> enos);
 
     /**
      * 사번(ENO) 존재 여부 확인
