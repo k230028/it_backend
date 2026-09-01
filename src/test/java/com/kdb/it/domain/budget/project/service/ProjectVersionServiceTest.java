@@ -227,7 +227,7 @@ class ProjectVersionServiceTest {
                         .build();
         given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(source));
-        given(projectRepository.existsByAbusMngNoAndLstYnAndDelYn("PRJ-2026-0001", "N", "N"))
+        given(projectRepository.existsByAbusMngNoAndSnoGreaterThanAndDelYn("PRJ-2026-0001", 1, "N"))
                 .willReturn(true);
 
         assertThatThrownBy(() -> service.createReapplication("PRJ-2026-0001"))
@@ -253,5 +253,32 @@ class ProjectVersionServiceTest {
                 .isInstanceOf(IllegalStateException.class);
 
         verify(projectRepository, never()).clearCurrentVersion("PRJ-2026-0001", 1);
+    }
+
+    @Test
+    @DisplayName("승격으로 강등된 과거 버전이 남아 있어도 재신청할 수 있다")
+    void 강등된_과거버전은_초안으로_보지_않는다() {
+        // 최종본이 sno=4인 사업에는 sno=1·3이 LST_YN='N', DEL_YN='N'으로 남아 있다.
+        // 이들을 미결 초안으로 오인하면 그 사업은 이후 재신청이 영구 차단된다.
+        Bprojm source =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-2026-0001")
+                        .sno(4)
+                        .svnDpmC("D001")
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
+                .willReturn(Optional.of(source));
+        given(projectRepository.existsByAbusMngNoAndSnoGreaterThanAndDelYn("PRJ-2026-0001", 4, "N"))
+                .willReturn(false);
+        given(applicationMapRepository.findLatestApplicationStatus("BPROJM", "PRJ-2026-0001", 4))
+                .willReturn(Optional.of(ApprovalStatus.COMPLETED.code()));
+        given(projectRepository.getNextVersionSno("PRJ-2026-0001")).willReturn(5);
+
+        var result = service.createReapplication("PRJ-2026-0001");
+
+        assertThat(result.sno()).isEqualTo(5);
+        assertThat(result.lstYn()).isEqualTo("N");
     }
 }

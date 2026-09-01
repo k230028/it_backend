@@ -85,7 +85,7 @@ class CostVersionServiceTest {
                 Bcostm.builder().costBgNo("COST-2027-0001").bgSno(1).lstYn("Y").delYn("N").build();
         given(costRepository.findCurrentVersionForUpdate("COST-2027-0001"))
                 .willReturn(Optional.of(source));
-        given(costRepository.existsByCostBgNoAndLstYnAndDelYn("COST-2027-0001", "N", "N"))
+        given(costRepository.existsByCostBgNoAndBgSnoGreaterThanAndDelYn("COST-2027-0001", 1, "N"))
                 .willReturn(true);
         CostVersionService service =
                 new CostVersionService(

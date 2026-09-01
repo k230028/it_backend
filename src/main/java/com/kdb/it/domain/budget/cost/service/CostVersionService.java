@@ -35,7 +35,10 @@ public class CostVersionService {
                                                 "재상신할 최종 전산업무비가 없습니다: " + costBgNo));
         // 원본을 잠근 뒤 미결 초안 존재를 확인한다. 잠금이 동시 요청을 직렬화하므로
         // 두 번째 트랜잭션은 여기서 차단되어 초안이 중첩 생성되지 않는다.
-        if (costRepository.existsByCostBgNoAndLstYnAndDelYn(costBgNo, "N", "N")) {
+        // 판정은 최종본 순번 초과로 한다 — LST_YN='N'만 보면 승격으로 강등된 과거 버전까지
+        // 초안으로 오인한다.
+        if (costRepository.existsByCostBgNoAndBgSnoGreaterThanAndDelYn(
+                costBgNo, source.getBgSno(), "N")) {
             throw new IllegalStateException("이미 재상신 초안이 있습니다: " + costBgNo);
         }
         String latestStatus =

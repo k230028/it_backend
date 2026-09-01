@@ -113,6 +113,19 @@ public interface ProjectRepository
             Collection<String> abusMngNos, String delYn, String lstYn);
 
     /**
+     * 관리번호·순번 집합으로 개정본을 일괄 조회합니다 (버전 지정 bulk 조회용).
+     *
+     * <p>튜플 IN을 쓸 수 없으므로 두 집합의 곱으로 넉넉히 읽고 호출부가 정확한 쌍만 채택합니다. 요청 크기가 제한돼 있어 과다 적재는 생기지 않습니다.
+     *
+     * @param abusMngNos 사업관리번호 집합
+     * @param delYn 삭제 여부 ('N'=미삭제)
+     * @param snos 개정 순번 집합
+     * @return 조건에 맞는 개정본 목록
+     */
+    List<Bprojm> findByAbusMngNoInAndDelYnAndSnoIn(
+            Collection<String> abusMngNos, String delYn, Collection<Integer> snos);
+
+    /**
      * 사업관리번호·최종여부·삭제여부로 현재 버전(최신 스냅샷) 사업 단건 조회
      *
      * <p>동일 {@code abusMngNo}의 여러 버전 중 {@code lstYn='Y'} 한 건만 반환하여 복수 결과로 인한 예외를 방지합니다. 소요예산 산정
@@ -269,6 +282,19 @@ public interface ProjectRepository
      * @return 존재하면 {@code true}
      */
     boolean existsByAbusMngNoAndLstYnAndDelYn(String abusMngNo, String lstYn, String delYn);
+
+    /**
+     * 현재 최종본보다 뒤 순번의 미삭제 개정본이 있는지 확인합니다 — 미결 재신청 초안 판정용입니다.
+     *
+     * <p>{@code LST_YN='N'}만으로는 미결 초안을 가려낼 수 없습니다. 승격으로 강등된 과거 버전도 같은 값을 갖기 때문입니다. 재신청 초안은 항상 최종본
+     * 다음 순번으로 채번되므로 최종본 순번 초과 여부로 판정합니다.
+     *
+     * @param abusMngNo 사업관리번호
+     * @param sno 현재 최종본의 개정 순번
+     * @param delYn 삭제 여부 ('N'=미삭제)
+     * @return 최종본보다 뒤 순번의 개정본이 있으면 true
+     */
+    boolean existsByAbusMngNoAndSnoGreaterThanAndDelYn(String abusMngNo, Integer sno, String delYn);
 
     /**
      * 활성 정보화사업의 경량 참조 목록 조회 (Tiptap 변수 카탈로그용)

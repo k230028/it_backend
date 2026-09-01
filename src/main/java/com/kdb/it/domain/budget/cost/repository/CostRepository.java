@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.repository;
 
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.BcostmId;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,15 +40,13 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     @Modifying(flushAutomatically = true)
     @Query(
             "UPDATE Bcostm c SET c.lstYn = 'N' WHERE c.costBgNo = :costBgNo AND c.bgSno <> :bgSno AND c.delYn = 'N' AND c.lstYn = 'Y'")
-    int clearCurrentVersion(
-            @Param("costBgNo") String costBgNo, @Param("bgSno") Integer bgSno);
+    int clearCurrentVersion(@Param("costBgNo") String costBgNo, @Param("bgSno") Integer bgSno);
 
     /** 승인된 정확한 개정본을 최종본으로 지정합니다. */
     @Modifying(flushAutomatically = true)
     @Query(
             "UPDATE Bcostm c SET c.lstYn = 'Y' WHERE c.costBgNo = :costBgNo AND c.bgSno = :bgSno AND c.delYn = 'N'")
-    int markVersionCurrent(
-            @Param("costBgNo") String costBgNo, @Param("bgSno") Integer bgSno);
+    int markVersionCurrent(@Param("costBgNo") String costBgNo, @Param("bgSno") Integer bgSno);
 
     /** 비용 대표행 선정과 계약명 표시에 필요한 필드만 읽는 프로젝션입니다. */
     interface CostRepresentativeView {
@@ -154,6 +153,19 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     List<Bcostm> findByCostBgNoAndDelYnAndLstYn(String costBgNo, String delYn, String lstYn);
 
     /**
+     * 관리번호·순번 집합으로 개정본을 일괄 조회합니다 (버전 지정 bulk 조회용).
+     *
+     * <p>튜플 IN을 쓸 수 없으므로 두 집합의 곱으로 넉넉히 읽고 호출부가 정확한 쌍만 채택합니다.
+     *
+     * @param costBgNos 전산업무비예산번호 집합
+     * @param delYn 삭제 여부 ('N'=미삭제)
+     * @param bgSnos 개정 순번 집합
+     * @return 조건에 맞는 개정본 목록
+     */
+    List<Bcostm> findByCostBgNoInAndDelYnAndBgSnoIn(
+            Collection<String> costBgNos, String delYn, Collection<Integer> bgSnos);
+
+    /**
      * Oracle 시퀀스(SQ_TPRMPP_BCOSTM_1) 다음 값 조회
      *
      * <p>새로운 전산관리비 생성 시 관리번호용 시퀀스 값을 채번합니다. Oracle DB 전용 Native Query입니다.
@@ -189,6 +201,19 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
      * @return 해당 조건의 레코드가 존재하면 true
      */
     boolean existsByCostBgNoAndLstYnAndDelYn(String costBgNo, String lstYn, String delYn);
+
+    /**
+     * 현재 최종본보다 뒤 순번의 미삭제 개정본이 있는지 확인합니다 — 미결 재상신 초안 판정용입니다.
+     *
+     * <p>{@code LST_YN='N'}만으로는 미결 초안을 가려낼 수 없습니다. 승격으로 강등된 과거 버전도 같은 값을 갖기 때문입니다.
+     *
+     * @param costBgNo 전산업무비예산번호
+     * @param bgSno 현재 최종본의 개정 순번
+     * @param delYn 삭제 여부 ('N'=미삭제)
+     * @return 최종본보다 뒤 순번의 개정본이 있으면 true
+     */
+    boolean existsByCostBgNoAndBgSnoGreaterThanAndDelYn(
+            String costBgNo, Integer bgSno, String delYn);
 
     /**
      * 전산관리비 현재 유효 버전 단건 조회 (과업심의 대상명 해석용).

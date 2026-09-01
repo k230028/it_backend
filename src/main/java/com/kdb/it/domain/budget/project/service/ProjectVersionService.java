@@ -64,7 +64,10 @@ public class ProjectVersionService {
         }
         // 원본을 잠근 뒤 미결 초안 존재를 확인한다. 잠금이 동시 요청을 직렬화하므로
         // 두 번째 트랜잭션은 여기서 차단되어 초안 v2·v3가 함께 생기지 않는다.
-        if (projectRepository.existsByAbusMngNoAndLstYnAndDelYn(abusMngNo, "N", "N")) {
+        // 판정은 최종본 순번 초과로 한다 — LST_YN='N'만 보면 승격으로 강등된 과거 버전까지
+        // 초안으로 오인해, 재신청을 한 번이라도 거친 사업은 이후 영구 차단된다.
+        if (projectRepository.existsByAbusMngNoAndSnoGreaterThanAndDelYn(
+                abusMngNo, source.getSno(), "N")) {
             throw new IllegalStateException("이미 재신청 초안이 있습니다: " + abusMngNo);
         }
         if (source.getSvnDpmC() == null || source.getSvnDpmC().isBlank()) {
