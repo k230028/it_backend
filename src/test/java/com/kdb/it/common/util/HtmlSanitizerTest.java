@@ -48,6 +48,22 @@ class HtmlSanitizerTest {
     }
 
     @Test
+    @DisplayName("게시판 Tiptap 멘션의 사용자 번호는 보존하고 이벤트 속성은 제거한다.")
+    void shouldPreserveTiptapMentionEnoOnly() {
+        // Given: 게시판 공통 에디터가 저장하는 멘션 노드
+        String html =
+                "<p><span data-type=\"tiptap-mention\" data-mention-eno=\"E123\" onclick=\"alert(1)\">@홍길동</span></p>";
+
+        // When
+        String sanitized = HtmlSanitizer.sanitize(html);
+
+        // Then
+        assertThat(sanitized).contains("data-type=\"tiptap-mention\"");
+        assertThat(sanitized).contains("data-mention-eno=\"E123\"");
+        assertThat(sanitized).doesNotContain("onclick");
+    }
+
+    @Test
     @DisplayName("블록 수식 div의 data-latex 속성이 보존되어야 한다.")
     void shouldPreserveBlockMathDataLatex() {
         // Given: BlockMathExtension이 렌더링하는 HTML

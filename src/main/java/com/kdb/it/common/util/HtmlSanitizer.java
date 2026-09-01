@@ -96,6 +96,7 @@ public final class HtmlSanitizer {
                         "data-file-id",
                         "data-file-name",
                         "data-file-size",
+                        "data-mention-eno",
                         "data-latex",
                         "data-comment-id",
                         "data-resolved")
