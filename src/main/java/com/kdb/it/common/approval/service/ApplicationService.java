@@ -275,7 +275,7 @@ public class ApplicationService {
         // 신청서 마스터 조회 (없으면 예외)
         Capplm capplm =
                 applicationRepository
-                        .findById(apfMngNo)
+                        .findByIdForUpdate(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
 

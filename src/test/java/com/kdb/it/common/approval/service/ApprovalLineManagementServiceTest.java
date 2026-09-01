@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -18,6 +19,7 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +42,14 @@ class ApprovalLineManagementServiceTest {
     @Mock private ApprovalLineDelegate approvalLineDelegate;
 
     @InjectMocks private ApprovalLineManagementService service;
+
+    @BeforeEach
+    void setUp() {
+        org.mockito.Mockito.lenient()
+                .when(applicationRepository.findByIdForUpdate(anyString()))
+                .thenAnswer(
+                        invocation -> applicationRepository.findById(invocation.getArgument(0)));
+    }
 
     @Test
     @DisplayName("중복 사번은 저장 전에 거부하고 기존 결재선을 변경하지 않는다")
@@ -160,7 +170,7 @@ class ApprovalLineManagementServiceTest {
     void replacePendingApprovers_승인과공유하는신청서잠금() throws Exception {
         org.springframework.data.jpa.repository.Lock lock =
                 ApplicationRepository.class
-                        .getMethod("findById", String.class)
+                        .getMethod("findByIdForUpdate", String.class)
                         .getAnnotation(org.springframework.data.jpa.repository.Lock.class);
 
         assertThat(lock).isNotNull();

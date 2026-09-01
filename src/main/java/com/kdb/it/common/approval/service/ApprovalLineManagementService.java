@@ -254,7 +254,7 @@ public class ApprovalLineManagementService {
     private Capplm getInProgressApplication(String apfMngNo) {
         Capplm application =
                 applicationRepository
-                        .findById(apfMngNo)
+                        .findByIdForUpdate(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
         if (!ApprovalStatus.IN_PROGRESS.code().equals(application.getItPtlApfPrgStsC())) {

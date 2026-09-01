@@ -31,14 +31,10 @@ import org.springframework.data.repository.query.Param;
  */
 public interface ApplicationRepository extends JpaRepository<Capplm, String> {
 
-    /**
-     * 결재 승인과 결재선 변경이 같은 신청서 상태를 동시에 읽고 쓰지 않도록 신청서 행을 잠근다.
-     *
-     * <p>두 명령은 이 조회를 트랜잭션 시작 직후 공통으로 사용하므로, 승인된 결재 행을 결재선 교체가 삭제하는 경쟁을 막는다.
-     */
-    @Override
+    /** 승인·결재선 변경 명령 전용 신청서 행 잠금 조회입니다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<Capplm> findById(String apfMngNo);
+    @Query("select application from Capplm application where application.apfMngNo = :apfMngNo")
+    Optional<Capplm> findByIdForUpdate(@Param("apfMngNo") String apfMngNo);
 
     /** 프로젝트·관리비 응답 조립에 필요한 신청서 마스터 최소 필드입니다. */
     interface ApplicationSummaryView {
