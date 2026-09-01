@@ -1,8 +1,10 @@
 package com.kdb.it.common.approval.service;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.dto.ApplicationApproverDisplay;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import java.util.ArrayList;
@@ -37,11 +39,15 @@ final class ApplicationBulkReadSupport {
                 requestedIds.stream().filter(viewsById::containsKey).distinct().toList();
         List<ApplicationRepository.ApplicationReadView> foundViews =
                 foundIds.stream().map(viewsById::get).toList();
+        List<ApproverRepository.ApproverReadView> approverViews =
+                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(foundIds);
         Map<String, List<ApproverRepository.ApproverReadView>> approversByApf =
-                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(foundIds).stream()
+                approverViews.stream()
                         .collect(
                                 Collectors.groupingBy(
                                         ApproverRepository.ApproverReadView::getDcdMngNo));
+        Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
+                resolveApproverDisplays(approverViews, userRepository);
         Map<String, String> requesterNamesByEno = resolveRequesterNames(foundViews, userRepository);
         Map<String, String> requesterDeptNamesByBbrC =
                 resolveRequesterDeptNames(foundViews, organizationRepository);
@@ -58,7 +64,8 @@ final class ApplicationBulkReadSupport {
                                                         requesterNamesByEno, view.getDcdReqUsid()),
                                                 requesterDeptName(
                                                         requesterDeptNamesByBbrC,
-                                                        view.getDcdReqBbrC())))
+                                                        view.getDcdReqBbrC()),
+                                                approverDisplaysByEno))
                         .toList();
         List<String> failedIds = new ArrayList<>();
         for (String apfMngNo : requestedIds) {
@@ -89,11 +96,15 @@ final class ApplicationBulkReadSupport {
             OrganizationRepository organizationRepository) {
         List<String> apfMngNos =
                 views.stream().map(ApplicationRepository.ApplicationReadView::getApfMngNo).toList();
+        List<ApproverRepository.ApproverReadView> approverViews =
+                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos);
         Map<String, List<ApproverRepository.ApproverReadView>> approversByApf =
-                approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(apfMngNos).stream()
+                approverViews.stream()
                         .collect(
                                 Collectors.groupingBy(
                                         ApproverRepository.ApproverReadView::getDcdMngNo));
+        Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
+                resolveApproverDisplays(approverViews, userRepository);
         Map<String, String> requesterNamesByEno = resolveRequesterNames(views, userRepository);
         Map<String, String> requesterDeptNamesByBbrC =
                 resolveRequesterDeptNames(views, organizationRepository);
@@ -105,8 +116,28 @@ final class ApplicationBulkReadSupport {
                                         approversByApf.getOrDefault(view.getApfMngNo(), List.of()),
                                         requesterName(requesterNamesByEno, view.getDcdReqUsid()),
                                         requesterDeptName(
-                                                requesterDeptNamesByBbrC, view.getDcdReqBbrC())))
+                                                requesterDeptNamesByBbrC, view.getDcdReqBbrC()),
+                                        approverDisplaysByEno))
                 .toList();
+    }
+
+    /** 결재선의 사번을 한 번에 해석해 결재자 표시 정보 맵으로 변환합니다. */
+    static Map<String, ApplicationApproverDisplay> resolveApproverDisplays(
+            List<ApproverRepository.ApproverReadView> approvers, UserRepository userRepository) {
+        Set<String> approverEnos =
+                approvers.stream()
+                        .map(ApproverRepository.ApproverReadView::getDcrEno)
+                        .filter(eno -> eno != null && !eno.isBlank())
+                        .collect(Collectors.toSet());
+        if (approverEnos.isEmpty()) return Map.of();
+        return userRepository.findByEnoIn(approverEnos).stream()
+                .collect(
+                        Collectors.toMap(
+                                CuserI::getEno,
+                                user ->
+                                        new ApplicationApproverDisplay(
+                                                user.getUsrNm(), user.getPtCNm(), user.getBbrNm()),
+                                (left, right) -> left));
     }
 
     private static Map<String, String> resolveRequesterNames(
