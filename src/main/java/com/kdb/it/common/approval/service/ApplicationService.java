@@ -771,7 +771,7 @@ public class ApplicationService {
             boolean isAdmin) {
         Capplm capplm =
                 applicationRepository
-                        .findById(apfMngNo)
+                        .findByIdForUpdate(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
 

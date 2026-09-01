@@ -246,6 +246,26 @@ class ApplicationServiceTest {
         return req;
     }
 
+    @Test
+    @DisplayName("recall: 결재 상태 변경 전에 명령 전용 신청서 잠금을 획득한다")
+    void recall_명령잠금획득() {
+        Capplm application =
+                Capplm.builder()
+                        .apfMngNo(APF_MNG_NO)
+                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                        .dcdReqUsid("E10001")
+                        .build();
+        ApplicationDto.RecallRequest request = new ApplicationDto.RecallRequest();
+        request.setRecallOpnn("테스트 회수");
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+
+        applicationService.recall(APF_MNG_NO, request, "E10001", false);
+
+        verify(applicationRepository).findByIdForUpdate(APF_MNG_NO);
+    }
+
     /** JSON 결재선 갱신까지 검증하기 위한 실제 ObjectMapper 서비스 */
     private ApplicationService serviceWithRealObjectMapper() {
         return new ApplicationService(

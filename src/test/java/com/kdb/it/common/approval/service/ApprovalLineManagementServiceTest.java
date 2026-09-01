@@ -166,6 +166,25 @@ class ApprovalLineManagementServiceTest {
     }
 
     @Test
+    @DisplayName("삭제여부가 null인 결재자는 기존 미결재 결재선을 변경하지 않는다")
+    void replacePendingApprovers_삭제여부null_롤백() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+        given(userRepository.findByEnoIn(List.of("E100")))
+                .willReturn(List.of(CuserI.builder().eno("E100").build()));
+
+        assertThatThrownBy(
+                        () -> service.replacePendingApprovers(APF, List.of("E100"), "E001", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("활성");
+
+        verify(approverRepository, never()).saveAll(anyCollection());
+        verify(approverRepository, never()).deleteAll(anyCollection());
+    }
+
+    @Test
     @DisplayName("승인과 결재선 교체는 신청서 비관 잠금을 공유한다")
     void replacePendingApprovers_승인과공유하는신청서잠금() throws Exception {
         org.springframework.data.jpa.repository.Lock lock =
