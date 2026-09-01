@@ -31,7 +31,12 @@ public final class ProjectResponseMapper {
                 .abusNm(project.getAbusNm()) // 프로젝트명
                 .bzTpC(project.getBzTpC()) // 프로젝트유형
                 .svnDpmC(project.getSvnDpmC()) // 주관부서
+                .svnTemC(project.getSvnTemC()) // 주관팀 코드
+                .svnDpmNm(project.getSvnDpmNm()) // 주관부서명 스냅샷
+                .svnTemNm(project.getSvnTemNm()) // 주관팀명 스냅샷
                 .dvmDpmC(project.getDvmDpmC()) // IT부서
+                .dvmTemC(project.getDvmTemC()) // IT 담당팀 코드
+                .totRqmAmt(project.getTotRqmAmt()) // BPROJM 총소요금액 스냅샷
                 .sttDtm(project.getSttDtm()) // 시작일자
                 .endDtm(project.getEndDtm()) // 종료일자
                 .prlmHrkOgzCCone(project.getPrlmHrkOgzCCone()) // 주관본부/부문

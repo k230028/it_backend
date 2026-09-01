@@ -3,10 +3,12 @@ package com.kdb.it.common.board.repository;
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.QCblbcm;
+import com.kdb.it.common.board.entity.QCcmmtm;
 import com.kdb.it.common.iam.entity.QCorgnI;
 import com.kdb.it.common.iam.entity.QCuserI;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDate;
 import java.util.List;
@@ -42,7 +44,7 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
             String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin) {
 
         QCblbcm p = QCblbcm.cblbcm;
-        BooleanBuilder builder = buildPredicate(p, blbMngNo, cond, isAdmin);
+        BooleanBuilder builder = buildPredicate(p, blbMngNo, cond, isAdmin, false);
 
         int page = Math.max(cond.getPage(), 0);
         int size = Math.min(Math.max(cond.getSize(), 1), 100);
@@ -72,11 +74,15 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
      */
     @Override
     public Page<BoardPostDto.ListRow> searchPostRows(
-            String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin) {
+            String blbMngNo,
+            BoardPostDto.SearchCondition cond,
+            boolean isAdmin,
+            boolean includePrivatePosts) {
         QCblbcm p = QCblbcm.cblbcm;
+        QCcmmtm comment = new QCcmmtm("boardPostComment");
         QCuserI writer = new QCuserI("boardPostWriter");
         QCorgnI writerOrganization = new QCorgnI("boardPostWriterOrganization");
-        BooleanBuilder builder = buildPredicate(p, blbMngNo, cond, isAdmin);
+        BooleanBuilder builder = buildPredicate(p, blbMngNo, cond, isAdmin, includePrivatePosts);
 
         int page = Math.max(cond.getPage(), 0);
         int size = Math.min(Math.max(cond.getSize(), 1), 100);
@@ -102,7 +108,12 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
                                         p.fstEnrUsid,
                                         writer.usrNm,
                                         writerOrganization.bbrNm,
-                                        p.fstEnrDtm))
+                                        p.fstEnrDtm,
+                                        JPAExpressions.select(comment.count())
+                                                .from(comment)
+                                                .where(
+                                                        comment.nacMngNo.eq(p.nacMngNo),
+                                                        comment.delYn.eq("N"))))
                         .from(p)
                         .leftJoin(writer)
                         .on(writer.eno.eq(p.fstEnrUsid))
@@ -120,13 +131,19 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
     }
 
     private BooleanBuilder buildPredicate(
-            QCblbcm p, String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin) {
+            QCblbcm p,
+            String blbMngNo,
+            BoardPostDto.SearchCondition cond,
+            boolean isAdmin,
+            boolean includePrivatePosts) {
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(p.blbMngNo.eq(blbMngNo));
         builder.and(p.delYn.eq("N"));
 
         if (!isAdmin || cond.isPublicOnly()) {
-            builder.and(p.xpoYn.eq("Y"));
+            if (!includePrivatePosts) {
+                builder.and(p.xpoYn.eq("Y"));
+            }
             if (!cond.isIgnorePublicationPeriod()) {
                 LocalDate today = LocalDate.now();
                 builder.and(p.sttDt.isNull().or(p.sttDt.loe(today)));

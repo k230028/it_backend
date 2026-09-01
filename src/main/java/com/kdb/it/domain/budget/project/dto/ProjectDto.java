@@ -492,9 +492,29 @@ public class ProjectDto {
         @Schema(description = "주관부서")
         private String svnDpmC;
 
+        /** 주관팀 코드 */
+        @Schema(description = "주관팀 코드")
+        private String svnTemC;
+
+        /** BPROJM에 저장된 주관부서명 스냅샷 */
+        @Schema(description = "주관부서명 스냅샷")
+        private String svnDpmNm;
+
+        /** BPROJM에 저장된 주관팀명 스냅샷 */
+        @Schema(description = "주관팀명 스냅샷")
+        private String svnTemNm;
+
         /** IT부서 */
         @Schema(description = "IT부서")
         private String dvmDpmC;
+
+        /** IT 담당팀 코드 */
+        @Schema(description = "IT 담당팀 코드")
+        private String dvmTemC;
+
+        /** BPROJM 총소요금액 스냅샷 */
+        @Schema(description = "BPROJM 총소요금액 스냅샷")
+        private BigDecimal totRqmAmt;
 
         @Schema(description = "당해 요청금액", requiredMode = Schema.RequiredMode.REQUIRED)
         private BigDecimal tyyBgAmt;

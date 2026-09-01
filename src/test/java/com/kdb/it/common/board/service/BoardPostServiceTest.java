@@ -117,8 +117,8 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("게시물 목록 프로젝션은 작성자명과 작성부서명을 포함한 16개 필드만 가진다")
-    void listRow_hasExactSixteenFields() {
+    @DisplayName("게시물 목록 프로젝션은 작성자명·작성부서명·댓글 수를 포함한 17개 필드만 가진다")
+    void listRow_hasExactSeventeenFields() {
         assertThat(BoardPostDto.ListRow.class.getRecordComponents())
                 .extracting(component -> component.getName())
                 .containsExactly(
@@ -137,7 +137,8 @@ class BoardPostServiceTest {
                         "fstEnrUsid",
                         "fstEnrUsNm",
                         "fstEnrBbrNm",
-                        "fstEnrDtm");
+                        "fstEnrDtm",
+                        "commentCount");
     }
 
     @Test
@@ -154,6 +155,27 @@ class BoardPostServiceTest {
                         new com.kdb.it.common.board.dto.BoardPostDto.SearchCondition(),
                         normalUser);
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Q&A 목록은 비공개 문의도 자물쇠 표시를 위해 반환한다")
+    void searchPosts_qnaIncludesPrivatePosts() {
+        Cblbmm qnaBoard =
+                Cblbmm.builder()
+                        .blbMngNo("BLBM-QNA")
+                        .blbNm("Q&A")
+                        .itPtlBlbTc(BoardTypeResolver.QNA_BOARD_TYPE)
+                        .useYn("Y")
+                        .delYn("N")
+                        .build();
+        BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-QNA", "N")).willReturn(Optional.of(qnaBoard));
+        given(postRepository.searchPostRows("BLBM-QNA", condition, false, true))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        service.searchPosts("BLBM-QNA", condition, normalUser);
+
+        verify(postRepository).searchPostRows("BLBM-QNA", condition, false, true);
     }
 
     @Test
@@ -425,7 +447,8 @@ class BoardPostServiceTest {
                         "USER001",
                         "홍길동",
                         "디지털기획부",
-                        LocalDateTime.of(2026, 7, 20, 10, 0));
+                        LocalDateTime.of(2026, 7, 20, 10, 0),
+                        0L);
         given(postRepository.searchPostRows(any(), any(), anyBoolean()))
                 .willReturn(new PageImpl<>(List.of(row), PageRequest.of(1, 20), 21));
 
@@ -906,6 +929,39 @@ class BoardPostServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> service.verifyCanReadPost(normalUser, hiddenPost, board))
+                .isInstanceOf(CustomGeneralException.class);
+    }
+
+    @Test
+    @DisplayName("Q&A 비공개 게시물은 작성부서만 상세 조회할 수 있다")
+    void verifyCanReadPost_privateQna_allowsOnlyWriterDepartment() {
+        Cblbmm qnaBoard =
+                Cblbmm.builder()
+                        .blbMngNo("BLBM-QNA")
+                        .blbNm("Q&A")
+                        .itPtlBlbTc(BoardTypeResolver.QNA_BOARD_TYPE)
+                        .useYn("Y")
+                        .delYn("N")
+                        .build();
+        Cblbcm privatePost = post("NAC-QNA-001", "OTHER");
+        privatePost.update(
+                new Cblbcm.UpdateCommand(
+                        privatePost.getNacNm(),
+                        privatePost.getNacCone(),
+                        privatePost.getAncYn(),
+                        "N",
+                        "10002",
+                        null,
+                        null));
+
+        service.verifyCanReadPost(normalUser, privatePost, qnaBoard);
+
+        assertThatThrownBy(
+                        () ->
+                                service.verifyCanReadPost(
+                                        new CustomUserDetails("USER002", List.of("ITPZZ001"), "10003"),
+                                        privatePost,
+                                        qnaBoard))
                 .isInstanceOf(CustomGeneralException.class);
     }
 

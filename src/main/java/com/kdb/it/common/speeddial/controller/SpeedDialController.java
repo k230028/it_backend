@@ -1,5 +1,7 @@
 package com.kdb.it.common.speeddial.controller;
 
+import com.kdb.it.common.speeddial.contact.ContactInfoDto;
+import com.kdb.it.common.speeddial.contact.ContactInfoService;
 import com.kdb.it.common.speeddial.dto.SpeedDialDto;
 import com.kdb.it.common.speeddial.service.SpeedDialService;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 전역 스피드다이얼의 FAQ 조회·Q&A 문의 API입니다. */
+/** 전역 스피드다이얼의 FAQ·Q&A·담당자 정보 API입니다. */
 @RestController
 @RequestMapping("/api/speed-dial")
 @RequiredArgsConstructor
@@ -24,6 +26,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class SpeedDialController {
 
     private final SpeedDialService speedDialService;
+    private final ContactInfoService contactInfoService;
+
+    /**
+     * 스피드다이얼에 표시할 담당자 정보 문서를 조회합니다.
+     *
+     * @return 등록 전이면 본문이 null인 응답
+     */
+    @GetMapping("/contact-information")
+    @Operation(summary = "스피드다이얼 담당자 정보 조회")
+    public ResponseEntity<ContactInfoDto.Response> getContactInfo() {
+        return ResponseEntity.ok(contactInfoService.getContactInfo());
+    }
 
     @GetMapping("/faqs")
     @Operation(summary = "스피드다이얼 FAQ 조회")

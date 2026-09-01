@@ -64,7 +64,8 @@ public class SpeedDialService {
         validateRequest(request);
         Cblbmm board = boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE);
         String categoryName = CATEGORY_NAMES.get(request.category());
-        String title = "[문의] " + categoryName;
+        String title = "[문의] (" + categoryName + ") " + request.title().trim();
+        String writerBbrC = requireWriterDepartment(user);
         String content =
                 "<p>화면(URL): "
                         + escape(request.screenName().trim())
@@ -76,12 +77,22 @@ public class SpeedDialService {
                         + request.content().trim();
         BoardPostDto.CreateRequest boardRequest =
                 new BoardPostDto.CreateRequest(
-                        title, content, "N", "Y", null, null, null, List.of());
+                        title,
+                        content,
+                        "N",
+                        request.privatePost() ? "N" : "Y",
+                        writerBbrC,
+                        null,
+                        null,
+                        List.of());
         return boardPostService.createPost(board.getBlbMngNo(), boardRequest, user);
     }
 
     private void validateRequest(SpeedDialDto.QnaCreateRequest request) {
         if (request == null) throw new CustomGeneralException("문의 내용을 입력하세요.");
+        if (!StringUtils.hasText(request.title()) || request.title().length() > 90) {
+            throw new CustomGeneralException("문의 제목을 확인하세요.");
+        }
         if (!CATEGORY_NAMES.containsKey(request.category())) {
             throw new CustomGeneralException("문의 구분이 올바르지 않습니다.");
         }
@@ -95,6 +106,14 @@ public class SpeedDialService {
         if (!StringUtils.hasText(request.content()) || isEmptyTiptapHtml(request.content())) {
             throw new CustomGeneralException("문의 및 요청 내용을 입력하세요.");
         }
+    }
+
+    /** 비공개 문의의 부서 범위와 작성 시점 부서 스냅샷에 사용할 로그인 부서를 확인합니다. */
+    private String requireWriterDepartment(CustomUserDetails user) {
+        if (user == null || !StringUtils.hasText(user.getBbrC())) {
+            throw new CustomGeneralException("소속 부서 정보를 확인할 수 없어 문의를 등록할 수 없습니다.");
+        }
+        return user.getBbrC();
     }
 
     private boolean isEmptyTiptapHtml(String html) {

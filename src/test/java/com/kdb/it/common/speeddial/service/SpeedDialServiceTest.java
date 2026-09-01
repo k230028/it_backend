@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.board.entity.Cblbcm;
@@ -21,6 +22,7 @@ import com.kdb.it.exception.CustomGeneralException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,6 +36,11 @@ class SpeedDialServiceTest {
     @Mock private BoardPostService boardPostService;
     @Mock private BoardPostRepository boardPostRepository;
     @Mock private CustomUserDetails user;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(user.getBbrC()).thenReturn("10002");
+    }
 
     @Test
     void qnaUsesResolvedTypeBoardAndNeverClientBoardId() {
@@ -113,22 +120,26 @@ class SpeedDialServiceTest {
     }
 
     @Test
-    void qnaTitleKeepsOnlyInquiryPrefixAndCategoryName() {
+    void qnaUsesTitlePrivacyAndAuthenticatedUsersDepartment() {
         SpeedDialService service =
                 new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
         given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
                 .willReturn(board("BLBM-QNA", "005"));
         given(boardPostService.createPost(eq("BLBM-QNA"), any(), same(user)))
                 .willReturn("NAC-2026-0003");
+        given(user.getBbrC()).willReturn("10002");
 
         service.createQna(
-                new SpeedDialDto.QnaCreateRequest("Q&A", "/board/qna", "IMPROVEMENT", "<p>문의</p>"),
+                new SpeedDialDto.QnaCreateRequest(
+                        "검색 조건 저장", "Q&A", "/board/qna", "IMPROVEMENT", true, "<p>문의</p>"),
                 user);
 
         ArgumentCaptor<BoardPostDto.CreateRequest> captor =
                 ArgumentCaptor.forClass(BoardPostDto.CreateRequest.class);
         verify(boardPostService).createPost(eq("BLBM-QNA"), captor.capture(), same(user));
-        assertThat(captor.getValue().getNacNm()).isEqualTo("[문의] 기능 개선");
+        assertThat(captor.getValue().getNacNm()).isEqualTo("[문의] (기능 개선) 검색 조건 저장");
+        assertThat(captor.getValue().getXpoYn()).isEqualTo("N");
+        assertThat(captor.getValue().getBbrC()).isEqualTo("10002");
     }
 
     @Test
@@ -153,7 +164,7 @@ class SpeedDialServiceTest {
         verify(boardPostService, times(2)).createPost(eq("BLBM-QNA"), captor.capture(), same(user));
         assertThat(captor.getAllValues())
                 .extracting(BoardPostDto.CreateRequest::getNacNm)
-                .containsExactly("[문의] 예산", "[문의] 사업");
+                .containsExactly("[문의] (예산) 예산 작성", "[문의] (사업) 정보화사업");
     }
 
     @Test

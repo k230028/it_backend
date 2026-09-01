@@ -3,6 +3,7 @@ package com.kdb.it.common.board.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
+import com.kdb.it.common.board.entity.Ccmmtm;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -150,6 +151,36 @@ class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
                 .get()
                 .extracting(Cblbcm::getNacInqNbr)
                 .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("목록 프로젝션은 삭제되지 않은 원댓글과 대댓글만 댓글 수로 반환한다")
+    void searchPostRows_returnsActiveCommentCount() throws ReflectiveOperationException {
+        String postId = "BE31-COMM-COUNT";
+        postRepository.saveAndFlush(
+                post(postId, "댓글 수", "본문", "writer", "N", "Y", 9899, 1, null, null, "N"));
+        em.persist(comment(910000001L, postId, 910000001L, 0, "N"));
+        em.persist(comment(910000002L, postId, 910000001L, 1, "N"));
+        em.persist(comment(910000003L, postId, 910000003L, 0, "Y"));
+        em.flush();
+        em.clear();
+
+        BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
+        condition.setPage(0);
+        condition.setSize(20);
+
+        var row =
+                postRepository.searchPostRows("BLB-BE03", condition, true).getContent().stream()
+                        .filter(candidate -> candidate.nacMngNo().equals(postId))
+                        .findFirst()
+                        .orElseThrow();
+        var commentCountComponent =
+                java.util.Arrays.stream(BoardPostDto.ListRow.class.getRecordComponents())
+                        .filter(component -> component.getName().equals("commentCount"))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("댓글 수 프로젝션 필드가 없습니다."));
+
+        assertThat(commentCountComponent.getAccessor().invoke(row)).isEqualTo(2L);
     }
 
     @Test
@@ -419,6 +450,25 @@ class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
                 .lstChgUsid(author)
                 .lstChgDtm(LocalDate.of(2026, 7, 20).atStartOfDay())
                 .delYn(deleted)
+                .build();
+    }
+
+    private Ccmmtm comment(Long id, String postId, Long groupId, int sequence, String deleted) {
+        LocalDateTime now = LocalDateTime.of(2026, 7, 21, 12, 0);
+        return Ccmmtm.builder()
+                .cmmtMngNo(id)
+                .nacMngNo(postId)
+                .cmmtCone("댓글")
+                .cmmtGrpNo(groupId)
+                .cmmtGrpSqn(sequence)
+                .cmmtGrpLev(sequence)
+                .fstEnrUsid("TEST")
+                .fstEnrDtm(now)
+                .lstChgUsid("TEST")
+                .lstChgDtm(now)
+                .delYn(deleted)
+                .guid(java.util.UUID.randomUUID().toString())
+                .guidPrgSno(1)
                 .build();
     }
 }

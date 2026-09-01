@@ -32,7 +32,8 @@ public class BoardPostDto {
             String fstEnrUsid,
             String fstEnrUsNm,
             String fstEnrBbrNm,
-            LocalDateTime fstEnrDtm) {}
+            LocalDateTime fstEnrDtm,
+            Long commentCount) {}
 
     @Getter
     @Builder
@@ -57,7 +58,8 @@ public class BoardPostDto {
                 "fstEnrUsid",
                 "fstEnrUsNm",
                 "fstEnrBbrNm",
-                "fstEnrDtm"
+                "fstEnrDtm",
+                "commentCount"
             })
     public static class ListItem {
         @Schema(description = "게시물관리번호")
@@ -114,6 +116,9 @@ public class BoardPostDto {
         @Schema(description = "등록일시")
         private LocalDateTime fstEnrDtm;
 
+        @Schema(description = "삭제되지 않은 댓글과 대댓글 수")
+        private Long commentCount;
+
         public static ListItem from(Cblbcm e) {
             return ListItem.builder()
                     .nacMngNo(e.getNacMngNo())
@@ -134,6 +139,7 @@ public class BoardPostDto {
                     .fstEnrUsNm(null)
                     .fstEnrBbrNm(null)
                     .fstEnrDtm(e.getFstEnrDtm())
+                    .commentCount(0L)
                     .build();
         }
 
@@ -161,6 +167,7 @@ public class BoardPostDto {
                     .fstEnrUsNm(row.fstEnrUsNm())
                     .fstEnrBbrNm(row.fstEnrBbrNm())
                     .fstEnrDtm(row.fstEnrDtm())
+                    .commentCount(row.commentCount())
                     .build();
         }
     }

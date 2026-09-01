@@ -71,9 +71,12 @@ public class BoardPostService {
             effectiveCond.ignorePublicationPeriod();
         }
 
-        return postRepository
-                .searchPostRows(blbMngNo, effectiveCond, user.isAdmin())
-                .map(BoardPostDto.ListItem::from);
+        boolean qnaBoard = BoardTypeResolver.QNA_BOARD_TYPE.equals(board.getItPtlBlbTc());
+        var rows =
+                qnaBoard
+                        ? postRepository.searchPostRows(blbMngNo, effectiveCond, user.isAdmin(), true)
+                        : postRepository.searchPostRows(blbMngNo, effectiveCond, user.isAdmin());
+        return rows.map(BoardPostDto.ListItem::from);
     }
 
     /**
@@ -385,6 +388,12 @@ public class BoardPostService {
      */
     public void verifyCanReadPost(CustomUserDetails user, Cblbcm post, Cblbmm board) {
         if (user.isAdmin()) return;
+
+        if (BoardTypeResolver.QNA_BOARD_TYPE.equals(board.getItPtlBlbTc())
+                && "N".equals(post.getXpoYn())) {
+            if (post.getBbrC() != null && post.getBbrC().equals(user.getBbrC())) return;
+            throw new CustomGeneralException("비공개 문의는 작성부서와 관리자만 조회할 수 있습니다.");
+        }
 
         LocalDate today = LocalDate.now();
         boolean checkPublicationPeriod = !SCHEDULE_BOARD_TYPE.equals(board.getItPtlBlbTc());

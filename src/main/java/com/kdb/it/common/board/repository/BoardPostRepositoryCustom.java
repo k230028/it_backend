@@ -24,5 +24,14 @@ public interface BoardPostRepositoryCustom {
      * @return 권한과 검색 조건을 만족하는 경량 게시물 목록
      */
     Page<BoardPostDto.ListRow> searchPostRows(
-            String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin);
+            String blbMngNo,
+            BoardPostDto.SearchCondition cond,
+            boolean isAdmin,
+            boolean includePrivatePosts);
+
+    /** 기존 게시판 목록은 비공개 게시물을 제외하는 기본 정책을 유지합니다. */
+    default Page<BoardPostDto.ListRow> searchPostRows(
+            String blbMngNo, BoardPostDto.SearchCondition cond, boolean isAdmin) {
+        return searchPostRows(blbMngNo, cond, isAdmin, false);
+    }
 }

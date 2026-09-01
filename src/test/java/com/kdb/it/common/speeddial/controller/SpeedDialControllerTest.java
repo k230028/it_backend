@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.speeddial.contact.ContactInfoDto;
+import com.kdb.it.common.speeddial.contact.ContactInfoService;
 import com.kdb.it.common.speeddial.dto.SpeedDialDto;
 import com.kdb.it.common.speeddial.service.SpeedDialService;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -19,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SpeedDialControllerTest {
 
     @Mock private SpeedDialService speedDialService;
+    @Mock private ContactInfoService contactInfoService;
     @Mock private CustomUserDetails user;
 
     @InjectMocks private SpeedDialController controller;
@@ -46,5 +49,16 @@ class SpeedDialControllerTest {
 
         assertThat(response.getBody().postId()).isEqualTo("NAC-2026-0001");
         verify(speedDialService).createQna(request, user);
+    }
+
+    @Test
+    void returnsContactInformationFromService() {
+        ContactInfoDto.Response contactInfo =
+                new ContactInfoDto.Response("GDOC-2026-0042", "<p>담당자</p>");
+        given(contactInfoService.getContactInfo()).willReturn(contactInfo);
+
+        var response = controller.getContactInfo();
+
+        assertThat(response.getBody()).isSameAs(contactInfo);
     }
 }
