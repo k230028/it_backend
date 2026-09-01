@@ -15,6 +15,7 @@ import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -603,6 +604,50 @@ class ApprovalLineDelegateTest {
     // ───────────────────────────────────────────────────────
     // replacePendingApproversInDetail
     // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("replacePendingApproversInDetail: 저장된 order가 앞당긴 완료 추가 결재자 노드를 보존한다")
+    void replacePendingApproversInDetail_재정렬된완료추가결재자_보존() throws Exception {
+        ApprovalLineDelegate delegate = new ApprovalLineDelegate(new ObjectMapper());
+        Capplm capplm = mock(Capplm.class);
+        AtomicReference<String> detail =
+                new AtomicReference<>(
+                        "{\"approvalLine\":{\"teamLead\":{\"id\":\"E001\",\"name\":\"기존팀장\",\"rank\":\"부장\"},"
+                                + "\"departmentHead\":{\"id\":\"E002\",\"name\":\"기존부서장\",\"rank\":\"이사\"},"
+                                + "\"additionalApprovers\":[{\"id\":\"E003\",\"name\":\"완료추가결재자\",\"rank\":\"차장\",\"date\":\"2026-09-01\"}],"
+                                + "\"order\":[\"E003\",\"E001\",\"E002\"]}}");
+        given(capplm.getDcdReqInf()).willAnswer(invocation -> detail.get());
+        org.mockito.Mockito.doAnswer(
+                        invocation -> {
+                            detail.set(invocation.getArgument(0));
+                            return null;
+                        })
+                .when(capplm)
+                .updateDetailContent(anyString());
+
+        Cdecim completedAdditional = approver("E003", "2");
+        Cdecim pendingFirst = approver("E100", "1");
+        Cdecim pendingSecond = approver("E101", "1");
+        CuserI firstUser = CuserI.builder().eno("E100").usrNm("새팀장").ptCNm("부장").build();
+        CuserI secondUser = CuserI.builder().eno("E101").usrNm("새부서장").ptCNm("이사").build();
+        List<Cdecim> finalOrder = List.of(completedAdditional, pendingFirst, pendingSecond);
+
+        delegate.replacePendingApproversInDetail(
+                capplm, finalOrder, List.of(firstUser, secondUser));
+        delegate.updateApprovalOrder(capplm, finalOrder);
+
+        com.fasterxml.jackson.databind.JsonNode line =
+                new ObjectMapper().readTree(detail.get()).path("approvalLine");
+        assertThat(line.path("additionalApprovers").get(0).path("id").asText()).isEqualTo("E003");
+        assertThat(line.path("additionalApprovers").get(0).path("name").asText())
+                .isEqualTo("완료추가결재자");
+        assertThat(line.path("additionalApprovers").get(0).path("rank").asText()).isEqualTo("차장");
+        assertThat(line.path("teamLead").path("id").asText()).isEqualTo("E100");
+        assertThat(line.path("departmentHead").path("id").asText()).isEqualTo("E101");
+        assertThat(line.path("order"))
+                .extracting(com.fasterxml.jackson.databind.JsonNode::asText)
+                .containsExactly("E003", "E100", "E101");
+    }
 
     @Test
     @DisplayName("replacePendingApproversInDetail: 완료 노드는 보존하고 미결재 노드와 추가 결재자 배열을 교체한다")

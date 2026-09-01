@@ -13,8 +13,10 @@ import com.kdb.it.exception.CustomGeneralException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -196,37 +198,29 @@ public class ApprovalLineDelegate {
             int completedCount = completedPrefixCount(orderedApprovers);
             List<ObjectNode> fixedApproverNodes = fixedApproverNodes(lineObject);
             ArrayNode additionalApprovers = lineObject.withArray("additionalApprovers");
-            int requiredAdditionalCount =
-                    Math.max(0, orderedApprovers.size() - fixedApproverNodes.size());
-            while (additionalApprovers.size() > requiredAdditionalCount) {
-                additionalApprovers.remove(additionalApprovers.size() - 1);
+            List<ObjectNode> additionalApproverNodes = additionalApproverNodes(additionalApprovers);
+            List<ObjectNode> canonicalNodes = new ArrayList<>(fixedApproverNodes);
+            canonicalNodes.addAll(additionalApproverNodes);
+            List<ObjectNode> logicalNodes = nodesInStoredOrder(lineObject, canonicalNodes);
+            if (logicalNodes.size() > orderedApprovers.size()) {
+                logicalNodes = new ArrayList<>(logicalNodes.subList(0, orderedApprovers.size()));
+            }
+            while (logicalNodes.size() < orderedApprovers.size()) {
+                ObjectNode addedNode = objectMapper.createObjectNode();
+                addedNode.put("date", "");
+                additionalApprovers.add(addedNode);
+                additionalApproverNodes.add(addedNode);
+                logicalNodes.add(addedNode);
             }
 
             for (int orderIndex = completedCount;
                     orderIndex < orderedApprovers.size();
                     orderIndex++) {
                 CuserI replacementUser = replacementUsers.get(orderIndex - completedCount);
-                if (orderIndex < fixedApproverNodes.size()) {
-                    updateApproverNode(fixedApproverNodes.get(orderIndex), replacementUser);
-                    continue;
-                }
-
-                int additionalIndex = orderIndex - fixedApproverNodes.size();
-                ObjectNode additionalNode;
-                JsonNode existing = additionalApprovers.get(additionalIndex);
-                if (existing instanceof ObjectNode existingObject) {
-                    additionalNode = existingObject;
-                } else {
-                    additionalNode = objectMapper.createObjectNode();
-                    additionalNode.put("date", "");
-                    if (additionalIndex < additionalApprovers.size()) {
-                        additionalApprovers.set(additionalIndex, additionalNode);
-                    } else {
-                        additionalApprovers.add(additionalNode);
-                    }
-                }
-                updateApproverNode(additionalNode, replacementUser);
+                updateApproverNode(logicalNodes.get(orderIndex), replacementUser);
             }
+            retainSelectedAdditionalApprovers(
+                    additionalApprovers, additionalApproverNodes, logicalNodes);
             capplm.updateDetailContent(objectMapper.writeValueAsString(root));
         } catch (JsonProcessingException e) {
             throw new CustomGeneralException("미결재 결재선 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
@@ -258,6 +252,66 @@ public class ApprovalLineDelegate {
             }
         }
         return nodes;
+    }
+
+    private List<ObjectNode> additionalApproverNodes(ArrayNode additionalApprovers) {
+        List<ObjectNode> nodes = new ArrayList<>();
+        for (JsonNode additionalApprover : additionalApprovers) {
+            if (additionalApprover instanceof ObjectNode objectNode
+                    && approverId(objectNode) != null) {
+                nodes.add(objectNode);
+            }
+        }
+        return nodes;
+    }
+
+    private List<ObjectNode> nodesInStoredOrder(
+            ObjectNode lineObject, List<ObjectNode> canonicalNodes) {
+        JsonNode storedOrder = lineObject.get("order");
+        if (!(storedOrder instanceof ArrayNode) || storedOrder.size() != canonicalNodes.size()) {
+            return new ArrayList<>(canonicalNodes);
+        }
+
+        Map<String, List<ObjectNode>> nodesById = new HashMap<>();
+        for (ObjectNode canonicalNode : canonicalNodes) {
+            String id = approverId(canonicalNode);
+            if (id == null) return new ArrayList<>(canonicalNodes);
+            nodesById.computeIfAbsent(id, ignored -> new ArrayList<>()).add(canonicalNode);
+        }
+
+        Map<String, Integer> occurrences = new HashMap<>();
+        List<ObjectNode> orderedNodes = new ArrayList<>();
+        for (JsonNode storedIdNode : storedOrder) {
+            if (!storedIdNode.isTextual()) return new ArrayList<>(canonicalNodes);
+            String storedId = storedIdNode.textValue();
+            List<ObjectNode> candidates = nodesById.get(storedId);
+            int occurrence = occurrences.getOrDefault(storedId, 0);
+            if (candidates == null || occurrence >= candidates.size()) {
+                return new ArrayList<>(canonicalNodes);
+            }
+            orderedNodes.add(candidates.get(occurrence));
+            occurrences.put(storedId, occurrence + 1);
+        }
+        return orderedNodes;
+    }
+
+    private void retainSelectedAdditionalApprovers(
+            ArrayNode additionalApprovers,
+            List<ObjectNode> additionalApproverNodes,
+            List<ObjectNode> logicalNodes) {
+        Set<ObjectNode> selectedNodes = Collections.newSetFromMap(new IdentityHashMap<>());
+        selectedNodes.addAll(logicalNodes);
+        additionalApprovers.removeAll();
+        for (ObjectNode additionalApproverNode : additionalApproverNodes) {
+            if (selectedNodes.contains(additionalApproverNode)) {
+                additionalApprovers.add(additionalApproverNode);
+            }
+        }
+    }
+
+    private String approverId(ObjectNode node) {
+        JsonNode idNode = node.get("id");
+        return idNode != null && idNode.isTextual() ? idNode.textValue() : null;
     }
 
     private void updateApproverNode(ObjectNode node, CuserI user) {
