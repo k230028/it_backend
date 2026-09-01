@@ -251,5 +251,4 @@ public class PlanController {
         planService.deletePlan(plnMngNo);
         return ResponseEntity.noContent().build();
     }
-
 }

@@ -39,5 +39,4 @@ public class Bplana extends BaseEntity {
     @Id
     @Column(name = "REQ_DOC_NO", length = 30, comment = "요청문서번호")
     private String reqDocNo;
-
 }

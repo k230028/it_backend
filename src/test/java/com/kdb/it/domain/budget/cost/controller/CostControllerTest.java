@@ -111,11 +111,9 @@ class CostControllerTest {
     @Test
     @DisplayName("POST /api/cost/{itMngcNo}/reapplications - 경로 관리번호로 재상신 초안을 생성한다")
     void createReapplication_경로변수해석_200() throws Exception {
-        given(costService.getCost(eq("COST_2027_0001"), any()))
-                .willReturn(new CostDto.Response());
+        given(costService.getCost(eq("COST_2027_0001"), any())).willReturn(new CostDto.Response());
         given(costVersionService.createReapplication("COST_2027_0001"))
-                .willReturn(
-                        new CostVersionService.CostVersion("COST_2027_0001", 2, "N"));
+                .willReturn(new CostVersionService.CostVersion("COST_2027_0001", 2, "N"));
 
         mockMvc.perform(
                         post("/api/cost/COST_2027_0001/reapplications")
@@ -132,8 +130,8 @@ class CostControllerTest {
                 CostController.class.getDeclaredMethod(
                         "createReapplication", String.class, CustomUserDetails.class);
         var annotation =
-                method.getParameters()[0]
-                        .getAnnotation(org.springframework.web.bind.annotation.PathVariable.class);
+                method.getParameters()[0].getAnnotation(
+                        org.springframework.web.bind.annotation.PathVariable.class);
 
         org.assertj.core.api.Assertions.assertThat(annotation.value()).isEqualTo("itMngcNo");
     }

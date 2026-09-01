@@ -153,8 +153,7 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
     }
 
     /** 사업 개정 순번별 조립을 위해 관리번호 집합의 미삭제 품목을 최종여부와 무관하게 조회합니다. */
-    List<Bitemm> findAllByAbusMngNoInAndDelYn(
-            java.util.Collection<String> prjMngNos, String delYn);
+    List<Bitemm> findAllByAbusMngNoInAndDelYn(java.util.Collection<String> prjMngNos, String delYn);
 
     List<Bitemm> findByAbusMngNoInAndDelYnAndLstYn(
             java.util.Collection<String> prjMngNos, String delYn, String lstYn);

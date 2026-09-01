@@ -23,8 +23,7 @@ class MigrationApprovalMarkerTest {
     @Test
     @DisplayName("이관 표식은 저장된 고정 문구와 정확히 일치한다")
     void note_고정문구() {
-        assertThat(MigrationApprovalMarker.NOTE)
-                .isEqualTo("수기등록");
+        assertThat(MigrationApprovalMarker.NOTE).isEqualTo("수기등록");
     }
 
     @Test

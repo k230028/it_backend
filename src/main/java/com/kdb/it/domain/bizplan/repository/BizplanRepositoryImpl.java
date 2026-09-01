@@ -61,10 +61,7 @@ public class BizplanRepositoryImpl implements BizplanRepositoryCustom {
                 .distinct()
                 .from(pa)
                 .join(plan)
-                .on(
-                        plan.reqDocNo
-                                .eq(pa.reqDocNo)
-                                .and(plan.delYn.eq("N")))
+                .on(plan.reqDocNo.eq(pa.reqDocNo).and(plan.delYn.eq("N")))
                 .join(p)
                 .on(p.abusMngNo.eq(pa.prjMngNo).and(p.lstYn.eq("Y")).and(p.delYn.eq("N")))
                 .leftJoin(bp)

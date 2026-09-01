@@ -50,6 +50,7 @@ public class CostController {
 
     /** 전산관리비 비즈니스 로직 서비스 */
     private final CostService costService;
+
     private final CostVersionService costVersionService;
 
     /**
@@ -145,7 +146,7 @@ public class CostController {
     @PutMapping("/{itMngcNo}")
     public ResponseEntity<String> updateCost(
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
-            @PathVariable("itMngcNo")
+                    @PathVariable("itMngcNo")
                     String itMngcNo,
             @RequestParam(value = "sno", required = false) Integer bgSno,
             @Valid @RequestBody CostDto.UpdateRequest request) {

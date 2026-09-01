@@ -116,7 +116,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `common.mfa`                                                                  | 추가 인증 거래 발급·검증·소비와 공유 저장소            | 수동 로그인과 전자결재 명령의 증표를 `common.system`·`common.approval`에 제공 |
 | `common.i18n`                                                                 | 메뉴명·공통코드 표시명 번역과 변경 이력                | 메뉴·코드 조회 응답의 표시명을 언어별로 제공                         |
 | `common.notification`                                                         | 인앱 알림 저장, 소유권 검증, 채널 라우팅               | 결재·게시판 이벤트와 `infra.eai` 연결                                |
-| `domain.budget`                                                               | 정보화사업, 비용, 계획, 문서 검토, 예산 현황·작업. `budget.document.formguide`는 사업 입력 길라잡이를 서버 고정 카탈로그 기준으로 등록·조회 | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
+| `domain.budget`                                                               | 정보화사업·경상사업, 전산업무비, SNO 재상신 이력, 계획, 문서 검토, 예산 현황·작업. `budget.document.formguide`는 사업 입력 길라잡이를 서버 고정 카탈로그 기준으로 등록·조회 | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
 | `domain.bizplan`                                                              | 정보기술부문 계획에 포함된 사업의 사업계획             | `budget.plan`, `budget.project`의 계획 관계·사업·품목·단계 상태 사용 |
 | `domain.council`                                                              | 정보화실무협의회 일정·평가·질의·결과                   | 결재 완료 이벤트를 같은 트랜잭션에서 상태에 반영                     |
 | `domain.estimate`, `domain.deliberation`, `domain.contract`, `domain.payment` | 사업 집행의 소요예산·심의·계약·지급 단계               | 정보화사업을 기준으로 단계별 문서와 상태를 관리                      |
@@ -125,6 +125,17 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `domain.log`                                                                  | 업무 엔티티 변경 스냅샷                                | `@LogTarget`이 지정된 엔티티의 생성·수정·논리삭제를 기록             |
 | `domain.migration`                                                            | 수기 엑셀(편성요청서) 반입 — 검증·진단, 원장 생성, 결재완료 표식, 원본 파일 보관 | `budget`의 원장(`BPROJM`·`BCOSTM`), `common.approval` 신청서, `infra.file` 첨부에 연결 |
 | `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동. `infra.file.authz`는 첨부파일 종류별 읽기·쓰기 판정기를 등록해 부모 자원 권한으로 접근을 판정 | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |
+
+## 예산 재상신 버전 흐름
+
+정보화사업과 경상사업은 같은 `BPROJM` 원장을 사용하며 `(ABUS_MNG_NO, SNO)`로 개정본을 구분합니다. `ODN_YN='Y'`는 경상사업, NULL 또는 `N`은 정보화사업입니다. 전산업무비는 `BCOSTM`의 `(BG_NO, BG_SNO)`를 사용합니다.
+
+1. 대상 주관부서 사용자(전산업무비는 담당부서), 지정된 IT 조직 사용자 또는 시스템관리자가 결재완료된 최종본에 `POST /api/projects/{관리번호}/reapplications` 또는 `POST /api/cost/{관리번호}/reapplications`를 호출합니다.
+2. 서버는 같은 관리번호의 최대 순번에 1을 더해 `LST_YN='N'` 초안을 만들고 하위 품목·단말기 관계도 새 부모 순번으로 복제합니다.
+3. 이력은 `.../{관리번호}/history`로 조회합니다. 정보화사업·경상사업의 특정 개정본은 `/api/projects/{관리번호}/versions/{sno}`, 전산업무비는 `/api/cost/{관리번호}?sno={sno}`로 조회하며 수정·삭제·결재 신청에도 같은 순번을 전달합니다.
+4. 결재 완료 이벤트는 신청서가 가리키는 정확한 순번만 `LST_YN='Y'`로 전환합니다. 후속 업무 목록·집계·bulk 조회는 승인 전 초안이나 과거본을 제외하고 최종본만 반환하며, `apfSts=none` 미상신 작성 목록만 재상신 초안을 포함해 순번과 함께 반환합니다.
+
+상세·이력·재상신은 대상 주관부서(전산업무비는 담당부서), 지정된 IT 조직 또는 시스템관리자 범위를 서비스 계층에서 검증합니다. `BPLANM`은 별도 SNO 재상신 원장이 아니며 정보기술부문 계획 자체를 관리합니다.
 
 ## 사업계획(`bizplan`) 흐름
 
@@ -150,6 +161,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 ## 데이터 설계 결정
 
 - 접속 계정 `ITPAPP`과 객체 소유 스키마 `ITPOWN`을 분리하고, 커넥션 생성 시 `CURRENT_SCHEMA`를 설정합니다. 엔티티와 쿼리에는 스키마 접두어를 하드코딩하지 않습니다.
+- 데이터베이스 문자셋은 `AL32UTF8`이고 `VARCHAR2`는 BYTE semantics입니다. `@Size`의 글자 수만으로는 저장 한도를 보장할 수 없으므로 신규·변경되는 DB 문자열 입력은 공통 `Utf8ByteLimit`으로 UTF-8 실제 바이트 수를 검증하고, 물리 DDL은 `VARCHAR2(n BYTE)`를 명시합니다.
 - 업무 엔티티는 `BaseEntity`의 논리삭제, GUID, 등록·변경 감사 필드를 공유합니다. 복합키 테이블은 `@IdClass`로 기존 Oracle 물리 모델을 매핑하며, 물리 PK의 모든 컬럼을 `@Id`로 매핑합니다. 일부만 매핑하면 서로 다른 행이 같은 JPA 식별자를 갖게 되므로, 이 정합은 `PhysicalCompositeIdMappingTest`와 `PhysicalCompositeIdIsolationIt`가 고정합니다.
 - 응답 직렬화에만 쓰이는 조회는 엔티티 대신 필요한 컬럼만 담는 프로젝션(`*Row` record 또는 `*View` 인터페이스)으로 읽습니다. 쓰기 엔티티와 DDL은 그대로 두고 읽기 경로만 좁히는 방식이며, 엔티티 조회와의 결과·정렬·null 동등성은 `*ProjectionIt` Oracle 통합 테스트가 확인합니다.
 - `@LogTarget` 엔티티는 대응하는 `BaseLogEntity` 하위 로그 엔티티에 생성·수정·논리삭제 스냅샷을 남깁니다.

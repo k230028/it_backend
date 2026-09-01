@@ -113,7 +113,8 @@ public class RequestFormValidator {
         for (int index = 0; index < output.projects().size(); index++) {
             ProjectDto.CreateRequest project = output.projects().get(index);
             ProjectImportKey key = projectKey(project, output.projectAmounts().get(index));
-            if (!key.name().isEmpty() && (existing.contains(key) || !withinBatch.add(key))) continue;
+            if (!key.name().isEmpty() && (existing.contains(key) || !withinBatch.add(key)))
+                continue;
             projects.add(project);
             amounts.add(output.projectAmounts().get(index));
         }

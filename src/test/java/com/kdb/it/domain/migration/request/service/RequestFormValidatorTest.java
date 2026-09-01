@@ -300,7 +300,12 @@ class RequestFormValidatorTest {
     @DisplayName("사업명은 같아도 총소요금액이 다르면 별도 사업으로 반입한다")
     void keepsSameNamedProjectsWhenDeclaredAmountsDiffer() {
         when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
-                .thenReturn(List.of(Bprojm.builder().abusNm("비설치형 보안 S/W 도입").totRqmAmt(new BigDecimal("100000000")).build()));
+                .thenReturn(
+                        List.of(
+                                Bprojm.builder()
+                                        .abusNm("비설치형 보안 S/W 도입")
+                                        .totRqmAmt(new BigDecimal("100000000"))
+                                        .build()));
         ProjectDto.CreateRequest imported = project("비설치형 보안 S/W 도입");
         FormAdapterOutput output =
                 new FormAdapterOutput(
@@ -308,7 +313,12 @@ class RequestFormValidatorTest {
                         List.of(),
                         List.of(),
                         null,
-                        List.of(new com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts(new BigDecimal("132000000"), BigDecimal.ZERO, BigDecimal.ZERO)));
+                        List.of(
+                                new com.kdb.it.domain.migration.request.service.adapter
+                                        .ProjectAmounts(
+                                        new BigDecimal("132000000"),
+                                        BigDecimal.ZERO,
+                                        BigDecimal.ZERO)));
 
         FormAdapterOutput filtered = validator().withoutDuplicateProjects(output, "2026");
 

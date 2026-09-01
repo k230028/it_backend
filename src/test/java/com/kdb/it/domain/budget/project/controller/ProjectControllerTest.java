@@ -225,7 +225,9 @@ class ProjectControllerTest {
     void updateProject_재신청초안순번_200반환() throws Exception {
         ProjectDto.UpdateRequest request =
                 ProjectDto.UpdateRequest.builder().abusNm("재신청 수정 사업").abusTc("20").build();
-        given(projectService.updateProject(eq("PRJ-2026-0001"), eq(2), any(ProjectDto.UpdateRequest.class)))
+        given(
+                        projectService.updateProject(
+                                eq("PRJ-2026-0001"), eq(2), any(ProjectDto.UpdateRequest.class)))
                 .willReturn("PRJ-2026-0001");
 
         mockMvc.perform(

@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.UserRepository;
-import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
@@ -247,16 +246,7 @@ class PlanServiceTest {
                         bprojaSyncService);
         BplanmRepository.PlanListView plan =
                 new PlanListViewRow(
-                        "PLN-2026-0003",
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        "USER003",
-                        "{",
-                        null);
+                        "PLN-2026-0003", null, null, null, null, null, null, "USER003", "{", null);
         given(bplanmRepository.findListViewsByDelYnOrderByFstEnrDtmDesc("N"))
                 .willReturn(List.of(plan));
         given(cuserIRepository.findNameViewsByEnoIn(List.of("USER003"))).willReturn(List.of());
@@ -285,8 +275,7 @@ class PlanServiceTest {
                         .build();
 
         given(bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(Optional.of(plan));
-        given(bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N"))
-                .willReturn(List.of());
+        given(bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(List.of());
 
         // when
         PlanDto.DetailResponse result = planService.getPlan(reqDocNo);
@@ -705,8 +694,7 @@ class PlanServiceTest {
         // given
         String reqDocNo = "PLN-2026-0001";
         Bplanm plan = Bplanm.builder().reqDocNo(reqDocNo).build();
-        Bplana relation =
-                Bplana.builder().prjMngNo("PRJ-2026-0001").reqDocNo(reqDocNo).build();
+        Bplana relation = Bplana.builder().prjMngNo("PRJ-2026-0001").reqDocNo(reqDocNo).build();
 
         given(bplanmRepository.findByReqDocNoAndDelYn(reqDocNo, "N")).willReturn(Optional.of(plan));
         given(bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N"))

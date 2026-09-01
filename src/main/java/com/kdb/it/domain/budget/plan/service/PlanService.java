@@ -7,13 +7,12 @@ import com.kdb.it.common.code.CommonCodeGroups;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.plan.PlanType;
 import com.kdb.it.domain.budget.plan.dto.PlanDto;
 import com.kdb.it.domain.budget.plan.entity.Bplana;
 import com.kdb.it.domain.budget.plan.entity.Bplanm;
-import com.kdb.it.domain.budget.plan.PlanType;
 import com.kdb.it.domain.budget.plan.repository.BplanaRepository;
 import com.kdb.it.domain.budget.plan.repository.BplanmRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -192,9 +191,7 @@ public class PlanService {
 
         // 연결된 프로젝트관리번호 목록 조회
         List<String> prjMngNos =
-                bplanaRepository
-                        .findAllByReqDocNoAndDelYn(reqDocNo, "N")
-                        .stream()
+                bplanaRepository.findAllByReqDocNoAndDelYn(reqDocNo, "N").stream()
                         .map(value -> value.getPrjMngNo())
                         .toList();
 

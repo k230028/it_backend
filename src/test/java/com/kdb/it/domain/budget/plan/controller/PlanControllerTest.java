@@ -94,5 +94,4 @@ class PlanControllerTest {
     void deletePlan_인증_204() throws Exception {
         mockMvc.perform(delete("/api/plans/PLN-2026-0001")).andExpect(status().isNoContent());
     }
-
 }

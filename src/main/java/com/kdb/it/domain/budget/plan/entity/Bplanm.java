@@ -110,5 +110,4 @@ public class Bplanm extends BaseEntity {
             scale = 3,
             comment = "일반관리비 (물리컬럼 TOT_XP_AMT=총비용금액)")
     private BigDecimal totXpAmt;
-
 }

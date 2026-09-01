@@ -63,11 +63,7 @@ class PlanListProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(declaredMethodNames(BplanmRepository.PlanListView.class)).hasSize(10);
     }
 
-    private Bplanm plan(
-            String reqDocNo,
-            LocalDateTime createdAt,
-            String snapshot,
-            String delYn) {
+    private Bplanm plan(String reqDocNo, LocalDateTime createdAt, String snapshot, String delYn) {
         return Bplanm.builder()
                 .reqDocNo(reqDocNo)
                 .itPtlPlnTpC("01")

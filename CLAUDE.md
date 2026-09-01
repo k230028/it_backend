@@ -17,6 +17,7 @@
 - 물리 모델은 `../it_database/migrations/`, ORM은 엔티티, 조회용 색인은 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)가 SoT입니다.
 - 엔티티·컬럼명은 `../meta/meta.txt`를 우선하고, 충돌 처리만 [컬럼 명명 가이드](docs/guides/persistence/column-naming.md)를 따릅니다.
 - Oracle 빈 문자열은 NULL이므로 빈 문자열과 NULL을 다른 업무 상태로 설계하지 않습니다.
+- ITPOWN의 문자셋은 `AL32UTF8`이며 `VARCHAR2(n BYTE)`에는 UTF-8 실제 바이트 길이로 저장 한도를 적용합니다. `@Size(max=n)`이나 `String.length()`만으로 BYTE 한도를 검증하지 말고 공통 `Utf8ByteLimit`을 재사용하며, 글자 수 업무 제한이 따로 있으면 두 조건을 각각 검증합니다.
 - 목록·대시보드 조회는 전체 엔티티보다 필요한 컬럼만 반환하는 projection/read view/Row DTO를 우선 사용하고 Service에서 API DTO로 변환합니다.
 - 네이티브 `Object[]` 결과는 중앙 `NativeRowMapper`와 전용 `fromRow` 팩토리로 변환하며, SELECT 컬럼 수·순서 불일치를 경계에서 검출합니다.
 - 정보화사업 금액은 화면·서비스마다 다시 계산하지 않고 `ProjectAmountCalculator`가 산출한 스냅샷을 사용합니다. 저장 단위 반올림과 `NUMBER(18,3)` 범위 검증은 한 곳에 모아 적용하고, 통화별 환산 규칙과 컬럼별 원금 의미는 [데이터 모델의 정보화사업 금액 계약](docs/guides/persistence/data-model.md)과 [사업 집행 가이드](docs/guides/domains/project-execution.md)를 SoT로 따릅니다.
@@ -77,6 +78,7 @@
 
 - 게시판, 댓글, 첨부파일의 권한과 순서는 서버가 최종 검증합니다. 클라이언트가 보낸 작성자·부서·순서를 신뢰하지 않습니다.
 - 정보화사업 집행 계약은 [사업 집행 가이드](docs/guides/domains/project-execution.md)를 따릅니다.
+- 정보화사업과 경상사업은 같은 `BPROJM` 원장에서 `(ABUS_MNG_NO, SNO)`로 재상신 개정본을 식별하며 `ODN_YN='Y'`가 경상사업, NULL 또는 `N`이 정보화사업입니다. 전산업무비는 `BCOSTM`의 `(BG_NO, BG_SNO)`를 사용합니다. 결재완료 최종본만 다음 순번의 `LST_YN='N'` 초안으로 복제하고, 승인 완료 이벤트가 가리키는 정확한 순번만 원자적으로 `Y`로 전환합니다. 후속 업무 목록·집계·bulk 조회는 `LST_YN='Y'`만 소비하되 `apfSts=none` 미상신 작성 목록은 재상신 초안을 포함하고 순번을 반환합니다.
 - Tiptap 변수 카탈로그와 해석 계약은 [Tiptap 변수](docs/guides/domains/tiptap-variables.md)를 따릅니다.
 - 사업 입력 길라잡이의 대상 필드는 서버 고정 카탈로그가 SoT입니다. 길라잡이 ID는 사업 유형 접두사로 범위를 구분하고, 카탈로그에 없는 ID는 저장하지 않습니다. 사용자 조회 API는 본문이 등록된 항목만 돌려주고 카탈로그 전체 조회와 등록·삭제는 관리자 전용입니다.
 - 메뉴명과 공통코드 표시명은 DB 번역 데이터가 SoT입니다. 분기와 저장에는 번역명이 아니라 코드값을 사용합니다.
