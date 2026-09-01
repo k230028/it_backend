@@ -22,8 +22,8 @@ import com.kdb.it.common.approval.notification.ApprovalRequestNotifier;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
-import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.entity.CorgnI;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.LabeledCountRow;
@@ -792,7 +792,8 @@ class ApplicationServiceTest {
                 new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
         given(applicationRepository.findReadViewsByApfMngNoIn(any())).willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
-                .willReturn(List.of(new ApproverReadView("APF-1", 1, "E001", "1", null, null, "Y")));
+                .willReturn(
+                        List.of(new ApproverReadView("APF-1", 1, "E001", "1", null, null, "Y")));
         given(userRepository.findByEnoIn(Set.of("E001")))
                 .willReturn(
                         List.of(
@@ -806,7 +807,12 @@ class ApplicationServiceTest {
         request.setApfMngNos(List.of("APF-1"));
 
         ApplicationDto.ApproverResponse approver =
-                applicationService.getApplicationsByIds(request).items().getFirst().getApprovers().getFirst();
+                applicationService
+                        .getApplicationsByIds(request)
+                        .items()
+                        .getFirst()
+                        .getApprovers()
+                        .getFirst();
 
         assertThat(approver.getUsrNm()).isEqualTo("김기획부장");
         assertThat(approver.getPtCNm()).isEqualTo("부장");
@@ -1191,7 +1197,8 @@ class ApplicationServiceTest {
         given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
                 .willReturn(Optional.of(view));
         given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
-                .willReturn(List.of(new ApproverReadView(APF_MNG_NO, 1, "E001", "1", null, null, "Y")));
+                .willReturn(
+                        List.of(new ApproverReadView(APF_MNG_NO, 1, "E001", "1", null, null, "Y")));
         given(userRepository.findByEnoIn(Set.of("E001")))
                 .willReturn(
                         List.of(

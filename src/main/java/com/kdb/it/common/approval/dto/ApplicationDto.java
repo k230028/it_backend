@@ -777,6 +777,5 @@ public class ApplicationDto {
                     .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
                     .build();
         }
-
     }
 }

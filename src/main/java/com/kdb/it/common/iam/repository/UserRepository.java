@@ -202,11 +202,12 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
     /**
      * 사번(ENO) 목록으로 사용자 다건 조회 — 이름 일괄 변환용(배치 조회)
      *
-     * <p>ENO → 이름 변환 시 N+1 쿼리를 방지하기 위해 사용합니다. 조직 정보는 불필요하므로 EntityGraph 없이 기본 조회합니다.
+     * <p>ENO → 표시 정보 변환 시 N+1 쿼리를 방지하기 위해 사용합니다. 결재자 부점명도 같은 배치 응답에서 사용하므로 조직 정보를 함께 적재합니다.
      *
      * @param enos 조회할 사번 컬렉션
      * @return 해당 사번들의 사용자 목록
      */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "organization")
     List<CuserI> findByEnoIn(Collection<String> enos);
 
     /**

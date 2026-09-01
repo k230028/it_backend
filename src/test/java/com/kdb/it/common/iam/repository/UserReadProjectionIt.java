@@ -13,6 +13,7 @@ import com.kdb.it.support.AbstractOracleRepositoryTest;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -209,6 +210,22 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                 .extracting(row -> row.getEno())
                 .contains("BE03001", "BE03003")
                 .doesNotContain("BE03002");
+    }
+
+    @Test
+    @DisplayName("결재자 일괄 조회는 조직을 함께 적재해 부점명 역참조를 추가 조회 없이 지원한다")
+    void findByEnoIn_fetchesOrganizationForApproverDisplay() {
+        List<CuserI> users = userRepository.findByEnoIn(List.of("BE03001", "BE03002"));
+
+        assertThat(users)
+                .extracting(CuserI::getEno)
+                .containsExactlyInAnyOrder("BE03001", "BE03002");
+        assertThat(users)
+                .allSatisfy(
+                        user -> {
+                            assertThat(Hibernate.isInitialized(user.getOrganization())).isTrue();
+                            assertThat(user.getBbrNm()).isEqualTo("디지털부");
+                        });
     }
 
     @Test
