@@ -633,7 +633,7 @@ class ApplicationServiceTest {
                         List.of(
                                 new ApproverReadView("APF-1", 1, "E001", "1", null, null, "N"),
                                 new ApproverReadView("APF-1", 2, "E002", "1", null, null, "Y")));
-        given(userRepository.findByEnoIn(Set.of("E001", "E002")))
+        given(userRepository.findByEnoInWithOrganization(Set.of("E001", "E002")))
                 .willReturn(
                         List.of(
                                 CuserI.builder()
@@ -660,7 +660,7 @@ class ApplicationServiceTest {
         assertThat(response.getApprovers())
                 .extracting(ApplicationDto.ApproverResponse::getBbrNm)
                 .containsExactly("기획부", "기획팀");
-        verify(userRepository).findByEnoIn(Set.of("E001", "E002"));
+        verify(userRepository).findByEnoInWithOrganization(Set.of("E001", "E002"));
     }
 
     @Test
@@ -794,7 +794,7 @@ class ApplicationServiceTest {
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(
                         List.of(new ApproverReadView("APF-1", 1, "E001", "1", null, null, "Y")));
-        given(userRepository.findByEnoIn(Set.of("E001")))
+        given(userRepository.findByEnoInWithOrganization(Set.of("E001")))
                 .willReturn(
                         List.of(
                                 CuserI.builder()
@@ -817,7 +817,7 @@ class ApplicationServiceTest {
         assertThat(approver.getUsrNm()).isEqualTo("김기획부장");
         assertThat(approver.getPtCNm()).isEqualTo("부장");
         assertThat(approver.getBbrNm()).isEqualTo("기획부");
-        verify(userRepository).findByEnoIn(Set.of("E001"));
+        verify(userRepository).findByEnoInWithOrganization(Set.of("E001"));
     }
 
     @Test
@@ -1199,7 +1199,7 @@ class ApplicationServiceTest {
         given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(
                         List.of(new ApproverReadView(APF_MNG_NO, 1, "E001", "1", null, null, "Y")));
-        given(userRepository.findByEnoIn(Set.of("E001")))
+        given(userRepository.findByEnoInWithOrganization(Set.of("E001")))
                 .willReturn(
                         List.of(
                                 CuserI.builder()
@@ -1215,7 +1215,7 @@ class ApplicationServiceTest {
         assertThat(approver.getUsrNm()).isEqualTo("김기획부장");
         assertThat(approver.getPtCNm()).isEqualTo("부장");
         assertThat(approver.getBbrNm()).isEqualTo("기획부");
-        verify(userRepository).findByEnoIn(Set.of("E001"));
+        verify(userRepository).findByEnoInWithOrganization(Set.of("E001"));
     }
 
     @Test

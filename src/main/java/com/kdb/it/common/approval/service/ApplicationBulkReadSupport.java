@@ -130,7 +130,7 @@ final class ApplicationBulkReadSupport {
                         .filter(eno -> eno != null && !eno.isBlank())
                         .collect(Collectors.toSet());
         if (approverEnos.isEmpty()) return Map.of();
-        return userRepository.findByEnoIn(approverEnos).stream()
+        return userRepository.findByEnoInWithOrganization(approverEnos).stream()
                 .collect(
                         Collectors.toMap(
                                 CuserI::getEno,
