@@ -183,6 +183,9 @@ public class ApprovalLineManagementService {
             if (user == null) {
                 throw new IllegalArgumentException("결재자를 찾을 수 없습니다: " + approverEno);
             }
+            if (!"N".equals(user.getDelYn())) {
+                throw new IllegalArgumentException("활성 결재자가 아닙니다: " + approverEno);
+            }
             replacementUsers.add(user);
         }
 

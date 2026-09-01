@@ -67,8 +67,10 @@ class ApprovalLineManagementServiceTest {
         Capplm application = application("1", "E001");
         Cdecim approved = approver(1, "E001", "2");
         Cdecim pending = approver(2, "E002", "1");
-        CuserI firstUser = CuserI.builder().eno("E100").usrNm("새결재자1").ptCNm("과장").build();
-        CuserI secondUser = CuserI.builder().eno("E101").usrNm("새결재자2").ptCNm("차장").build();
+        CuserI firstUser =
+                CuserI.builder().eno("E100").usrNm("새결재자1").ptCNm("과장").delYn("N").build();
+        CuserI secondUser =
+                CuserI.builder().eno("E101").usrNm("새결재자2").ptCNm("차장").delYn("N").build();
         given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
                 .willReturn(List.of(approved, pending));
@@ -121,7 +123,7 @@ class ApprovalLineManagementServiceTest {
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
                 .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
         given(userRepository.findByEnoIn(List.of("E100", "E404")))
-                .willReturn(List.of(CuserI.builder().eno("E100").build()));
+                .willReturn(List.of(CuserI.builder().eno("E100").delYn("N").build()));
 
         assertThatThrownBy(
                         () ->
@@ -132,6 +134,56 @@ class ApprovalLineManagementServiceTest {
 
         verify(approverRepository, never()).saveAll(anyCollection());
         verify(approverRepository, never()).deleteAll(anyCollection());
+    }
+
+    @Test
+    @DisplayName("삭제된 결재자가 포함되면 기존 미결재 결재선을 변경하지 않는다")
+    void replacePendingApprovers_삭제된결재자_롤백() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+        given(userRepository.findByEnoIn(List.of("E100")))
+                .willReturn(List.of(CuserI.builder().eno("E100").delYn("Y").build()));
+
+        assertThatThrownBy(
+                        () -> service.replacePendingApprovers(APF, List.of("E100"), "E001", false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("활성");
+
+        verify(approverRepository, never()).saveAll(anyCollection());
+        verify(approverRepository, never()).deleteAll(anyCollection());
+    }
+
+    @Test
+    @DisplayName("승인과 결재선 교체는 신청서 비관 잠금을 공유한다")
+    void replacePendingApprovers_승인과공유하는신청서잠금() throws Exception {
+        org.springframework.data.jpa.repository.Lock lock =
+                ApplicationRepository.class
+                        .getMethod("findById", String.class)
+                        .getAnnotation(org.springframework.data.jpa.repository.Lock.class);
+
+        assertThat(lock).isNotNull();
+        assertThat(lock.value()).isEqualTo(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    @Test
+    @DisplayName("승인이 잠금 선점 후 완료되면 교체는 완료 행을 삭제하지 않는다")
+    void replacePendingApprovers_승인완료후_완료행삭제없음() {
+        given(applicationRepository.findById(APF))
+                .willReturn(Optional.of(application("1", "E001")));
+        Cdecim completed = approver(1, "E002", "2");
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
+                .willReturn(List.of(completed));
+
+        assertThatThrownBy(
+                        () -> service.replacePendingApprovers(APF, List.of("E100"), "E002", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("교체할 미결재 결재자가 없습니다");
+
+        assertThat(completed.getItPtlDcdStsC()).isEqualTo("2");
+        verify(approverRepository, never()).deleteAll(anyCollection());
+        verify(approverRepository, never()).saveAll(anyCollection());
     }
 
     @Test
