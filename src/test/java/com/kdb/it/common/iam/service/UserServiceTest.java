@@ -62,6 +62,7 @@ class UserServiceTest {
                 "과장",
                 "hong@bank.co.kr",
                 "1234",
+                "02-787-1234",
                 "010-1234-5678",
                 "IT 기획 담당",
                 "001",
@@ -128,6 +129,7 @@ class UserServiceTest {
         assertThat(result.getEno()).isEqualTo(eno);
         assertThat(result.getUsrNm()).isEqualTo("홍길동");
         assertThat(result.getInleNo()).isEqualTo("1234");
+        assertThat(result.getCpnTpn()).isEqualTo("02-787-1234");
         assertThat(result.getBbrNm()).isEqualTo("IT본부");
         assertThat(result.getDtsDtlCone()).isEqualTo("IT 기획 담당");
         assertThat(result.getQlfGrNms()).containsExactly("시스템관리자", "정보보호관리자");

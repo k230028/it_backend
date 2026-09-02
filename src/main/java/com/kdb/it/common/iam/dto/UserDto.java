@@ -47,6 +47,7 @@ public class UserDto {
             String ptCNm,
             String etrMilAddrNm,
             String inleNo,
+            String cpnTpn,
             String cadrTpn,
             String dtsDtlCone,
             String prlmHrkOgzCCone,
@@ -190,6 +191,10 @@ public class UserDto {
         @Schema(description = "내선번호")
         private String inleNo;
 
+        /** 회사번호 (CPN_TPN) */
+        @Schema(description = "회사번호")
+        private String cpnTpn;
+
         /** 휴대폰번호 (CADR_TPN, 연락처전화번호) */
         @Schema(description = "휴대폰번호")
         private String cadrTpn;
@@ -229,6 +234,7 @@ public class UserDto {
                     .ptCNm(user.getPtCNm()) // 직위명
                     .etrMilAddrNm(user.getEtrMilAddrNm()) // 전자우편주소
                     .inleNo(user.getInleNo()) // 내선번호
+                    .cpnTpn(user.getCpnTpn()) // 회사번호
                     .cadrTpn(user.getCadrTpn()) // 휴대폰번호(연락처전화번호)
                     .dtsDtlCone(user.getDtsDtlCone()) // 상세직무내용
                     .qlfGrNms(List.of())
@@ -255,6 +261,7 @@ public class UserDto {
                     .ptCNm(row.ptCNm())
                     .etrMilAddrNm(row.etrMilAddrNm())
                     .inleNo(row.inleNo())
+                    .cpnTpn(row.cpnTpn())
                     .cadrTpn(row.cadrTpn())
                     .dtsDtlCone(row.dtsDtlCone())
                     .qlfGrNms(List.copyOf(qlfGrNms))

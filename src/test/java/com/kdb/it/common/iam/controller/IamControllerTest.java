@@ -103,6 +103,7 @@ class IamControllerTest {
         given(userService.getUser(anyString(), any(CustomUserDetails.class)))
                 .willReturn(
                         UserDto.DetailResponse.builder()
+                                .cpnTpn("02-787-1234")
                                 .dtsDtlCone("IT 기획 담당")
                                 .qlfGrNms(List.of("시스템관리자", "정보보호관리자"))
                                 .build());
@@ -115,6 +116,7 @@ class IamControllerTest {
                                                         List.of(CustomUserDetails.ATH_ADMIN),
                                                         "D001"))))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cpnTpn").value("02-787-1234"))
                 .andExpect(jsonPath("$.dtsDtlCone").value("IT 기획 담당"))
                 .andExpect(jsonPath("$.qlfGrNms[0]").value("시스템관리자"))
                 .andExpect(jsonPath("$.qlfGrNms[1]").value("정보보호관리자"));

@@ -237,6 +237,7 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
                                         user.ptCNm,
                                         user.etrMilAddrNm,
                                         user.inleNo,
+                                        user.cpnTpn,
                                         user.cadrTpn,
                                         user.dtsDtlCone,
                                         organization.prlmHrkOgzCCone,
