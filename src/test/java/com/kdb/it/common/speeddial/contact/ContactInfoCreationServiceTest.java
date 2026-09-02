@@ -25,21 +25,20 @@ class ContactInfoCreationServiceTest {
     @Test
     void createContactInfo_createsAnIdentifiedGdocDocument() {
         given(
-                        guideDocRepository
-                                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                        ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
                 .willReturn(Optional.empty());
         given(guideDocRepository.getNextSequenceValue()).willReturn(17L);
         given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
-        ContactInfoDto.Response response = contactInfoCreationService.createContactInfo("<p>홍길동</p>");
+        ContactInfoDto.Response response =
+                contactInfoCreationService.createContactInfo("<p>홍길동</p>");
 
         ArgumentCaptor<Bgdocm> documentCaptor = ArgumentCaptor.forClass(Bgdocm.class);
         verify(guideDocRepository).saveAndFlush(documentCaptor.capture());
         Bgdocm saved = documentCaptor.getValue();
-        assertThat(saved.getDocMngNo())
-                .isEqualTo("GDOC-" + LocalDate.now().getYear() + "-0017");
+        assertThat(saved.getDocMngNo()).isEqualTo("GDOC-" + LocalDate.now().getYear() + "-0017");
         assertThat(saved.getDocTtlCone()).isEqualTo(ContactInfoService.DOCUMENT_IDENTIFIER);
         assertThat(response.docMngNo()).isEqualTo(saved.getDocMngNo());
     }

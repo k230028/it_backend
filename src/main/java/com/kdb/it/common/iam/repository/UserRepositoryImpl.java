@@ -171,17 +171,18 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
     }
 
     @Override
-    public List<UserDto.ListRow> findListRowsByBbrC(String bbrC) {
+    public List<UserDto.ListRow> findListRowsByBbrC(String bbrC, String enoPrefix) {
         QCuserI user = QCuserI.cuserI;
         QCorgnI organization = new QCorgnI("listOrganization");
         return selectListRows(user, organization)
-                .where(user.bbrC.eq(bbrC))
+                .where(user.bbrC.eq(bbrC), enoPrefixFilter(user, enoPrefix))
                 .orderBy(employeeDisplayOrder(user))
                 .fetch();
     }
 
     @Override
-    public List<UserDto.ListRow> searchListRowsByKeyword(String keyword, int limit) {
+    public List<UserDto.ListRow> searchListRowsByKeyword(
+            String keyword, String enoPrefix, int limit) {
         QCuserI user = QCuserI.cuserI;
         QCorgnI organization = new QCorgnI("searchOrganization");
         return selectListRows(user, organization)
@@ -190,12 +191,31 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
                         user.usrNm
                                 .containsIgnoreCase(keyword)
                                 .or(user.temNm.containsIgnoreCase(keyword))
-                                .or(user.eno.containsIgnoreCase(keyword)))
+                                .or(user.eno.containsIgnoreCase(keyword)),
+                        // 행번 접두사 필터를 상한 절단보다 먼저 DB에서 적용해
+                        // 접두사에 맞는 사용자만 limit건을 채우게 한다.
+                        enoPrefixFilter(user, enoPrefix))
                 // 전체 조직이 대상이므로 표시 순서를 고정하고 반환 건수를 제한한다.
                 // 정렬이 상한 절단보다 먼저 적용되므로 K 행번과 상위 직위가 먼저 살아남는다.
                 .orderBy(employeeDisplayOrder(user))
                 .limit(limit)
                 .fetch();
+    }
+
+    /**
+     * 행번({@code ENO}) 접두사 조회 조건을 만듭니다.
+     *
+     * <p>담당자·결재자 지정 화면처럼 특정 행번 체계(예: {@code K}로 시작하는 행번)만 선택해야 하는 조회에서 사용합니다.
+     *
+     * @param user 사용자 Q 타입
+     * @param enoPrefix 행번 접두사. null·공백이면 조건을 만들지 않습니다(전체 조회)
+     * @return 접두사 일치 조건, 접두사가 없으면 {@code null}
+     */
+    private BooleanExpression enoPrefixFilter(QCuserI user, String enoPrefix) {
+        if (enoPrefix == null || enoPrefix.isBlank()) {
+            return null;
+        }
+        return user.eno.startsWith(enoPrefix.trim());
     }
 
     @Override
@@ -217,7 +237,7 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
                                         user.ptCNm,
                                         user.etrMilAddrNm,
                                         user.inleNo,
-                                        user.cpnTpn,
+                                        user.cadrTpn,
                                         user.dtsDtlCone,
                                         organization.prlmHrkOgzCCone,
                                         parent.bbrNm))

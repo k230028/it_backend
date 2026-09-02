@@ -16,8 +16,7 @@ public final class ContactInfoDto {
     /** 담당자 정보 조회·저장 응답입니다. */
     @Schema(name = "ContactInfoResponse", description = "담당자 정보 응답")
     public record Response(
-            @Schema(description = "가이드 문서관리번호. 아직 작성하지 않았으면 null", nullable = true)
-                    String docMngNo,
+            @Schema(description = "가이드 문서관리번호. 아직 작성하지 않았으면 null", nullable = true) String docMngNo,
             @Schema(description = "정화된 담당자 정보 HTML 본문. 아직 작성하지 않았으면 null", nullable = true)
                     String contentHtml) {}
 }

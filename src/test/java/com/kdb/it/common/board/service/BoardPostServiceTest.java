@@ -169,7 +169,8 @@ class BoardPostServiceTest {
                         .delYn("N")
                         .build();
         BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
-        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-QNA", "N")).willReturn(Optional.of(qnaBoard));
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-QNA", "N"))
+                .willReturn(Optional.of(qnaBoard));
         given(postRepository.searchPostRows("BLBM-QNA", condition, false, true))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
@@ -959,7 +960,8 @@ class BoardPostServiceTest {
         assertThatThrownBy(
                         () ->
                                 service.verifyCanReadPost(
-                                        new CustomUserDetails("USER002", List.of("ITPZZ001"), "10003"),
+                                        new CustomUserDetails(
+                                                "USER002", List.of("ITPZZ001"), "10003"),
                                         privatePost,
                                         qnaBoard))
                 .isInstanceOf(CustomGeneralException.class);

@@ -29,9 +29,8 @@ class ContactInfoServiceTest {
     @DisplayName("담당자 정보가 없으면 비어 있는 응답을 반환한다")
     void getContactInfo_returnsEmptyResponseWhenDocumentDoesNotExist() {
         given(
-                        guideDocRepository
-                                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                        ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
                 .willReturn(Optional.empty());
 
         ContactInfoDto.Response response = contactInfoService.getContactInfo();
@@ -44,9 +43,8 @@ class ContactInfoServiceTest {
     @DisplayName("첫 저장은 고정 식별자와 GDOC 자동 채번으로 문서를 생성한다")
     void saveContactInfo_createsIdentifiedDocumentWithGeneratedGdocNumber() {
         given(
-                        guideDocRepository
-                                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                        ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
                 .willReturn(Optional.empty());
         given(contactInfoCreationService.createContactInfo("<p>홍길동</p>"))
                 .willReturn(
@@ -68,9 +66,8 @@ class ContactInfoServiceTest {
         Bgdocm existing = org.mockito.Mockito.mock(Bgdocm.class);
         given(existing.getDocMngNo()).willReturn("GDOC-2026-0042");
         given(
-                        guideDocRepository
-                                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                        ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
                 .willReturn(Optional.of(existing));
 
         ContactInfoDto.Response response = contactInfoService.saveContactInfo("<p>새 담당자</p>");
@@ -96,9 +93,8 @@ class ContactInfoServiceTest {
         Bgdocm existing = org.mockito.Mockito.mock(Bgdocm.class);
         given(existing.getDocMngNo()).willReturn("GDOC-2026-0042");
         given(
-                        guideDocRepository
-                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                        ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
                 .willReturn(Optional.empty())
                 .willReturn(Optional.of(existing));
         given(contactInfoCreationService.createContactInfo("<p>새 담당자</p>"))

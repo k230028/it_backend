@@ -34,8 +34,8 @@ public final class HtmlSanitizer {
     /**
      * 상대 경로 URL의 프로토콜 검사용 기준 URI
      *
-     * <p>Jsoup은 프로토콜 제한 속성({@code img[src]}, {@code a[href]})을 기준 URI로 절대화한 뒤 허용 프로토콜과 비교하므로, 기준 URI가
-     * 비어 있으면 {@code /api/files/{id}/preview} 같은 동일 출처 상대 경로가 절대화에 실패해 속성째 제거됩니다. 프론트엔드는 {@code
+     * <p>Jsoup은 프로토콜 제한 속성({@code img[src]}, {@code a[href]})을 기준 URI로 절대화한 뒤 허용 프로토콜과 비교하므로, 기준
+     * URI가 비어 있으면 {@code /api/files/{id}/preview} 같은 동일 출처 상대 경로가 절대화에 실패해 속성째 제거됩니다. 프론트엔드는 {@code
      * NUXT_PUBLIC_API_BASE}가 비어 있는 dev/운영에서 상대 경로를 저장하므로 기준 URI를 고정값으로 제공합니다.
      *
      * <p>{@link Safelist#preserveRelativeLinks(boolean)}를 함께 켜서 저장 값은 상대 경로 원문 그대로 유지합니다. 이 값은 검사용

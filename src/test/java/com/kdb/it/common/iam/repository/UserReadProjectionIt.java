@@ -82,7 +82,7 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     @Test
     @DisplayName("부서 목록은 삭제 필터 없이 7개 필드와 부점명을 반환한다")
     void findListRowsByBbrC_returnsActiveAndDeletedRows() {
-        List<UserDto.ListRow> rows = userRepository.findListRowsByBbrC(ORG_CODE);
+        List<UserDto.ListRow> rows = userRepository.findListRowsByBbrC(ORG_CODE, null);
 
         assertThat(rows)
                 .filteredOn(row -> row.eno().startsWith("BE03"))
@@ -103,25 +103,25 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     @DisplayName("키워드 검색은 이름·팀명·사번을 대상으로 하고 삭제 필터 없이 조직 없는 사용자도 반환한다")
     void searchListRowsByKeyword_matchesNameTeamAndEno() {
         // 이름 부분 일치 — 삭제된 사용자(BE03002)도 기존 정책대로 포함한다
-        assertThat(userRepository.searchListRowsByKeyword("길동", SEARCH_LIMIT))
+        assertThat(userRepository.searchListRowsByKeyword("길동", null, SEARCH_LIMIT))
                 .filteredOn(row -> row.eno().startsWith("BE03"))
                 .extracting(row -> row.eno())
                 .containsExactlyInAnyOrder("BE03001", "BE03002");
 
         // 조직이 없는 사용자도 left join으로 반환한다 (부점명은 null)
-        assertThat(userRepository.searchListRowsByKeyword("null조직", SEARCH_LIMIT))
+        assertThat(userRepository.searchListRowsByKeyword("null조직", null, SEARCH_LIMIT))
                 .filteredOn(row -> row.eno().equals("BE03003"))
                 .singleElement()
                 .satisfies(row -> assertThat(row.bbrNm()).isNull());
 
         // 팀명 부분 일치 — 이름이 서로 달라도 같은 팀이면 모두 조회된다
-        assertThat(userRepository.searchListRowsByKeyword("테스트팀", SEARCH_LIMIT))
+        assertThat(userRepository.searchListRowsByKeyword("테스트팀", null, SEARCH_LIMIT))
                 .extracting(row -> row.eno())
                 .contains("BE03001", "BE03002", "BE03003");
 
         // 사번 부분 일치(대소문자 무시)와 이름 오름차순 정렬
         List<String> names =
-                userRepository.searchListRowsByKeyword("be0300", SEARCH_LIMIT).stream()
+                userRepository.searchListRowsByKeyword("be0300", null, SEARCH_LIMIT).stream()
                         .map(UserDto.ListRow::usrNm)
                         .toList();
         assertThat(names).contains("홍길동", "김길동", "null조직");
@@ -134,13 +134,13 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
         List<String> expected = List.of("KZ71001", "KZ71002", "OZ71001", "OZ71002");
 
         // 부서 목록: K 행번(직위코드 10 → 20) → O 행번(직위코드 10 → 직위코드 없음)
-        assertThat(userRepository.findListRowsByBbrC(ORG_CODE))
+        assertThat(userRepository.findListRowsByBbrC(ORG_CODE, null))
                 .extracting(UserDto.ListRow::eno)
                 .filteredOn(eno -> expected.contains(eno))
                 .containsExactlyElementsOf(expected);
 
         // 키워드 검색도 같은 순서를 사용한다 (상한 절단보다 정렬이 먼저 적용됨)
-        assertThat(userRepository.searchListRowsByKeyword("정렬", SEARCH_LIMIT))
+        assertThat(userRepository.searchListRowsByKeyword("정렬", null, SEARCH_LIMIT))
                 .extracting(UserDto.ListRow::eno)
                 .filteredOn(eno -> expected.contains(eno))
                 .containsExactlyElementsOf(expected);
@@ -149,8 +149,31 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     @Test
     @DisplayName("키워드 검색은 요청한 상한까지만 반환한다")
     void searchListRowsByKeyword_appliesLimit() {
-        assertThat(userRepository.searchListRowsByKeyword("테스트팀", 1)).hasSize(1);
-        assertThat(userRepository.searchListRowsByKeyword("테스트팀", 2)).hasSize(2);
+        assertThat(userRepository.searchListRowsByKeyword("테스트팀", null, 1)).hasSize(1);
+        assertThat(userRepository.searchListRowsByKeyword("테스트팀", null, 2)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("행번 접두사를 주면 부서 목록과 키워드 검색 모두 해당 접두사 행번만 반환한다")
+    void employeeRows_filterByEnoPrefix() {
+        // 부서 목록: 같은 부서의 O 행번(OZ71001·OZ71002)은 제외된다
+        assertThat(userRepository.findListRowsByBbrC(ORG_CODE, "K"))
+                .extracting(UserDto.ListRow::eno)
+                .containsExactly("KZ71001", "KZ71002");
+
+        // 키워드 검색: 접두사 필터가 상한 절단보다 먼저 적용된다
+        assertThat(userRepository.searchListRowsByKeyword("정렬", "K", SEARCH_LIMIT))
+                .extracting(UserDto.ListRow::eno)
+                .filteredOn(eno -> eno.endsWith("Z71001") || eno.endsWith("Z71002"))
+                .containsExactly("KZ71001", "KZ71002");
+    }
+
+    @Test
+    @DisplayName("행번 접두사가 공백이면 필터를 적용하지 않는다")
+    void employeeRows_blankEnoPrefixKeepsAllRows() {
+        assertThat(userRepository.searchListRowsByKeyword("정렬", "   ", SEARCH_LIMIT))
+                .extracting(UserDto.ListRow::eno)
+                .contains("KZ71001", "OZ71001");
     }
 
     @Test
@@ -264,7 +287,7 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                         "ptCNm",
                         "etrMilAddrNm",
                         "inleNo",
-                        "cpnTpn",
+                        "cadrTpn",
                         "dtsDtlCone",
                         "prlmHrkOgzCCone",
                         "prlmHrkOgzCNm");
@@ -362,7 +385,8 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                         .temNm("테스트팀")
                         .etrMilAddrNm(eno + "@example.test")
                         .inleNo("1234")
-                        .cpnTpn("01000000000")
+                        .cpnTpn("0221001234")
+                        .cadrTpn("01000000000")
                         .dtsDtlCone("테스트 직무")
                         .delYn(delYn)
                         .fstEnrUsid("FIXTURE")

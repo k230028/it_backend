@@ -36,9 +36,10 @@ public interface UserRepositoryCustom {
      * <p>결과는 K 행번 우선, 직위코드({@code PT_C}) 오름차순, 사용자명·사번 오름차순으로 정렬합니다.
      *
      * @param bbrC 부서코드
+     * @param enoPrefix 행번({@code ENO}) 접두사 필터. null·공백이면 필터를 적용하지 않습니다.
      * @return 사용자 목록 응답 행
      */
-    List<UserDto.ListRow> findListRowsByBbrC(String bbrC);
+    List<UserDto.ListRow> findListRowsByBbrC(String bbrC, String enoPrefix);
 
     /**
      * 전체 조직을 대상으로 사용자명·팀명·사번을 부분 일치(대소문자 무시) 검색합니다.
@@ -46,11 +47,14 @@ public interface UserRepositoryCustom {
      * <p>결과는 K 행번 우선, 직위코드({@code PT_C}) 오름차순, 사용자명·사번 오름차순으로 정렬하고 {@code limit}건까지만 반환합니다. 전체 조직이
      * 대상이라 상한 없이 조회하면 응답이 과도하게 커질 수 있습니다. 상한 절단은 정렬 이후에 적용되므로 우선순위가 높은 사용자가 먼저 남습니다.
      *
+     * <p>{@code enoPrefix}는 상한 절단보다 먼저 DB에서 적용하므로 접두사에 맞는 사용자만 {@code limit}건을 채웁니다.
+     *
      * @param keyword 검색어 (공백이 아닌 부분 일치 문자열)
+     * @param enoPrefix 행번({@code ENO}) 접두사 필터. null·공백이면 필터를 적용하지 않습니다.
      * @param limit 최대 반환 건수 (1 이상)
      * @return 사용자 목록 응답 행 (최대 limit건)
      */
-    List<UserDto.ListRow> searchListRowsByKeyword(String keyword, int limit);
+    List<UserDto.ListRow> searchListRowsByKeyword(String keyword, String enoPrefix, int limit);
 
     /**
      * 사번으로 사용자 상세 응답 행을 조회합니다.

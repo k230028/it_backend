@@ -3,8 +3,8 @@ package com.kdb.it.common.board.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.board.dto.BoardPostDto;
-import com.kdb.it.common.board.entity.Ccmmtm;
 import com.kdb.it.common.board.entity.Cblbcm;
+import com.kdb.it.common.board.entity.Ccmmtm;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.support.AbstractOracleRepositoryTest;

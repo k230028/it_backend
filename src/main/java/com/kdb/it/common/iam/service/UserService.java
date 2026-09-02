@@ -46,12 +46,15 @@ public class UserService {
      *
      * <p>응답에는 사번, 부점명, 팀명, 사용자명, 직위명이 포함되며 K 행번 우선, 직위코드 오름차순으로 정렬됩니다.
      *
+     * <p>{@code enoPrefix}를 주면 해당 접두사로 시작하는 행번만 반환합니다. 담당자·결재자 지정처럼 특정 행번 체계만 선택해야 하는 화면이 사용합니다.
+     *
      * @param orgCode 조회할 부점코드 ({@code BBR_C})
+     * @param enoPrefix 행번({@code ENO}) 접두사 필터 (null·공백이면 전체)
      * @return 해당 부점의 사용자 목록 DTO ({@link UserDto.ListResponse} 리스트)
      */
-    public List<UserDto.ListResponse> getUsersByOrganization(String orgCode) {
+    public List<UserDto.ListResponse> getUsersByOrganization(String orgCode, String enoPrefix) {
         // 사용자와 조직에서 목록 응답에 필요한 컬럼만 ListRow로 조회한다.
-        List<UserDto.ListRow> users = userRepository.findListRowsByBbrC(orgCode);
+        List<UserDto.ListRow> users = userRepository.findListRowsByBbrC(orgCode, enoPrefix);
 
         // 조회된 ListRow를 엔티티 접근 없이 목록 응답 DTO로 변환한다.
         return users.stream().map(UserDto.ListResponse::fromRow).toList();
@@ -104,12 +107,16 @@ public class UserService {
      *
      * <p>표시 순서는 K 행번 우선, 직위코드 오름차순이며 상한 절단보다 먼저 적용됩니다.
      *
+     * <p>{@code enoPrefix}를 주면 해당 접두사로 시작하는 행번만 반환하며, 필터는 결과 상한 절단보다 먼저 DB에서 적용됩니다.
+     *
      * @param keyword 검색어 (이름·팀명·사번 부분 일치, null/blank 허용)
      * @param orgCode 부서코드 (null이면 전체 부서 대상)
+     * @param enoPrefix 행번({@code ENO}) 접두사 필터 (null·공백이면 전체)
      * @return 검색 결과 사용자 목록 DTO (최대 {@link #SEARCH_RESULT_LIMIT}건)
      * @throws CustomGeneralException 검색어가 있으나 {@link #MIN_KEYWORD_LENGTH}자 미만인 경우
      */
-    public List<UserDto.ListResponse> searchUsers(String keyword, String orgCode) {
+    public List<UserDto.ListResponse> searchUsers(
+            String keyword, String orgCode, String enoPrefix) {
         boolean keywordBlank = keyword == null || keyword.isBlank();
         boolean orgBlank = orgCode == null || orgCode.isBlank();
 
@@ -117,7 +124,7 @@ public class UserService {
             if (orgBlank) {
                 return List.of();
             }
-            return getUsersByOrganization(orgCode);
+            return getUsersByOrganization(orgCode, enoPrefix);
         }
 
         // 전체 조직 대상 LIKE 검색이므로 너무 짧은 검색어는 서버에서 차단한다.
@@ -127,7 +134,8 @@ public class UserService {
         }
 
         List<UserDto.ListRow> users =
-                userRepository.searchListRowsByKeyword(trimmedKeyword, SEARCH_RESULT_LIMIT);
+                userRepository.searchListRowsByKeyword(
+                        trimmedKeyword, enoPrefix, SEARCH_RESULT_LIMIT);
         if (!orgBlank) {
             // orgBlank 검증 뒤 null 불가 값을 명시해 정적 분석 경고를 제거한다.
             final String orgFilter = Objects.requireNonNull(orgCode);

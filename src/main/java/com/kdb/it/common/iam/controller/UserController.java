@@ -47,14 +47,20 @@ public class UserController {
      *
      * <p>반환 데이터: 사번, 부점명, 팀명, 사용자명, 직위명
      *
+     * <p>{@code enoPrefix}를 주면 해당 접두사로 시작하는 행번만 반환합니다. (예: {@code K} → K로 시작하는 행번만)
+     *
      * @param orgCode 조직 코드 (BBR_C 컬럼 값, 예: {@code "001"})
+     * @param enoPrefix 행번(ENO) 접두사 필터 (선택, 미입력 시 전체)
      * @return HTTP 200 + 해당 조직의 사용자 목록 ({@link UserDto.ListResponse} 리스트)
      */
     @GetMapping
-    @Operation(summary = "조직별 사용자 조회", description = "특정 조직코드에 해당하는 사용자 목록을 조회합니다.")
+    @Operation(
+            summary = "조직별 사용자 조회",
+            description = "특정 조직코드에 해당하는 사용자 목록을 조회합니다. enoPrefix를 주면 해당 접두사 행번만 반환합니다.")
     public ResponseEntity<List<UserDto.ListResponse>> getUsersByOrganization(
-            @RequestParam("orgCode") String orgCode) {
-        return ResponseEntity.ok(userService.getUsersByOrganization(orgCode));
+            @RequestParam("orgCode") String orgCode,
+            @RequestParam(value = "enoPrefix", required = false) String enoPrefix) {
+        return ResponseEntity.ok(userService.getUsersByOrganization(orgCode, enoPrefix));
     }
 
     /**
@@ -86,8 +92,11 @@ public class UserController {
      *
      * <p>검색어는 2자 이상이어야 하며 결과 건수는 서버에서 제한합니다.
      *
+     * <p>{@code enoPrefix}를 주면 해당 접두사로 시작하는 행번만 반환합니다. (예: {@code K} → K로 시작하는 행번만)
+     *
      * @param keyword 검색어 (이름·팀명·사번 부분 일치)
      * @param orgCode 부서코드 (선택, 미입력 시 전체 조직 대상)
+     * @param enoPrefix 행번(ENO) 접두사 필터 (선택, 미입력 시 전체)
      * @return HTTP 200 + 검색 결과 사용자 목록
      */
     @GetMapping("/search")
@@ -95,10 +104,12 @@ public class UserController {
             summary = "사용자 검색 (이름·팀명·사번)",
             description =
                     "전체 조직에서 이름·팀명·사번 부분 일치로 검색합니다(2자 이상, 결과 건수 제한). "
-                            + "keyword 비어있고 orgCode 지정 시 해당 부서 사용자 전체 반환. 둘 다 비어있으면 빈 리스트.")
+                            + "keyword 비어있고 orgCode 지정 시 해당 부서 사용자 전체 반환. 둘 다 비어있으면 빈 리스트. "
+                            + "enoPrefix를 주면 해당 접두사 행번만 반환합니다.")
     public ResponseEntity<List<UserDto.ListResponse>> searchUsers(
             @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "orgCode", required = false) String orgCode) {
-        return ResponseEntity.ok(userService.searchUsers(keyword, orgCode));
+            @RequestParam(value = "orgCode", required = false) String orgCode,
+            @RequestParam(value = "enoPrefix", required = false) String enoPrefix) {
+        return ResponseEntity.ok(userService.searchUsers(keyword, orgCode, enoPrefix));
     }
 }

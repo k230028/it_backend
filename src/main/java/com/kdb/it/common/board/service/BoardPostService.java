@@ -74,7 +74,8 @@ public class BoardPostService {
         boolean qnaBoard = BoardTypeResolver.QNA_BOARD_TYPE.equals(board.getItPtlBlbTc());
         var rows =
                 qnaBoard
-                        ? postRepository.searchPostRows(blbMngNo, effectiveCond, user.isAdmin(), true)
+                        ? postRepository.searchPostRows(
+                                blbMngNo, effectiveCond, user.isAdmin(), true)
                         : postRepository.searchPostRows(blbMngNo, effectiveCond, user.isAdmin());
         return rows.map(BoardPostDto.ListItem::from);
     }

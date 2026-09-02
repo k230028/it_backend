@@ -72,7 +72,8 @@ public class ContactInfoService {
                         || html.matches("(?is).*<(img|table|hr|ul|ol|blockquote)\\b.*"));
     }
 
-    private ContactInfoDto.Response createOrUpdateAfterConcurrentFirstSave(String sanitizedContent) {
+    private ContactInfoDto.Response createOrUpdateAfterConcurrentFirstSave(
+            String sanitizedContent) {
         try {
             return contactInfoCreationService.createContactInfo(sanitizedContent);
         } catch (DataIntegrityViolationException conflict) {

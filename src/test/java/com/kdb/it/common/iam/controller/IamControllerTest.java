@@ -3,6 +3,7 @@ package com.kdb.it.common.iam.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -76,10 +77,22 @@ class IamControllerTest {
     @DisplayName("GET /api/users - 인증된 사용자 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
     void getUsers_인증_200() throws Exception {
-        given(userService.getUsersByOrganization(anyString())).willReturn(List.of());
+        given(userService.getUsersByOrganization(anyString(), any())).willReturn(List.of());
         mockMvc.perform(get("/api/users").param("orgCode", "IT001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /api/users - enoPrefix 파라미터를 서비스에 그대로 전달한다")
+    @WithMockUser(username = "10001")
+    void getUsers_enoPrefix전달() throws Exception {
+        given(userService.getUsersByOrganization(anyString(), any())).willReturn(List.of());
+
+        mockMvc.perform(get("/api/users").param("orgCode", "IT001").param("enoPrefix", "K"))
+                .andExpect(status().isOk());
+
+        verify(userService).getUsersByOrganization("IT001", "K");
     }
 
     @Test
@@ -111,9 +124,21 @@ class IamControllerTest {
     @DisplayName("GET /api/users/search - 인증된 사용자 → 200 + 배열 반환")
     @WithMockUser(username = "10001")
     void searchUsers_인증_200() throws Exception {
-        given(userService.searchUsers(anyString(), any())).willReturn(List.of());
+        given(userService.searchUsers(anyString(), any(), any())).willReturn(List.of());
         mockMvc.perform(get("/api/users/search").param("keyword", "홍길"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /api/users/search - enoPrefix 파라미터를 서비스에 그대로 전달한다")
+    @WithMockUser(username = "10001")
+    void searchUsers_enoPrefix전달() throws Exception {
+        given(userService.searchUsers(anyString(), any(), any())).willReturn(List.of());
+
+        mockMvc.perform(get("/api/users/search").param("keyword", "홍길").param("enoPrefix", "K"))
+                .andExpect(status().isOk());
+
+        verify(userService).searchUsers("홍길", null, "K");
     }
 }

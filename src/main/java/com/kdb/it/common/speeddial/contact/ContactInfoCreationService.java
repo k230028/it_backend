@@ -17,9 +17,7 @@ class ContactInfoCreationService {
 
     private final GuideDocRepository guideDocRepository;
 
-    /**
-     * 동시 최초 등록 시 고유 제약 위반을 호출자 트랜잭션까지 전파하지 않도록 독립 트랜잭션으로 생성합니다.
-     */
+    /** 동시 최초 등록 시 고유 제약 위반을 호출자 트랜잭션까지 전파하지 않도록 독립 트랜잭션으로 생성합니다. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     ContactInfoDto.Response createContactInfo(String sanitizedContent) {
         return guideDocRepository
@@ -27,26 +25,28 @@ class ContactInfoCreationService {
                         ContactInfoService.DOCUMENT_IDENTIFIER, DOCUMENT_NUMBER_PREFIX, "N")
                 .map(
                         document -> {
-                            document.update(ContactInfoService.DOCUMENT_IDENTIFIER, sanitizedContent);
+                            document.update(
+                                    ContactInfoService.DOCUMENT_IDENTIFIER, sanitizedContent);
                             return new ContactInfoDto.Response(
                                     document.getDocMngNo(), sanitizedContent);
                         })
-                .orElseGet(() -> {
-                    long nextValue = guideDocRepository.getNextSequenceValue();
-                    String documentNumber =
-                            "%s%s-%04d"
-                                    .formatted(
-                                            DOCUMENT_NUMBER_PREFIX,
-                                            LocalDate.now().getYear(),
-                                            nextValue);
-                    Bgdocm document =
-                            Bgdocm.builder()
-                                    .docMngNo(documentNumber)
-                                    .docTtlCone(ContactInfoService.DOCUMENT_IDENTIFIER)
-                                    .nacTxtInf(sanitizedContent)
-                                    .build();
-                    guideDocRepository.saveAndFlush(document);
-                    return new ContactInfoDto.Response(documentNumber, sanitizedContent);
-                });
+                .orElseGet(
+                        () -> {
+                            long nextValue = guideDocRepository.getNextSequenceValue();
+                            String documentNumber =
+                                    "%s%s-%04d"
+                                            .formatted(
+                                                    DOCUMENT_NUMBER_PREFIX,
+                                                    LocalDate.now().getYear(),
+                                                    nextValue);
+                            Bgdocm document =
+                                    Bgdocm.builder()
+                                            .docMngNo(documentNumber)
+                                            .docTtlCone(ContactInfoService.DOCUMENT_IDENTIFIER)
+                                            .nacTxtInf(sanitizedContent)
+                                            .build();
+                            guideDocRepository.saveAndFlush(document);
+                            return new ContactInfoDto.Response(documentNumber, sanitizedContent);
+                        });
     }
 }
