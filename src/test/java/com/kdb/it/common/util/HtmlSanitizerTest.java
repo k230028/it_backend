@@ -110,6 +110,7 @@ class HtmlSanitizerTest {
                 <a href="javascript:alert(1)" target="_blank" rel="noopener">위험</a>
                 <a href="https://example.com" target="_blank" rel="noopener">안전</a>
                 <img src="data:image/png;base64,AAAA" onerror="alert(1)" alt="이미지">
+                <img src="javascript:alert(1)" alt="위험 이미지">
                 """;
 
         String sanitized = HtmlSanitizer.sanitize(html);
@@ -117,6 +118,21 @@ class HtmlSanitizerTest {
         assertThat(sanitized).doesNotContain("onclick", "script", "javascript:", "onerror");
         assertThat(sanitized).contains("href=\"https://example.com\"");
         assertThat(sanitized).contains("src=\"data:image/png;base64,AAAA\"");
+    }
+
+    @Test
+    @DisplayName("동일 출처 상대 경로 이미지·링크 URL은 그대로 보존한다.")
+    void shouldPreserveRelativeUrls() {
+        String html =
+                """
+                <img src="/api/files/FL-00005119/preview" alt="image.png" data-align="left">
+                <a href="/board/BLB-1/NAC-1">내부 링크</a>
+                """;
+
+        String sanitized = HtmlSanitizer.sanitize(html);
+
+        assertThat(sanitized).contains("src=\"/api/files/FL-00005119/preview\"");
+        assertThat(sanitized).contains("href=\"/board/BLB-1/NAC-1\"");
     }
 
     @Test

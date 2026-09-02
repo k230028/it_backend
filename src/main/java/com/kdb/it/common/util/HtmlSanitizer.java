@@ -31,6 +31,18 @@ public final class HtmlSanitizer {
     /** Tiptap 에디터 허용 태그/속성 기반 Safelist (불변 싱글턴) */
     private static final Safelist QUILL_SAFELIST = createQuillSafelist();
 
+    /**
+     * 상대 경로 URL의 프로토콜 검사용 기준 URI
+     *
+     * <p>Jsoup은 프로토콜 제한 속성({@code img[src]}, {@code a[href]})을 기준 URI로 절대화한 뒤 허용 프로토콜과 비교하므로, 기준 URI가
+     * 비어 있으면 {@code /api/files/{id}/preview} 같은 동일 출처 상대 경로가 절대화에 실패해 속성째 제거됩니다. 프론트엔드는 {@code
+     * NUXT_PUBLIC_API_BASE}가 비어 있는 dev/운영에서 상대 경로를 저장하므로 기준 URI를 고정값으로 제공합니다.
+     *
+     * <p>{@link Safelist#preserveRelativeLinks(boolean)}를 함께 켜서 저장 값은 상대 경로 원문 그대로 유지합니다. 이 값은 검사용
+     * 기준일 뿐 결과 HTML에는 나타나지 않습니다.
+     */
+    private static final String RELATIVE_URL_BASE_URI = "https://it-portal.invalid/";
+
     /** 유틸리티 클래스이므로 인스턴스 생성 방지 */
     private HtmlSanitizer() {
         throw new UnsupportedOperationException("유틸리티 클래스는 인스턴스화할 수 없습니다.");
@@ -45,6 +57,8 @@ public final class HtmlSanitizer {
      */
     private static Safelist createQuillSafelist() {
         return new Safelist()
+                // 상대 경로 URL을 절대 URL로 재작성하지 않고 원문 그대로 저장 (RELATIVE_URL_BASE_URI 참조)
+                .preserveRelativeLinks(true)
                 // ── 블록 요소 ──
                 .addTags(
                         "p",
@@ -181,6 +195,6 @@ public final class HtmlSanitizer {
         }
         // prettyPrint=false: Jsoup 자동 줄바꿈/공백 삽입 방지 (표 구조 및 공백 보존)
         Document.OutputSettings outputSettings = new Document.OutputSettings().prettyPrint(false);
-        return Jsoup.clean(html, "", QUILL_SAFELIST, outputSettings);
+        return Jsoup.clean(html, RELATIVE_URL_BASE_URI, QUILL_SAFELIST, outputSettings);
     }
 }
