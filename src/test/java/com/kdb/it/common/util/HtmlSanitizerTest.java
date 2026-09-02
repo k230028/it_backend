@@ -102,6 +102,14 @@ class HtmlSanitizerTest {
     }
 
     @Test
+    @DisplayName("태그 없는 게시글·댓글 평문은 한컴 입력기의 특수문자를 엔티티로 바꾸지 않는다.")
+    void shouldPreservePlainTextSpecialCharacters() {
+        String plainText = "한컴 입력기 !@#$%^& 특수문자\n다음 줄";
+
+        assertThat(HtmlSanitizer.sanitize(plainText)).isEqualTo(plainText);
+    }
+
+    @Test
     @DisplayName("script와 이벤트 핸들러는 제거하고 허용된 링크 프로토콜만 보존한다.")
     void shouldRemoveUnsafeHtmlAndProtocols() {
         String html =

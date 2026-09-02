@@ -27,7 +27,7 @@ public final class FormAmount {
     private static final Pattern LATIN = Pattern.compile("[A-Za-z]+");
 
     /** 숫자로 남으면 안 되는 잡음 — 자릿수 구분 쉼표, 공백, 통화 기호. */
-    private static final Pattern NOISE = Pattern.compile("[,\\s\\u00A0\\u3000₩$￦]+");
+    private static final Pattern NOISE = Pattern.compile("[,\\s\\p{Cf}\\u00A0\\u3000₩$￦]+");
 
     /** 단위 표기와 배수. 긴 표기가 먼저여야 `백만원`이 `원`으로 잘리지 않습니다. */
     private static final String[] UNIT_WORDS = {"백만원", "천원", "천엔", "원", "엔"};

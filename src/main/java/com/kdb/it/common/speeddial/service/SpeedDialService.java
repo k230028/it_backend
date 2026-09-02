@@ -7,12 +7,14 @@ import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.board.service.BoardPostService;
 import com.kdb.it.common.board.service.BoardTypeResolver;
 import com.kdb.it.common.speeddial.dto.SpeedDialDto;
+import com.kdb.it.common.speeddial.event.QnaRegisteredEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,6 +39,7 @@ public class SpeedDialService {
     private final BoardTypeResolver boardTypeResolver;
     private final BoardPostService boardPostService;
     private final BoardPostRepository boardPostRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** FAQ 유형 게시판의 최신 공개 게시글을 반환합니다. */
     public List<SpeedDialDto.FaqResponse> getFaqs() {
@@ -85,7 +88,18 @@ public class SpeedDialService {
                         null,
                         null,
                         List.of());
-        return boardPostService.createPost(board.getBlbMngNo(), boardRequest, user);
+        String postId = boardPostService.createPost(board.getBlbMngNo(), boardRequest, user);
+        eventPublisher.publishEvent(
+                new QnaRegisteredEvent(
+                        postId,
+                        title,
+                        categoryName,
+                        request.title().trim(),
+                        user.getEno(),
+                        request.screenName().trim(),
+                        request.screenUrl().trim(),
+                        "/board/" + board.getBlbMngNo() + "?postId=" + postId));
+        return postId;
     }
 
     private void validateRequest(SpeedDialDto.QnaCreateRequest request) {

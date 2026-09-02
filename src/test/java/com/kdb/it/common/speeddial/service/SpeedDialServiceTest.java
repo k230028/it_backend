@@ -17,6 +17,7 @@ import com.kdb.it.common.board.repository.BoardPostRepository;
 import com.kdb.it.common.board.service.BoardPostService;
 import com.kdb.it.common.board.service.BoardTypeResolver;
 import com.kdb.it.common.speeddial.dto.SpeedDialDto;
+import com.kdb.it.common.speeddial.event.QnaRegisteredEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import java.time.LocalDate;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class SpeedDialServiceTest {
@@ -36,6 +38,7 @@ class SpeedDialServiceTest {
     @Mock private BoardPostService boardPostService;
     @Mock private BoardPostRepository boardPostRepository;
     @Mock private CustomUserDetails user;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() {
@@ -45,7 +48,8 @@ class SpeedDialServiceTest {
     @Test
     void qnaUsesResolvedTypeBoardAndNeverClientBoardId() {
         SpeedDialService service =
-                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
         given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
                 .willReturn(board("BLBM-CHANGED", "005"));
         given(boardPostService.createPost(eq("BLBM-CHANGED"), any(), same(user)))
@@ -58,9 +62,42 @@ class SpeedDialServiceTest {
     }
 
     @Test
+    void qnaPublishesNotificationEventOnlyAfterThePostIsCreated() {
+        SpeedDialService service =
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
+        given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
+                .willReturn(board("BLBM-QNA", "005"));
+        given(boardPostService.createPost(eq("BLBM-QNA"), any(), same(user)))
+                .willReturn("NAC-2026-0142");
+        given(user.getEno()).willReturn("K900");
+
+        service.createQna(
+                new SpeedDialDto.QnaCreateRequest(
+                        "검색 조건 저장", "Q&A", "/board/qna", "IMPROVEMENT", true, "<p>문의</p>"),
+                user);
+
+        ArgumentCaptor<QnaRegisteredEvent> captor =
+                ArgumentCaptor.forClass(QnaRegisteredEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue())
+                .isEqualTo(
+                        new QnaRegisteredEvent(
+                                "NAC-2026-0142",
+                                "[문의] (기능 개선) 검색 조건 저장",
+                                "기능 개선",
+                                "검색 조건 저장",
+                                "K900",
+                                "Q&A",
+                                "/board/qna",
+                                "/board/BLBM-QNA?postId=NAC-2026-0142"));
+    }
+
+    @Test
     void rejectsExternalScreenUrl() {
         SpeedDialService service =
-                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
 
         assertThatThrownBy(
                         () ->
@@ -78,7 +115,8 @@ class SpeedDialServiceTest {
     @Test
     void faqOnlyContainsPostsInsidePublicationPeriod() {
         SpeedDialService service =
-                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
         given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.FAQ_BOARD_TYPE))
                 .willReturn(board("BLBM-FAQ", "004"));
         LocalDate today = LocalDate.now();
@@ -100,7 +138,8 @@ class SpeedDialServiceTest {
     @Test
     void qnaEscapesScreenMetadataBeforeDelegatingToBoardPostService() {
         SpeedDialService service =
-                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
         given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
                 .willReturn(board("BLBM-QNA", "005"));
         given(boardPostService.createPost(eq("BLBM-QNA"), any(), same(user)))
@@ -122,7 +161,8 @@ class SpeedDialServiceTest {
     @Test
     void qnaUsesTitlePrivacyAndAuthenticatedUsersDepartment() {
         SpeedDialService service =
-                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
         given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
                 .willReturn(board("BLBM-QNA", "005"));
         given(boardPostService.createPost(eq("BLBM-QNA"), any(), same(user)))
@@ -145,7 +185,8 @@ class SpeedDialServiceTest {
     @Test
     void qnaAcceptsBudgetAndProjectCategories() {
         SpeedDialService service =
-                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
         given(boardTypeResolver.requireUniqueActiveBoard(BoardTypeResolver.QNA_BOARD_TYPE))
                 .willReturn(board("BLBM-QNA", "005"));
         given(boardPostService.createPost(eq("BLBM-QNA"), any(), same(user)))
@@ -170,7 +211,8 @@ class SpeedDialServiceTest {
     @Test
     void rejectsMissingOrMalformedQnaFields() {
         SpeedDialService service =
-                new SpeedDialService(boardTypeResolver, boardPostService, boardPostRepository);
+                new SpeedDialService(
+                        boardTypeResolver, boardPostService, boardPostRepository, eventPublisher);
 
         assertThatThrownBy(() -> service.createQna(null, user))
                 .isInstanceOf(CustomGeneralException.class);

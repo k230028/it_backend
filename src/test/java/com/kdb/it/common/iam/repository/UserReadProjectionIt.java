@@ -293,6 +293,8 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
                         "prlmHrkOgzCNm");
         assertThat(declaredMethodNames(UserRepository.UserNameView.class))
                 .containsExactlyInAnyOrder("getEno", "getUsrNm", "getPtCNm");
+        assertThat(declaredMethodNames(UserRepository.UserTeamNameView.class))
+                .containsExactlyInAnyOrder("getEno", "getTemNm");
         assertThat(declaredMethodNames(UserRepository.UserOrgCodeView.class))
                 .containsExactlyInAnyOrder("getEno", "getTemC", "getBbrC");
         assertThat(declaredMethodNames(UserRepository.AdminUserView.class))

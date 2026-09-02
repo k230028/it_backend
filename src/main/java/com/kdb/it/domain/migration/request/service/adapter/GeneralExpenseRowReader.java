@@ -152,11 +152,15 @@ final class GeneralExpenseRowReader {
         FormAmount.Parsed annual = FormAmount.parse(annualCell);
         FormAmount.Parsed monthly = FormAmount.parse(monthlyCell);
         FormAmount.Parsed amount = annual != null ? annual : monthly;
+        String resolvedContractName =
+                contractName == null || contractName.isBlank()
+                        ? firstNonBlank(detail, mid)
+                        : contractName;
         return new GeneralExpenseRow(
                 rowIndex + 1,
                 mid,
                 detail,
-                contractName,
+                resolvedContractName,
                 currency,
                 monthly == null ? null : monthly.value(),
                 annual == null ? null : annual.value(),
@@ -166,6 +170,12 @@ final class GeneralExpenseRowReader {
                 isNew,
                 infoSec,
                 remarks);
+    }
+
+    /** 계약명이 비어 있으면 더 구체적인 세부비목, 비목 순으로 계약명을 보완합니다. */
+    private static String firstNonBlank(String detail, String mid) {
+        if (detail != null && !detail.isBlank()) return detail.trim();
+        return mid == null ? "" : mid.trim();
     }
 
     /**

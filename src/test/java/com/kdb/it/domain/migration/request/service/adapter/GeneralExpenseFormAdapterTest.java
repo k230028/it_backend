@@ -609,6 +609,15 @@ class GeneralExpenseFormAdapterTest {
     }
 
     @Test
+    @DisplayName("계약명이 비어 있으면 세부비목을 계약명으로 사용한다")
+    void defaultsBlankContractNameToDetailName() {
+        FormAdapterOutput output =
+                adapter.adapt(contextOf(withFirstContractName(""), AmountUnit.WON));
+
+        assertThat(output.costs().getFirst().getCttNm()).isEqualTo("회선사용료");
+    }
+
+    @Test
     @DisplayName("번호로 묶인 계약은 항목마다 전산업무비를 만든다")
     void splitsEnumeratedContractsIntoSeparateCosts() {
         FormAdapterOutput output =

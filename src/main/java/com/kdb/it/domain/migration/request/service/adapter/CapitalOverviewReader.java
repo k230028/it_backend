@@ -490,7 +490,7 @@ public class CapitalOverviewReader {
         if (yearHeader == null) return SummaryTable.empty();
 
         HeaderCell laterHeader = findHeader(sheet, totalRow, LATER_TOTAL_SUFFIX);
-        int groupColumn = findGroupColumn(sheet, yearHeader.row());
+        int groupColumn = findGroupColumn(sheet, yearHeader.row(), totalRow, yearHeader.column());
         AmountUnit unit = findSummaryUnit(sheet, yearHeader.row());
         List<SummaryItem> items = new ArrayList<>();
         for (int rowIndex = yearHeader.row() + 1; rowIndex < totalRow; rowIndex++) {
@@ -527,10 +527,20 @@ public class CapitalOverviewReader {
     }
 
     /** 같은 헤더 행에서 `비목` 열을 찾고, 변형 양식이면 통상 위치인 B열을 사용합니다. */
-    private int findGroupColumn(Sheet sheet, int headerRow) {
+    private int findGroupColumn(Sheet sheet, int headerRow, int totalRow, int yearTotalColumn) {
         for (int colIndex = 0; colIndex <= TOTAL_SCAN_WIDTH; colIndex++) {
             String header = SheetAnchorScanner.normalize(scanner.text(sheet, headerRow, colIndex));
             if ("비목".equals(header)) return colIndex;
+        }
+        for (int colIndex = 0; colIndex < yearTotalColumn; colIndex++) {
+            for (int rowIndex = headerRow + 1; rowIndex < totalRow; rowIndex++) {
+                String group =
+                        SheetAnchorScanner.normalize(
+                                FormLexicon.canonicalIoeName(
+                                        scanner.text(sheet, rowIndex, colIndex)));
+                if (group.equals("개발비") || group.equals("기계장치(HW)") || group.equals("기타무형자산(SW)"))
+                    return colIndex;
+            }
         }
         return 1;
     }
@@ -662,7 +672,7 @@ public class CapitalOverviewReader {
     }
 
     private static BigDecimal parseAmount(String raw) {
-        String cleaned = raw == null ? "" : raw.replace(",", "").trim();
+        String cleaned = raw == null ? "" : raw.replaceAll("\\p{Cf}", "").replace(",", "").trim();
         if (cleaned.isEmpty()) return null;
         try {
             return new BigDecimal(cleaned);

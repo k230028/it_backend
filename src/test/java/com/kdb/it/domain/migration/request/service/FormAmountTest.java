@@ -18,6 +18,14 @@ class FormAmountTest {
     }
 
     @Test
+    @DisplayName("숫자 양쪽의 유니코드 방향 제어문자를 제거하고 읽는다")
+    void stripsUnicodeDirectionControls() {
+        // 실측: 2025 IT인프라팀의 MS사 SW사용권 신규 계약 금액
+        assertThat(FormAmount.parse("\u202D4,350,000\u202C").value())
+                .isEqualByComparingTo("4350000");
+    }
+
+    @Test
     @DisplayName("단위 표기를 값과 함께 읽는다")
     void readsUnitSuffix() {
         // 실측: 산업기술리서치센터 ③은 시트 머리말이 `천원`인데 이 칸만 원으로 적었다

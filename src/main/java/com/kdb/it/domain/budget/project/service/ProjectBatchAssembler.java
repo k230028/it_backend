@@ -229,6 +229,15 @@ final class ProjectBatchAssembler {
                 positions.put(view.getEno(), view.getPtCNm());
             }
         }
+        // IT 담당팀명은 IT부서담당팀장의 소속 팀명이다. 팀코드는 CORGNI에 없어 조직 조회로 얻을 수 없으므로
+        // 담당자 레코드(CUSERI.TEM_NM)를 사번 IN 배치로 한 번에 읽는다.
+        Map<String, String> teamNames = new HashMap<>();
+        for (UserRepository.UserTeamNameView view :
+                userRepository.findTeamNameViewsByEnoIn(userIds)) {
+            if (view.getTemNm() != null && !view.getTemNm().isBlank()) {
+                teamNames.put(view.getEno(), view.getTemNm());
+            }
+        }
         Map<String, List<Bproja>> steps =
                 bprojaRepository.findByAbusMngNoInAndDelYn(projectIds, "N").stream()
                         .collect(Collectors.groupingBy(Bproja::getAbusMngNo));
@@ -239,6 +248,7 @@ final class ProjectBatchAssembler {
                 organizationNames,
                 userNames,
                 positions,
+                teamNames,
                 buildCodeNames(CommonCodeGroups.REPORT_STS, reportCodes),
                 buildCodeNames(CommonCodeGroups.EXE_POSSIBLE, executableCodes),
                 buildCodeNames(CommonCodeGroups.ABUS, businessCodes),
@@ -280,6 +290,8 @@ final class ProjectBatchAssembler {
                 project.getSvnDpmNm() != null
                         ? project.getSvnDpmNm()
                         : getOrNull(data.organizationNames(), response.getSvnDpmC()));
+        // 담당팀장 저장값이 사번이 아니면 applyUserNames가 사번을 비우므로 그 전에 팀명을 해석한다.
+        response.setDvmTemNm(getOrNull(data.teamNames(), response.getDvmTlrUsid()));
         applyUserNames(response, data.userNames(), data.positions());
         response.setBzTpCNm(response.getBzTpC());
         response.setBzDttNmNm(response.getBzDttNm());
@@ -432,6 +444,7 @@ final class ProjectBatchAssembler {
             Map<String, String> organizationNames,
             Map<String, String> userNames,
             Map<String, String> positions,
+            Map<String, String> teamNames,
             Map<String, String> reportNames,
             Map<String, String> executableNames,
             Map<String, String> businessNames,

@@ -386,6 +386,31 @@ class RequestFormValidatorTest {
     }
 
     @Test
+    @DisplayName("긴 계약명이 잘려도 어댑터의 비목 진단을 필수값 누락으로 반복하지 않는다")
+    void doesNotRepeatIoeAfterContractNameTruncation() {
+        String longName = "오픈소스 소프트웨어 점검 서비스 구독 계약, Labrador SCM Customized 라이선스 12개월";
+        CostDto.CreateRequest cost = cost(null, longName, BigDecimal.ONE);
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(),
+                        List.of(cost),
+                        List.of(
+                                RequestFormDto.FormDiagnostic.about(
+                                        FormSheetKind.GENERAL_EXPENSE,
+                                        14,
+                                        "ioeC",
+                                        longName,
+                                        RequestFormDiagnosticCode.CODE_AMBIGUOUS,
+                                        "비목을 골라 주세요.",
+                                        List.of(new MigrationDto.Candidate("001", "국내전산임차료")))),
+                        null);
+
+        assertThat(validator().validate(output, "2025"))
+                .filteredOn(diagnostic -> "ioeC".equals(diagnostic.field()))
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("어댑터가 짚지 않은 품목의 비목 누락은 그대로 보고한다")
     void stillReportsIoeMissingWithoutAdapterDiagnostic() {
         ProjectDto.CreateRequest project = project("사업");

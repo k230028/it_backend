@@ -36,6 +36,18 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
         String getPtCNm();
     }
 
+    /**
+     * 소속 팀명 응답에 필요한 사용자 프로젝션.
+     *
+     * <p>팀코드(CUSERI.TEM_C)는 조직마스터(CORGNI)에 등재되지 않아 조직 조회로 팀명을 얻을 수 없으므로, 담당자 레코드의 팀명을 그대로 사용합니다.
+     */
+    interface UserTeamNameView {
+        String getEno();
+
+        /** 소속 팀명 (CUSERI.TEM_NM). 팀 미배정 사용자는 null입니다. */
+        String getTemNm();
+    }
+
     /** 검토의견 작성자 응답에 필요한 사용자 프로젝션입니다. */
     interface ReviewCommentAuthorView {
         String getEno();
@@ -114,6 +126,22 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
      * @return 사용자 이름 프로젝션 목록
      */
     List<UserNameView> findNameViewsByEnoIn(Collection<String> enos);
+
+    /**
+     * 사번 목록으로 소속 팀명 프로젝션을 조회합니다.
+     *
+     * @param enos 사번 목록
+     * @return 사번별 소속 팀명 프로젝션 목록 (미등록 사번은 결과에 없음)
+     */
+    List<UserTeamNameView> findTeamNameViewsByEnoIn(Collection<String> enos);
+
+    /**
+     * 사번으로 소속 팀명 프로젝션을 조회합니다.
+     *
+     * @param eno 사번
+     * @return 소속 팀명 프로젝션 (미등록 사번이면 empty)
+     */
+    Optional<UserTeamNameView> findTeamNameViewByEno(String eno);
 
     /**
      * 사번 목록으로 검토의견 작성자의 이름과 팀명 프로젝션을 한 번에 조회합니다.

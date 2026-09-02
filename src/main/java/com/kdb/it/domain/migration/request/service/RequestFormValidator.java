@@ -151,7 +151,11 @@ public class RequestFormValidator {
     }
 
     /** 필드 id와 대상 이름(사업명·품목명·계약명)의 조합입니다. */
-    private record FieldSubject(String field, String subject) {}
+    private record FieldSubject(String field, String subject) {
+        private FieldSubject {
+            subject = SheetAnchorScanner.normalize(subject);
+        }
+    }
 
     /**
      * 어댑터가 이미 코드 해석 진단({@link #ADAPTER_RESOLVED_FIELDS})을 낸 (필드, 대상) 짝을 모읍니다.
@@ -210,7 +214,7 @@ public class RequestFormValidator {
                             "비고",
                             diagnostics));
             String cttNm = nullSafe(cost.getCttNm());
-            if (!alreadyReported.contains(new FieldSubject(IOE_FIELD, cttNm))) {
+            if (!alreadyReported.contains(new FieldSubject(IOE_FIELD, subject))) {
                 requireText(
                         cost.getIoeC(),
                         FormSheetKind.GENERAL_EXPENSE,
@@ -227,7 +231,7 @@ public class RequestFormValidator {
                     "계약명",
                     diagnostics);
             boolean curCAlreadyReported =
-                    alreadyReported.contains(new FieldSubject(CUR_C_FIELD, cttNm));
+                    alreadyReported.contains(new FieldSubject(CUR_C_FIELD, subject));
             if (!curCAlreadyReported) {
                 requireText(
                         cost.getCurC(),
@@ -242,7 +246,7 @@ public class RequestFormValidator {
                             .anyMatch(
                                     field ->
                                             alreadyReported.contains(
-                                                    new FieldSubject(field, cttNm)));
+                                                    new FieldSubject(field, subject)));
             if (!skipAmountCheck) {
                 if (cost.getCostTotXpAmt() == null && cost.getFcAmt() == null) {
                     diagnostics.add(

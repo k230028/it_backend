@@ -181,6 +181,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             return new ItemReadResult(synthesized, synthesized, List.of());
         }
 
+        int itemDiagnosticStart = diagnostics.size();
         int sno = 1;
         Optional<ResourceTableReader.Result> capital =
                 resourceTableReader.readCapitalResource(resource, 0, false);
@@ -196,6 +197,23 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         if (general.isPresent()) {
             for (ResourceRow row : general.get().rows()) {
                 generalItems.add(toItem(row, context, sno++, diagnostics));
+            }
+        }
+        if ((!items.isEmpty() || !generalItems.isEmpty())
+                && declared.yearTotalRaw() != null
+                && declared.yearTotalRaw().signum() > 0
+                && !declared.summaryItems().isEmpty()
+                && items.stream()
+                        .allMatch(item -> item.getAmt() == null || item.getAmt().signum() == 0)
+                && generalItems.stream()
+                        .allMatch(item -> item.getAmt() == null || item.getAmt().signum() == 0)) {
+            List<RequestFormDto.FormDiagnostic> synthesizedDiagnostics = new ArrayList<>();
+            List<ProjectDto.BitemmDto> synthesized =
+                    summaryItems(declared, projectName, context, synthesizedDiagnostics);
+            if (!synthesized.isEmpty()) {
+                diagnostics.subList(itemDiagnosticStart, diagnostics.size()).clear();
+                diagnostics.addAll(synthesizedDiagnostics);
+                return new ItemReadResult(synthesized, synthesized, List.of());
             }
         }
         // 1-1 요약표 합성은 1-2에서 두 블록 다 못 읽었을 때만 쓴다. 요약표는 자본예산과 일반관리비를
@@ -290,7 +308,10 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             String projectName,
             FormAdapterContext context,
             List<RequestFormDto.FormDiagnostic> diagnostics) {
-        if (declared.summaryUnit() == null || declared.summaryItems().isEmpty()) {
+        AmountUnit summaryUnit =
+                AmountUnitResolver.inferUnit(declared.yearTotalRaw(), declared.yearRequestWon())
+                        .orElse(declared.summaryUnit());
+        if (summaryUnit == null || declared.summaryItems().isEmpty()) {
             return List.of();
         }
 
@@ -312,9 +333,19 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             item.setCurC("KRW");
             item.setXcrBseDt(context.bseYy() + "0101");
             item.setLstYn("Y");
-            item.setAmt(declared.summaryUnit().toWon(row.amountRaw()));
-            item.setMplAmt(declared.summaryUnit().toWon(row.laterAmountRaw()));
+            item.setAmt(summaryUnit.toWon(row.amountRaw()));
+            item.setMplAmt(summaryUnit.toWon(row.laterAmountRaw()));
             items.add(item);
+        }
+        if (items.size() == 1
+                && summaryUnit == AmountUnit.MILLION
+                && declared.yearRequestWon() != null
+                && AmountUnitResolver.inferUnit(
+                                declared.summaryItems().getFirst().amountRaw(),
+                                declared.yearRequestWon())
+                        .filter(unit -> unit == AmountUnit.MILLION)
+                        .isPresent()) {
+            items.getFirst().setAmt(declared.yearRequestWon());
         }
         return List.copyOf(items);
     }

@@ -521,6 +521,16 @@ class CapitalOverviewReaderTest {
     }
 
     @Test
+    @DisplayName("요약 금액의 유니코드 방향 제어문자를 제거하고 읽는다")
+    void stripsUnicodeDirectionControlsFromSummaryAmount() {
+        Sheet sheet = summarySheet("2,000백만원", Map.of(6, 100d), Map.of());
+        int totalRow = scanner.findLabelRow(sheet, new int[] {0, 2}, "총 계").orElseThrow();
+        sheet.getRow(totalRow).getCell(6).setCellValue("\u202D1,265\u202C");
+
+        assertThat(amountsOf(sheet).yearTotalRaw()).isEqualByComparingTo("1265");
+    }
+
+    @Test
     @DisplayName("총 계 행의 칸이 비면 데이터 행을 더해 채운다")
     void sumsDataRowsWhenTotalCellBlank() {
         // 실측 제출본에 `'26년도 이후`만 총 계 행이 비어 있는 파일이 있다

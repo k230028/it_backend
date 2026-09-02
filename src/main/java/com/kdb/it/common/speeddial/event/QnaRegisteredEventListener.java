@@ -18,11 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-/** FAQ 등록 후 활성 시스템관리자에게 GWE 메일 알림을 적재·발송합니다. */
+/** 문의 등록 후 활성 시스템관리자에게 인앱 알림과 GWE 메일을 적재·발송합니다. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class FaqRegisteredEventListener {
+public class QnaRegisteredEventListener {
 
     private static final String SYSTEM_ADMIN_AUTH_ID = "ITPAD001";
 
@@ -31,10 +31,10 @@ public class FaqRegisteredEventListener {
     private final NotificationDispatchService dispatchService;
     private final ObjectMapper objectMapper;
 
-    /** FAQ 저장 트랜잭션이 커밋된 뒤에만 메일 아웃박스를 생성합니다. */
+    /** 문의 저장 트랜잭션이 커밋된 뒤에만 관리자별 알림 아웃박스를 생성합니다. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void onFaqRegistered(FaqRegisteredEvent event) {
+    public void onQnaRegistered(QnaRegisteredEvent event) {
         LinkedHashSet<String> recipients =
                 new LinkedHashSet<>(roleRepository.findActiveUserEnosByAthId(SYSTEM_ADMIN_AUTH_ID));
         for (String recipient : recipients) {
@@ -46,7 +46,7 @@ public class FaqRegisteredEventListener {
                 }
             } catch (RuntimeException ex) {
                 log.warn(
-                        "FAQ 등록 메일 알림 처리가 실패했습니다: postId={}, recipient={}",
+                        "문의 등록 알림 처리가 실패했습니다: postId={}, recipient={}",
                         event.postId(),
                         recipient,
                         ex);
@@ -54,37 +54,54 @@ public class FaqRegisteredEventListener {
         }
     }
 
-    private NotificationEvent toNotification(FaqRegisteredEvent event, String recipient) {
+    private NotificationEvent toNotification(QnaRegisteredEvent event, String recipient) {
         String title =
-                NotificationMessageFormatter.abbreviate("FAQ 등록: " + safe(event.title()), 100);
-        String body =
-                "<p>새 FAQ가 등록되었습니다.</p><p>제목: "
-                        + escape(event.title())
-                        + "</p><p>등록자: "
-                        + escape(event.authorName())
-                        + " ("
-                        + escape(event.authorEno())
-                        + ")</p><p><a href=\""
-                        + escape(event.faqUrl())
-                        + "\">FAQ 확인</a></p>";
+                NotificationMessageFormatter.abbreviate("문의 등록: " + safe(event.title()), 100);
+        String subject =
+                "[IT정보화포탈] (" + safe(event.categoryName()) + ") " + safe(event.questionTitle());
         return NotificationEvent.builder()
                 .recipientEno(recipient)
                 .itPtlInfmSvcTc(NotificationEvent.TYPE_SYSTEM)
                 .ttl(title)
                 .infmMsgCone(
                         NotificationMessageFormatter.abbreviate(
-                                "새 FAQ가 등록되었습니다: " + safe(event.title()), 4000))
-                .infmRcdUrl(event.faqUrl())
+                                "새 문의가 등록되었습니다: " + safe(event.title()), 4000))
+                .infmRcdUrl(event.qnaUrl())
                 .itPtlSdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
-                .sdPayload(writeMailPayload(title, body))
+                .sdPayload(writeMailPayload(subject, mailBody(event)))
                 .build();
+    }
+
+    private String mailBody(QnaRegisteredEvent event) {
+        String rows =
+                row("문의 제목", event.questionTitle())
+                        + row("문의 구분", event.categoryName())
+                        + row("등록자", event.authorEno())
+                        + row("등록 화면", event.screenName())
+                        + row("화면 URL", event.screenUrl());
+        return "<div style=\"font-family:'Malgun Gothic',sans-serif;color:#111827;max-width:720px;\">"
+                + "<div style=\"background:#1d4ed8;color:#fff;font-size:16px;font-weight:700;padding:10px 12px;margin:0 0 14px;\">문의 등록</div>"
+                + "<div style=\"font-size:15px;font-weight:700;margin:0 0 8px;\">문의 개요</div>"
+                + "<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\" style=\"border-collapse:collapse;width:100%;margin:0 0 14px;\">"
+                + rows
+                + "</table><div style=\"margin:0 0 18px;text-align:right;\"><a href=\""
+                + escape(event.qnaUrl())
+                + "\" style=\"display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;font-size:13px;font-weight:600;padding:8px 14px;border-radius:4px;\">문의 확인 ↗</a></div></div>";
+    }
+
+    private String row(String label, String value) {
+        return "<tr><th style=\"background:#eff6ff;text-align:left;width:130px;\">"
+                + escape(label)
+                + "</th><td>"
+                + escape(value)
+                + "</td></tr>";
     }
 
     private String writeMailPayload(String subject, String html) {
         try {
             return objectMapper.writeValueAsString(new MailPayload(subject, html));
         } catch (JsonProcessingException ex) {
-            log.warn("FAQ 등록 메일 페이로드 직렬화에 실패해 기본 알림 본문을 사용합니다.", ex);
+            log.warn("문의 등록 메일 페이로드 직렬화에 실패해 기본 알림 본문을 사용합니다.", ex);
             return null;
         }
     }

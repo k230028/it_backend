@@ -18,6 +18,7 @@ import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -130,6 +131,89 @@ class CapitalProjectFormAdapterTest {
         assertThat(project.getItems())
                 .extracting(ProjectDto.BitemmDto::getSno)
                 .containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("1-2가 없고 비목 헤더도 없는 구양식은 A열 비목으로 품목을 합성한다")
+    void synthesizesSummaryItemFromLegacyFirstColumn() {
+        Map<FormSheetKind, Sheet> sheets =
+                new EnumMap<>(
+                        reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls")));
+        sheets.remove(FormSheetKind.CAPITAL_RESOURCE);
+        Sheet overview = sheets.get(FormSheetKind.CAPITAL_OVERVIEW);
+        int totalRow = scanner.findLabelRow(overview, new int[] {0, 2}, "총 계").orElseThrow();
+        overview.getRow(totalRow - 2).getCell(1).setBlank();
+        overview.getRow(totalRow - 2).createCell(0).setCellValue("개발비");
+        overview.getRow(totalRow - 2).createCell(6).setCellValue(86);
+        overview.getRow(totalRow - 1).getCell(1).setBlank();
+        overview.getRow(totalRow).getCell(6).setCellValue(86);
+
+        ProjectDto.CreateRequest project = adapter.adapt(contextOf(sheets)).projects().getFirst();
+
+        assertThat(project.getItems())
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.getIoeC()).isEqualTo("103");
+                            assertThat(item.getGclNm()).isEqualTo(project.getAbusNm());
+                            assertThat(item.getAmt()).isEqualByComparingTo("86000000");
+                        });
+    }
+
+    @Test
+    @DisplayName("자본 품목 없이 미래 일반관리비만 있으면 1-1 당해 요약 품목으로 대체한다")
+    void synthesizesSummaryWhenOnlyFutureGeneralExpenseItemsExist() {
+        Map<FormSheetKind, Sheet> sheets = legacySummaryFallbackSheets(true);
+        Sheet resource = sheets.get(FormSheetKind.CAPITAL_RESOURCE);
+        resource.getRow(10).getCell(3).setBlank();
+        resource.getRow(11).getCell(3).setBlank();
+        int generalHeader =
+                scanner.findLabelRow(resource, new int[] {7}, "연간 소요예산 (부가세포함)").orElseThrow();
+        resource.getRow(generalHeader + 1).getCell(9).setCellValue("27.2월");
+
+        ProjectDto.CreateRequest project = adapter.adapt(contextOf(sheets)).projects().getFirst();
+
+        assertThat(project.getItems())
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.getIoeC()).isEqualTo("103");
+                            assertThat(item.getAmt()).isEqualByComparingTo("100000000");
+                        });
+    }
+
+    @Test
+    @DisplayName("요약 단위를 확정하지 못하면 기존 품목과 비목 진단을 보존한다")
+    void preservesResourceDiagnosticsWhenSummaryCannotBeSynthesized() {
+        Map<FormSheetKind, Sheet> sheets = legacySummaryFallbackSheets(false);
+        Sheet resource = sheets.get(FormSheetKind.CAPITAL_RESOURCE);
+        resource.getRow(10).getCell(9).setCellValue("27.2월");
+        resource.getRow(11).getCell(9).setCellValue("27.2월");
+
+        FormAdapterOutput output = adapter.adapt(contextOf(sheets));
+
+        assertThat(output.projects().getFirst().getItems()).isNotEmpty();
+        assertThat(output.diagnostics())
+                .extracting(RequestFormDto.FormDiagnostic::code)
+                .contains(RequestFormDiagnosticCode.CODE_DEFAULTED);
+    }
+
+    private Map<FormSheetKind, Sheet> legacySummaryFallbackSheets(boolean includeSummaryUnit) {
+        Map<FormSheetKind, Sheet> sheets =
+                new EnumMap<>(
+                        reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls")));
+        Sheet overview = sheets.get(FormSheetKind.CAPITAL_OVERVIEW);
+        int totalRow = scanner.findLabelRow(overview, new int[] {0, 2}, "총 계").orElseThrow();
+        overview.getRow(totalRow - 2).getCell(1).setBlank();
+        overview.getRow(totalRow - 2).createCell(0).setCellValue("개발비");
+        overview.getRow(totalRow - 2).createCell(6).setCellValue(100);
+        overview.getRow(totalRow - 1).getCell(1).setBlank();
+        overview.getRow(totalRow).getCell(6).setCellValue(100);
+        if (!includeSummaryUnit) {
+            overview.getRow(totalRow - 3).getCell(0).setCellValue("예산 소요(상세)");
+            overview.getRow(totalRow - 4).getCell(9).setCellValue("2000");
+        }
+        return sheets;
     }
 
     @Test

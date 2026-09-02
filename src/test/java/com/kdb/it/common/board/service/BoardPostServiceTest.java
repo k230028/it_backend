@@ -533,8 +533,8 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("FAQ 게시물 등록 시 FAQ 등록 이벤트를 발행한다")
-    void createPost_faq_admin_publishesFaqEvent() {
+    @DisplayName("FAQ 게시물 등록 시 관리자 알림 이벤트를 발행하지 않는다")
+    void createPost_faq_admin_doesNotPublishNotificationEvent() {
         Cblbmm faqBoard =
                 Cblbmm.builder()
                         .blbMngNo("BLBM-0426")
@@ -556,8 +556,7 @@ class BoardPostServiceTest {
         String postId = service.createPost("BLBM-0426", request, adminUser);
 
         assertThat(postId).startsWith("NAC-");
-        verify(eventPublisher)
-                .publishEvent(isA(com.kdb.it.common.speeddial.event.FaqRegisteredEvent.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test

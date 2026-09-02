@@ -512,6 +512,12 @@ public class ProjectDto {
         @Schema(description = "IT 담당팀 코드")
         private String dvmTemC;
 
+        /**
+         * IT 담당팀명: IT부서담당팀장(DVM_TLR_USID) 소속 팀명. 팀코드는 CORGNI에 없어 CUSERI.TEM_NM으로 해석하며 미조회 시 null.
+         */
+        @Schema(description = "IT 담당팀명 (IT부서담당팀장 소속팀명)")
+        private String dvmTemNm;
+
         /** BPROJM 총소요금액 스냅샷 */
         @Schema(description = "BPROJM 총소요금액 스냅샷")
         private BigDecimal totRqmAmt;

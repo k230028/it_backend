@@ -193,6 +193,12 @@ public final class HtmlSanitizer {
         if (html == null || html.isEmpty()) {
             return html;
         }
+        // 댓글과 과거 게시글의 태그 없는 평문은 HTML 직렬화 대상이 아니다. Jsoup.clean()을
+        // 거치면 '&'가 '&amp;'로 바뀌어 Vue 보간 화면에서 엔티티 문자열이 그대로 노출된다.
+        // 태그가 없으면 실행 가능한 HTML도 없으므로 원문을 보존한다.
+        if (!html.contains("<")) {
+            return html;
+        }
         // prettyPrint=false: Jsoup 자동 줄바꿈/공백 삽입 방지 (표 구조 및 공백 보존)
         Document.OutputSettings outputSettings = new Document.OutputSettings().prettyPrint(false);
         return Jsoup.clean(html, RELATIVE_URL_BASE_URI, QUILL_SAFELIST, outputSettings);

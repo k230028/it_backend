@@ -182,6 +182,13 @@ public class ProjectQueryAssembler {
                     .findNameViewByPrlmOgzCCone(response.getSvnDpmC())
                     .ifPresent(view -> response.setSvnDpmCNm(view.getBbrNm()));
         }
+        // IT 담당팀명은 IT부서담당팀장의 소속 팀명(CUSERI.TEM_NM)이다. 팀코드는 CORGNI에 없어 조직 조회로는 얻지 못한다.
+        // applyUserName이 저장값을 이름으로 판정하면 사번을 비우므로 그 전에 해석한다.
+        if (hasText(response.getDvmTlrUsid())) {
+            userRepository
+                    .findTeamNameViewByEno(response.getDvmTlrUsid())
+                    .ifPresent(view -> response.setDvmTemNm(view.getTemNm()));
+        }
         applyUserName(
                 response.getDvmUsid(),
                 response::setDvmUsid,

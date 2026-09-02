@@ -10,7 +10,6 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.util.MentionExtractor;
 import com.kdb.it.common.notification.util.NotificationMessageFormatter;
-import com.kdb.it.common.speeddial.event.FaqRegisteredEvent;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
@@ -163,21 +162,6 @@ public class BoardPostService {
                         .build();
         post.initGroupAsRoot();
         postRepository.save(post);
-        if (BoardTypeResolver.FAQ_BOARD_TYPE.equals(board.getItPtlBlbTc())) {
-            String authorName =
-                    userRepository
-                            .findByEno(user.getEno())
-                            .map(value -> value.getUsrNm())
-                            .orElse(user.getEno());
-            eventPublisher.publishEvent(
-                    new FaqRegisteredEvent(
-                            post.getNacMngNo(),
-                            post.getNacNm(),
-                            post.getNacCone(),
-                            user.getEno(),
-                            authorName,
-                            "/board/" + blbMngNo + "?postId=" + post.getNacMngNo()));
-        }
         publishMentionNotifications(post, user.getEno(), false, request.getMentionedEnos());
         return nacMngNo;
     }
