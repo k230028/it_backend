@@ -1,6 +1,7 @@
 package com.kdb.it.common.approval.dto;
 
 import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.domain.MigrationApprovalMarker;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
@@ -45,6 +46,7 @@ import lombok.Setter;
             "rqsEno",
             "rqsDt",
             "rqsOpnn",
+            "migrated",
             "approvers"
         })
 public class ApplicationInfoDto {
@@ -82,6 +84,14 @@ public class ApplicationInfoDto {
     @Schema(description = "신청의견", nullable = true)
     private String rqsOpnn;
 
+    /**
+     * 수기 엑셀 이관으로 만들어진 신청서 기록이면 true
+     *
+     * <p>이관 건은 결재선과 신청서 본문이 없어 일반 신청서 흐름을 그대로 태우면 빈 문서가 됩니다. 상세 화면은 이 값으로 수기등록 안내를 먼저 노출합니다.
+     */
+    @Schema(description = "수기 엑셀 이관 생성 여부", requiredMode = Schema.RequiredMode.REQUIRED)
+    private boolean migrated;
+
     /** 결재자 목록 (결재순서 오름차순) */
     @Schema(description = "결재자 목록")
     private List<ApproverDto> approvers;
@@ -110,6 +120,9 @@ public class ApplicationInfoDto {
                 .rqsEno(capplm.getDcdReqUsid()) // 신청자 사번(결재요청사용자ID에서 파생)
                 .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
                 .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
+                .migrated(
+                        MigrationApprovalMarker.isMigrated(
+                                capplm.getRgprDcdReqCone())) // 수기 엑셀 이관 여부
                 .approvers(approverDtos) // 결재자 목록
                 .build();
     }
@@ -137,6 +150,7 @@ public class ApplicationInfoDto {
                 .rqsEno(application.getDcdReqUsid())
                 .rqsDt(application.getDcdReqDtm())
                 .rqsOpnn(application.getRgprDcdReqCone())
+                .migrated(MigrationApprovalMarker.isMigrated(application.getRgprDcdReqCone()))
                 .approvers(decisions.stream().map(ApproverDto::fromReadView).toList())
                 .build();
     }
