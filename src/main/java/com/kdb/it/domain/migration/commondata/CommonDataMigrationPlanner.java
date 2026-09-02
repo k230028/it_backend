@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 /**
  * 공통 데이터 이관 요청을 저장 없이 검증하고 테이블별 추가/갱신/부활 건수로 분류합니다.
  *
- * <p>Spring 빈으로만 등록될 뿐 조회·저장에는 관여하지 않습니다. Task 3의 서비스가 dry-run과 확정 반영(commit) 양쪽에서 같은 {@link
+ * <p>Spring 빈으로만 등록될 뿐 조회·저장에는 관여하지 않습니다. 이관 서비스가 dry-run과 확정 반영(commit) 양쪽에서 같은 {@link
  * #plan(CommonDataMigrationDto.Request, Snapshot)}을 호출해 동일한 검증 결과를 얻습니다.
  */
 @Component

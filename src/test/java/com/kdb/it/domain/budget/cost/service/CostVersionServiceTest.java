@@ -118,4 +118,90 @@ class CostVersionServiceTest {
 
         verify(costRepository, never()).clearCurrentVersion("COST-2027-0001", 1);
     }
+
+    @Test
+    void 개정이력을_순번순으로_조회한다() {
+        Bcostm first = Bcostm.builder().costBgNo("COST-1").bgSno(1).build();
+        Bcostm second = Bcostm.builder().costBgNo("COST-1").bgSno(2).build();
+        given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc("COST-1", "N"))
+                .willReturn(List.of(first, second));
+        CostVersionService service = service();
+
+        List<Bcostm> history = service.findHistory("COST-1");
+
+        assertThat(history).containsExactly(first, second);
+    }
+
+    @Test
+    void 관리번호와_순번이_일치하는_개정본을_조회한다() {
+        Bcostm version = Bcostm.builder().costBgNo("COST-1").bgSno(2).build();
+        given(costRepository.findByCostBgNoAndBgSnoAndDelYn("COST-1", 2, "N"))
+                .willReturn(Optional.of(version));
+        CostVersionService service = service();
+
+        Optional<Bcostm> result = service.findVersion("COST-1", 2);
+
+        assertThat(result).containsSame(version);
+    }
+
+    @Test
+    void 재상신할_최종본이_없으면_거부한다() {
+        given(costRepository.findCurrentVersionForUpdate("COST-404")).willReturn(Optional.empty());
+        CostVersionService service = service();
+
+        assertThatThrownBy(() -> service.createReapplication("COST-404"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("COST-404");
+
+        verify(applicationMapRepository, never())
+                .findLatestApplicationStatus("BCOSTM", "COST-404", null);
+    }
+
+    @Test
+    void 결재완료_상태가_아니면_재상신을_거부한다() {
+        Bcostm source =
+                Bcostm.builder().costBgNo("COST-1").bgSno(1).lstYn("Y").delYn("N").build();
+        given(costRepository.findCurrentVersionForUpdate("COST-1")).willReturn(Optional.of(source));
+        given(applicationMapRepository.findLatestApplicationStatus("BCOSTM", "COST-1", 1))
+                .willReturn(Optional.of("DRAFT"));
+        CostVersionService service = service();
+
+        assertThatThrownBy(() -> service.createReapplication("COST-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("결재 완료");
+
+        verify(costRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void 승격할_개정본이_없으면_거부한다() {
+        given(costRepository.findVersionForUpdate("COST-404", 3)).willReturn(Optional.empty());
+        CostVersionService service = service();
+
+        assertThatThrownBy(() -> service.promoteApprovedVersion("COST-404", 3))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("COST-404");
+
+        verify(costRepository, never()).clearCurrentVersion("COST-404", 3);
+    }
+
+    @Test
+    void 승격_갱신결과가_한건이_아니면_거부한다() {
+        Bcostm version = Bcostm.builder().costBgNo("COST-1").bgSno(2).build();
+        given(costRepository.findVersionForUpdate("COST-1", 2)).willReturn(Optional.of(version));
+        given(costRepository.findByCostBgNoAndLstYnAndDelYn("COST-1", "Y", "N"))
+                .willReturn(Optional.empty());
+        given(costRepository.markVersionCurrent("COST-1", 2)).willReturn(0);
+        CostVersionService service = service();
+
+        assertThatThrownBy(() -> service.promoteApprovedVersion("COST-1", 2))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("COST-1");
+
+        verify(costRepository).clearCurrentVersion("COST-1", 2);
+    }
+
+    private CostVersionService service() {
+        return new CostVersionService(costRepository, terminalRepository, applicationMapRepository);
+    }
 }

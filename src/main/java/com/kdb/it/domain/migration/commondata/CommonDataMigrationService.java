@@ -187,7 +187,7 @@ public class CommonDataMigrationService {
             List<CommonDataMigrationDto.MenuAuthRow> rows, List<Cmenua> existing) {
         // 복합키를 구분자로 문자열 결합해 만들면 필드 경계가 다른 값끼리 같은 키로 뭉칠 위험이 있다.
         // 게다가 결합에 흔히 쓰는 제어문자 이스케이프를 소스에 직접 적으면 그 이스케이프 자체가 실제
-        // 제어 바이트로 저장되는 사고가 날 수 있어(Task 2에서 실제 발생), 원소 단위 equals/hashCode를
+        // 제어 바이트로 저장되는 사고가 날 수 있어(이 기능 구현 중 실제 발생), 원소 단위 equals/hashCode를
         // 쓰는 Arrays.asList를 키로 쓴다.
         Map<List<String>, Cmenua> byKey = new HashMap<>();
         existing.forEach(a -> byKey.put(Arrays.asList(a.getMnuId(), a.getAthId()), a));

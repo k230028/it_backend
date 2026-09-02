@@ -138,12 +138,14 @@ public interface ApplicationMapRepository extends JpaRepository<Cappla, CapplaId
      * <p>원천 테이블명, PK컬럼명, 적재SNO 조건으로 Cappla와 Capplm을 조인하여 지정한 상태 목록({@code statuses})에 해당하는 신청서가
      * 존재하는지 확인합니다.
      *
-     * <p>주요 사용처: 프로젝트/전산관리비 수정·삭제 전 결재중 또는 결재완료 여부 검사
+     * <p>주요 사용처: {@link com.kdb.it.domain.budget.common.security.ApprovalWriteGuard} — 정보화사업·전산업무비
+     * 수정·삭제 전 결재중 또는 결재완료 여부 검사
      *
      * @param fntTbNm 원천 테이블명 (예: 'BPROJM')
      * @param pkColNm 원천 데이터의 PK 컬럼명
      * @param fntTbCrySno 원천 데이터의 적재 일련번호
-     * @param statuses 확인할 신청서 상태코드 목록 (예: ["01"(결재중), "02"(결재완료)])
+     * @param statuses 확인할 신청서 상태코드 목록. {@code APF_STS} 공통코드의 1자리 코드값이며 {@link
+     *     com.kdb.it.common.approval.domain.ApprovalStatus#code()}로 얻습니다 (예: ["1"(결재중), "2"(결재완료)])
      * @return 해당 조건의 신청서가 존재하면 true, 없으면 false
      */
     @Query(

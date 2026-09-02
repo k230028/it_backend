@@ -74,8 +74,8 @@ Gradle Wrapper는 9.2.1을 사용합니다. 일반 의존성은 `C:\maven-repo` 
 it_backend/
 ├── src/main/java/com/kdb/it/
 │   ├── config/       Security, JPA, QueryDSL, Swagger 설정
-│   ├── common/       인증, SSO, IAM, MFA, 결재, 게시판, 코드, 다국어, 알림, 관리자 공통 기능
-│   ├── domain/       예산, 사업계획, 협의회, 사업 집행, 메뉴, 배너, 이관(편성요청서 반입), 감사 도메인
+│   ├── common/       인증, SSO, IAM, MFA, 결재, 게시판, 코드, 다국어, 알림, 스피드다이얼, 공통 안내 팝업, 관리자 공통 기능
+│   ├── domain/       예산, 사업계획, 협의회, 사업 집행, 메뉴, 배너, 사용자가이드, 이관(편성요청서 반입·단말기 일괄 반입·공통 데이터), 감사 도메인
 │   ├── exception/    전역 예외 처리
 │   └── infra/        파일, AI, EAI 외부 연동
 ├── src/main/resources/
@@ -115,6 +115,8 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `common.board`, `common.code`, `common.admin`                                 | 공통 게시판·코드와 관리자 운영 API. `common.admin.realtime`은 감사·실시간 로그, `common.admin.waslog`는 인메모리 링버퍼 기반 WAS 로그 조회·런타임 레벨 변경 | 파일·메뉴·사용자·감사로그 등 공통 관리 기능을 조합                   |
 | `common.mfa`                                                                  | 추가 인증 거래 발급·검증·소비와 공유 저장소            | 수동 로그인과 전자결재 명령의 증표를 `common.system`·`common.approval`에 제공 |
 | `common.i18n`                                                                 | 메뉴명·공통코드 표시명 번역과 변경 이력                | 메뉴·코드 조회 응답의 표시명을 언어별로 제공                         |
+| `common.speeddial`                                                            | 전역 스피드다이얼의 FAQ 조회·Q&A 등록·담당자 정보 조회 | 전용 테이블 없이 `common.board`의 FAQ(`004`)·Q&A(`005`) 유형 게시판과 `BGDOCM` 단일 문서를 재사용 |
+| `common.popup`                                                                | 공통 안내 팝업 게시·중지와 활성 팝업 조회              | 전용 테이블 없이 `BGDOCM`의 `DOC_TTL_CONE='common.popup'` 단일 문서를 재사용 |
 | `common.notification`                                                         | 인앱 알림 저장, 소유권 검증, 채널 라우팅               | 결재·게시판 이벤트와 `infra.eai` 연결                                |
 | `domain.budget`                                                               | 정보화사업·경상사업, 전산업무비, SNO 재상신 이력, 계획, 문서 검토, 예산 현황·작업. `budget.document.formguide`는 사업 입력 길라잡이를 서버 고정 카탈로그 기준으로 등록·조회 | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
 | `domain.bizplan`                                                              | 정보기술부문 계획에 포함된 사업의 사업계획             | `budget.plan`, `budget.project`의 계획 관계·사업·품목·단계 상태 사용 |
@@ -123,7 +125,8 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `domain.menu`                                                                 | 사용자 메뉴 조회와 관리자 메뉴·라우트 관리             | 인증 주체의 권한에 맞는 프론트 메뉴 구성을 제공                      |
 | `domain.banner`                                                               | `/info` 홈 배너 등록·노출·활성 전환                    | 전용 테이블 없이 `infra.file`의 공통첨부파일을 규약(`APG_FL_KD_NM='배너'`)으로 재사용 |
 | `domain.log`                                                                  | 업무 엔티티 변경 스냅샷                                | `@LogTarget`이 지정된 엔티티의 생성·수정·논리삭제를 기록             |
-| `domain.migration`                                                            | 수기 엑셀(편성요청서) 반입 — 검증·진단, 원장 생성, 결재완료 표식, 원본 파일 보관 | `budget`의 원장(`BPROJM`·`BCOSTM`), `common.approval` 신청서, `infra.file` 첨부에 연결 |
+| `domain.migration`                                                            | 수기 엑셀(편성요청서) 반입 — 검증·진단, 원장 생성, 결재완료 표식, 원본 파일 보관. `migration.terminal`은 금융정보단말기 행을 연도별 전산업무비 원장으로 일괄 반입하고, `migration.commondata`는 메뉴·메뉴권한·경로·공통코드·다국어 5개 테이블을 개발→운영으로 내보내기·dry-run·확정 반영 | `budget`의 원장(`BPROJM`·`BCOSTM`), `common.approval` 신청서, `infra.file` 첨부, `domain.menu`·`common.code`·`common.i18n`에 연결 |
+| `domain.userguide`                                                            | 전사 공개 사용자가이드 업로드·내려받기·이력 되돌리기   | 전용 테이블 없이 `infra.file`의 공통첨부파일을 규약(`APG_FL_KD_NM='사용자가이드'`)으로 재사용하고 활성 파일을 항상 0건 또는 1건으로 유지 |
 | `infra.file`, `infra.eai`, `infra.ai`                                         | 파일 저장, 표준전문 외부 전송, Gemini 연동. `infra.file.authz`는 첨부파일 종류별 읽기·쓰기 판정기를 등록해 부모 자원 권한으로 접근을 판정 | 공통·도메인 서비스가 외부 자원을 사용할 때 호출                      |
 
 ## 예산 재상신 버전 흐름

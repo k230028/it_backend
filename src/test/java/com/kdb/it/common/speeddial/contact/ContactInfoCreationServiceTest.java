@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
@@ -41,5 +42,27 @@ class ContactInfoCreationServiceTest {
         assertThat(saved.getDocMngNo()).isEqualTo("GDOC-" + LocalDate.now().getYear() + "-0017");
         assertThat(saved.getDocTtlCone()).isEqualTo(ContactInfoService.DOCUMENT_IDENTIFIER);
         assertThat(response.docMngNo()).isEqualTo(saved.getDocMngNo());
+    }
+
+    @Test
+    void 기존_담당자_문서가_있으면_내용을_갱신한다() {
+        Bgdocm existing =
+                Bgdocm.builder()
+                        .docMngNo("GDOC-2026-0001")
+                        .docTtlCone(ContactInfoService.DOCUMENT_IDENTIFIER)
+                        .nacTxtInf("<p>기존</p>")
+                        .build();
+        given(
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                .willReturn(Optional.of(existing));
+
+        ContactInfoDto.Response response =
+                contactInfoCreationService.createContactInfo("<p>변경</p>");
+
+        assertThat(existing.getNacTxtInf()).isEqualTo("<p>변경</p>");
+        assertThat(response.docMngNo()).isEqualTo("GDOC-2026-0001");
+        assertThat(response.contentHtml()).isEqualTo("<p>변경</p>");
+        verify(guideDocRepository, never()).saveAndFlush(any(Bgdocm.class));
     }
 }

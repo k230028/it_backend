@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -846,5 +847,24 @@ class ProjectQueryAssemblerTest {
         assertThat(result.getApfSts()).isNull();
         assertThat(result.getApfMngNo()).isNull();
         assertThat(result.getApplicationInfo()).isNull();
+    }
+
+    @Test
+    @DisplayName("배치 조립: 빈 목록은 연관 조회 없이 빈 응답을 반환한다")
+    void assembleBatch_빈목록_빈응답() {
+        assertThat(assembler.assembleList(List.of())).isEmpty();
+        assertThat(assembler.assembleBulk(List.of(), "2027")).isEmpty();
+
+        then(applicationMapRepository).shouldHaveNoInteractions();
+        then(itemRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("배치 조립: null 목록은 계약 위반으로 즉시 실패한다")
+    void assembleBatch_null목록_실패() {
+        assertThatThrownBy(() -> assembler.assembleList(null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> assembler.assembleBulk(null, "2027"))
+                .isInstanceOf(NullPointerException.class);
     }
 }

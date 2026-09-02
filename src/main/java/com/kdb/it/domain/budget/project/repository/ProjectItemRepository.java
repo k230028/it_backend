@@ -95,16 +95,9 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
             String prjMngNo, Integer prjSno, String delYn, String lstYn);
 
     /**
-     * Oracle 시퀀스(SQ_TPRMPP_BITEMM_1) 다음 값 조회
-     *
-     * <p>신규 품목 생성 시 품목관리번호(GCL_MNG_NO) 채번에 사용합니다. Oracle DB 전용 Native Query입니다.
-     *
-     * @return 시퀀스의 다음 값 (Long)
-     */
-    /**
      * 품목관리번호로 품목 조회 (삭제되지 않은 항목)
      *
-     * <p>BBUGTM에서 ORC_PK_VL(gclMngNo)로 원본 품목을 역추적하여 소속 프로젝트(prjMngNo)를 확인하는 데 사용됩니다.
+     * <p>BBUGTM에서 PK_COL_NM(원본PK값, 여기서는 gclMngNo)로 원본 품목을 역추적하여 소속 사업(abusMngNo)을 확인하는 데 사용됩니다.
      *
      * @param gclMngNo 품목관리번호
      * @param delYn 삭제 여부 ('N'=미삭제)
@@ -186,6 +179,13 @@ public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
      */
     List<Bitemm> findByAbusMngNoAndDelYnAndLstYn(String prjMngNo, String delYn, String lstYn);
 
+    /**
+     * Oracle 시퀀스(SQ_TPRMPP_BITEMM_1) 다음 값 조회
+     *
+     * <p>신규 품목 생성 시 품목관리번호(GCL_MNG_NO) 채번에 사용합니다. Oracle DB 전용 Native Query입니다.
+     *
+     * @return 시퀀스의 다음 값 (Long)
+     */
     @org.springframework.data.jpa.repository.Query(
             value = "SELECT SQ_TPRMPP_BITEMM_1.NEXTVAL FROM DUAL",
             nativeQuery = true)

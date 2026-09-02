@@ -841,6 +841,55 @@ class CostServiceTest {
         assertThat(captor.getValue().getCostSvnDpmC()).isEqualTo("999");
     }
 
+    @Test
+    @DisplayName("countCostList: 인증 정보가 없으면 거부한다")
+    void countCostList_미인증_거부() {
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+
+        assertThatThrownBy(() -> costService.countCostList(condition, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("countCostList: 전체보기 관리자는 부서 조건을 덮어쓰지 않는다")
+    void countCostList_관리자_전체집계() {
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setCostSvnDpmC("999");
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "101");
+        given(costRepository.countBySearchCondition(condition)).willReturn(17L);
+
+        long result = costService.countCostList(condition, admin);
+
+        assertThat(result).isEqualTo(17L);
+        assertThat(condition.getCostSvnDpmC()).isEqualTo("999");
+    }
+
+    @Test
+    @DisplayName("countCostList: 부서 제한 사용자의 부점코드가 없으면 0을 반환한다")
+    void countCostList_부점코드없음_0() {
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), null);
+
+        assertThat(costService.countCostList(condition, user)).isZero();
+        verify(costRepository, never()).countBySearchCondition(any());
+    }
+
+    @Test
+    @DisplayName("countCostList: 일반 사용자는 본인 부서로 집계한다")
+    void countCostList_일반사용자_본인부서집계() {
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+        given(costRepository.countBySearchCondition(condition)).willReturn(9L);
+
+        long result = costService.countCostList(condition, user);
+
+        assertThat(result).isEqualTo(9L);
+        assertThat(condition.getCostSvnDpmC()).isEqualTo("101");
+    }
+
     // ───────────────────────────────────────────────────────
     // getCost — 정상 조회
     // ───────────────────────────────────────────────────────
@@ -862,6 +911,32 @@ class CostServiceTest {
         CostDto.Response result = costService.getCost(IT_MNGC_NO);
 
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getCost: 관리번호와 순번이 일치하는 개정본을 부서 권한으로 조회한다")
+    void getCost_명시순번_부서일치() {
+        Bcostm revision =
+                Bcostm.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .bgSno(2)
+                        .costSvnDpmC("101")
+                        .delYn("N")
+                        .build();
+        given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+                .willReturn(Optional.of(revision));
+        given(
+                        capplaRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                                "BCOSTM", IT_MNGC_NO, 2))
+                .willReturn(List.of());
+        given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+                .willReturn(List.of());
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+
+        CostDto.Response result = costService.getCost(IT_MNGC_NO, 2, user);
+
+        assertThat(result.getBgSno()).isEqualTo(2);
     }
 
     @Test

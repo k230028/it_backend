@@ -141,8 +141,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     /**
      * Oracle 시퀀스(SQ_TPRMPP_CAPPLM_1) 다음 값 조회
      *
-     * <p>신청서 생성 시 신청서관리번호(APF_MNG_NO) 채번에 사용합니다. 형식: {@code APF_{연도}{String.format("%08d", seq)}}
-     * 예: {@code APF_202600000001}
+     * <p>신청서 생성 시 신청서관리번호 채번에 사용합니다. 물리 컬럼은 {@code APF_DCM_NO}(신청서식별번호)입니다. 형식: {@code
+     * APF-{연도}-{8자리 시퀀스}} 예: {@code APF-2026-00000001}
      *
      * <p>Oracle DB 전용 Native Query입니다.
      *
@@ -155,7 +155,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      * 본인에게 온 결재 대기 건수 (APF_STS='결재중' AND 결재선 미처리)
      *
      * <p>신청서 단위 카운트입니다. 동일 신청서에서 같은 결재자가 1차·2차에 모두 지정된 경우 결재선(TPRMPP_CDECIM) 행은 2건이지만, "동일 결재자 연속
-     * 등장 시 일괄 승인" 규칙에 따라 결재 행위는 1건이므로 신청서(APF_MNG_NO) 기준으로 DISTINCT 집계합니다.
+     * 등장 시 일괄 승인" 규칙에 따라 결재 행위는 1건이므로 신청서식별번호(APF_DCM_NO) 기준으로 DISTINCT 집계합니다.
      */
     @Query(
             value =

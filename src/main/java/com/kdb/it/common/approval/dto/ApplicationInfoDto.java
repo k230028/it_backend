@@ -51,7 +51,7 @@ import lombok.Setter;
         })
 public class ApplicationInfoDto {
 
-    /** 신청서관리번호 (APF_MNG_NO) */
+    /** 신청서관리번호. 물리 컬럼은 APF_DCM_NO(신청서식별번호)입니다. */
     @Schema(description = "신청서관리번호")
     private String apfMngNo;
 

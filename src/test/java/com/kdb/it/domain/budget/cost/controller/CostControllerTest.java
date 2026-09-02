@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,6 +21,7 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import java.util.List;
@@ -90,6 +92,41 @@ class CostControllerTest {
     void getCost_인증_200() throws Exception {
         given(costService.getCost(eq("COST_2026_0001"), any())).willReturn(new CostDto.Response());
         mockMvc.perform(get("/api/cost/COST_2026_0001")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /api/cost/{itMngcNo}?sno=2 - 지정한 개정본을 조회한다")
+    void getCost_순번지정_200() throws Exception {
+        given(costService.getCost(eq("COST_2026_0001"), eq(2), any()))
+                .willReturn(new CostDto.Response());
+
+        mockMvc.perform(
+                        get("/api/cost/COST_2026_0001")
+                                .param("sno", "2")
+                                .with(authentication(adminAuthentication())))
+                .andExpect(status().isOk());
+
+        verify(costService).getCost(eq("COST_2026_0001"), eq(2), any());
+    }
+
+    @Test
+    @DisplayName("GET /api/cost/{itMngcNo}/history - 각 순번의 상세를 반환한다")
+    void getHistory_개정이력_200() throws Exception {
+        given(costVersionService.findHistory("COST_2026_0001"))
+                .willReturn(
+                        List.of(
+                                Bcostm.builder().costBgNo("COST_2026_0001").bgSno(1).build(),
+                                Bcostm.builder().costBgNo("COST_2026_0001").bgSno(2).build()));
+        given(costService.getCost(eq("COST_2026_0001"), eq(1), any()))
+                .willReturn(new CostDto.Response());
+        given(costService.getCost(eq("COST_2026_0001"), eq(2), any()))
+                .willReturn(new CostDto.Response());
+
+        mockMvc.perform(
+                        get("/api/cost/COST_2026_0001/history")
+                                .with(authentication(adminAuthentication())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
@@ -166,6 +203,24 @@ class CostControllerTest {
     }
 
     @Test
+    @DisplayName("PUT /api/cost/{itMngcNo}?sno=2 - 지정한 개정본을 수정한다")
+    void updateCost_순번지정_200() throws Exception {
+        given(costService.updateCost(eq("COST_2026_0001"), eq(2), any()))
+                .willReturn("COST_2026_0001");
+        var body = new CostDto.UpdateRequest();
+
+        mockMvc.perform(
+                        put("/api/cost/COST_2026_0001")
+                                .param("sno", "2")
+                                .with(authentication(adminAuthentication()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk());
+
+        verify(costService).updateCost(eq("COST_2026_0001"), eq(2), any());
+    }
+
+    @Test
     @DisplayName("PUT /api/cost/{itMngcNo} - 필수 필드 누락 → 400")
     @WithMockUser(username = "10001")
     void updateCost_필수필드누락_400() throws Exception {
@@ -201,6 +256,18 @@ class CostControllerTest {
     }
 
     @Test
+    @DisplayName("DELETE /api/cost/{itMngcNo}?sno=2 - 지정한 개정본을 삭제한다")
+    void deleteCost_순번지정_204() throws Exception {
+        mockMvc.perform(
+                        delete("/api/cost/COST_2026_0001")
+                                .param("sno", "2")
+                                .with(authentication(adminAuthentication())))
+                .andExpect(status().isNoContent());
+
+        verify(costService).deleteCost("COST_2026_0001", 2);
+    }
+
+    @Test
     @DisplayName("POST /api/cost/bulk-get - 인증된 사용자 → 200 + items/failedIds 반환")
     @WithMockUser(username = "10001")
     void getCostsByIds_인증_200() throws Exception {
@@ -215,5 +282,18 @@ class CostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.failedIds").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /api/cost/terminals/service-names - 단말기 종류를 서비스에 전달한다")
+    void getTerminalServiceNames_종류지정_200() throws Exception {
+        given(costService.getTerminalServiceNames("01")).willReturn(List.of("네트워크 서비스"));
+
+        mockMvc.perform(
+                        get("/api/cost/terminals/service-names")
+                                .param("tmnClsfC", "01")
+                                .with(authentication(adminAuthentication())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("네트워크 서비스"));
     }
 }

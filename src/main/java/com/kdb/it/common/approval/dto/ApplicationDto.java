@@ -309,7 +309,7 @@ public class ApplicationDto {
         /** 기본 생성자 — Jackson 역직렬화용. */
         public BulkGetRequest() {}
 
-        /** 조회할 신청관리번호 목록 (예: ["APF_202600000001", "APF_202600000002"]) */
+        /** 조회할 신청관리번호 목록 (예: ["APF-2026-00000001", "APF-2026-00000002"]) */
         @Schema(description = "조회할 신청관리번호 목록")
         private List<String> apfMngNos;
     }
@@ -353,7 +353,7 @@ public class ApplicationDto {
                 "approvers"
             })
     public static class Response {
-        /** 신청관리번호 (PK, 예: "APF_202600000001") */
+        /** 신청관리번호 (PK, 예: "APF-2026-00000001") */
         @Schema(description = "신청관리번호")
         private String apfMngNo;
 

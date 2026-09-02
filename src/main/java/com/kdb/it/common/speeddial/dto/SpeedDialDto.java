@@ -27,7 +27,7 @@ public final class SpeedDialDto {
             boolean privatePost,
             @NotBlank @Size(max = 4000) String content) {
 
-        /** 기존 내부 호출이 문의 제목 없이도 컴파일되도록 화면명을 제목으로 보완합니다. */
+        /** 테스트 편의용 축약 생성자입니다. 화면명을 문의 제목으로 채웁니다. 운영 경로는 정규 생성자만 사용합니다. */
         public QnaCreateRequest(
                 String screenName, String screenUrl, String category, String content) {
             this(screenName, screenName, screenUrl, category, false, content);

@@ -122,17 +122,6 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
     Optional<Basctm> findByIdForUpdate(@Param("itPtlAsctId") String itPtlAsctId);
 
     /**
-     * 사업 PRJ_STS 업데이트 (협의회 신청 시 상태 전이용)
-     *
-     * <p><b>주의(영속성 컨텍스트 초기화)</b>: {@code clearAutomatically = true}로 인해 이 메서드 실행 직후 영속성 컨텍스트가
-     * 비워집니다. 따라서 동일 트랜잭션에서 이 호출 이후에 수행하는 {@link Basctm} 등 엔티티 변경은 Dirty Checking 대상에서 제외되어 DB에 반영되지
-     * 않습니다. 같은 트랜잭션의 Basctm 변경은 반드시 명시적으로 {@code save()}하거나, 이 호출보다 먼저 수행해야 합니다.
-     *
-     * @param abusMngNo 프로젝트관리번호
-     * @param sno 프로젝트순번
-     * @param prjSts 변경할 상태값
-     */
-    /**
      * 소관부서(BBR_C) 기준 협의회 목록 조회 (일반사용자용)
      *
      * <p>ITPZZ001 권한 사용자는 자신의 소속 부서 사업에 해당하는 협의회만 조회합니다. BPROJM과 조인하여 사업 주관부서 기준으로 필터링합니다.

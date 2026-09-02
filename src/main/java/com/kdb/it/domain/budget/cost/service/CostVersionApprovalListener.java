@@ -17,6 +17,14 @@ public class CostVersionApprovalListener {
     private final ApplicationMapRepository applicationMapRepository;
     private final CostVersionService costVersionService;
 
+    /**
+     * 결재 완료 신청서가 가리키는 전산업무비의 정확한 개정본만 최종본(LST_YN='Y')으로 승격합니다.
+     *
+     * <p>신청서 상태가 "결재완료"가 아니면(반려·회수 등) 아무것도 하지 않습니다. 원 업무와 함께 반영되어야 하므로 동기 {@link EventListener}로 같은
+     * 트랜잭션에서 처리합니다.
+     *
+     * @param event 결재 상태 변경 이벤트
+     */
     @EventListener
     @Transactional
     public void handleApprovalCompleted(ApprovalCompletedEvent event) {

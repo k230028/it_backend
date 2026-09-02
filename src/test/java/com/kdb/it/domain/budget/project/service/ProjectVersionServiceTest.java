@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -280,5 +281,73 @@ class ProjectVersionServiceTest {
 
         assertThat(result.sno()).isEqualTo(5);
         assertThat(result.lstYn()).isEqualTo("N");
+    }
+
+    @Test
+    @DisplayName("최종본이 없으면 재신청을 거부한다")
+    void 재신청_최종본없음_거부() {
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-404"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createReapplication("PRJ-404"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("PRJ-404");
+    }
+
+    @Test
+    @DisplayName("주관부서가 빈 최종본은 재신청하지 못한다")
+    void 재신청_주관부서빈값_거부() {
+        Bprojm source =
+                Bprojm.builder().abusMngNo("PRJ-1").sno(1).svnDpmC(" ").lstYn("Y").build();
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-1"))
+                .willReturn(Optional.of(source));
+
+        assertThatThrownBy(() -> service.createReapplication("PRJ-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("주관부서");
+
+        verify(applicationMapRepository, never())
+                .findLatestApplicationStatus("BPROJM", "PRJ-1", 1);
+    }
+
+    @Test
+    @DisplayName("같은 부서 사용자는 권한 검증 후 재신청한다")
+    void 재신청_같은부서_허용() {
+        Bprojm source =
+                Bprojm.builder().abusMngNo("PRJ-1").sno(1).svnDpmC("D001").lstYn("Y").build();
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-1"))
+                .willReturn(Optional.of(source));
+        given(applicationMapRepository.findLatestApplicationStatus("BPROJM", "PRJ-1", 1))
+                .willReturn(Optional.of(ApprovalStatus.COMPLETED.code()));
+        given(projectRepository.getNextVersionSno("PRJ-1")).willReturn(2);
+        CustomUserDetails actor =
+                new CustomUserDetails("10001", java.util.List.of(CustomUserDetails.ATH_USER), "D001");
+
+        ProjectVersionService.ProjectVersion result = service.createReapplication("PRJ-1", actor);
+
+        assertThat(result.sno()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 개정 순번은 빈 결과로 반환한다")
+    void 개정본_미존재_빈결과() {
+        given(projectRepository.findByAbusMngNoAndSnoAndDelYn("PRJ-1", 99, "N"))
+                .willReturn(Optional.empty());
+
+        assertThat(service.findVersion("PRJ-1", 99)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("현재 최종본과 같은 순번의 승격은 허용한다")
+    void 승격_현재순번과같음_허용() {
+        Bprojm target = Bprojm.builder().abusMngNo("PRJ-1").sno(2).lstYn("Y").build();
+        given(projectRepository.findVersionForUpdate("PRJ-1", 2)).willReturn(Optional.of(target));
+        given(projectRepository.findByAbusMngNoAndLstYnAndDelYn("PRJ-1", "Y", "N"))
+                .willReturn(Optional.of(target));
+        given(projectRepository.markVersionCurrent("PRJ-1", 2)).willReturn(1);
+
+        service.promoteApprovedVersion("PRJ-1", 2);
+
+        verify(projectRepository).clearCurrentVersion("PRJ-1", 2);
     }
 }

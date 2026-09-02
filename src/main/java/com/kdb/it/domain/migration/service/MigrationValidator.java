@@ -322,13 +322,6 @@ public class MigrationValidator {
     }
 
     /**
-     * 위임예산 시트 첫 행의 부점명을 확인합니다.
-     *
-     * <p>부점명은 병합 셀이라 이어지는 행에서 비는 것이 정상입니다(forward-fill 대상). 그러나 첫 행부터 비어 있으면 이후 행 전부를 귀속시킬 사업이 없으므로
-     * 시트 단위 BLOCKER로 막습니다. 행별 검사({@link #validateDelegatedRowAlways})는 이 전제를 알고 부점명을 필수값으로 요구하지
-     * 않습니다.
-     */
-    /**
      * 부점 그룹마다 담당자 지정 여부를 확인합니다 (MIG-03).
      *
      * <p>위임예산 시트에는 담당자 열이 없어 어댑터가 업로드 사용자를 담당자·IT담당자로 넣습니다. 그러면 원장에 실제 담당자가 아닌 이름이 남으므로 미리보기에서 고를 수
@@ -383,6 +376,13 @@ public class MigrationValidator {
         }
     }
 
+    /**
+     * 위임예산 시트 첫 행의 부점명을 확인합니다.
+     *
+     * <p>부점명은 병합 셀이라 이어지는 행에서 비는 것이 정상입니다(forward-fill 대상). 그러나 첫 행부터 비어 있으면 이후 행 전부를 귀속시킬 사업이 없으므로
+     * 시트 단위 BLOCKER로 막습니다. 행별 검사({@link #validateDelegatedRowAlways})는 이 전제를 알고 부점명을 필수값으로 요구하지
+     * 않습니다.
+     */
     private void checkDelegatedFirstBranch(
             MigrationDto.SheetPayload sheet,
             Map<String, String> overrides,

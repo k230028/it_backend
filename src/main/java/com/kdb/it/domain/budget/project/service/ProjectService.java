@@ -552,17 +552,6 @@ public class ProjectService {
     }
 
     /**
-     * 담당자 사번(eno)으로 소속 팀 스냅샷(팀코드 + 팀명)을 조회한다.
-     *
-     * <p>주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C)는 {@code CUSERI.TEM_C}, 주관팀명(SVN_TEM_NM)은 {@code
-     * CUSERI.TEM_NM}에서 직접 가져온다. 팀코드는 조직마스터(CORGNI)에 등재되지 않아 CORGNI 조회로는 팀명을 얻을 수 없으므로, 담당자 레코드의 팀명을
-     * 그대로 저장 시점 스냅샷으로 사용한다. 담당자 미지정(사번 null/공백)이거나 CUSERI 미조회 시 팀코드·팀명 모두 {@code null}이다(대상 컬럼
-     * nullable).
-     *
-     * @param eno 담당자 사번 (null/공백 허용)
-     * @return 소속 팀 스냅샷. eno가 비었거나 사용자 미조회 시 {@link TeamSnapshot#EMPTY}
-     */
-    /**
      * 담당자 표시명을 해석한다.
      *
      * <p>이 컬럼들은 사번 <b>또는 이름</b>을 담으므로({@code Bprojm} 주석) {@link UserNameResolver}에 판정을 맡긴다. 퇴사 등으로
@@ -580,6 +569,17 @@ public class ProjectService {
         return UserNameResolver.resolve(storedValue, lookedUp);
     }
 
+    /**
+     * 담당자 사번(eno)으로 소속 팀 스냅샷(팀코드 + 팀명)을 조회한다.
+     *
+     * <p>주관팀코드(SVN_TEM_C)/개발팀코드(DVM_TEM_C)는 {@code CUSERI.TEM_C}, 주관팀명(SVN_TEM_NM)은 {@code
+     * CUSERI.TEM_NM}에서 직접 가져온다. 팀코드는 조직마스터(CORGNI)에 등재되지 않아 CORGNI 조회로는 팀명을 얻을 수 없으므로, 담당자 레코드의 팀명을
+     * 그대로 저장 시점 스냅샷으로 사용한다. 담당자 미지정(사번 null/공백)이거나 CUSERI 미조회 시 팀코드·팀명 모두 {@code null}이다(대상 컬럼
+     * nullable).
+     *
+     * @param eno 담당자 사번 (null/공백 허용)
+     * @return 소속 팀 스냅샷. eno가 비었거나 사용자 미조회 시 {@link TeamSnapshot#EMPTY}
+     */
     private TeamSnapshot resolveTeam(String eno) {
         if (eno == null || eno.isBlank()) {
             return TeamSnapshot.EMPTY;

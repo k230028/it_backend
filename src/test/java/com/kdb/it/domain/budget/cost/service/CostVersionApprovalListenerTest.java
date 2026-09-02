@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.service;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
@@ -33,5 +34,14 @@ class CostVersionApprovalListenerTest {
         listener.handleApprovalCompleted(new ApprovalCompletedEvent("APF-1", "결재완료"));
 
         verify(costVersionService).promoteApprovedVersion("COST-1", 3);
+    }
+
+    @Test
+    void 결재완료가_아닌_상태는_무시한다() {
+        ApprovalCompletedEvent event = new ApprovalCompletedEvent("APF-1", "반려");
+
+        listener.handleApprovalCompleted(event);
+
+        verifyNoInteractions(applicationMapRepository, costVersionService);
     }
 }
