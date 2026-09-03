@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.controller;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
 import com.kdb.it.common.approval.service.ApprovalLineManagementService;
+import com.kdb.it.common.approval.service.ApprovalLineSuggestionService;
 import com.kdb.it.common.approval.service.PendingApproverService;
 import com.kdb.it.common.mfa.domain.MfaPurpose;
 import com.kdb.it.common.mfa.security.MfaRequired;
@@ -56,6 +57,8 @@ public class ApplicationController {
     private final PendingApproverService pendingApproverService;
 
     private final ApprovalLineManagementService approvalLineManagementService;
+
+    private final ApprovalLineSuggestionService approvalLineSuggestionService;
 
     /**
      * 전체 신청서 목록 조회
@@ -113,6 +116,23 @@ public class ApplicationController {
             @RequestParam(value = "apfSts", required = false) String apfSts,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(applicationService.getPendingCount(bgYy, apfSts, user));
+    }
+
+    /**
+     * 결재라인 자동지정 제안
+     *
+     * <p>로그인 사용자를 기안자로 보고 동일팀 팀장·CO(1차), 동일부점 부점장급(2차)을 직위코드로 찾아 돌려줍니다. 국외점포는 빈 결과입니다.
+     *
+     * @param auth 인증 주체 (사번)
+     * @return HTTP 200 + 제안 결과
+     */
+    @GetMapping("/approval-line/suggestion")
+    @Operation(
+            summary = "결재라인 자동지정 제안",
+            description = "국내점포 기안자의 1차(동일팀 팀장·CO)·2차(동일부점 부점장급) 결재자를 직위코드로 제안합니다.")
+    public ResponseEntity<ApplicationDto.ApprovalLineSuggestion> suggestApprovalLine(
+            Authentication auth) {
+        return ResponseEntity.ok(approvalLineSuggestionService.suggest(auth.getName()));
     }
 
     /**

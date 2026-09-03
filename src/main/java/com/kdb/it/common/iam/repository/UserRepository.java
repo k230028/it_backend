@@ -296,4 +296,29 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
      * @return 미삭제 사용자 목록
      */
     List<CuserI> findByDelYn(String delYn);
+
+    /**
+     * 같은 부점·같은 팀에서 지정한 직위코드를 가진 재직자를 조회합니다 (1차 결재자 후보).
+     *
+     * @param bbrC 부점코드
+     * @param temC 팀코드
+     * @param ptCs 직위코드 목록
+     * @param delYn 삭제여부 ('N'=재직)
+     * @return 후보 목록 (조직 정보 포함)
+     */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "organization")
+    java.util.List<CuserI> findByBbrCAndTemCAndPtCInAndDelYn(
+            String bbrC, String temC, Collection<String> ptCs, String delYn);
+
+    /**
+     * 같은 부점에서 지정한 직위코드를 가진 재직자를 조회합니다 (2차 결재자 후보).
+     *
+     * @param bbrC 부점코드
+     * @param ptCs 직위코드 목록
+     * @param delYn 삭제여부 ('N'=재직)
+     * @return 후보 목록 (조직 정보 포함)
+     */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "organization")
+    java.util.List<CuserI> findByBbrCAndPtCInAndDelYn(
+            String bbrC, Collection<String> ptCs, String delYn);
 }

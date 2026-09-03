@@ -1,7 +1,5 @@
 package com.kdb.it.common.approval.dto;
 
-import com.kdb.it.common.approval.domain.DecisionStatus;
-import com.kdb.it.common.approval.domain.MigrationApprovalMarker;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
@@ -444,29 +442,7 @@ public class ApplicationDto {
          */
         public static Response fromEntity(
                 Capplm capplm, List<Cdecim> approvers, String requesterNm, String requesterBbrNm) {
-            return Response.builder()
-                    .apfMngNo(capplm.getApfMngNo()) // 신청관리번호
-                    .apfNm(capplm.getDcdReqTtl()) // 신청서명(결재요청제목에서 파생)
-                    .apfDtlCone(capplm.getDcdReqInf()) // 신청서세부내용(결재요청정보에서 파생)
-                    .apfSts(
-                            capplm.getItPtlApfPrgStsC() == null
-                                    ? null
-                                    : com.kdb.it.common.approval.domain.ApprovalStatus.ofCode(
-                                                    capplm.getItPtlApfPrgStsC())
-                                            .label()) // 신청상태(라벨, 코드에서 파생)
-                    .apfStsC(capplm.getItPtlApfPrgStsC()) // 신청상태코드
-                    .rqsEno(capplm.getDcdReqUsid()) // 신청자 사원번호(결재요청사용자ID에서 파생)
-                    .rqsNm(requesterNm) // 신청자명
-                    .rqsBbrC(capplm.getDcdReqBbrC()) // 신청부서코드
-                    .rqsBbrNm(requesterBbrNm) // 신청부서명
-                    .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
-                    .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
-                    .migrated(MigrationApprovalMarker.isMigrated(capplm.getRgprDcdReqCone()))
-                    .approvers(
-                            approvers.stream()
-                                    .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환
-                                    .toList())
-                    .build();
+            return ApplicationDtoSupport.toResponse(capplm, approvers, requesterNm, requesterBbrNm);
         }
 
         /**
@@ -755,27 +731,43 @@ public class ApplicationDto {
          * @return 변환된 결재자 응답 DTO
          */
         public static ApproverResponse fromEntity(Cdecim cdecim) {
-            return ApproverResponse.builder()
-                    .dcdSqn(cdecim.getDcrSqnSno()) // 결재순번
-                    .dcdEno(cdecim.getDcrEno()) // 결재자 사원번호
-                    // 결재유형: 미결재(001) 또는 null이면 null, 그 외는 "결재"로 표시
-                    .dcdTp(
-                            cdecim.getItPtlDcdStsC() == null
-                                            || DecisionStatus.isPendingCode(
-                                                    cdecim.getItPtlDcdStsC())
-                                    ? null
-                                    : "결재")
-                    .dcdDt(cdecim.getDcdDtm()) // 결재일자
-                    .dcdOpnn(cdecim.getDcrOpnnCone()) // 결재의견
-                    // 결재상태: 코드 → 라벨 변환 (미결재/null이면 null)
-                    .dcdSts(
-                            cdecim.getItPtlDcdStsC() == null
-                                            || DecisionStatus.isPendingCode(
-                                                    cdecim.getItPtlDcdStsC())
-                                    ? null
-                                    : DecisionStatus.ofCode(cdecim.getItPtlDcdStsC()).label())
-                    .lstDcdYn(cdecim.getLstDcdYn()) // 최종결재자여부
-                    .build();
+            return ApplicationDtoSupport.toApproverResponse(cdecim);
+        }
+    }
+
+    /** 결재라인 자동지정 제안 응답입니다. 비운 차수는 사유를 함께 돌려줍니다. */
+    @Getter
+    @Builder
+    @Schema(name = "ApplicationApprovalLineSuggestion", description = "결재라인 자동지정 제안")
+    public static class ApprovalLineSuggestion {
+        /** 차수를 비운 이유 */
+        public enum SuggestionReason {
+            /** 후보 없음 */
+            NONE,
+            /** 후보 2명 이상 */
+            MULTIPLE,
+            /** 1차 결재자와 같은 사람 */
+            DUPLICATE
+        }
+
+        @Schema(description = "국외점포라 자동지정하지 않았으면 true", requiredMode = Schema.RequiredMode.REQUIRED)
+        private boolean foreignBranch;
+
+        @Schema(description = "1차 결재자 (동일팀 팀장·CO)", nullable = true)
+        private com.kdb.it.common.iam.dto.UserDto.ListResponse teamLead;
+
+        @Schema(description = "2차 결재자 (동일부점 부·실·지점장, 국장, 센터장, 사장)", nullable = true)
+        private com.kdb.it.common.iam.dto.UserDto.ListResponse deptHead;
+
+        @Schema(description = "1차를 비운 이유", nullable = true)
+        private SuggestionReason teamLeadReason;
+
+        @Schema(description = "2차를 비운 이유", nullable = true)
+        private SuggestionReason deptHeadReason;
+
+        /** 국외점포 응답 (자동지정 없음) */
+        public static ApprovalLineSuggestion foreign() {
+            return ApprovalLineSuggestion.builder().foreignBranch(true).build();
         }
     }
 }

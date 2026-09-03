@@ -66,4 +66,10 @@ public final class CommonCodeGroups {
 
     /** 예산 신청기간 (불변) */
     public static final String BUDGET_RQS = "BG_RQS";
+
+    /** 결재자직위코드 — 전산예산 결재라인 자동지정. CDVA=PT_C, CO_CDVA_NM=차수(1/2) */
+    public static final String APF_DCR_PT = "IT_PTL_APF_DCR_PT_C";
+
+    /** 산정근거구분코드 — 소요자원 산정근거 선택지 */
+    public static final String CNCD_FDTN = "IT_PTL_CNCD_FDTN_TC";
 }

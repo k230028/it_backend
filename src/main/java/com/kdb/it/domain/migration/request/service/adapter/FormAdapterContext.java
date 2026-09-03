@@ -35,9 +35,6 @@ public record FormAdapterContext(
         Map<String, String> overrides,
         String actorEno) {
 
-    /** 국외 부점 부서코드의 앞자리. 실측 조직표에서 `9**`가 국외 점포입니다. */
-    private static final String FOREIGN_DEPT_PREFIX = "9";
-
     /**
      * 국외 부점인지 판정합니다.
      *
@@ -50,7 +47,7 @@ public record FormAdapterContext(
      * @return 국외 부점이면 true. 부서코드가 없으면 국내로 봅니다
      */
     public boolean foreignBranch() {
-        return resolvedDeptCode != null && resolvedDeptCode.startsWith(FOREIGN_DEPT_PREFIX);
+        return com.kdb.it.common.iam.BranchCodes.isForeign(resolvedDeptCode);
     }
 
     /**

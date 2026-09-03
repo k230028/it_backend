@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.service.ApplicationService;
 import com.kdb.it.common.approval.service.ApprovalLineManagementService;
+import com.kdb.it.common.approval.service.ApprovalLineSuggestionService;
 import com.kdb.it.common.approval.service.PendingApproverService;
 import com.kdb.it.common.mfa.security.MfaGuardConfiguration;
 import com.kdb.it.common.mfa.service.MfaService;
@@ -67,6 +68,7 @@ class ApplicationControllerTest {
     @MockitoBean private ApplicationService applicationService;
     @MockitoBean private PendingApproverService pendingApproverService;
     @MockitoBean private ApprovalLineManagementService approvalLineManagementService;
+    @MockitoBean private ApprovalLineSuggestionService approvalLineSuggestionService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
     @MockitoBean private MfaService mfaService;
@@ -653,5 +655,23 @@ class ApplicationControllerTest {
 
         verify(approvalLineManagementService, never())
                 .deleteApprover(anyString(), anyInt(), anyString(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("GET /api/applications/approval-line/suggestion - 비인증 → 401")
+    void suggestApprovalLine_비인증_401() throws Exception {
+        mockMvc.perform(get("/api/applications/approval-line/suggestion"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/applications/approval-line/suggestion - 인증 주체 사번으로 제안한다")
+    @WithMockUser(username = "10001")
+    void suggestApprovalLine_인증_200() throws Exception {
+        given(approvalLineSuggestionService.suggest("10001"))
+                .willReturn(ApplicationDto.ApprovalLineSuggestion.foreign());
+        mockMvc.perform(get("/api/applications/approval-line/suggestion"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.foreignBranch").value(true));
     }
 }
