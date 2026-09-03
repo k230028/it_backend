@@ -16,6 +16,7 @@ import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostQueryService;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
@@ -46,6 +47,7 @@ class CostDetailAccessControllerTest {
     @MockitoBean private CodeService codeService;
     @MockitoBean private XcrLookupService xcrLookupService;
     @MockitoBean private CostQueryService costQueryService;
+    @MockitoBean private CostQueryAssembler costQueryAssembler;
 
     @MockitoBean
     private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
