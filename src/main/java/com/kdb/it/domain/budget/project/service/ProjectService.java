@@ -77,6 +77,9 @@ public class ProjectService {
     /** 정보화사업 품목 기준 예산 합계 계산 서비스: 저장 시점 금액 스냅샷 계산용 */
     private final ProjectBudgetSummaryService budgetSummaryService;
 
+    /** 작성완료 신청서 스탬프 — [저장] 시 결재선 없는 신청서 0을 만든다 */
+    private final com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+
     /**
      * 삭제되지 않은 모든 정보화사업을 조회합니다.
      *
@@ -284,7 +287,40 @@ public class ProjectService {
         // 이후 결재 상신('02')/완료('09')가 동일 BPROJA 행을 멱등 upsert 하여 대표상태(MAX)에 반영된다.
         bprojaSyncService.upsert(prjMngNo, prjMngNo, "01");
 
+        // [저장](complete=true)이면 결재선 없는 작성완료(0) 신청서를 스탬프한다. 임시저장(false)이나
+        // 반입 경로(미지정, null)는 스탬프하지 않는다.
+        stampDraftedIfCompleted(request.getComplete(), project);
+
         return project.getAbusMngNo(); // 저장된 관리번호 반환
+    }
+
+    /**
+     * 작성완료 저장이면 원천에 작성완료 신청서를 스탬프합니다.
+     *
+     * @param complete 요청의 저장 종류. null(반입 경로)이나 false면 아무것도 하지 않습니다
+     * @param project 저장이 끝난 사업 엔티티
+     * @throws IllegalStateException 최신 신청서가 결재중인 경우
+     */
+    private void stampDraftedIfCompleted(Boolean complete, Bprojm project) {
+        if (!Boolean.TRUE.equals(complete)) {
+            return;
+        }
+        approvalStamper.stampDrafted(
+                "BPROJM",
+                project.getAbusMngNo(),
+                project.getSno(),
+                project.getAbusNm(),
+                currentEno(),
+                project.getSvnDpmC(),
+                project.getBseYy());
+    }
+
+    /** 인증 주체 사번. 미인증이면 null */
+    private static String currentEno() {
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication();
+        return auth == null ? null : auth.getName();
     }
 
     /** 편성요청서 반입에서 사번을 추정하지 않고 양식의 이름만 스냅샷 컬럼에 기록합니다. */
@@ -464,6 +500,9 @@ public class ProjectService {
 
         // 품목 동기화가 끝난 뒤 사업 단위 금액 스냅샷(총소요·예정·지급금액) 기록
         applyAmountSnapshot(project, request.getDfrAmt());
+
+        // [저장](complete=true)이면 수정 중인 개정본(project)에 작성완료 신청서를 스탬프한다.
+        stampDraftedIfCompleted(request.getComplete(), project);
 
         return project.getAbusMngNo(); // 수정된 관리번호 반환
     }

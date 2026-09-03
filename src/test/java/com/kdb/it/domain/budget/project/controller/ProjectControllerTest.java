@@ -124,7 +124,11 @@ class ProjectControllerTest {
     void createProject_성공_201반환() throws Exception {
         // given
         ProjectDto.CreateRequest request =
-                ProjectDto.CreateRequest.builder().abusNm("신규 사업").abusTc("10").build();
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("신규 사업")
+                        .abusTc("10")
+                        .complete(true)
+                        .build();
         given(projectService.createProject(any(ProjectDto.CreateRequest.class)))
                 .willReturn("PRJ-2026-0001");
 
@@ -207,7 +211,11 @@ class ProjectControllerTest {
     @WithMockUser(username = "10001")
     void updateProject_성공_200반환() throws Exception {
         ProjectDto.UpdateRequest request =
-                ProjectDto.UpdateRequest.builder().abusNm("수정 사업").abusTc("20").build();
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("수정 사업")
+                        .abusTc("20")
+                        .complete(true)
+                        .build();
         given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
                 .willReturn("PRJ-2026-0001");
 
@@ -224,7 +232,11 @@ class ProjectControllerTest {
     @WithMockUser(username = "10001")
     void updateProject_재신청초안순번_200반환() throws Exception {
         ProjectDto.UpdateRequest request =
-                ProjectDto.UpdateRequest.builder().abusNm("재신청 수정 사업").abusTc("20").build();
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("재신청 수정 사업")
+                        .abusTc("20")
+                        .complete(true)
+                        .build();
         given(
                         projectService.updateProject(
                                 eq("PRJ-2026-0001"), eq(2), any(ProjectDto.UpdateRequest.class)))
@@ -245,7 +257,7 @@ class ProjectControllerTest {
         given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
                 .willReturn("PRJ-2026-0001");
         ProjectDto.UpdateRequest request =
-                ProjectDto.UpdateRequest.builder().abusNm("관리자 정정").build();
+                ProjectDto.UpdateRequest.builder().abusNm("관리자 정정").complete(true).build();
 
         mockMvc.perform(
                         put("/api/projects/PRJ-2026-0001")
@@ -276,7 +288,11 @@ class ProjectControllerTest {
         given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
                 .willReturn("PRJ-2026-0001");
         ProjectDto.UpdateRequest request =
-                ProjectDto.UpdateRequest.builder().abusNm("관리자 정정").abusTc("0").build();
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("관리자 정정")
+                        .abusTc("0")
+                        .complete(true)
+                        .build();
 
         mockMvc.perform(
                         put("/api/projects/PRJ-2026-0001")

@@ -193,6 +193,17 @@ public class CostDto extends CostTerminalDto {
         private List<TerminalDto> terminals;
 
         /**
+         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
+         *
+         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
+         */
+        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        @Schema(
+                description = "작성완료 여부 (true=저장, false=임시저장)",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        private Boolean complete;
+
+        /**
          * 요청 DTO를 {@link Bcostm} 엔티티로 변환합니다.
          *
          * @param nextSno 설정할 전산관리비일련번호 (서비스에서 계산된 다음 SNO)
@@ -338,6 +349,17 @@ public class CostDto extends CostTerminalDto {
         /** 금융정보단말기 목록 (1:N) */
         @Schema(description = "금융정보단말기 목록 (1:N)")
         private List<TerminalDto> terminals;
+
+        /**
+         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
+         *
+         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
+         */
+        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        @Schema(
+                description = "작성완료 여부 (true=저장, false=임시저장)",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        private Boolean complete;
     }
 
     /**

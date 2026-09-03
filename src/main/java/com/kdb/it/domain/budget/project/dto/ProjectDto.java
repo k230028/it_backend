@@ -230,6 +230,17 @@ public class ProjectDto {
         private java.util.List<BitemmDto> items;
 
         /**
+         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
+         *
+         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
+         */
+        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        @Schema(
+                description = "작성완료 여부 (true=저장, false=임시저장)",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        private Boolean complete;
+
+        /**
          * 요청 DTO를 {@link Bprojm} 엔티티로 변환하는 메서드
          *
          * <p>{@code dplYn}이 null인 경우 기본값 "N"으로 설정합니다.
@@ -451,6 +462,17 @@ public class ProjectDto {
         @Schema(description = "품목 목록")
         @Valid
         private java.util.List<BitemmDto> items;
+
+        /**
+         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
+         *
+         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
+         */
+        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        @Schema(
+                description = "작성완료 여부 (true=저장, false=임시저장)",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        private Boolean complete;
     }
 
     /**

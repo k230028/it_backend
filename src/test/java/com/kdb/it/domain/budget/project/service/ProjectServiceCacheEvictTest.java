@@ -79,6 +79,9 @@ class ProjectServiceCacheEvictTest {
     /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
     @MockitoBean private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
+    /** 작성완료 신청서 스탬프 (Task 6) — 이 테스트는 complete 미지정 요청만 사용하므로 스텁 없이 존재만 필요 */
+    @MockitoBean private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+
     private Cache tiptapCache;
 
     @BeforeEach

@@ -46,6 +46,9 @@ public class CostService {
     private final CostQueryService queryService;
     private final ApprovalWriteGuard approvalWriteGuard;
 
+    /** 작성완료 신청서 스탬프 — [저장] 시 결재선 없는 신청서 0을 만든다 */
+    private final com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+
     /** 단말기 서비스명 후보를 집계할 최근 예산연도 범위(당해 연도 포함) */
     private static final int SERVICE_NAME_LOOKBACK_YEARS = 3;
 
@@ -330,7 +333,42 @@ public class CostService {
                 btermmRepository.save(entity);
             }
         }
+        if (!preserveSubmittedAmounts) {
+            // [저장](complete=true)이면 결재선 없는 작성완료(0) 신청서를 스탬프한다. 임시저장(false)이나
+            // 반입 경로(미지정, null)는 스탬프하지 않는다. 반입 경로(preserveSubmittedAmounts=true)는 이
+            // 분기 자체에 들어오지 않아 complete 값과 무관하게 스탬프하지 않는다.
+            stampDraftedIfCompleted(request.getComplete(), cost);
+        }
         return cost.getCostBgNo();
+    }
+
+    /**
+     * 작성완료 저장이면 원천에 작성완료 신청서를 스탬프합니다.
+     *
+     * @param complete 요청의 저장 종류. null(반입 경로)이나 false면 아무것도 하지 않습니다
+     * @param cost 저장이 끝난 전산업무비 엔티티
+     * @throws IllegalStateException 최신 신청서가 결재중인 경우
+     */
+    private void stampDraftedIfCompleted(Boolean complete, Bcostm cost) {
+        if (!Boolean.TRUE.equals(complete)) {
+            return;
+        }
+        approvalStamper.stampDrafted(
+                COST_TABLE,
+                cost.getCostBgNo(),
+                cost.getBgSno(),
+                cost.getCttNm(),
+                currentEno(),
+                cost.getCostSvnDpmC(),
+                cost.getBseYy());
+    }
+
+    /** 인증 주체 사번. 미인증이면 null */
+    private static String currentEno() {
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication();
+        return auth == null ? null : auth.getName();
     }
 
     /** 편성요청서 반입에서 사번을 추정하지 않고 양식의 작성자 이름만 스냅샷 컬럼에 기록합니다. */
@@ -502,6 +540,10 @@ public class CostService {
                                     !keptPks.contains(
                                             terminalPk(terminal.getTmnMngNo(), terminal.getSno())))
                     .forEach(Btermm::delete);
+        }
+        if (!preserveSubmittedAmounts) {
+            // [저장](complete=true)이면 수정 중인 개정본(target)에 작성완료 신청서를 스탬프한다.
+            stampDraftedIfCompleted(request.getComplete(), target);
         }
         return target.getCostBgNo();
     }

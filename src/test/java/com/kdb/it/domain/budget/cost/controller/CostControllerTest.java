@@ -136,6 +136,7 @@ class CostControllerTest {
         given(costService.createCost(any())).willReturn("COST_2026_0001");
         var body = new CostDto.CreateRequest();
         body.setCurC("KRW");
+        body.setComplete(true);
 
         mockMvc.perform(
                         post("/api/cost")
@@ -194,6 +195,7 @@ class CostControllerTest {
         given(costService.updateCost(anyString(), any())).willReturn("COST_2026_0001");
         var body = new CostDto.UpdateRequest();
         body.setCurC("KRW");
+        body.setComplete(true);
 
         mockMvc.perform(
                         put("/api/cost/COST_2026_0001")
@@ -208,6 +210,7 @@ class CostControllerTest {
         given(costService.updateCost(eq("COST_2026_0001"), eq(2), any()))
                 .willReturn("COST_2026_0001");
         var body = new CostDto.UpdateRequest();
+        body.setComplete(true);
 
         mockMvc.perform(
                         put("/api/cost/COST_2026_0001")
@@ -239,6 +242,7 @@ class CostControllerTest {
     void updateCost_관리자_통화누락_200() throws Exception {
         given(costService.updateCost(anyString(), any())).willReturn("COST_2026_0001");
         var body = new CostDto.UpdateRequest();
+        body.setComplete(true);
 
         mockMvc.perform(
                         put("/api/cost/COST_2026_0001")

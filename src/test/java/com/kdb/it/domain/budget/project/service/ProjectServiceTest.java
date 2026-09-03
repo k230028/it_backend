@@ -234,6 +234,9 @@ class ProjectServiceTest {
     /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
+    /** 작성완료 신청서 스탬프 (저장 시 결재선 없는 신청서 0 생성) */
+    @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
 
@@ -264,6 +267,7 @@ class ProjectServiceTest {
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
         given(securityContext.getAuthentication()).willReturn(authentication);
         given(authentication.getPrincipal()).willReturn(adminUser);
+        given(authentication.getName()).willReturn("10001");
         SecurityContextHolder.setContext(securityContext);
         // projectRepository.save mock: 인자로 받은 엔티티를 그대로 반환(실제 JPA merge/persist 동작 흉내).
         // createProject가 이제 반환값을 project 변수에 재대입하므로(managed 인스턴스 캡처), 스텁하지
@@ -691,6 +695,51 @@ class ProjectServiceTest {
         projectService.markRequestFormImportApproved(projectNo);
 
         verify(bprojaSyncService).upsert(projectNo, projectNo, "10");
+    }
+
+    // ───────────────────────────────────────────────────────
+    // createProject — complete 플래그에 따른 작성완료 신청서 스탬프
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("createProject: complete=true면 주관부서·사업명으로 작성완료 신청서를 스탬프한다")
+    void createProject_completeTrue_stampsDrafted() {
+        given(projectRepository.getNextSequenceValue()).willReturn(7L);
+        ProjectDto.CreateRequest request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("작성완료 사업")
+                        .bseYy("2026")
+                        .svnDpmC("D001")
+                        .complete(true)
+                        .build();
+
+        projectService.createProject(request);
+
+        verify(approvalStamper)
+                .stampDrafted(
+                        eq("BPROJM"),
+                        eq("PRJ-2026-0007"),
+                        any(),
+                        eq("작성완료 사업"),
+                        eq("10001"),
+                        eq("D001"),
+                        eq("2026"));
+    }
+
+    @Test
+    @DisplayName("createProject: complete=false(임시저장)나 미지정(반입)이면 스탬프하지 않는다")
+    void createProject_completeFalse_doesNotStamp() {
+        given(projectRepository.getNextSequenceValue()).willReturn(8L);
+        ProjectDto.CreateRequest draft =
+                ProjectDto.CreateRequest.builder().abusNm("임시저장").bseYy("2026").complete(false).build();
+        ProjectDto.CreateRequest imported =
+                ProjectDto.CreateRequest.builder().abusNm("반입").bseYy("2026").build();
+
+        projectService.createProject(draft);
+        projectService.createProject(imported, true);
+
+        verify(approvalStamper, org.mockito.Mockito.never())
+                .stampDrafted(any(), any(), any(), any(), any(), any(), any());
     }
 
     // ───────────────────────────────────────────────────────

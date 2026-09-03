@@ -50,6 +50,9 @@ class CostDetailAccessControllerTest {
     @MockitoBean
     private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
 
+    /** 작성완료 신청서 스탬프 (Task 6) — 이 테스트는 조회 경로만 검증하므로 스텁 없이 존재만 필요 */
+    @MockitoBean private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+
     @MockitoBean private CostVersionService costVersionService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;

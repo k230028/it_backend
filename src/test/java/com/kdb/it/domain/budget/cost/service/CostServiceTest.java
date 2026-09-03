@@ -42,6 +42,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * CostService 단위 테스트
@@ -211,6 +214,12 @@ class CostServiceTest {
     /** 조직코드→조직명 해석기 (주관부서명/주관팀명 스냅샷 주입) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
+    /** 작성완료 신청서 스탬프 (저장 시 결재선 없는 신청서 0 생성) */
+    @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+
+    @Mock private SecurityContext securityContext;
+    @Mock private Authentication authentication;
+
     private CostService costService;
 
     /** 테스트 공통 관리번호 */
@@ -243,7 +252,8 @@ class CostServiceTest {
                         xcrLookupService,
                         queryService,
                         new com.kdb.it.domain.budget.common.security.ApprovalWriteGuard(
-                                capplaRepository));
+                                capplaRepository),
+                        approvalStamper);
     }
 
     @Nested
@@ -470,6 +480,49 @@ class CostServiceTest {
 
         // then: btermmRepository.save() 미호출 검증
         verify(btermmRepository, never()).save(any());
+    }
+
+    // ───────────────────────────────────────────────────────
+    // createCost — complete 플래그에 따른 작성완료 신청서 스탬프
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("createCost: complete=true면 계약명·주관부서로 작성완료 신청서를 스탬프한다")
+    void createCost_completeTrue_stampsDrafted() {
+        given(securityContext.getAuthentication()).willReturn(authentication);
+        given(authentication.getName()).willReturn("K10001");
+        SecurityContextHolder.setContext(securityContext);
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .cttNm("작성완료 계약")
+                        .costSvnDpmC("BBR001")
+                        .bseYy("2026")
+                        .complete(true)
+                        .build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+
+        costService.createCost(request);
+
+        verify(approvalStamper)
+                .stampDrafted(
+                        eq("BCOSTM"), eq(IT_MNGC_NO), eq(1), eq("작성완료 계약"), eq("K10001"), eq("BBR001"), eq("2026"));
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("createCost: 반입 경로(createCostForMigration)는 complete와 무관하게 스탬프하지 않는다")
+    void createCostForMigration_doesNotStamp() {
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder().costBgNo(IT_MNGC_NO).cttNm("반입").complete(true).build();
+        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+
+        costService.createCostForMigration(request, 2026);
+
+        verify(approvalStamper, never())
+                .stampDrafted(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
