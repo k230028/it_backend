@@ -1,8 +1,11 @@
 package com.kdb.it.domain.migration.terminal.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
+import java.time.Year;
 import java.util.List;
 
 /** 금융정보단말기 일괄업로드 API 계약입니다. */
@@ -74,8 +77,20 @@ public final class TerminalBulkImportDto {
         }
     }
 
-    /** 일괄업로드 요청입니다. */
-    public record Request(@NotEmpty List<@Valid Row> rows) {}
+    /** 일괄업로드 요청입니다. 이전·당해 대상 연도는 엑셀 헤더를 해석한 값으로 전달합니다. */
+    public record Request(
+            @NotBlank @Pattern(regexp = "\\d{4}") String previousYear,
+            @NotBlank @Pattern(regexp = "\\d{4}") String currentYear,
+            @NotEmpty List<@Valid Row> rows) {
+
+        /** 기존 내부 호출은 실행 연도 기준의 연속된 두 해를 사용합니다. */
+        public Request(List<@Valid Row> rows) {
+            this(
+                    String.valueOf(Year.now().getValue() - 1),
+                    String.valueOf(Year.now().getValue()),
+                    rows);
+        }
+    }
 
     /** 미리보기·확정 반영 결과의 요약입니다. */
     public record Response(

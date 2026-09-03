@@ -14,6 +14,25 @@ class TerminalBulkImportPlannerTest {
     private final TerminalBulkImportPlanner planner = new TerminalBulkImportPlanner();
 
     @Test
+    void 요청에서_받은_대상연도로_이전과_당해_데이터를_그룹화한다() {
+        List<TerminalBulkImportPlanner.PlannedGroup> groups =
+                planner.plan(
+                        List.of(
+                                row(
+                                        3,
+                                        null,
+                                        null,
+                                        new BigDecimal("100"),
+                                        null,
+                                        "신규",
+                                        new BigDecimal("200"))),
+                        "2030",
+                        "2031");
+
+        assertEquals(List.of("2030", "2031"), groups.stream().map(TerminalBulkImportPlanner.PlannedGroup::bseYy).toList());
+    }
+
+    @Test
     void 전년도집행액이_있고_ID가_비어있으면_전년도_신규그룹을_만든다() {
         List<TerminalBulkImportDto.Row> rows =
                 List.of(
