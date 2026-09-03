@@ -3,6 +3,7 @@ package com.kdb.it.domain.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.domain.migration.dto.MigrationDto;
+import com.kdb.it.domain.migration.terminal.dto.TerminalBulkImportDto;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -70,6 +71,19 @@ class MigrationOpenApiContractTest {
     @Test
     void dryRunRequestExposesOverridesContract() {
         assertAllPropertiesRequired(MigrationDto.DryRunRequest.class);
+    }
+
+    @Test
+    void terminalBulkImportUsesYearNeutralGeneratedContract() {
+        Schema<?> request = resolve(TerminalBulkImportDto.Request.class);
+        Schema<?> row = resolve(TerminalBulkImportDto.Row.class);
+
+        assertThat(request.getProperties().keySet()).containsExactly("baseYear", "rows");
+        assertThat(property(request, "baseYear").getMinimum()).isEqualByComparingTo("2000");
+        assertThat(property(request, "baseYear").getMaximum()).isEqualByComparingTo("2100");
+        assertThat(row.getProperties().keySet())
+                .contains("previousCostId", "currentCostId")
+                .doesNotContain("costId2025", "costId2026");
     }
 
     private static void assertAllPropertiesRequired(Class<?> type, String... nullableProperties) {

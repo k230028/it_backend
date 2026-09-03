@@ -2,7 +2,6 @@ package com.kdb.it.domain.migration.terminal;
 
 import com.kdb.it.domain.migration.terminal.dto.TerminalBulkImportDto;
 import java.math.BigDecimal;
-import java.time.Year;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,16 +22,20 @@ public final class TerminalBulkImportPlanner {
             List<TerminalBulkImportDto.Row> rows,
             BigDecimal totalKrwAmount) {}
 
-    /** 전달받은 이전·당해 연도 집행 데이터를 각각 계획합니다. */
-    public List<PlannedGroup> plan(
-            List<TerminalBulkImportDto.Row> rows, String previousYear, String currentYear) {
+    /** 기준연도와 그 이전 연도의 집행 데이터를 각각 계획합니다. */
+    public List<PlannedGroup> plan(int baseYear, List<TerminalBulkImportDto.Row> rows) {
+        if (baseYear < 2000 || baseYear > 2100) {
+            throw new IllegalArgumentException("기준연도는 2000년부터 2100년까지 입력할 수 있습니다.");
+        }
+        String previousYear = String.valueOf(baseYear - 1);
+        String currentYear = String.valueOf(baseYear);
         Map<String, MutableGroup> grouped = new LinkedHashMap<>();
         for (TerminalBulkImportDto.Row row : rows) {
             if (row.hasPreviousData()) {
                 add(
                         grouped,
                         previousYear,
-                        row.costId2025(),
+                        row.previousCostId(),
                         true,
                         row,
                         row.previousAnnualAmount());
@@ -41,19 +44,13 @@ public final class TerminalBulkImportPlanner {
                 add(
                         grouped,
                         currentYear,
-                        row.costId2026(),
+                        row.currentCostId(),
                         false,
                         row,
                         row.currentAnnualAmount());
             }
         }
         return grouped.values().stream().map(MutableGroup::toPlan).toList();
-    }
-
-    /** 기존 내부 호출은 실행 연도를 기준으로 연속된 두 해를 계획합니다. */
-    public List<PlannedGroup> plan(List<TerminalBulkImportDto.Row> rows) {
-        int currentYear = Year.now().getValue();
-        return plan(rows, String.valueOf(currentYear - 1), String.valueOf(currentYear));
     }
 
     private static void add(
@@ -109,7 +106,8 @@ public final class TerminalBulkImportPlanner {
         private final List<TerminalBulkImportDto.Row> rows = new ArrayList<>();
         private BigDecimal totalKrwAmount = BigDecimal.ZERO;
 
-        private MutableGroup(String year, String costId, boolean createNew, boolean previousPeriod) {
+        private MutableGroup(
+                String year, String costId, boolean createNew, boolean previousPeriod) {
             this.year = year;
             this.costId = costId;
             this.createNew = createNew;

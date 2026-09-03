@@ -78,15 +78,12 @@ public class TerminalBulkImportService {
         }
 
         List<PreparedGroup> groups = new ArrayList<>();
-        for (TerminalBulkImportPlanner.PlannedGroup plan :
-                planner.plan(rows, request.previousYear(), request.currentYear())) {
+        for (TerminalBulkImportPlanner.PlannedGroup plan : planner.plan(request.baseYear(), rows)) {
             if (!plan.createNew()) {
                 validateExistingCost(plan.costId(), plan.bseYy());
             }
             List<PreparedRow> preparedRows =
-                    plan.rows().stream()
-                            .map(row -> prepareRow(row, plan, org, codes))
-                            .toList();
+                    plan.rows().stream().map(row -> prepareRow(row, plan, org, codes)).toList();
             groups.add(new PreparedGroup(plan, preparedRows));
         }
         return new Prepared(groups);

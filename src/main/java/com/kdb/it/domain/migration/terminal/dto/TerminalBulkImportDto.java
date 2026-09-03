@@ -1,11 +1,10 @@
 package com.kdb.it.domain.migration.terminal.dto;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
-import java.time.Year;
 import java.util.List;
 
 /** 금융정보단말기 일괄업로드 API 계약입니다. */
@@ -26,8 +25,8 @@ public final class TerminalBulkImportDto {
     /** 프론트에서 2단 헤더를 해석한 단말기 한 행입니다. */
     public record Row(
             int excelRow,
-            String costId2026,
-            String costId2025,
+            String previousCostId,
+            String currentCostId,
             String department,
             String team,
             String managerName,
@@ -77,20 +76,8 @@ public final class TerminalBulkImportDto {
         }
     }
 
-    /** 일괄업로드 요청입니다. 이전·당해 대상 연도는 엑셀 헤더를 해석한 값으로 전달합니다. */
-    public record Request(
-            @NotBlank @Pattern(regexp = "\\d{4}") String previousYear,
-            @NotBlank @Pattern(regexp = "\\d{4}") String currentYear,
-            @NotEmpty List<@Valid Row> rows) {
-
-        /** 기존 내부 호출은 실행 연도 기준의 연속된 두 해를 사용합니다. */
-        public Request(List<@Valid Row> rows) {
-            this(
-                    String.valueOf(Year.now().getValue() - 1),
-                    String.valueOf(Year.now().getValue()),
-                    rows);
-        }
-    }
+    /** 일괄업로드 요청입니다. 이전 연도는 기준연도에서 1을 뺀 값으로 계산합니다. */
+    public record Request(@Min(2000) @Max(2100) int baseYear, @NotEmpty List<@Valid Row> rows) {}
 
     /** 미리보기·확정 반영 결과의 요약입니다. */
     public record Response(
