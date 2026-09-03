@@ -495,13 +495,15 @@ public class ApplicationService {
     /**
      * 전체 신청서 목록 조회
      *
-     * <p>DB의 모든 신청서를 조회하고, 각 신청서의 결재자 목록을 포함하여 반환합니다.
+     * <p>결재선이 없는 작성완료({@code 0}) 신청서는 결재함 대상이 아니므로 제외하고, 그 외 신청서를 각각의 결재자 목록과 함께 반환합니다.
      *
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
      */
     public List<ApplicationDto.Response> getApplications() {
-        // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회, 최신순 상한 500건)
-        return assembleList(applicationRepository.findTop500ByOrderByApfMngNoDesc());
+        // 결재선 없는 작성완료(0) 신청서는 결재함 대상이 아니므로 제외한다 (최신순 상한 500건)
+        return assembleList(
+                applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
+                        ApprovalStatus.DRAFTED.code()));
     }
 
     /**
@@ -721,18 +723,17 @@ public class ApplicationService {
     }
 
     /**
-     * 미상신(결재 신청 이력 없음) 건수 집계
+     * 상신 대상(최신 신청서가 작성완료) 건수 집계
      *
      * <p>사이드바의 [결재 상신] 메뉴 옆 배지에서 사용됩니다. 전체 목록 대신 건수만 반환하여 데이터 전송량을 최소화합니다.
      *
-     * <p>집계 로직: 요청한 결재상태(기본값 {@code none}) 조건으로 {@code ProjectRepository} 및 {@code CostRepository}의
-     * {@code countBySearchCondition} 집계 쿼리를 호출해 각각의 건수를 계산합니다. (CAPPLA 연결이 없는 BPROJM/BCOSTM 레코드 =
-     * 아직 결재 상신되지 않은 항목)
+     * <p>집계 로직: 요청한 결재상태(기본값 작성완료 {@code 0} = 상신 대상) 조건으로 {@code ProjectRepository} 및 {@code
+     * CostRepository}의 {@code countBySearchCondition} 집계 쿼리를 호출해 각각의 건수를 계산합니다.
      *
      * <p>일반 사용자는 인증 주체의 소속 부서로 제한하고 시스템관리자만 전체 부서를 집계합니다.
      *
      * @param bgYy 기준연도 (공백이면 전체 연도)
-     * @param apfSts 결재상태 (공백이면 미상신)
+     * @param apfSts 결재상태 (공백이면 작성완료(0) = 상신 대상)
      * @param user 인증 사용자
      * @return 결재상태별 건수 응답 DTO (정보화사업/전산업무비 개별 건수 + 총합)
      */
@@ -742,7 +743,8 @@ public class ApplicationService {
             throw new AccessDeniedException("인증 정보가 필요합니다.");
         }
 
-        String status = apfSts == null || apfSts.isBlank() ? "none" : apfSts;
+        // 상신 대상 = 최신 신청서가 작성완료(0)인 원천. 사이드바 배지는 apfSts 없이 호출하므로 이 기본값이 곧 배지 기준이다.
+        String status = apfSts == null || apfSts.isBlank() ? ApprovalStatus.DRAFTED.code() : apfSts;
         String departmentCode = user.getBbrC();
         if (!user.isAdmin() && (departmentCode == null || departmentCode.isBlank())) {
             return ApplicationDto.PendingCountResponse.builder()

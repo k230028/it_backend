@@ -97,7 +97,7 @@ public class ApplicationController {
      * <p>전체 목록을 반환하지 않아 데이터 전송량과 프론트 처리 비용이 최소화됩니다.
      *
      * @param bgYy 기준연도 (미지정 시 전체 연도)
-     * @param apfSts 결재상태 (미지정 시 미상신)
+     * @param apfSts 결재상태 (미지정 시 작성완료(0) = 상신 대상)
      * @param user 인증 사용자 (일반 사용자는 소속 부서로 제한)
      * @return HTTP 200 + 결재상태별 건수 응답 ({@link ApplicationDto.PendingCountResponse})
      */
@@ -107,7 +107,7 @@ public class ApplicationController {
             description =
                     "정보화사업/전산업무비 건수를 인증 사용자의 조회 범위로 집계합니다. "
                             + "일반 사용자는 소속 부서, 시스템관리자는 전체 부서가 대상이며 "
-                            + "apfSts 미지정 시 미상신(none)으로 집계합니다.")
+                            + "apfSts 미지정 시 작성완료(0), 즉 상신 대상으로 집계합니다.")
     public ResponseEntity<ApplicationDto.PendingCountResponse> getPendingCount(
             @RequestParam(value = "bgYy", required = false) String bgYy,
             @RequestParam(value = "apfSts", required = false) String apfSts,
