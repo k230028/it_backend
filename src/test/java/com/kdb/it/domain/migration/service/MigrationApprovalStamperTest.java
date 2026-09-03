@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.domain.MigrationApprovalMarker;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
@@ -94,7 +95,8 @@ class MigrationApprovalStamperTest {
 
         org.mockito.Mockito.verify(applicationRepository).save(capplmCaptor.capture());
         assertThat(capplmCaptor.getValue().getRgprDcdReqCone())
-                .contains("수기 엑셀 이관")
+                .isEqualTo(MigrationApprovalMarker.NOTE)
+                .isEqualTo("수기등록")
                 .doesNotContain("MIG-");
     }
 
