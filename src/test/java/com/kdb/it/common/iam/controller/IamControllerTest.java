@@ -96,10 +96,9 @@ class IamControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/users/{eno} - 인증된 사용자 → 200")
+    @DisplayName("GET /api/users/{eno} - 인증된 일반 사용자 → 200")
     void getUserDetail_인증_200() throws Exception {
-        // 본인/관리자 권한이 서비스 계층(OwnershipVerifier)에서 검증되므로
-        // CustomUserDetails 주체로 요청하고 서비스 스텁은 any()로 매칭한다.
+        // 직원 정보 다이얼로그는 관리자 역할이 없는 인증 사용자도 조회할 수 있다.
         given(userService.getUser(anyString(), any(CustomUserDetails.class)))
                 .willReturn(
                         UserDto.DetailResponse.builder()
@@ -109,12 +108,7 @@ class IamControllerTest {
                                 .build());
         mockMvc.perform(
                         get("/api/users/E10001")
-                                .with(
-                                        user(
-                                                new CustomUserDetails(
-                                                        "10001",
-                                                        List.of(CustomUserDetails.ATH_ADMIN),
-                                                        "D001"))))
+                                .with(user(new CustomUserDetails("10001", List.of(), "D001"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cpnTpn").value("02-787-1234"))
                 .andExpect(jsonPath("$.dtsDtlCone").value("IT 기획 담당"))

@@ -3,7 +3,6 @@ package com.kdb.it.common.iam.service;
 import com.kdb.it.common.iam.dto.UserDto;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
-import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.exception.CustomGeneralException;
 import java.util.List;
 import java.util.Objects;
@@ -65,17 +64,16 @@ public class UserService {
      *
      * <p>특정 사번({@code eno})의 사용자 상세 정보를 조회합니다. 목록 조회보다 더 많은 정보(내선번호, 휴대폰번호, 상세직무)를 포함합니다.
      *
-     * <p>PII(휴대폰번호·내선번호·이메일) 보호를 위해 본인 또는 관리자만 조회할 수 있습니다.
+     * <p>직원 정보 다이얼로그에서 사용할 수 있도록 인증된 사용자는 다른 직원의 상세 정보도 조회할 수 있습니다.
      *
      * @param eno 조회할 사번
      * @param currentUser 현재 인증 사용자
      * @return 사용자 상세 응답 DTO ({@link UserDto.DetailResponse})
-     * @throws org.springframework.security.access.AccessDeniedException 본인도 관리자도 아닌 경우
      * @throws IllegalArgumentException 해당 사번의 사용자가 없는 경우
      */
     public UserDto.DetailResponse getUser(String eno, CustomUserDetails currentUser) {
-        // 권한 검증을 조회보다 먼저 수행 — 타인 사번 존재 여부 누설 방지
-        OwnershipVerifier.verifyOwnerOrAdmin(eno, currentUser);
+        // 컨트롤러 보안 규칙과 함께 인증 주체가 없는 직접 호출도 허용하지 않는다.
+        Objects.requireNonNull(currentUser, "currentUser must not be null");
 
         // 사번으로 사용자 조회 (없으면 예외)
         UserDto.DetailRow user =

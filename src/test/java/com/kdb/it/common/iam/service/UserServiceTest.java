@@ -28,7 +28,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.security.access.AccessDeniedException;
 
 /**
  * UserService 단위 테스트
@@ -153,7 +152,7 @@ class UserServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
-    // getUser 권한 검증 (T11a) — 본인/관리자만 PII 조회
+    // getUser 권한 검증 — 인증된 사용자는 직원 정보 다이얼로그에서 상세 조회 가능
     // ───────────────────────────────────────────────────────
 
     @Test
@@ -184,16 +183,18 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("getUser: 본인도 관리자도 아니면 AccessDeniedException")
-    void getUser_other_denied() {
-        // given — 권한 거부를 조회보다 먼저 수행하므로 findByEno 스텁 불필요(존재 누설 방지)
+    @DisplayName("getUser: 일반 사용자는 다른 직원 상세 조회가 허용된다")
+    void getUser_authenticatedUserCanReadOtherEmployee() {
+        // given
+        given(userRepository.findDetailRowByEno("E0002"))
+                .willReturn(Optional.of(detailRow("E0002", "홍길동")));
         CustomUserDetails other = mock(CustomUserDetails.class);
         given(other.isAdmin()).willReturn(false);
         given(other.getEno()).willReturn("E9999");
 
         // when & then
-        assertThatThrownBy(() -> userService.getUser("E0002", other))
-                .isInstanceOf(AccessDeniedException.class);
+        assertThat(userService.getUser("E0002", other).getEno()).isEqualTo("E0002");
+        verify(userRepository).findDetailRowByEno("E0002");
     }
 
     // ───────────────────────────────────────────────────────

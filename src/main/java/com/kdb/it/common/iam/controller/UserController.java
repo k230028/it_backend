@@ -70,14 +70,14 @@ public class UserController {
      *
      * <p>반환 데이터: 사번, 부점명, 팀명, 사용자명, 직위명, 내선번호, 휴대폰번호, 상세직무내용
      *
-     * <p>PII 보호: 본인 또는 관리자만 조회할 수 있습니다.
+     * <p>직원 정보 다이얼로그를 위해 인증된 사용자가 조회할 수 있습니다.
      *
      * @param eno 사번(행번, ENO 컬럼 값)
      * @param currentUser 현재 인증 사용자
      * @return HTTP 200 + 사용자 상세 정보 ({@link UserDto.DetailResponse})
      */
     @GetMapping("/{eno}")
-    @Operation(summary = "사용자 상세 조회", description = "행번으로 사용자 상세 정보를 조회합니다. 본인 또는 관리자만 가능합니다.")
+    @Operation(summary = "사용자 상세 조회", description = "인증된 사용자가 행번으로 직원 상세 정보를 조회합니다.")
     public ResponseEntity<UserDto.DetailResponse> getUser(
             @PathVariable("eno") String eno,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
