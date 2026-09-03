@@ -19,6 +19,7 @@ import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -207,6 +208,25 @@ public class CostService {
      */
     public CostDto.BulkResponse getCostsByIds(CostDto.BulkGetRequest request) {
         return queryService.getCostsByIds(request);
+    }
+
+    /** 인증 사용자의 부서 범위를 적용해 전산업무비를 일괄 조회합니다. */
+    public CostDto.BulkResponse getCostsByIds(
+            CostDto.BulkGetRequest request, CustomUserDetails user) {
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
+        CostDto.BulkResponse response = queryService.getCostsByIds(request);
+        List<CostDto.Response> readable = new ArrayList<>();
+        List<String> failedIds = new ArrayList<>(response.failedIds());
+        for (CostDto.Response item : response.items()) {
+            if (BudgetDetailAccessVerifier.isReadable(item.getCostSvnDpmC(), user)) {
+                readable.add(item);
+            } else {
+                failedIds.add(item.getCostBgNo());
+            }
+        }
+        return new CostDto.BulkResponse(readable, failedIds);
     }
 
     /**

@@ -74,7 +74,7 @@ public class BoardPostService {
         var rows =
                 qnaBoard
                         ? postRepository.searchPostRows(
-                                blbMngNo, effectiveCond, user.isAdmin(), true)
+                                blbMngNo, effectiveCond, user.isAdmin(), true, user.getEno())
                         : postRepository.searchPostRows(blbMngNo, effectiveCond, user.isAdmin());
         return rows.map(BoardPostDto.ListItem::from);
     }

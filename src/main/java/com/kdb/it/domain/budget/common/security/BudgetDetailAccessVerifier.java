@@ -23,8 +23,15 @@ public final class BudgetDetailAccessVerifier {
      * @throws AccessDeniedException 접근 범위를 충족하지 못한 경우
      */
     public static void verifyReadable(String resourceDepartmentCode, CustomUserDetails actor) {
+        if (!isReadable(resourceDepartmentCode, actor)) {
+            throw new AccessDeniedException("예산 상세 조회 권한이 없습니다.");
+        }
+    }
+
+    /** 대상 부서가 인증 사용자의 예산 조회 범위에 포함되는지 반환합니다. */
+    public static boolean isReadable(String resourceDepartmentCode, CustomUserDetails actor) {
         if (actor == null) {
-            throw new AccessDeniedException("인증 정보가 없습니다.");
+            return false;
         }
         // Set.of(...)는 불변 집합이라 contains(null)이 NullPointerException을 던진다.
         // SSO 미동기화 등으로 부점코드가 비어 있는 계정은 500이 아니라 권한 없음으로 처리한다.
@@ -32,12 +39,22 @@ public final class BudgetDetailAccessVerifier {
         if (actor.isAdmin()
                 || (actorDepartmentCode != null
                         && IT_ORGANIZATION_CODES.contains(actorDepartmentCode))) {
-            return;
+            return true;
         }
         if (StringUtils.hasText(resourceDepartmentCode)
                 && resourceDepartmentCode.equals(actor.getBbrC())) {
-            return;
+            return true;
         }
-        throw new AccessDeniedException("예산 상세 조회 권한이 없습니다.");
+        return false;
+    }
+
+    /** 목록과 건수 조회에서 전체 부서 범위를 사용할 수 있는지 반환합니다. */
+    public static boolean canReadAllDepartments(CustomUserDetails actor) {
+        if (actor == null) {
+            return false;
+        }
+        String actorDepartmentCode = actor.getBbrC();
+        return actor.isAdmin()
+                || (actorDepartmentCode != null && IT_ORGANIZATION_CODES.contains(actorDepartmentCode));
     }
 }

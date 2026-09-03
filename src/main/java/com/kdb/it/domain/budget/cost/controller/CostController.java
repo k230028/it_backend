@@ -292,8 +292,9 @@ public class CostController {
             })
     @PostMapping("/bulk-get")
     public ResponseEntity<CostDto.BulkResponse> getCostsByIds(
-            @RequestBody CostDto.BulkGetRequest request) {
-        return ResponseEntity.ok(costService.getCostsByIds(request));
+            @RequestBody CostDto.BulkGetRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(costService.getCostsByIds(request, user));
     }
 
     /**

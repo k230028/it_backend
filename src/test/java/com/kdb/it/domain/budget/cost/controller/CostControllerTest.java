@@ -271,7 +271,7 @@ class CostControllerTest {
     @DisplayName("POST /api/cost/bulk-get - 인증된 사용자 → 200 + items/failedIds 반환")
     @WithMockUser(username = "10001")
     void getCostsByIds_인증_200() throws Exception {
-        given(costService.getCostsByIds(any()))
+        given(costService.getCostsByIds(any(), any()))
                 .willReturn(new CostDto.BulkResponse(List.of(), List.of()));
         mockMvc.perform(
                         post("/api/cost/bulk-get")
