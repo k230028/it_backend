@@ -1,12 +1,13 @@
 package com.kdb.it.common.approval.domain;
 
-/** 신청서 결재상태 (Ccodem cId='APF_STS'). */
+/** 신청서 결재상태 (Ccodem cId='IT_PTL_APF_PRG_STS_C'). 0 작성완료는 결재선 없는 저장 상태, 9 수기등록은 엑셀 반입 표식이다. */
 public enum ApprovalStatus {
-    MANUAL("0", "수기등록"),
+    DRAFTED("0", "작성완료"),
     IN_PROGRESS("1", "결재중"),
     COMPLETED("2", "결재완료"),
     REJECTED("3", "반려"),
-    RECALLED("4", "회수");
+    RECALLED("4", "회수"),
+    MANUAL("9", "수기등록");
 
     private final String code;
     private final String label;

@@ -21,10 +21,12 @@ public final class BudgetListVersionScope {
     /**
      * 재상신 초안까지 노출해야 하는 결재상태 코드입니다.
      *
-     * <p>결재중은 상신된 초안 자신이 그 상태이고, 반려·회수는 초안이 최종본으로 승격되지 못한 채 남으므로 모두 {@code LST_YN='N'}입니다.
+     * <p>작성완료는 저장한 초안 자신이 그 상태이고, 결재중은 상신된 초안, 반려·회수는 최종본으로 승격되지 못한 채 남은 초안이라 모두
+     * {@code LST_YN='N'}일 수 있습니다.
      */
     private static final Set<String> DRAFT_VISIBLE_CODES =
             Set.of(
+                    ApprovalStatus.DRAFTED.code(),
                     ApprovalStatus.IN_PROGRESS.code(),
                     ApprovalStatus.REJECTED.code(),
                     ApprovalStatus.RECALLED.code());
@@ -50,7 +52,7 @@ public final class BudgetListVersionScope {
     /**
      * 해당 스코프가 재상신 초안({@code LST_YN='N'})까지 노출해야 하는지 판정합니다.
      *
-     * <p>미상신·결재중·반려·회수는 초안을 포함하고, 필터가 없는 일반 목록과 결재완료·수기등록은 최종본만 노출합니다. 알 수 없는 값도 최종본만 노출하는 쪽으로 처리해
+     * <p>미상신·작성완료·결재중·반려·회수는 초안을 포함하고, 필터가 없는 일반 목록과 결재완료·수기등록은 최종본만 노출합니다. 알 수 없는 값도 최종본만 노출하는 쪽으로 처리해
      * 목록이 과거 버전으로 오염되지 않게 합니다.
      *
      * @param apfSts 결재상태 코드·라벨 또는 {@link #SCOPE_NONE}. null·공백 허용

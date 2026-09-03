@@ -36,14 +36,14 @@ class BudgetListVersionScopeTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"none", "1", "3", "4", "결재중", "반려", "회수"})
-    @DisplayName("미상신·결재중·반려·회수 스코프는 재상신 초안까지 노출한다")
+    @ValueSource(strings = {"none", "0", "1", "3", "4", "작성완료", "결재중", "반려", "회수"})
+    @DisplayName("미상신·작성완료·결재중·반려·회수 스코프는 재상신 초안까지 노출한다")
     void includesDraftsForOpenScopes(String apfSts) {
         assertThat(BudgetListVersionScope.includesDrafts(apfSts)).isTrue();
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"2", "결재완료", "0", "수기등록"})
+    @ValueSource(strings = {"2", "결재완료", "9", "수기등록"})
     @DisplayName("결재완료·수기등록 스코프는 최종본만 노출해 과거 승인본 중복을 막는다")
     void excludesDraftsForCompletedScope(String apfSts) {
         assertThat(BudgetListVersionScope.includesDrafts(apfSts)).isFalse();
@@ -60,6 +60,6 @@ class BudgetListVersionScopeTest {
     @Test
     @DisplayName("알 수 없는 값은 최종본만 노출하는 쪽으로 처리한다")
     void excludesDraftsForUnknownValue() {
-        assertThat(BudgetListVersionScope.includesDrafts("9")).isFalse();
+        assertThat(BudgetListVersionScope.includesDrafts("X")).isFalse();
     }
 }

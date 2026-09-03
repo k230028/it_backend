@@ -56,7 +56,7 @@ class MigrationApprovalStamperTest {
     }
 
     @Test
-    @DisplayName("호출자가 지정한 수기등록 상태('0')로 신청서를 만든다")
+    @DisplayName("호출자가 지정한 수기등록 상태('9')로 신청서를 만든다")
     void 지정한_수기등록상태로_생성한다() {
         when(applicationRepository.getNextVal()).thenReturn(2L);
         when(applicationRepository.save(any(Capplm.class))).thenAnswer(i -> i.getArgument(0));
@@ -65,7 +65,7 @@ class MigrationApprovalStamperTest {
                 "BPROJM", "PRJ-2026-0002", 1, "편성요청서 반입", "999999", "2026", ApprovalStatus.MANUAL);
 
         org.mockito.Mockito.verify(applicationRepository).save(capplmCaptor.capture());
-        assertThat(capplmCaptor.getValue().getItPtlApfPrgStsC()).isEqualTo("0");
+        assertThat(capplmCaptor.getValue().getItPtlApfPrgStsC()).isEqualTo("9");
     }
 
     @Test
