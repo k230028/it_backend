@@ -203,15 +203,14 @@ class CostVersionServiceTest {
     }
 
     @Test
-    void 개정이력은_정렬된_첫_개정본의_부서_권한만_판정한다() {
+    void 개정이력에_다른부서_개정본이_섞이면_전체조회가_거부된다() {
         Bcostm first = Bcostm.builder().costBgNo("COST-1").bgSno(1).costSvnDpmC("D001").build();
         Bcostm later = Bcostm.builder().costBgNo("COST-1").bgSno(2).costSvnDpmC("D002").build();
         given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc("COST-1", "N"))
                 .willReturn(List.of(first, later));
 
-        List<Bcostm> history = service().findHistory("COST-1", departmentUser("D001"));
-
-        assertThat(history).containsExactly(first, later);
+        assertThatThrownBy(() -> service().findHistory("COST-1", departmentUser("D001")))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
     @Test

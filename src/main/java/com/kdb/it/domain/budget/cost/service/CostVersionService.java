@@ -69,9 +69,10 @@ public class CostVersionService {
     /** 인증 사용자의 부서 범위 안에 있는 개정 이력을 순번순으로 반환합니다. */
     public List<Bcostm> findHistory(String costBgNo, CustomUserDetails actor) {
         List<Bcostm> history = costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(costBgNo, "N");
-        if (!history.isEmpty()) {
-            BudgetDetailAccessVerifier.verifyReadable(history.getFirst().getCostSvnDpmC(), actor);
-        }
+        history.forEach(
+                cost ->
+                        BudgetDetailAccessVerifier.verifyReadable(
+                                cost.getCostSvnDpmC(), actor));
         return history;
     }
 
