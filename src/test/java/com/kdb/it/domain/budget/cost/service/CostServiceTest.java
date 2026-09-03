@@ -492,23 +492,32 @@ class CostServiceTest {
         given(securityContext.getAuthentication()).willReturn(authentication);
         given(authentication.getName()).willReturn("K10001");
         SecurityContextHolder.setContext(securityContext);
-        CostDto.CreateRequest request =
-                CostDto.CreateRequest.builder()
-                        .costBgNo(IT_MNGC_NO)
-                        .cttNm("작성완료 계약")
-                        .costSvnDpmC("BBR001")
-                        .bseYy("2026")
-                        .complete(true)
-                        .build();
-        given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
-        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+        try {
+            CostDto.CreateRequest request =
+                    CostDto.CreateRequest.builder()
+                            .costBgNo(IT_MNGC_NO)
+                            .cttNm("작성완료 계약")
+                            .costSvnDpmC("BBR001")
+                            .bseYy("2026")
+                            .complete(true)
+                            .build();
+            given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
+            given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
 
-        costService.createCost(request);
+            costService.createCost(request);
 
-        verify(approvalStamper)
-                .stampDrafted(
-                        eq("BCOSTM"), eq(IT_MNGC_NO), eq(1), eq("작성완료 계약"), eq("K10001"), eq("BBR001"), eq("2026"));
-        SecurityContextHolder.clearContext();
+            verify(approvalStamper)
+                    .stampDrafted(
+                            eq("BCOSTM"),
+                            eq(IT_MNGC_NO),
+                            eq(1),
+                            eq("작성완료 계약"),
+                            eq("K10001"),
+                            eq("BBR001"),
+                            eq("2026"));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     @Test
@@ -674,6 +683,98 @@ class CostServiceTest {
 
             // then
             assertThat(result).isEqualTo(IT_MNGC_NO);
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    // ───────────────────────────────────────────────────────
+    // updateCost — complete 플래그에 따른 작성완료 신청서 스탬프
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateCost: complete=true면 수정 중인 개정본(target)에 작성완료 신청서를 스탬프한다")
+    void updateCost_completeTrue_stampsDraftedWithTargetEntity() {
+        // given: 관리자 인증 컨텍스트 설정. currentEno()는 Authentication.getName()을 쓰므로 함께 스텁한다.
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(auth.getName()).willReturn("10001");
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            // 수정 대상 행의 개정 순번(bgSno)을 흔히 쓰는 1이 아닌 5로 두어, 향후 누군가 엉뚱한 엔티티나
+            // 하드코딩된 순번을 넘기도록 바꿔도 이 테스트가 반드시 실패하도록 한다.
+            Bcostm target = mock(Bcostm.class);
+            given(target.getCostBgNo()).willReturn(IT_MNGC_NO);
+            given(target.getBgSno()).willReturn(5);
+            given(target.getLstYn()).willReturn("Y");
+            given(target.getFstEnrUsid()).willReturn("10001");
+            given(target.getCostSvnDpmC()).willReturn("BBR001");
+            given(target.getCttNm()).willReturn("수정 대상 계약");
+            given(target.getBseYy()).willReturn("2026");
+
+            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(target));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 5, "N"))
+                    .willReturn(List.of());
+
+            CostDto.UpdateRequest request = new CostDto.UpdateRequest();
+            request.setComplete(true);
+
+            // when
+            costService.updateCost(IT_MNGC_NO, request);
+
+            // then: 원본테이블명·관리번호·개정 순번은 로드한 target의 실측값이어야 한다
+            verify(approvalStamper)
+                    .stampDrafted(eq("BCOSTM"), eq(IT_MNGC_NO), eq(5), any(), any(), any(), any());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("updateCost: complete=false나 미지정이면 스탬프하지 않는다")
+    void updateCost_completeFalseOrUnset_doesNotStamp() {
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+
+        try {
+            Bcostm target = mock(Bcostm.class);
+            given(target.getCostBgNo()).willReturn(IT_MNGC_NO);
+            given(target.getBgSno()).willReturn(5);
+            given(target.getLstYn()).willReturn("Y");
+            given(target.getFstEnrUsid()).willReturn("10001");
+            given(target.getCostSvnDpmC()).willReturn("BBR001");
+
+            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+                    .willReturn(List.of(target));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 5, "N"))
+                    .willReturn(List.of());
+
+            CostDto.UpdateRequest draftRequest = new CostDto.UpdateRequest();
+            draftRequest.setComplete(false);
+            CostDto.UpdateRequest unsetRequest = new CostDto.UpdateRequest();
+
+            // when
+            costService.updateCost(IT_MNGC_NO, draftRequest);
+            costService.updateCost(IT_MNGC_NO, unsetRequest);
+
+            // then
+            verify(approvalStamper, never())
+                    .stampDrafted(any(), any(), any(), any(), any(), any(), any());
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }

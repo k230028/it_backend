@@ -774,6 +774,81 @@ class ProjectServiceTest {
         assertThat(result).isEqualTo(prjMngNo);
     }
 
+    // ───────────────────────────────────────────────────────
+    // updateProject — complete 플래그에 따른 작성완료 신청서 스탬프
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateProject: complete=true면 수정 중인 개정본(project)에 작성완료 신청서를 스탬프한다")
+    void updateProject_completeTrue_stampsDraftedWithTargetEntity() {
+        // given: 흔히 쓰는 sno=1이 아닌 5로 두어, 향후 누군가 로드한 엔티티가 아닌 다른 값(하드코딩된 1 등)을
+        // 넘기도록 바꿔도 이 테스트가 반드시 실패하도록 한다.
+        String prjMngNo = "PRJ-2026-0005";
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(prjMngNo)
+                        .sno(5)
+                        .svnDpmC("D005")
+                        .abusNm("수정 대상 사업")
+                        .bseYy("2026")
+                        .delYn("N")
+                        .build();
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(5), anyList()))
+                .willReturn(false);
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 5, "N"))
+                .willReturn(List.of());
+
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder().abusNm("수정된 사업명").complete(true).build();
+
+        // when
+        projectService.updateProject(prjMngNo, request);
+
+        // then: 원본테이블명·관리번호·개정 순번은 로드한 project의 실측값이어야 한다
+        verify(approvalStamper)
+                .stampDrafted(eq("BPROJM"), eq(prjMngNo), eq(5), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("updateProject: complete=false나 미지정이면 스탬프하지 않는다")
+    void updateProject_completeFalseOrUnset_doesNotStamp() {
+        String prjMngNo = "PRJ-2026-0006";
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo(prjMngNo)
+                        .sno(5)
+                        .svnDpmC("D005")
+                        .abusNm("수정 대상 사업")
+                        .bseYy("2026")
+                        .delYn("N")
+                        .build();
+        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(5), anyList()))
+                .willReturn(false);
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 5, "N"))
+                .willReturn(List.of());
+
+        ProjectDto.UpdateRequest draftRequest =
+                ProjectDto.UpdateRequest.builder().abusNm("임시저장 수정").complete(false).build();
+        ProjectDto.UpdateRequest unsetRequest =
+                ProjectDto.UpdateRequest.builder().abusNm("미지정 수정").build();
+
+        // when
+        projectService.updateProject(prjMngNo, draftRequest);
+        projectService.updateProject(prjMngNo, unsetRequest);
+
+        // then
+        verify(approvalStamper, org.mockito.Mockito.never())
+                .stampDrafted(any(), any(), any(), any(), any(), any(), any());
+    }
+
     @Test
     @DisplayName("updateProject: 담당자 소속 팀코드로 주관팀(SVN_TEM_C)/개발팀(DVM_TEM_C)을 갱신한다")
     void updateProject_refreshesTeamCodesFromManagers() {
