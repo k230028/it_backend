@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
-/** 스피드다이얼 전용 FAQ·Q&A API DTO입니다. */
+/** 스피드다이얼 전용 FAQ·Q&amp;A API DTO입니다. */
 public final class SpeedDialDto {
 
     private SpeedDialDto() {}
