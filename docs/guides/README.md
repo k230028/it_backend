@@ -28,6 +28,7 @@
 
 - [정보화사업 집행](domains/project-execution.md)
 - [편성요청서 반입](domains/request-form-import.md)
+- [신청서 상태와 작성완료 스탬프](domains/approval-status.md)
 - [Tiptap 변수](domains/tiptap-variables.md)
 
 ## 외부 연동
