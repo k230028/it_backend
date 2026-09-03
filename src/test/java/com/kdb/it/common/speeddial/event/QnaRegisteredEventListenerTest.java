@@ -133,18 +133,12 @@ class QnaRegisteredEventListenerTest {
     }
 
     private QnaRegisteredEventListener listener(ObjectMapper mapper) {
-        return new QnaRegisteredEventListener(roleRepository, outboxService, dispatchService, mapper);
+        return new QnaRegisteredEventListener(
+                roleRepository, outboxService, dispatchService, mapper);
     }
 
     private QnaRegisteredEvent event(String title, String categoryName) {
         return new QnaRegisteredEvent(
-                "NAC-1",
-                title,
-                categoryName,
-                null,
-                null,
-                null,
-                null,
-                "/board/qna?postId=NAC-1");
+                "NAC-1", title, categoryName, null, null, null, null, "/board/qna?postId=NAC-1");
     }
 }

@@ -121,7 +121,11 @@ class CostControllerTest {
                         Bcostm.builder().costBgNo("COST_2026_0001").bgSno(3).build());
         given(costVersionService.findHistory(eq("COST_2026_0001"), any())).willReturn(history);
         given(costQueryAssembler.assembleHistory(history))
-                .willReturn(List.of(new CostDto.Response(), new CostDto.Response(), new CostDto.Response()));
+                .willReturn(
+                        List.of(
+                                new CostDto.Response(),
+                                new CostDto.Response(),
+                                new CostDto.Response()));
 
         mockMvc.perform(
                         get("/api/cost/COST_2026_0001/history")

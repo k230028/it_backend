@@ -28,6 +28,7 @@ public class GuideDocService {
 
     /** 가이드 문서 데이터 접근 리포지토리 (TPRMPP_BGDOCM) */
     private final GuideDocRepository guideDocRepository;
+
     private final BgdocNumberAllocator bgdocNumberAllocator;
 
     /**

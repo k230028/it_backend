@@ -171,7 +171,9 @@ class BoardPostServiceTest {
         BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-QNA", "N"))
                 .willReturn(Optional.of(qnaBoard));
-        given(postRepository.searchPostRows("BLBM-QNA", condition, false, true, normalUser.getEno()))
+        given(
+                        postRepository.searchPostRows(
+                                "BLBM-QNA", condition, false, true, normalUser.getEno()))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         service.searchPosts("BLBM-QNA", condition, normalUser);

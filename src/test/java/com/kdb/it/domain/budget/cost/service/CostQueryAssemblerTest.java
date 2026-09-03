@@ -297,21 +297,27 @@ class CostQueryAssemblerTest {
                                 historyTerminal("TMN-2", 2, "20002"),
                                 historyTerminal("TMN-3", 3, "20003")));
         given(
-                        applicationMapRepository
-                                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
-                                        "BCOSTM", List.of("COST-HISTORY")))
+                        applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                "BCOSTM", List.of("COST-HISTORY")))
                 .willReturn(
                         List.of(
                                 new ApplicationMapView("APF-3", "COST-HISTORY", 3),
                                 new ApplicationMapView("APF-2", "COST-HISTORY", 2),
                                 new ApplicationMapView("APF-1", "COST-HISTORY", 1)));
-        given(applicationRepository.findSummaryViewsByApfMngNoIn(List.of("APF-3", "APF-2", "APF-1")))
+        given(
+                        applicationRepository.findSummaryViewsByApfMngNoIn(
+                                List.of("APF-3", "APF-2", "APF-1")))
                 .willReturn(
                         List.of(
-                                new ApplicationSummaryView("APF-1", ApprovalStatus.COMPLETED.code()),
-                                new ApplicationSummaryView("APF-2", ApprovalStatus.IN_PROGRESS.code()),
-                                new ApplicationSummaryView("APF-3", ApprovalStatus.REJECTED.code())));
-        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(List.of("APF-3", "APF-2", "APF-1")))
+                                new ApplicationSummaryView(
+                                        "APF-1", ApprovalStatus.COMPLETED.code()),
+                                new ApplicationSummaryView(
+                                        "APF-2", ApprovalStatus.IN_PROGRESS.code()),
+                                new ApplicationSummaryView(
+                                        "APF-3", ApprovalStatus.REJECTED.code())));
+        given(
+                        approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(
+                                List.of("APF-3", "APF-2", "APF-1")))
                 .willReturn(
                         List.of(
                                 new ApproverView("APF-1", "10011"),
@@ -367,10 +373,8 @@ class CostQueryAssemblerTest {
         verify(userRepository).findNameViewsByEnoIn(java.util.Set.of("20001", "20002", "20003"));
         verify(codeRepository, times(1))
                 .findByCIdWithValidDate(CommonCodeGroups.TERM_SERVICE, null);
-        verify(codeRepository, times(1))
-                .findByCIdWithValidDate(CommonCodeGroups.TERM_KIND, null);
-        verify(codeRepository, times(1))
-                .findByCIdWithValidDate(CommonCodeGroups.DFR_CLE, null);
+        verify(codeRepository, times(1)).findByCIdWithValidDate(CommonCodeGroups.TERM_KIND, null);
+        verify(codeRepository, times(1)).findByCIdWithValidDate(CommonCodeGroups.DFR_CLE, null);
         verifyNoMoreInteractions(userRepository, codeRepository);
     }
 

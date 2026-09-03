@@ -161,8 +161,7 @@ class CostVersionServiceTest {
 
     @Test
     void 결재완료_상태가_아니면_재상신을_거부한다() {
-        Bcostm source =
-                Bcostm.builder().costBgNo("COST-1").bgSno(1).lstYn("Y").delYn("N").build();
+        Bcostm source = Bcostm.builder().costBgNo("COST-1").bgSno(1).lstYn("Y").delYn("N").build();
         given(costRepository.findCurrentVersionForUpdate("COST-1")).willReturn(Optional.of(source));
         given(applicationMapRepository.findLatestApplicationStatus("BCOSTM", "COST-1", 1))
                 .willReturn(Optional.of("DRAFT"));
@@ -227,18 +226,14 @@ class CostVersionServiceTest {
 
     @Test
     void 타부서_사용자는_재상신_초안을_생성할_수_없다() {
-        Bcostm source =
-                Bcostm.builder()
-                        .costBgNo("COST-1")
-                        .bgSno(1)
-                        .costSvnDpmC("D001")
-                        .build();
+        Bcostm source = Bcostm.builder().costBgNo("COST-1").bgSno(1).costSvnDpmC("D001").build();
         given(costRepository.findCurrentVersionForUpdate("COST-1")).willReturn(Optional.of(source));
 
         assertThatThrownBy(() -> service().createReapplication("COST-1", departmentUser("D002")))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
 
-        verify(applicationMapRepository, never()).findLatestApplicationStatus("BCOSTM", "COST-1", 1);
+        verify(applicationMapRepository, never())
+                .findLatestApplicationStatus("BCOSTM", "COST-1", 1);
     }
 
     @Test
@@ -246,7 +241,9 @@ class CostVersionServiceTest {
         assertThatThrownBy(() -> CostVersionService.class.getMethod("findHistory", String.class))
                 .isInstanceOf(NoSuchMethodException.class);
         assertThatThrownBy(
-                        () -> CostVersionService.class.getMethod("createReapplication", String.class))
+                        () ->
+                                CostVersionService.class.getMethod(
+                                        "createReapplication", String.class))
                 .isInstanceOf(NoSuchMethodException.class);
     }
 
@@ -255,12 +252,10 @@ class CostVersionServiceTest {
     }
 
     private static CustomUserDetails administrator() {
-        return new CustomUserDetails(
-                "10001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+        return new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
     }
 
     private static CustomUserDetails departmentUser(String departmentCode) {
-        return new CustomUserDetails(
-                "20001", List.of(CustomUserDetails.ATH_USER), departmentCode);
+        return new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), departmentCode);
     }
 }

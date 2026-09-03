@@ -55,6 +55,7 @@ public final class BudgetDetailAccessVerifier {
         }
         String actorDepartmentCode = actor.getBbrC();
         return actor.isAdmin()
-                || (actorDepartmentCode != null && IT_ORGANIZATION_CODES.contains(actorDepartmentCode));
+                || (actorDepartmentCode != null
+                        && IT_ORGANIZATION_CODES.contains(actorDepartmentCode));
     }
 }

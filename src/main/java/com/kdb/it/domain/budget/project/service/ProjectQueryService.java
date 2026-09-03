@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 정보화사업 조회 흐름을 담당합니다. */
@@ -144,7 +144,8 @@ public class ProjectQueryService {
             Bprojm project = projectById.get(prjMngNo);
             if (project == null
                     || (actor != null
-                            && !BudgetDetailAccessVerifier.isReadable(project.getSvnDpmC(), actor))) {
+                            && !BudgetDetailAccessVerifier.isReadable(
+                                    project.getSvnDpmC(), actor))) {
                 failedIds.add(prjMngNo);
             } else {
                 projects.add(project);

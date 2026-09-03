@@ -22,7 +22,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -224,7 +223,9 @@ public class CostQueryAssembler {
         Map<String, Ccodem> itemCodesByValue =
                 itemCodeRows.stream()
                         .filter(code -> itemCodes.contains(code.getCdva()))
-                        .collect(Collectors.toMap(Ccodem::getCdva, code -> code, (first, second) -> first));
+                        .collect(
+                                Collectors.toMap(
+                                        Ccodem::getCdva, code -> code, (first, second) -> first));
         return new BatchData(
                 latestApplications,
                 applications,
@@ -339,9 +340,7 @@ public class CostQueryAssembler {
     private void applyBudgetCategory(CostDto.Response response) {
         Ccodem code =
                 hasText(response.getIoeC())
-                        ? codeRepository
-                                .findByCIdWithValidDate(CommonCodeGroups.IOE, null)
-                                .stream()
+                        ? codeRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null).stream()
                                 .filter(value -> response.getIoeC().equals(value.getCdva()))
                                 .findFirst()
                                 .orElse(null)
@@ -518,7 +517,9 @@ public class CostQueryAssembler {
         Map<String, Ccodem> codesByValue =
                 codeRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null).stream()
                         .filter(code -> codes.contains(code.getCdva()))
-                        .collect(Collectors.toMap(Ccodem::getCdva, code -> code, (first, second) -> first));
+                        .collect(
+                                Collectors.toMap(
+                                        Ccodem::getCdva, code -> code, (first, second) -> first));
         return buildItemCodeNames(codesByValue);
     }
 

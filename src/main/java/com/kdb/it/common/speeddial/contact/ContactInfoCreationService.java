@@ -33,7 +33,8 @@ class ContactInfoCreationService {
                         })
                 .orElseGet(
                         () -> {
-                            String documentNumber = bgdocNumberAllocator.next(DOCUMENT_NUMBER_PREFIX);
+                            String documentNumber =
+                                    bgdocNumberAllocator.next(DOCUMENT_NUMBER_PREFIX);
                             Bgdocm document =
                                     Bgdocm.builder()
                                             .docMngNo(documentNumber)
