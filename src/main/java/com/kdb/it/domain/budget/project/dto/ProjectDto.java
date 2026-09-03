@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -20,24 +21,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * 정보화사업(IT 프로젝트) 관련 DTO 클래스 모음
- *
- * <p>정보화사업(TPRMPP_BPROJM) 엔티티의 생성, 수정, 조회, 일괄 조회 및 연관 품목(TPRMPP_BITEMM) 정보 전달에 사용되는 DTO를 정적 중첩
- * 클래스(Static Nested Class) 형태로 관리합니다.
- */
+/** 정보화사업 생성·수정·조회와 연관 품목 전달에 사용하는 DTO 모음입니다. */
 public class ProjectDto {
 
-    /**
-     * 정보화사업 생성 요청 DTO
-     *
-     * <p>신규 정보화사업을 등록할 때 사용합니다. 약 30개 이상의 필드로 구성된 대형 DTO입니다.
-     *
-     * <p>{@code abusMngNo}가 null 또는 빈 문자열이면 서비스에서 Oracle 시퀀스로 자동 채번합니다. 형식: {@code
-     * PRJ-{bseYy}-{seq:04d}} (예: "PRJ-2026-0001")
-     *
-     * <p>{@link #toEntity()} 메서드로 {@link Bprojm} 엔티티로 변환합니다.
-     */
+    /** 정보화사업 생성 요청입니다. 관리번호가 비어 있으면 서비스에서 자동 채번합니다. */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -208,12 +195,8 @@ public class ProjectDto {
         @Valid
         private java.util.List<BitemmDto> items;
 
-        /**
-         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
-         *
-         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
-         */
-        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        /** 작성완료 저장 여부. 화면 요청에는 필수이고 내부 반입 경로는 null을 허용합니다. */
+        @NotNull(message = "저장 종류(complete)는 필수입니다.")
         @Schema(
                 description = "작성완료 여부 (true=저장, false=임시저장)",
                 requiredMode = Schema.RequiredMode.REQUIRED)
@@ -231,14 +214,7 @@ public class ProjectDto {
         }
     }
 
-    /**
-     * 정보화사업 수정 요청 DTO
-     *
-     * <p>기존 정보화사업 정보를 수정할 때 사용합니다. {@code abusMngNo}는 URL PathVariable로 받으므로 이 DTO에는 포함하지 않습니다.
-     *
-     * <p>품목({@code items}) 목록을 포함하며, 동기화 로직(추가/수정/삭제)은 {@link
-     * com.kdb.it.domain.budget.project.service.ProjectService#updateProject}에서 처리합니다.
-     */
+    /** 정보화사업 수정 요청입니다. 관리번호는 URL 경로로 받고 품목 목록은 서비스에서 동기화합니다. */
     @Getter
     @Setter
     @NoArgsConstructor
@@ -396,12 +372,8 @@ public class ProjectDto {
         @Valid
         private java.util.List<BitemmDto> items;
 
-        /**
-         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
-         *
-         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
-         */
-        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        /** 작성완료 저장 여부. 화면 요청에는 필수이고 내부 반입 경로는 null을 허용합니다. */
+        @NotNull(message = "저장 종류(complete)는 필수입니다.")
         @Schema(
                 description = "작성완료 여부 (true=저장, false=임시저장)",
                 requiredMode = Schema.RequiredMode.REQUIRED)

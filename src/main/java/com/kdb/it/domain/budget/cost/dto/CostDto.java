@@ -5,6 +5,7 @@ import com.kdb.it.common.system.validation.NotBlankUnlessAdmin;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,21 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * 전산관리비(IT 관리비) 관련 DTO 클래스 모음
- *
- * <p>전산관리비(TPRMPP_BCOSTM) 엔티티의 생성, 수정, 조회, 일괄 조회에 사용되는 Request/Response DTO를 정적 중첩 클래스(Static
- * Nested Class) 형태로 관리합니다.
- *
- * <p>포함된 DTO:
- *
- * <ul>
- *   <li>{@link CreateRequest}: 전산관리비 생성 요청
- *   <li>{@link UpdateRequest}: 전산관리비 수정 요청
- *   <li>{@link Response}: 전산관리비 조회 응답
- *   <li>{@link BulkGetRequest}: 일괄 조회 요청
- * </ul>
- */
+/** 전산관리비 생성·수정·조회와 일괄 조회에 사용하는 DTO 모음입니다. */
 public class CostDto extends CostTerminalDto {
 
     /**
@@ -190,12 +177,8 @@ public class CostDto extends CostTerminalDto {
         @Schema(description = "금융정보단말기 목록 (1:N)")
         private List<TerminalDto> terminals;
 
-        /**
-         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
-         *
-         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
-         */
-        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        /** 작성완료 저장 여부. 화면 요청에는 필수이고 내부 반입 경로는 null을 허용합니다. */
+        @NotNull(message = "저장 종류(complete)는 필수입니다.")
         @Schema(
                 description = "작성완료 여부 (true=저장, false=임시저장)",
                 requiredMode = Schema.RequiredMode.REQUIRED)
@@ -320,12 +303,8 @@ public class CostDto extends CostTerminalDto {
         @Schema(description = "금융정보단말기 목록 (1:N)")
         private List<TerminalDto> terminals;
 
-        /**
-         * 저장 종류. {@code true}는 저장(작성완료 신청서 0 스탬프), {@code false}는 임시저장(신청서 없음).
-         *
-         * <p>화면 경로는 필수다. 엑셀 반입처럼 서비스 내부에서 DTO를 만드는 경로는 비워 두며 그때는 스탬프하지 않는다.
-         */
-        @jakarta.validation.constraints.NotNull(message = "저장 종류(complete)는 필수입니다.")
+        /** 작성완료 저장 여부. 화면 요청에는 필수이고 내부 반입 경로는 null을 허용합니다. */
+        @NotNull(message = "저장 종류(complete)는 필수입니다.")
         @Schema(
                 description = "작성완료 여부 (true=저장, false=임시저장)",
                 requiredMode = Schema.RequiredMode.REQUIRED)
