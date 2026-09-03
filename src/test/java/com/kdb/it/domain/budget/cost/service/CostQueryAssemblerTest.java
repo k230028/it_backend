@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
@@ -281,28 +282,48 @@ class CostQueryAssemblerTest {
     }
 
     @Test
-    @DisplayName("이력 조립: 개정본 세 건의 신청·단말기·비목을 각각 한 번만 배치 조회한다")
-    void assembleHistory_개정본세건_연관정보배치조회() {
+    @DisplayName("이력 조립: 개정본 세 건의 단말기·신청·사용자·코드를 각각 한 번만 배치 조회한다")
+    void assembleHistory_개정본세건_단말기연관정보배치조회() {
         List<Bcostm> history =
                 List.of(
-                        enrichedCost("COST-HISTORY", 1),
-                        enrichedCost("COST-HISTORY", 2),
-                        enrichedCost("COST-HISTORY", 3));
-        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any()))
-                .willReturn(List.of(new OrgView("D01", "정보기술부"), new OrgView("T01", "개발팀")));
-        given(userRepository.findNameViewsByEnoIn(any()))
-                .willReturn(List.of(new UserView("10001", "담당자", "과장")));
+                        Bcostm.builder().costBgNo("COST-HISTORY").bgSno(1).build(),
+                        Bcostm.builder().costBgNo("COST-HISTORY").bgSno(2).build(),
+                        Bcostm.builder().costBgNo("COST-HISTORY").bgSno(3).build());
+        given(terminalRepository.findByTermBgNoInAndDelYn(List.of("COST-HISTORY"), "N"))
+                .willReturn(
+                        List.of(
+                                historyTerminal("TMN-1", 1, "20001"),
+                                historyTerminal("TMN-2", 2, "20002"),
+                                historyTerminal("TMN-3", 3, "20003")));
+        given(userRepository.findNameViewsByEnoIn(java.util.Set.of("20001", "20002", "20003")))
+                .willReturn(
+                        List.of(
+                                new UserView("20001", "단말담당1", "대리"),
+                                new UserView("20002", "단말담당2", "대리"),
+                                new UserView("20003", "단말담당3", "대리")));
         stubCodes();
 
         List<CostDto.Response> responses = assembler.assembleHistory(history);
 
         assertThat(responses).extracting(CostDto.Response::getBgSno).containsExactly(1, 2, 3);
+        assertThat(responses)
+                .extracting(response -> response.getTerminals().getFirst().getTmnMngNo())
+                .containsExactly("TMN-1", "TMN-2", "TMN-3");
+        assertThat(responses)
+                .extracting(response -> response.getTerminals().getFirst().getCgprNm())
+                .containsExactly("단말담당1", "단말담당2", "단말담당3");
         verify(applicationMapRepository)
                 .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                         "BCOSTM", List.of("COST-HISTORY"));
         verify(terminalRepository).findByTermBgNoInAndDelYn(List.of("COST-HISTORY"), "N");
+        verify(userRepository).findNameViewsByEnoIn(java.util.Set.of("20001", "20002", "20003"));
         verify(codeRepository, times(1))
-                .findByCIdWithValidDate(CommonCodeGroups.IOE, null);
+                .findByCIdWithValidDate(CommonCodeGroups.TERM_SERVICE, null);
+        verify(codeRepository, times(1))
+                .findByCIdWithValidDate(CommonCodeGroups.TERM_KIND, null);
+        verify(codeRepository, times(1))
+                .findByCIdWithValidDate(CommonCodeGroups.DFR_CLE, null);
+        verifyNoMoreInteractions(userRepository, codeRepository);
     }
 
     @Test
@@ -417,6 +438,19 @@ class CostQueryAssemblerTest {
                 .abusTc("20")
                 .bseYy("2027")
                 .cncdRfrNo("COST-PREV")
+                .build();
+    }
+
+    private static Btermm historyTerminal(String terminalNo, int costSno, String managerId) {
+        return Btermm.builder()
+                .tmnMngNo(terminalNo)
+                .sno(1)
+                .termBgNo("COST-HISTORY")
+                .termBgSno(costSno)
+                .cgprId(managerId)
+                .tmnClsfC("SVC")
+                .tmnKdTc("KIND")
+                .dfrCleC("M")
                 .build();
     }
 

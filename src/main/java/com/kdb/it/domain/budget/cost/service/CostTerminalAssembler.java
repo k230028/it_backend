@@ -70,27 +70,30 @@ public class CostTerminalAssembler {
         if (terminalCostNos.isEmpty()) {
             return;
         }
-        Map<String, List<Btermm>> terminalsByKey =
+        Map<String, List<CostDto.TerminalDto>> terminalsByKey =
                 terminalRepository.findByTermBgNoInAndDelYn(terminalCostNos, "N").stream()
                         .collect(
                                 Collectors.groupingBy(
                                         terminal ->
                                                 key(
                                                         terminal.getTermBgNo(),
-                                                        terminal.getTermBgSno())));
+                                                        terminal.getTermBgSno()),
+                                        Collectors.mapping(
+                                                CostDto.TerminalDto::fromEntity,
+                                                Collectors.toList())));
+        List<CostDto.TerminalDto> allTerminals =
+                terminalsByKey.values().stream().flatMap(List::stream).toList();
+        enrichNames(allTerminals);
         for (int index = 0; index < costs.size(); index++) {
             Bcostm cost = costs.get(index);
             if (!terminalTarget.test(cost)) {
                 continue;
             }
-            List<CostDto.TerminalDto> terminals =
-                    terminalsByKey
-                            .getOrDefault(key(cost.getCostBgNo(), cost.getBgSno()), List.of())
-                            .stream()
-                            .map(CostDto.TerminalDto::fromEntity)
-                            .toList();
-            enrichNames(terminals);
-            responses.get(index).setTerminals(terminals);
+            responses
+                    .get(index)
+                    .setTerminals(
+                            terminalsByKey.getOrDefault(
+                                    key(cost.getCostBgNo(), cost.getBgSno()), List.of()));
         }
     }
 

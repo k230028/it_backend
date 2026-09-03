@@ -203,7 +203,8 @@ public class CostQueryAssembler {
                                         OrganizationRepository.OrganizationNameView
                                                 ::getPrlmOgzCCone,
                                         OrganizationRepository.OrganizationNameView::getBbrNm));
-        List<UserRepository.UserNameView> userViews = userRepository.findNameViewsByEnoIn(userIds);
+        List<UserRepository.UserNameView> userViews =
+                userIds.isEmpty() ? List.of() : userRepository.findNameViewsByEnoIn(userIds);
         Map<String, String> userNames =
                 userViews.stream()
                         .collect(

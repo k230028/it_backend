@@ -25,12 +25,6 @@ public class CostVersionService {
     private final BtermmRepository terminalRepository;
     private final ApplicationMapRepository applicationMapRepository;
 
-    /** 결재 완료된 현재 전산업무비와 단말기를 다음 순번의 미상신 초안으로 복제합니다. */
-    @Transactional
-    public CostVersion createReapplication(String costBgNo) {
-        return createReapplication(costBgNo, null);
-    }
-
     /** 인증 사용자의 부서 범위를 확인한 뒤 재상신 초안을 생성합니다. */
     @Transactional
     public CostVersion createReapplication(String costBgNo, CustomUserDetails actor) {
@@ -41,9 +35,7 @@ public class CostVersionService {
                                 () ->
                                         new IllegalArgumentException(
                                                 "재상신할 최종 전산업무비가 없습니다: " + costBgNo));
-        if (actor != null) {
-            BudgetDetailAccessVerifier.verifyReadable(source.getCostSvnDpmC(), actor);
-        }
+        BudgetDetailAccessVerifier.verifyReadable(source.getCostSvnDpmC(), actor);
         // 원본을 잠근 뒤 미결 초안 존재를 확인한다. 잠금이 동시 요청을 직렬화하므로
         // 두 번째 트랜잭션은 여기서 차단되어 초안이 중첩 생성되지 않는다.
         // 판정은 최종본 순번 초과로 한다 — LST_YN='N'만 보면 승격으로 강등된 과거 버전까지
@@ -74,15 +66,12 @@ public class CostVersionService {
         return new CostVersion(draft.getCostBgNo(), draft.getBgSno(), draft.getLstYn());
     }
 
-    /** 관리번호에 속한 모든 미삭제 전산업무비 개정본을 순번순으로 반환합니다. */
-    public List<Bcostm> findHistory(String costBgNo) {
-        return costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(costBgNo, "N");
-    }
-
-    /** 인증 사용자의 부서 범위 안에 있는 개정 이력만 반환합니다. */
+    /** 인증 사용자의 부서 범위 안에 있는 개정 이력을 순번순으로 반환합니다. */
     public List<Bcostm> findHistory(String costBgNo, CustomUserDetails actor) {
-        List<Bcostm> history = findHistory(costBgNo);
-        history.forEach(cost -> BudgetDetailAccessVerifier.verifyReadable(cost.getCostSvnDpmC(), actor));
+        List<Bcostm> history = costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(costBgNo, "N");
+        if (!history.isEmpty()) {
+            BudgetDetailAccessVerifier.verifyReadable(history.getFirst().getCostSvnDpmC(), actor);
+        }
         return history;
     }
 

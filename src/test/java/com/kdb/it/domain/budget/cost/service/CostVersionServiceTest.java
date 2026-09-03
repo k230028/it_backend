@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
@@ -65,7 +66,8 @@ class CostVersionServiceTest {
         CostVersionService service =
                 new CostVersionService(
                         costRepository, terminalRepository, applicationMapRepository);
-        CostVersionService.CostVersion result = service.createReapplication(source.getCostBgNo());
+        CostVersionService.CostVersion result =
+                service.createReapplication(source.getCostBgNo(), administrator());
 
         assertThat(result.bgSno()).isEqualTo(2);
         ArgumentCaptor<Bcostm> costCaptor = ArgumentCaptor.forClass(Bcostm.class);
@@ -91,7 +93,7 @@ class CostVersionServiceTest {
                 new CostVersionService(
                         costRepository, terminalRepository, applicationMapRepository);
 
-        assertThatThrownBy(() -> service.createReapplication("COST-2027-0001"))
+        assertThatThrownBy(() -> service.createReapplication("COST-2027-0001", administrator()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("재상신 초안");
 
@@ -121,13 +123,13 @@ class CostVersionServiceTest {
 
     @Test
     void 개정이력을_순번순으로_조회한다() {
-        Bcostm first = Bcostm.builder().costBgNo("COST-1").bgSno(1).build();
-        Bcostm second = Bcostm.builder().costBgNo("COST-1").bgSno(2).build();
+        Bcostm first = Bcostm.builder().costBgNo("COST-1").bgSno(1).costSvnDpmC("D001").build();
+        Bcostm second = Bcostm.builder().costBgNo("COST-1").bgSno(2).costSvnDpmC("D001").build();
         given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc("COST-1", "N"))
                 .willReturn(List.of(first, second));
         CostVersionService service = service();
 
-        List<Bcostm> history = service.findHistory("COST-1");
+        List<Bcostm> history = service.findHistory("COST-1", administrator());
 
         assertThat(history).containsExactly(first, second);
     }
@@ -149,7 +151,7 @@ class CostVersionServiceTest {
         given(costRepository.findCurrentVersionForUpdate("COST-404")).willReturn(Optional.empty());
         CostVersionService service = service();
 
-        assertThatThrownBy(() -> service.createReapplication("COST-404"))
+        assertThatThrownBy(() -> service.createReapplication("COST-404", administrator()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("COST-404");
 
@@ -166,7 +168,7 @@ class CostVersionServiceTest {
                 .willReturn(Optional.of("DRAFT"));
         CostVersionService service = service();
 
-        assertThatThrownBy(() -> service.createReapplication("COST-1"))
+        assertThatThrownBy(() -> service.createReapplication("COST-1", administrator()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("결재 완료");
 
@@ -201,7 +203,64 @@ class CostVersionServiceTest {
         verify(costRepository).clearCurrentVersion("COST-1", 2);
     }
 
+    @Test
+    void 개정이력은_정렬된_첫_개정본의_부서_권한만_판정한다() {
+        Bcostm first = Bcostm.builder().costBgNo("COST-1").bgSno(1).costSvnDpmC("D001").build();
+        Bcostm later = Bcostm.builder().costBgNo("COST-1").bgSno(2).costSvnDpmC("D002").build();
+        given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc("COST-1", "N"))
+                .willReturn(List.of(first, later));
+
+        List<Bcostm> history = service().findHistory("COST-1", departmentUser("D001"));
+
+        assertThat(history).containsExactly(first, later);
+    }
+
+    @Test
+    void 타부서_사용자는_개정이력을_조회할_수_없다() {
+        Bcostm first = Bcostm.builder().costBgNo("COST-1").bgSno(1).costSvnDpmC("D001").build();
+        given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc("COST-1", "N"))
+                .willReturn(List.of(first));
+
+        assertThatThrownBy(() -> service().findHistory("COST-1", departmentUser("D002")))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    @Test
+    void 타부서_사용자는_재상신_초안을_생성할_수_없다() {
+        Bcostm source =
+                Bcostm.builder()
+                        .costBgNo("COST-1")
+                        .bgSno(1)
+                        .costSvnDpmC("D001")
+                        .build();
+        given(costRepository.findCurrentVersionForUpdate("COST-1")).willReturn(Optional.of(source));
+
+        assertThatThrownBy(() -> service().createReapplication("COST-1", departmentUser("D002")))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+
+        verify(applicationMapRepository, never()).findLatestApplicationStatus("BCOSTM", "COST-1", 1);
+    }
+
+    @Test
+    void actor_없는_공개_이력과_재상신_오버로드를_노출하지_않는다() {
+        assertThatThrownBy(() -> CostVersionService.class.getMethod("findHistory", String.class))
+                .isInstanceOf(NoSuchMethodException.class);
+        assertThatThrownBy(
+                        () -> CostVersionService.class.getMethod("createReapplication", String.class))
+                .isInstanceOf(NoSuchMethodException.class);
+    }
+
     private CostVersionService service() {
         return new CostVersionService(costRepository, terminalRepository, applicationMapRepository);
+    }
+
+    private static CustomUserDetails administrator() {
+        return new CustomUserDetails(
+                "10001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+    }
+
+    private static CustomUserDetails departmentUser(String departmentCode) {
+        return new CustomUserDetails(
+                "20001", List.of(CustomUserDetails.ATH_USER), departmentCode);
     }
 }
