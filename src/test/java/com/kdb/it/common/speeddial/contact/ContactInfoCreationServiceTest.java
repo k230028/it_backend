@@ -8,7 +8,7 @@ import static org.mockito.Mockito.never;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
-import java.time.LocalDate;
+import com.kdb.it.domain.budget.document.service.BgdocNumberAllocator;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ContactInfoCreationServiceTest {
 
     @Mock private GuideDocRepository guideDocRepository;
+    @Mock private BgdocNumberAllocator bgdocNumberAllocator;
     @InjectMocks private ContactInfoCreationService contactInfoCreationService;
 
     @Test
@@ -29,7 +30,7 @@ class ContactInfoCreationServiceTest {
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
                                 ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
                 .willReturn(Optional.empty());
-        given(guideDocRepository.getNextSequenceValue()).willReturn(17L);
+        given(bgdocNumberAllocator.next("CDOC-")).willReturn("CDOC-2026-0017");
         given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -39,7 +40,7 @@ class ContactInfoCreationServiceTest {
         ArgumentCaptor<Bgdocm> documentCaptor = ArgumentCaptor.forClass(Bgdocm.class);
         verify(guideDocRepository).saveAndFlush(documentCaptor.capture());
         Bgdocm saved = documentCaptor.getValue();
-        assertThat(saved.getDocMngNo()).isEqualTo("CDOC-" + LocalDate.now().getYear() + "-0017");
+        assertThat(saved.getDocMngNo()).isEqualTo("CDOC-2026-0017");
         assertThat(saved.getDocTtlCone()).isEqualTo(ContactInfoService.DOCUMENT_IDENTIFIER);
         assertThat(response.docMngNo()).isEqualTo(saved.getDocMngNo());
     }

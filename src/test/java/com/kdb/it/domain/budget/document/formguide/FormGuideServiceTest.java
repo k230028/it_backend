@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
+import com.kdb.it.domain.budget.document.service.BgdocNumberAllocator;
 import com.kdb.it.exception.NotFoundException;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,7 @@ class FormGuideServiceTest {
     private static final String GUIDE_ID = "info.basic.abusNm";
 
     @Mock private GuideDocRepository guideDocRepository;
+    @Mock private BgdocNumberAllocator bgdocNumberAllocator;
 
     @InjectMocks private FormGuideService formGuideService;
 
@@ -152,7 +154,7 @@ class FormGuideServiceTest {
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
                                 GUIDE_ID, "FDOC-", "N"))
                 .willReturn(Optional.empty());
-        given(guideDocRepository.getNextSequenceValue()).willReturn(12L);
+        given(bgdocNumberAllocator.next("FDOC-")).willReturn("FDOC-2026-0012");
 
         String guideDocNo =
                 formGuideService.save(
@@ -160,7 +162,7 @@ class FormGuideServiceTest {
 
         ArgumentCaptor<Bgdocm> document = ArgumentCaptor.forClass(Bgdocm.class);
         verify(guideDocRepository).save(document.capture());
-        assertThat(guideDocNo).matches("FDOC-\\d{4}-0012");
+        assertThat(guideDocNo).isEqualTo("FDOC-2026-0012");
         assertThat(document.getValue().getDocMngNo()).isEqualTo(guideDocNo);
         assertThat(document.getValue().getDocTtlCone()).isEqualTo(GUIDE_ID);
         assertThat(document.getValue().getNacTxtInf()).isEqualTo("<p>안내</p>");
@@ -247,7 +249,7 @@ class FormGuideServiceTest {
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
                                 GUIDE_ID, "FDOC-", "N"))
                 .willReturn(Optional.empty());
-        given(guideDocRepository.getNextSequenceValue()).willReturn(13L);
+        given(bgdocNumberAllocator.next("FDOC-")).willReturn("FDOC-2026-0013");
         given(guideDocRepository.save(any(Bgdocm.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate"));
 
@@ -269,7 +271,7 @@ class FormGuideServiceTest {
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
                                 GUIDE_ID, "FDOC-", "N"))
                 .willReturn(Optional.empty());
-        given(guideDocRepository.getNextSequenceValue()).willReturn(14L);
+        given(bgdocNumberAllocator.next("FDOC-")).willReturn("FDOC-2026-0014");
         doThrow(new DataIntegrityViolationException("duplicate")).when(guideDocRepository).flush();
 
         assertThatThrownBy(

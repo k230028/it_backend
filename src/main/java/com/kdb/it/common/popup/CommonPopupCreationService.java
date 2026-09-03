@@ -2,7 +2,7 @@ package com.kdb.it.common.popup;
 
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
-import java.time.LocalDate;
+import com.kdb.it.domain.budget.document.service.BgdocNumberAllocator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -16,6 +16,7 @@ class CommonPopupCreationService {
     private static final String DOCUMENT_NUMBER_PREFIX = "PDOC-";
 
     private final GuideDocRepository guideDocRepository;
+    private final BgdocNumberAllocator bgdocNumberAllocator;
 
     /** 동시 최초 저장의 유일 제약 실패가 호출자 트랜잭션을 오염시키지 않도록 독립 실행합니다. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -33,9 +34,7 @@ class CommonPopupCreationService {
     }
 
     private Bgdocm createDocument(String sanitizedContent) {
-        long nextValue = guideDocRepository.getNextSequenceValue();
-        String documentNumber =
-                "%s%s-%04d".formatted(DOCUMENT_NUMBER_PREFIX, LocalDate.now().getYear(), nextValue);
+        String documentNumber = bgdocNumberAllocator.next(DOCUMENT_NUMBER_PREFIX);
         Bgdocm document =
                 Bgdocm.builder()
                         .docMngNo(documentNumber)

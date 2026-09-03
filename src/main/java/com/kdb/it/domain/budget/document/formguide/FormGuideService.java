@@ -3,8 +3,8 @@ package com.kdb.it.domain.budget.document.formguide;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
+import com.kdb.it.domain.budget.document.service.BgdocNumberAllocator;
 import com.kdb.it.exception.NotFoundException;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -28,6 +28,7 @@ public class FormGuideService {
     private static final String ACTIVE = "N";
 
     private final GuideDocRepository guideDocRepository;
+    private final BgdocNumberAllocator bgdocNumberAllocator;
 
     /**
      * 해당 사업 유형에 등록된 활성 길라잡이만 공개 응답으로 반환합니다.
@@ -139,8 +140,7 @@ public class FormGuideService {
     }
 
     private String create(String guideId, String contentHtml) {
-        Long sequence = guideDocRepository.getNextSequenceValue();
-        String docMngNo = String.format("FDOC-%d-%04d", LocalDate.now().getYear(), sequence);
+        String docMngNo = bgdocNumberAllocator.next(FORM_GUIDE_DOCUMENT_PREFIX);
         Bgdocm document =
                 Bgdocm.builder()
                         .docMngNo(docMngNo)

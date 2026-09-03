@@ -4,7 +4,6 @@ import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.document.dto.GuideDocDto;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
-import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +28,7 @@ public class GuideDocService {
 
     /** 가이드 문서 데이터 접근 리포지토리 (TPRMPP_BGDOCM) */
     private final GuideDocRepository guideDocRepository;
+    private final BgdocNumberAllocator bgdocNumberAllocator;
 
     /**
      * 가이드 문서 목록 조회
@@ -86,9 +86,7 @@ public class GuideDocService {
 
         // 문서관리번호가 없으면 자동 채번
         if (docMngNo == null || docMngNo.isEmpty()) {
-            Long nextVal = guideDocRepository.getNextSequenceValue();
-            String year = String.valueOf(LocalDate.now().getYear());
-            docMngNo = String.format("GDOC-%s-%04d", year, nextVal);
+            docMngNo = bgdocNumberAllocator.next(GUIDE_DOCUMENT_PREFIX);
             request.setDocMngNo(docMngNo);
         } else {
             if (!docMngNo.startsWith(GUIDE_DOCUMENT_PREFIX)) {
