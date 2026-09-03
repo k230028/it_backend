@@ -14,6 +14,7 @@ import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -27,6 +28,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.AccessDeniedException;
 
 class ProjectQueryServiceTest {
 
@@ -171,6 +173,39 @@ class ProjectQueryServiceTest {
                 .extracting(ProjectDto.Response::getAbusMngNo)
                 .containsExactly("PRJ-001", "PRJ-003");
         assertThat(result.failedIds()).containsExactly("PRJ-002");
+    }
+
+    @Test
+    @DisplayName("일괄 조회: 일반 사용자는 타 부서 항목을 실패 목록으로 분리한다")
+    void getProjectsByIds_타부서항목_실패목록분리() {
+        Bprojm readable =
+                Bprojm.builder().abusMngNo("PRJ-OWN").sno(1).svnDpmC("101").delYn("N").build();
+        Bprojm outsideScope =
+                Bprojm.builder().abusMngNo("PRJ-OTHER").sno(1).svnDpmC("999").delYn("N").build();
+        given(projectRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-OWN", "PRJ-OTHER"), "N"))
+                .willReturn(List.of(readable, outsideScope));
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of("PRJ-OWN", "PRJ-OTHER"));
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+
+        ProjectDto.BulkResponse result = queryService.getProjectsByIds(request, user);
+
+        assertThat(result.items())
+                .extracting(ProjectDto.Response::getAbusMngNo)
+                .containsExactly("PRJ-OWN");
+        assertThat(result.failedIds()).containsExactly("PRJ-OTHER");
+    }
+
+    @Test
+    @DisplayName("일괄 조회: 인증 정보가 없으면 저장소 조회 없이 거부한다")
+    void getProjectsByIds_인증정보없음_거부() {
+        ProjectDto.BulkGetRequest request = new ProjectDto.BulkGetRequest();
+        request.setPrjMngNos(List.of("PRJ-OWN"));
+
+        assertThatThrownBy(() -> queryService.getProjectsByIds(request, null))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(projectRepository);
     }
 
     @Test
