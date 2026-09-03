@@ -21,7 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 @ExtendWith(MockitoExtension.class)
 class CommonPopupServiceTest {
 
-    private static final String DOC_NO = "GDOC-2026-0100";
+    private static final String DOC_NO = "PDOC-2026-0100";
     private static final LocalDateTime CHANGED_AT =
             LocalDateTime.parse("2026-09-02T10:20:30.123456");
     private static final String VERSION = DOC_NO + ":2026-09-02T10:20:30.123456";
@@ -146,7 +146,7 @@ class CommonPopupServiceTest {
         var stubbing =
                 given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                CommonPopupService.DOCUMENT_IDENTIFIER, "GDOC-", "N"));
+                                CommonPopupService.DOCUMENT_IDENTIFIER, "PDOC-", "N"));
         if (results.length == 1) {
             stubbing.willReturn(results[0]);
             return;

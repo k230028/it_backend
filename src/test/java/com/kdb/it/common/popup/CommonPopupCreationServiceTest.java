@@ -24,11 +24,11 @@ class CommonPopupCreationServiceTest {
     @InjectMocks private CommonPopupCreationService creationService;
 
     @Test
-    @DisplayName("최초 저장은 common.popup 구분자와 GDOC 관리번호로 문서를 생성한다")
-    void createPopup_createsIdentifiedGdocDocument() {
+    @DisplayName("최초 저장은 common.popup 구분자와 PDOC 관리번호로 문서를 생성한다")
+    void createPopup_createsIdentifiedPopupDocument() {
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                CommonPopupService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                CommonPopupService.DOCUMENT_IDENTIFIER, "PDOC-", "N"))
                 .willReturn(Optional.empty());
         given(guideDocRepository.getNextSequenceValue()).willReturn(17L);
         given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
@@ -39,7 +39,7 @@ class CommonPopupCreationServiceTest {
         ArgumentCaptor<Bgdocm> documentCaptor = ArgumentCaptor.forClass(Bgdocm.class);
         verify(guideDocRepository).saveAndFlush(documentCaptor.capture());
         Bgdocm saved = documentCaptor.getValue();
-        assertThat(saved.getDocMngNo()).isEqualTo("GDOC-" + LocalDate.now().getYear() + "-0017");
+        assertThat(saved.getDocMngNo()).isEqualTo("PDOC-" + LocalDate.now().getYear() + "-0017");
         assertThat(saved.getDocTtlCone()).isEqualTo(CommonPopupService.DOCUMENT_IDENTIFIER);
         assertThat(saved.getNacTxtInf()).isEqualTo("<p>첫 안내</p>");
         assertThat(created).isSameAs(saved);
@@ -51,7 +51,7 @@ class CommonPopupCreationServiceTest {
         Bgdocm concurrent = org.mockito.Mockito.mock(Bgdocm.class);
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                CommonPopupService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                CommonPopupService.DOCUMENT_IDENTIFIER, "PDOC-", "N"))
                 .willReturn(Optional.of(concurrent));
         given(guideDocRepository.saveAndFlush(concurrent)).willReturn(concurrent);
 

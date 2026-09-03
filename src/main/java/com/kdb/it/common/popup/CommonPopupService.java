@@ -18,7 +18,7 @@ public class CommonPopupService {
     /** 공통 안내 팝업을 식별하는 DOC_TTL_CONE 고정값입니다. */
     public static final String DOCUMENT_IDENTIFIER = "common.popup";
 
-    private static final String DOCUMENT_NUMBER_PREFIX = "GDOC-";
+    private static final String DOCUMENT_NUMBER_PREFIX = "PDOC-";
 
     private final GuideDocRepository guideDocRepository;
     private final CommonPopupCreationService creationService;

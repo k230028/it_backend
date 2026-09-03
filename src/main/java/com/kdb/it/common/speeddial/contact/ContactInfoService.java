@@ -16,7 +16,7 @@ public class ContactInfoService {
     /** 담당자 정보 문서를 식별하는 DOC_TTL_CONE 고정값입니다. */
     public static final String DOCUMENT_IDENTIFIER = "SPEED_DIAL_CONTACT_INFO";
 
-    private static final String DOCUMENT_NUMBER_PREFIX = "GDOC-";
+    private static final String DOCUMENT_NUMBER_PREFIX = "CDOC-";
 
     private final GuideDocRepository guideDocRepository;
     private final ContactInfoCreationService contactInfoCreationService;

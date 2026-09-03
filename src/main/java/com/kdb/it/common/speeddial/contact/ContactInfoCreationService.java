@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class ContactInfoCreationService {
 
-    private static final String DOCUMENT_NUMBER_PREFIX = "GDOC-";
+    private static final String DOCUMENT_NUMBER_PREFIX = "CDOC-";
 
     private final GuideDocRepository guideDocRepository;
 

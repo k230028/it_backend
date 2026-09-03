@@ -24,10 +24,10 @@ class ContactInfoCreationServiceTest {
     @InjectMocks private ContactInfoCreationService contactInfoCreationService;
 
     @Test
-    void createContactInfo_createsAnIdentifiedGdocDocument() {
+    void createContactInfo_createsAnIdentifiedContactDocument() {
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
                 .willReturn(Optional.empty());
         given(guideDocRepository.getNextSequenceValue()).willReturn(17L);
         given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
@@ -39,7 +39,7 @@ class ContactInfoCreationServiceTest {
         ArgumentCaptor<Bgdocm> documentCaptor = ArgumentCaptor.forClass(Bgdocm.class);
         verify(guideDocRepository).saveAndFlush(documentCaptor.capture());
         Bgdocm saved = documentCaptor.getValue();
-        assertThat(saved.getDocMngNo()).isEqualTo("GDOC-" + LocalDate.now().getYear() + "-0017");
+        assertThat(saved.getDocMngNo()).isEqualTo("CDOC-" + LocalDate.now().getYear() + "-0017");
         assertThat(saved.getDocTtlCone()).isEqualTo(ContactInfoService.DOCUMENT_IDENTIFIER);
         assertThat(response.docMngNo()).isEqualTo(saved.getDocMngNo());
     }
@@ -48,20 +48,20 @@ class ContactInfoCreationServiceTest {
     void 기존_담당자_문서가_있으면_내용을_갱신한다() {
         Bgdocm existing =
                 Bgdocm.builder()
-                        .docMngNo("GDOC-2026-0001")
+                        .docMngNo("CDOC-2026-0001")
                         .docTtlCone(ContactInfoService.DOCUMENT_IDENTIFIER)
                         .nacTxtInf("<p>기존</p>")
                         .build();
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
                 .willReturn(Optional.of(existing));
 
         ContactInfoDto.Response response =
                 contactInfoCreationService.createContactInfo("<p>변경</p>");
 
         assertThat(existing.getNacTxtInf()).isEqualTo("<p>변경</p>");
-        assertThat(response.docMngNo()).isEqualTo("GDOC-2026-0001");
+        assertThat(response.docMngNo()).isEqualTo("CDOC-2026-0001");
         assertThat(response.contentHtml()).isEqualTo("<p>변경</p>");
         verify(guideDocRepository, never()).saveAndFlush(any(Bgdocm.class));
     }

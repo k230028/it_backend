@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class CommonPopupCreationService {
 
-    private static final String DOCUMENT_NUMBER_PREFIX = "GDOC-";
+    private static final String DOCUMENT_NUMBER_PREFIX = "PDOC-";
 
     private final GuideDocRepository guideDocRepository;
 
