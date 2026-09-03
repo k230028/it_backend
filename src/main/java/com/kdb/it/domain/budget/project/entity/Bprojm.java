@@ -489,6 +489,7 @@ public class Bprojm extends BaseEntity {
             String odnYn,
             String abusTc,
             String cncdRfrNo) {
+        validateSnapshotName("BZ_DTT_NM", bzDttNm);
         this.sno = sno;
         this.abusNm = abusNm;
         this.bzTpC = bzTpC;
@@ -608,6 +609,7 @@ public class Bprojm extends BaseEntity {
             String odnYn,
             String abusTc,
             String cncdRfrNo) {
+        validateSnapshotName("BZ_DTT_NM", bzDttNm);
         this.abusNm = abusNm;
         this.bzTpC = bzTpC;
         this.svnDpmC = svnDpmC;
@@ -698,13 +700,18 @@ public class Bprojm extends BaseEntity {
         validateSnapshotName("SVN_TEM_NM", svnTemNm);
         validateSnapshotName("TLR_NM", tlrNm);
         validateSnapshotName("USR_NM", usrNm);
+        validateSnapshotName("BZ_DTT_NM", bzDttNm);
     }
 
     private static void validateSnapshotName(String columnName, String value) {
         int actualBytes = Utf8ByteLimit.length(value);
         if (actualBytes > SNAPSHOT_NAME_MAX_BYTES) {
             throw new IllegalArgumentException(
-                    "정보화사업 " + columnName + "은 UTF-8 기준 100바이트를 초과할 수 없습니다. (현재: " + actualBytes + "바이트)");
+                    "정보화사업 "
+                            + columnName
+                            + "은 UTF-8 기준 100바이트를 초과할 수 없습니다. (현재: "
+                            + actualBytes
+                            + "바이트)");
         }
     }
 

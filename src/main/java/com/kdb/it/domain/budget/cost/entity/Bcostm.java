@@ -288,7 +288,10 @@ public class Bcostm extends BaseEntity {
      * @param cgprNm 담당자명. 해석 실패 시 null — 기존 값을 유지합니다
      */
     public void assignCgprName(String cgprNm) {
-        if (cgprNm != null && !cgprNm.isBlank()) this.cgprNm = cgprNm;
+        if (cgprNm != null && !cgprNm.isBlank()) {
+            validateSnapshotName("CGPR_NM", cgprNm);
+            this.cgprNm = cgprNm;
+        }
     }
 
     /**
@@ -320,7 +323,11 @@ public class Bcostm extends BaseEntity {
         int actualBytes = Utf8ByteLimit.length(value);
         if (actualBytes > SNAPSHOT_NAME_MAX_BYTES) {
             throw new IllegalArgumentException(
-                    "전산업무비 " + columnName + "은 UTF-8 기준 100바이트를 초과할 수 없습니다. (현재: " + actualBytes + "바이트)");
+                    "전산업무비 "
+                            + columnName
+                            + "은 UTF-8 기준 100바이트를 초과할 수 없습니다. (현재: "
+                            + actualBytes
+                            + "바이트)");
         }
     }
 
