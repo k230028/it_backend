@@ -83,7 +83,7 @@ public class BannerController {
             summary = "배너 업로드 (관리자)",
             description =
                     "multipart/form-data로 배너 이미지 1개를 업로드합니다. "
-                            + "주식별자컬럼명('배너')·주식별자내용('/info')·파일유형내용('이미지')은 서버가 고정합니다. "
+                            + "첨부파일종류명('배너')·첨부파일연결콘텐츠명('/info')·파일유형내용('이미지')은 서버가 고정합니다. "
                             + "허용 확장자는 jpg, jpeg, png, gif입니다.")
     public ResponseEntity<BannerDto.Response> upload(
             @Parameter(description = "업로드할 배너 이미지", required = true) @RequestPart("file")

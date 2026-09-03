@@ -86,8 +86,8 @@ public class Cfilem extends BaseEntity {
      *
      * <p>파일이 연결된 원본 도메인 정보를 변경합니다. 파일 자체(파일물리명, 저장경로)는 변경되지 않습니다.
      *
-     * @param apgFlLnkCtzNm 변경할 주식별자내용
-     * @param apgFlKdNm 변경할 주식별자컬럼명
+     * @param apgFlLnkCtzNm 변경할 첨부파일연결콘텐츠명
+     * @param apgFlKdNm 변경할 첨부파일종류명
      */
     public void updateMeta(String apgFlLnkCtzNm, String apgFlKdNm) {
         if (apgFlLnkCtzNm != null) this.apgFlLnkCtzNm = apgFlLnkCtzNm;
