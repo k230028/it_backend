@@ -22,6 +22,7 @@ import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import java.util.List;
@@ -45,6 +46,7 @@ class CostControllerTest {
 
     @MockitoBean private CostService costService;
     @MockitoBean private CostVersionService costVersionService;
+    @MockitoBean private CostQueryAssembler costQueryAssembler;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
@@ -110,23 +112,25 @@ class CostControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/cost/{itMngcNo}/history - 각 순번의 상세를 반환한다")
-    void getHistory_개정이력_200() throws Exception {
-        given(costVersionService.findHistory("COST_2026_0001"))
-                .willReturn(
-                        List.of(
-                                Bcostm.builder().costBgNo("COST_2026_0001").bgSno(1).build(),
-                                Bcostm.builder().costBgNo("COST_2026_0001").bgSno(2).build()));
-        given(costService.getCost(eq("COST_2026_0001"), eq(1), any()))
-                .willReturn(new CostDto.Response());
-        given(costService.getCost(eq("COST_2026_0001"), eq(2), any()))
-                .willReturn(new CostDto.Response());
+    @DisplayName("GET /api/cost/{itMngcNo}/history - 이력을 한 번의 배치 조립으로 반환한다")
+    void getHistory_개정이력_배치조립_200() throws Exception {
+        List<Bcostm> history =
+                List.of(
+                        Bcostm.builder().costBgNo("COST_2026_0001").bgSno(1).build(),
+                        Bcostm.builder().costBgNo("COST_2026_0001").bgSno(2).build(),
+                        Bcostm.builder().costBgNo("COST_2026_0001").bgSno(3).build());
+        given(costVersionService.findHistory(eq("COST_2026_0001"), any())).willReturn(history);
+        given(costQueryAssembler.assembleHistory(history))
+                .willReturn(List.of(new CostDto.Response(), new CostDto.Response(), new CostDto.Response()));
 
         mockMvc.perform(
                         get("/api/cost/COST_2026_0001/history")
                                 .with(authentication(adminAuthentication())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.length()").value(3));
+
+        verify(costQueryAssembler).assembleHistory(history);
+        org.mockito.Mockito.verifyNoInteractions(costService);
     }
 
     @Test
@@ -148,8 +152,7 @@ class CostControllerTest {
     @Test
     @DisplayName("POST /api/cost/{itMngcNo}/reapplications - 경로 관리번호로 재상신 초안을 생성한다")
     void createReapplication_경로변수해석_200() throws Exception {
-        given(costService.getCost(eq("COST_2027_0001"), any())).willReturn(new CostDto.Response());
-        given(costVersionService.createReapplication("COST_2027_0001"))
+        given(costVersionService.createReapplication(eq("COST_2027_0001"), any()))
                 .willReturn(new CostVersionService.CostVersion("COST_2027_0001", 2, "N"));
 
         mockMvc.perform(

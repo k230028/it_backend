@@ -75,6 +75,16 @@ public class CostQueryAssembler {
         return assembleBatch(costs, TerminalPolicy.LIST);
     }
 
+    /**
+     * 전산업무비 개정 이력의 모든 연관 정보를 한 번에 조립합니다.
+     *
+     * @param costs 관리번호와 순번이 확정된 이력 비용 행
+     * @return 입력 순서와 같은 이력 상세 응답 목록
+     */
+    public List<CostDto.Response> assembleHistory(List<Bcostm> costs) {
+        return assembleBatch(costs, TerminalPolicy.BULK);
+    }
+
     private List<CostDto.Response> assembleBatch(
             List<Bcostm> costs, TerminalPolicy terminalPolicy) {
         List<CostDto.Response> responses =
@@ -206,6 +216,14 @@ public class CostQueryAssembler {
                 positions.put(view.getEno(), view.getPtCNm());
             }
         }
+        List<Ccodem> itemCodeRows =
+                itemCodes.isEmpty()
+                        ? List.of()
+                        : codeRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null);
+        Map<String, Ccodem> itemCodesByValue =
+                itemCodeRows.stream()
+                        .filter(code -> itemCodes.contains(code.getCdva()))
+                        .collect(Collectors.toMap(Ccodem::getCdva, code -> code, (first, second) -> first));
         return new BatchData(
                 latestApplications,
                 applications,
@@ -217,7 +235,8 @@ public class CostQueryAssembler {
                 buildCodeNames(CommonCodeGroups.DFR_CLE, paymentCodes),
                 buildCodeNames(CommonCodeGroups.TMN_YN, terminalCodes),
                 buildCodeNames(CommonCodeGroups.ABUS, businessCodes),
-                buildItemCodeNames(itemCodes));
+                buildItemCodeNames(itemCodesByValue),
+                itemCodesByValue);
     }
 
     private void applyBatch(Bcostm cost, CostDto.Response response, BatchData data) {
@@ -264,7 +283,7 @@ public class CostQueryAssembler {
         }
         response.setAbusTcNm(mapValue(data.businessNames(), response.getAbusTc()));
         response.setIoeCNm(mapValue(data.itemNames(), response.getIoeC()));
-        applyBudgetCategory(response);
+        applyBudgetCategory(response, data.itemCodes().get(response.getIoeC()));
     }
 
     private void applySnapshotNames(CostDto.Response response, Bcostm cost) {
@@ -317,6 +336,19 @@ public class CostQueryAssembler {
     }
 
     private void applyBudgetCategory(CostDto.Response response) {
+        Ccodem code =
+                hasText(response.getIoeC())
+                        ? codeRepository
+                                .findByCIdWithValidDate(CommonCodeGroups.IOE, null)
+                                .stream()
+                                .filter(value -> response.getIoeC().equals(value.getCdva()))
+                                .findFirst()
+                                .orElse(null)
+                        : null;
+        applyBudgetCategory(response, code);
+    }
+
+    private static void applyBudgetCategory(CostDto.Response response, Ccodem code) {
         BigDecimal amount =
                 response.getCostTotXpAmt() != null ? response.getCostTotXpAmt() : BigDecimal.ZERO;
         response.setAssetBg(BigDecimal.ZERO);
@@ -324,24 +356,17 @@ public class CostQueryAssembler {
         response.setHwBg(BigDecimal.ZERO);
         response.setSwBg(BigDecimal.ZERO);
         response.setCostBg(BigDecimal.ZERO);
-        if (!hasText(response.getIoeC())) {
+        if (code == null) {
             return;
         }
-        Optional<Ccodem> code =
-                codeRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null).stream()
-                        .filter(value -> response.getIoeC().equals(value.getCdva()))
-                        .findFirst();
-        if (code.isEmpty()) {
-            return;
-        }
-        String codeType = code.get().getCTp();
+        String codeType = code.getCTp();
         if (CAPITAL_DETAIL_CTPS.contains(codeType) || "IOE_CPIT".equals(codeType)) {
             response.setAssetBg(amount);
             switch (codeType) {
                 case "IOE_DVC" -> response.setDvcBg(amount);
                 case "IOE_HW" -> response.setHwBg(amount);
                 case "IOE_SW" -> response.setSwBg(amount);
-                case "IOE_CPIT" -> applyLegacyCapitalCategory(response, code.get(), amount);
+                case "IOE_CPIT" -> applyLegacyCapitalCategory(response, code, amount);
                 default -> {
                     // 자본예산 상위 분류는 합계만 유지합니다.
                 }
@@ -465,12 +490,8 @@ public class CostQueryAssembler {
         return codes.isEmpty() ? Map.of() : codeNameMapBuilder.build(group, codes);
     }
 
-    private Map<String, String> buildItemCodeNames(Set<String> codes) {
-        if (codes.isEmpty()) {
-            return Map.of();
-        }
-        return codeRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null).stream()
-                .filter(code -> codes.contains(code.getCdva()))
+    private static Map<String, String> buildItemCodeNames(Map<String, Ccodem> codesByValue) {
+        return codesByValue.values().stream()
                 .collect(
                         Collectors.toMap(
                                 Ccodem::getCdva,
@@ -487,6 +508,17 @@ public class CostQueryAssembler {
                                     return parts[parts.length - 1].trim();
                                 },
                                 (first, second) -> first));
+    }
+
+    private Map<String, String> buildItemCodeNames(Set<String> codes) {
+        if (codes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Ccodem> codesByValue =
+                codeRepository.findByCIdWithValidDate(CommonCodeGroups.IOE, null).stream()
+                        .filter(code -> codes.contains(code.getCdva()))
+                        .collect(Collectors.toMap(Ccodem::getCdva, code -> code, (first, second) -> first));
+        return buildItemCodeNames(codesByValue);
     }
 
     private static String statusLabel(String statusCode) {
@@ -534,7 +566,8 @@ public class CostQueryAssembler {
             Map<String, String> paymentNames,
             Map<String, String> terminalNames,
             Map<String, String> businessNames,
-            Map<String, String> itemNames) {}
+            Map<String, String> itemNames,
+            Map<String, Ccodem> itemCodes) {}
 
     private enum TerminalPolicy {
         LIST,

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
@@ -276,6 +278,31 @@ class CostQueryAssemblerTest {
         assertThat(result.getCgprNm()).isEqualTo("담당자");
         assertThat(result.getPrevBgAmt()).isEqualByComparingTo("900");
         assertThat(result.getPrevDupBg()).isEqualByComparingTo("700");
+    }
+
+    @Test
+    @DisplayName("이력 조립: 개정본 세 건의 신청·단말기·비목을 각각 한 번만 배치 조회한다")
+    void assembleHistory_개정본세건_연관정보배치조회() {
+        List<Bcostm> history =
+                List.of(
+                        enrichedCost("COST-HISTORY", 1),
+                        enrichedCost("COST-HISTORY", 2),
+                        enrichedCost("COST-HISTORY", 3));
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any()))
+                .willReturn(List.of(new OrgView("D01", "정보기술부"), new OrgView("T01", "개발팀")));
+        given(userRepository.findNameViewsByEnoIn(any()))
+                .willReturn(List.of(new UserView("10001", "담당자", "과장")));
+        stubCodes();
+
+        List<CostDto.Response> responses = assembler.assembleHistory(history);
+
+        assertThat(responses).extracting(CostDto.Response::getBgSno).containsExactly(1, 2, 3);
+        verify(applicationMapRepository)
+                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        "BCOSTM", List.of("COST-HISTORY"));
+        verify(terminalRepository).findByTermBgNoInAndDelYn(List.of("COST-HISTORY"), "N");
+        verify(codeRepository, times(1))
+                .findByCIdWithValidDate(CommonCodeGroups.IOE, null);
     }
 
     @Test

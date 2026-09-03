@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.cost.controller;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,6 +53,7 @@ public class CostController {
     private final CostService costService;
 
     private final CostVersionService costVersionService;
+    private final CostQueryAssembler costQueryAssembler;
 
     /**
      * 특정 전산관리비 단건 조회
@@ -114,9 +116,7 @@ public class CostController {
             @PathVariable("itMngcNo") String itMngcNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(
-                costVersionService.findHistory(itMngcNo, user).stream()
-                        .map(cost -> costService.getCost(itMngcNo, cost.getBgSno(), user))
-                        .toList());
+                costQueryAssembler.assembleHistory(costVersionService.findHistory(itMngcNo, user)));
     }
 
     /**
