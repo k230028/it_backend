@@ -807,38 +807,21 @@ class ProjectQueryAssemblerTest {
         String projectId = "PRJ-BUDGET-001";
         Bprojm project = Bprojm.builder().abusMngNo(projectId).sno(1).delYn("N").build();
         Ccodem assetCode =
-                Ccodem.builder()
-                        .cId(CommonCodeGroups.IOE)
-                        .cdva("101")
-                        .cTp("IOE_DVC")
-                        .build();
+                Ccodem.builder().cId(CommonCodeGroups.IOE).cdva("101").cTp("IOE_DVC").build();
         Ccodem costCode =
-                Ccodem.builder()
-                        .cId(CommonCodeGroups.IOE)
-                        .cdva("201")
-                        .cTp("IOE_XPN")
-                        .build();
+                Ccodem.builder().cId(CommonCodeGroups.IOE).cdva("201").cTp("IOE_XPN").build();
         Ccodem unrelatedCode =
-                Ccodem.builder()
-                        .cId(CommonCodeGroups.IOE)
-                        .cdva("999")
-                        .cTp("IOE_OTHER")
-                        .build();
+                Ccodem.builder().cId(CommonCodeGroups.IOE).cdva("999").cTp("IOE_OTHER").build();
         given(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
                 .willReturn(List.of(assetCode, costCode, unrelatedCode));
         given(budgetRepository.sumDupBgByPrjMngNos(List.of(projectId), "2027"))
                 .willReturn(Map.of(projectId, new BigDecimal("1000")));
-        given(
-                        budgetRepository.sumAssetDupBgByPrjMngNos(
-                                List.of(projectId), "2027", Set.of("101")))
+        given(budgetRepository.sumAssetDupBgByPrjMngNos(List.of(projectId), "2027", Set.of("101")))
                 .willReturn(Map.of(projectId, new BigDecimal("700")));
-        given(
-                        budgetRepository.sumCostDupBgByPrjMngNos(
-                                List.of(projectId), "2027", Set.of("201")))
+        given(budgetRepository.sumCostDupBgByPrjMngNos(List.of(projectId), "2027", Set.of("201")))
                 .willReturn(Map.of(projectId, new BigDecimal("300")));
 
-        ProjectDto.Response result =
-                assembler.assembleBulk(List.of(project), "2027").getFirst();
+        ProjectDto.Response result = assembler.assembleBulk(List.of(project), "2027").getFirst();
 
         assertThat(result.getDupBgAmt()).isEqualByComparingTo("1000");
         assertThat(result.getAssetDupBg()).isEqualByComparingTo("700");

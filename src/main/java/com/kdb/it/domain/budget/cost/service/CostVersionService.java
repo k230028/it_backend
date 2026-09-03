@@ -70,9 +70,7 @@ public class CostVersionService {
     public List<Bcostm> findHistory(String costBgNo, CustomUserDetails actor) {
         List<Bcostm> history = costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(costBgNo, "N");
         history.forEach(
-                cost ->
-                        BudgetDetailAccessVerifier.verifyReadable(
-                                cost.getCostSvnDpmC(), actor));
+                cost -> BudgetDetailAccessVerifier.verifyReadable(cost.getCostSvnDpmC(), actor));
         return history;
     }
 

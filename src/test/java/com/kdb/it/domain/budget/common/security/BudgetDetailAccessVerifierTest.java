@@ -66,8 +66,7 @@ class BudgetDetailAccessVerifierTest {
 
         assertThat(BudgetDetailAccessVerifier.isReadable("D100", null)).isFalse();
         assertThat(BudgetDetailAccessVerifier.isReadable("", actor)).isFalse();
-        assertThat(BudgetDetailAccessVerifier.isReadable("D100", actorWithoutDepartment))
-                .isFalse();
+        assertThat(BudgetDetailAccessVerifier.isReadable("D100", actorWithoutDepartment)).isFalse();
     }
 
     @Test
