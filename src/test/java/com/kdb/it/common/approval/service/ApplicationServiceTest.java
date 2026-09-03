@@ -28,8 +28,11 @@ import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.LabeledCountRow;
+import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
+import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -536,7 +539,12 @@ class ApplicationServiceTest {
         given(projectRepository.countBySearchCondition(any())).willReturn(3L);
         given(costRepository.countBySearchCondition(any())).willReturn(2L);
 
-        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
+        ApplicationDto.PendingCountResponse result =
+                applicationService.getPendingCount(
+                        null,
+                        null,
+                        new CustomUserDetails(
+                                "K100001", List.of(CustomUserDetails.ATH_USER), "D001"));
 
         assertThat(result.getProjectCount()).isEqualTo(3L);
         assertThat(result.getCostCount()).isEqualTo(2L);
@@ -549,7 +557,12 @@ class ApplicationServiceTest {
         given(projectRepository.countBySearchCondition(any())).willReturn(0L);
         given(costRepository.countBySearchCondition(any())).willReturn(0L);
 
-        ApplicationDto.PendingCountResponse result = applicationService.getPendingCount(null);
+        ApplicationDto.PendingCountResponse result =
+                applicationService.getPendingCount(
+                        null,
+                        null,
+                        new CustomUserDetails(
+                                "K100001", List.of(CustomUserDetails.ATH_USER), "D001"));
 
         assertThat(result.getTotalCount()).isEqualTo(0L);
     }
@@ -560,11 +573,40 @@ class ApplicationServiceTest {
         given(projectRepository.countBySearchCondition(any())).willReturn(3L);
         given(costRepository.countBySearchCondition(any())).willReturn(2L);
 
-        ApplicationDto.PendingCountResponse res = applicationService.getPendingCount("2026");
+        ApplicationDto.PendingCountResponse res =
+                applicationService.getPendingCount(
+                        "2026",
+                        "1",
+                        new CustomUserDetails(
+                                "K100001", List.of(CustomUserDetails.ATH_USER), "D001"));
 
         assertThat(res.getTotalCount()).isEqualTo(5L);
         verify(projectRepository, never()).searchByCondition(any());
         verify(costRepository, never()).searchByCondition(any());
+    }
+
+    @Test
+    @DisplayName("getPendingCount: 일반 사용자의 부서와 요청 결재상태를 두 원장에 동일하게 적용한다")
+    void getPendingCount_appliesAuthenticatedDepartmentAndStatus() {
+        given(projectRepository.countBySearchCondition(any())).willReturn(1L);
+        given(costRepository.countBySearchCondition(any())).willReturn(1L);
+        CustomUserDetails user =
+                new CustomUserDetails("K100001", List.of(CustomUserDetails.ATH_USER), "D001");
+
+        applicationService.getPendingCount("2027", "1", user);
+
+        ArgumentCaptor<ProjectDto.SearchCondition> projectCondition =
+                ArgumentCaptor.forClass(ProjectDto.SearchCondition.class);
+        ArgumentCaptor<CostDto.SearchCondition> costCondition =
+                ArgumentCaptor.forClass(CostDto.SearchCondition.class);
+        verify(projectRepository).countBySearchCondition(projectCondition.capture());
+        verify(costRepository).countBySearchCondition(costCondition.capture());
+        assertThat(projectCondition.getValue().getApfSts()).isEqualTo("1");
+        assertThat(projectCondition.getValue().getBseYy()).isEqualTo("2027");
+        assertThat(projectCondition.getValue().getSvnDpmC()).isEqualTo("D001");
+        assertThat(costCondition.getValue().getApfSts()).isEqualTo("1");
+        assertThat(costCondition.getValue().getBseYy()).isEqualTo("2027");
+        assertThat(costCondition.getValue().getCostSvnDpmC()).isEqualTo("D001");
     }
 
     // ───────────────────────────────────────────────────────
@@ -1325,7 +1367,12 @@ class ApplicationServiceTest {
         given(projectRepository.countBySearchCondition(any())).willReturn(1L);
         given(costRepository.countBySearchCondition(any())).willReturn(1L);
 
-        ApplicationDto.PendingCountResponse res = applicationService.getPendingCount("   ");
+        ApplicationDto.PendingCountResponse res =
+                applicationService.getPendingCount(
+                        "   ",
+                        null,
+                        new CustomUserDetails(
+                                "K100001", List.of(CustomUserDetails.ATH_USER), "D001"));
 
         assertThat(res.getTotalCount()).isEqualTo(2L);
     }

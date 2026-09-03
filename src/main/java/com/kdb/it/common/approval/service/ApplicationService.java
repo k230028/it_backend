@@ -15,6 +15,7 @@ import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -724,25 +725,44 @@ public class ApplicationService {
      *
      * <p>사이드바의 [결재 상신] 메뉴 옆 배지에서 사용됩니다. 전체 목록 대신 건수만 반환하여 데이터 전송량을 최소화합니다.
      *
-     * <p>집계 로직: {@code apfSts='none'} 조건으로 {@code ProjectRepository} 및 {@code CostRepository}의
+     * <p>집계 로직: 요청한 결재상태(기본값 {@code none}) 조건으로 {@code ProjectRepository} 및 {@code CostRepository}의
      * {@code countBySearchCondition} 집계 쿼리를 호출해 각각의 건수를 계산합니다. (CAPPLA 연결이 없는 BPROJM/BCOSTM 레코드 =
      * 아직 결재 상신되지 않은 항목)
      *
-     * @return 미상신 건수 응답 DTO (정보화사업/전산업무비 개별 건수 + 총합)
+     * <p>일반 사용자는 인증 주체의 소속 부서로 제한하고 시스템관리자만 전체 부서를 집계합니다.
+     *
+     * @param bgYy 기준연도 (공백이면 전체 연도)
+     * @param apfSts 결재상태 (공백이면 미상신)
+     * @param user 인증 사용자
+     * @return 결재상태별 건수 응답 DTO (정보화사업/전산업무비 개별 건수 + 총합)
      */
-    public ApplicationDto.PendingCountResponse getPendingCount(String bgYy) {
-        // 미상신 정보화사업 건수: 활성/완료 신청서 없는 BPROJM (필요 시 연도 필터 적용).
-        // 사이드바 배지가 [결재 상신] 화면(예산연도 필터링)과 동일한 카운트를 보이도록 bgYy 일치 필요.
+    public ApplicationDto.PendingCountResponse getPendingCount(
+            String bgYy, String apfSts, CustomUserDetails user) {
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 필요합니다.");
+        }
+
+        String status = apfSts == null || apfSts.isBlank() ? "none" : apfSts;
+        String departmentCode = user.getBbrC();
+        if (!user.isAdmin() && (departmentCode == null || departmentCode.isBlank())) {
+            return ApplicationDto.PendingCountResponse.builder()
+                    .projectCount(0L)
+                    .costCount(0L)
+                    .totalCount(0L)
+                    .build();
+        }
+
         ProjectDto.SearchCondition projectCondition = new ProjectDto.SearchCondition();
-        projectCondition.setApfSts("none");
+        projectCondition.setApfSts(status);
         if (bgYy != null && !bgYy.isBlank()) projectCondition.setBseYy(bgYy);
+        if (!user.isAdmin()) projectCondition.setSvnDpmC(departmentCode);
         // 전체 엔티티 적재 대신 COUNT 쿼리로 건수만 산출 (동일 WHERE 조건 → 결과 동치)
         long projectCount = projectRepository.countBySearchCondition(projectCondition);
 
-        // 미상신 전산업무비 건수
         CostDto.SearchCondition costCondition = new CostDto.SearchCondition();
-        costCondition.setApfSts("none");
+        costCondition.setApfSts(status);
         if (bgYy != null && !bgYy.isBlank()) costCondition.setBseYy(bgYy);
+        if (!user.isAdmin()) costCondition.setCostSvnDpmC(departmentCode);
         long costCount = costRepository.countBySearchCondition(costCondition);
 
         return ApplicationDto.PendingCountResponse.builder()

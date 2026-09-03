@@ -109,12 +109,17 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/applications/pending-count - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
+    @DisplayName("GET /api/applications/pending-count - 인증 주체와 결재상태를 서비스에 전달한다")
     void getPendingCount_인증_200() throws Exception {
-        given(applicationService.getPendingCount(null))
+        given(applicationService.getPendingCount("2027", "1", USER))
                 .willReturn(ApplicationDto.PendingCountResponse.builder().build());
-        mockMvc.perform(get("/api/applications/pending-count")).andExpect(status().isOk());
+        mockMvc.perform(
+                        get("/api/applications/pending-count")
+                                .with(user(USER))
+                                .param("bgYy", "2027")
+                                .param("apfSts", "1"))
+                .andExpect(status().isOk());
+        verify(applicationService).getPendingCount("2027", "1", USER);
     }
 
     @Test

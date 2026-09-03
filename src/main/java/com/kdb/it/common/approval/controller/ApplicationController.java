@@ -6,6 +6,7 @@ import com.kdb.it.common.approval.service.ApprovalLineManagementService;
 import com.kdb.it.common.approval.service.PendingApproverService;
 import com.kdb.it.common.mfa.domain.MfaPurpose;
 import com.kdb.it.common.mfa.security.MfaRequired;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -94,17 +96,23 @@ public class ApplicationController {
      *
      * <p>전체 목록을 반환하지 않아 데이터 전송량과 프론트 처리 비용이 최소화됩니다.
      *
-     * @return HTTP 200 + 미상신 건수 응답 ({@link ApplicationDto.PendingCountResponse})
+     * @param bgYy 기준연도 (미지정 시 전체 연도)
+     * @param apfSts 결재상태 (미지정 시 미상신)
+     * @param user 인증 사용자 (일반 사용자는 소속 부서로 제한)
+     * @return HTTP 200 + 결재상태별 건수 응답 ({@link ApplicationDto.PendingCountResponse})
      */
     @GetMapping("/pending-count")
     @Operation(
-            summary = "미상신 건수 조회",
+            summary = "결재상태별 건수 조회",
             description =
-                    "결재 상신 대기 중인 정보화사업/전산업무비 건수를 집계합니다. 사이드바 배지용. "
-                            + "bgYy 미지정 시 모든 연도 합산, 지정 시 해당 회계연도 항목만 카운트.")
+                    "정보화사업/전산업무비 건수를 인증 사용자의 조회 범위로 집계합니다. "
+                            + "일반 사용자는 소속 부서, 시스템관리자는 전체 부서가 대상이며 "
+                            + "apfSts 미지정 시 미상신(none)으로 집계합니다.")
     public ResponseEntity<ApplicationDto.PendingCountResponse> getPendingCount(
-            @RequestParam(value = "bgYy", required = false) String bgYy) {
-        return ResponseEntity.ok(applicationService.getPendingCount(bgYy));
+            @RequestParam(value = "bgYy", required = false) String bgYy,
+            @RequestParam(value = "apfSts", required = false) String apfSts,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(applicationService.getPendingCount(bgYy, apfSts, user));
     }
 
     /**
