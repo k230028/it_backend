@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.cost.entity;
 
 import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BcostmL;
@@ -8,6 +9,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -39,6 +42,8 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor // 전체 필드 생성자 자동 생성
 @SuperBuilder // 상속 구조에서 Builder 패턴 지원
 public class Bcostm extends BaseEntity {
+
+    private static final int SNAPSHOT_NAME_MAX_BYTES = 100;
 
     /** 전산업무비코드(IT관리비관리번호): 복합 기본키의 첫 번째 컬럼 (예: COST_2026_0001) */
     @Id
@@ -296,8 +301,27 @@ public class Bcostm extends BaseEntity {
      * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)
      */
     public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
+        validateSnapshotName("SVN_DPM_NM", svnDpmNm);
+        validateSnapshotName("SVN_TEM_NM", svnTemNm);
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;
+    }
+
+    /** 직접 생성·복제된 엔티티도 DB 기록 전에 스냅샷 이름의 BYTE 한도를 검증합니다. */
+    @PrePersist
+    @PreUpdate
+    void validateSnapshotNamesBeforePersist() {
+        validateSnapshotName("CGPR_NM", cgprNm);
+        validateSnapshotName("SVN_DPM_NM", svnDpmNm);
+        validateSnapshotName("SVN_TEM_NM", svnTemNm);
+    }
+
+    private static void validateSnapshotName(String columnName, String value) {
+        int actualBytes = Utf8ByteLimit.length(value);
+        if (actualBytes > SNAPSHOT_NAME_MAX_BYTES) {
+            throw new IllegalArgumentException(
+                    "전산업무비 " + columnName + "은 UTF-8 기준 100바이트를 초과할 수 없습니다. (현재: " + actualBytes + "바이트)");
+        }
     }
 
     /** 결재 완료본의 모든 업무 값을 보존한 재상신 초안을 만듭니다. */

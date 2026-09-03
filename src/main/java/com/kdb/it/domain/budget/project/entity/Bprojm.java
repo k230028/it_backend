@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.project.entity;
 
 import com.kdb.it.common.code.CodeDefaults;
+import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.entity.BaseEntity;
 import com.kdb.it.domain.log.annotation.LogTarget;
 import com.kdb.it.domain.log.entity.BprojmL;
@@ -8,6 +9,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,6 +38,8 @@ import org.hibernate.annotations.Imported;
 @AllArgsConstructor // 전체 필드 생성자 자동 생성
 @SuperBuilder // 상속 구조에서 Builder 패턴 지원
 public class Bprojm extends BaseEntity {
+
+    private static final int SNAPSHOT_NAME_MAX_BYTES = 100;
 
     /** JPA가 정보화사업 엔티티를 복원할 때 사용하는 기본 생성자입니다. */
     protected Bprojm() {}
@@ -657,6 +662,8 @@ public class Bprojm extends BaseEntity {
      * @param svnTemNm 주관팀명 (코드 미등록 시 null 허용)
      */
     public void assignSvnOrgNames(String svnDpmNm, String svnTemNm) {
+        validateSnapshotName("SVN_DPM_NM", svnDpmNm);
+        validateSnapshotName("SVN_TEM_NM", svnTemNm);
         this.svnDpmNm = svnDpmNm;
         this.svnTemNm = svnTemNm;
     }
@@ -673,8 +680,32 @@ public class Bprojm extends BaseEntity {
      * @param usrNm 담당자명. 해석 실패 시 null — 기존 값을 유지합니다
      */
     public void assignPersonNames(String tlrNm, String usrNm) {
-        if (tlrNm != null && !tlrNm.isBlank()) this.tlrNm = tlrNm;
-        if (usrNm != null && !usrNm.isBlank()) this.usrNm = usrNm;
+        if (tlrNm != null && !tlrNm.isBlank()) {
+            validateSnapshotName("TLR_NM", tlrNm);
+            this.tlrNm = tlrNm;
+        }
+        if (usrNm != null && !usrNm.isBlank()) {
+            validateSnapshotName("USR_NM", usrNm);
+            this.usrNm = usrNm;
+        }
+    }
+
+    /** 직접 생성·복제된 엔티티도 DB 기록 전에 스냅샷 이름의 BYTE 한도를 검증합니다. */
+    @PrePersist
+    @PreUpdate
+    void validateSnapshotNamesBeforePersist() {
+        validateSnapshotName("SVN_DPM_NM", svnDpmNm);
+        validateSnapshotName("SVN_TEM_NM", svnTemNm);
+        validateSnapshotName("TLR_NM", tlrNm);
+        validateSnapshotName("USR_NM", usrNm);
+    }
+
+    private static void validateSnapshotName(String columnName, String value) {
+        int actualBytes = Utf8ByteLimit.length(value);
+        if (actualBytes > SNAPSHOT_NAME_MAX_BYTES) {
+            throw new IllegalArgumentException(
+                    "정보화사업 " + columnName + "은 UTF-8 기준 100바이트를 초과할 수 없습니다. (현재: " + actualBytes + "바이트)");
+        }
     }
 
     /**
