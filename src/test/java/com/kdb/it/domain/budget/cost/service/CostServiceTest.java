@@ -524,7 +524,11 @@ class CostServiceTest {
     @DisplayName("createCost: 반입 경로(createCostForMigration)는 complete와 무관하게 스탬프하지 않는다")
     void createCostForMigration_doesNotStamp() {
         CostDto.CreateRequest request =
-                CostDto.CreateRequest.builder().costBgNo(IT_MNGC_NO).cttNm("반입").complete(true).build();
+                CostDto.CreateRequest.builder()
+                        .costBgNo(IT_MNGC_NO)
+                        .cttNm("반입")
+                        .complete(true)
+                        .build();
         given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(1);
         given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
 

@@ -731,7 +731,11 @@ class ProjectServiceTest {
     void createProject_completeFalse_doesNotStamp() {
         given(projectRepository.getNextSequenceValue()).willReturn(8L);
         ProjectDto.CreateRequest draft =
-                ProjectDto.CreateRequest.builder().abusNm("임시저장").bseYy("2026").complete(false).build();
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("임시저장")
+                        .bseYy("2026")
+                        .complete(false)
+                        .build();
         ProjectDto.CreateRequest imported =
                 ProjectDto.CreateRequest.builder().abusNm("반입").bseYy("2026").build();
 

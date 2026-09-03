@@ -60,12 +60,12 @@ public class ApplicationController {
     /**
      * 전체 신청서 목록 조회
      *
-     * <p>DB에 등록된 모든 신청서와 각 신청서의 결재자 목록을 반환합니다.
+     * <p>결재선이 없는 작성완료({@code 0}) 신청서는 결재함 대상이 아니므로 제외하고, 그 외 신청서를 각각의 결재자 목록과 함께 반환합니다.
      *
      * @return HTTP 200 + 신청서 목록 ({@link ApplicationDto.Response} 리스트)
      */
     @GetMapping
-    @Operation(summary = "전체 신청서 조회", description = "모든 신청서 정보를 조회합니다.")
+    @Operation(summary = "전체 신청서 조회", description = "작성완료(0) 신청서를 제외한 신청서 정보를 조회합니다.")
     public ResponseEntity<java.util.List<ApplicationDto.Response>> getApplications() {
         return ResponseEntity.ok(applicationService.getApplications());
     }

@@ -659,8 +659,10 @@ class ApplicationServiceTest {
         ApplicationReadView v2 =
                 new ApplicationReadView(
                         "APF_202600000002", null, null, null, null, null, null, null);
-        given(applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-                        ApprovalStatus.DRAFTED.code())).willReturn(List.of(v1, v2));
+        given(
+                        applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
+                                ApprovalStatus.DRAFTED.code()))
+                .willReturn(List.of(v1, v2));
         // 결재자 목록은 In-쿼리 1회 배치 조회 (빈 목록 반환)
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
@@ -677,8 +679,10 @@ class ApplicationServiceTest {
                 new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
         ApplicationReadView a2 =
                 new ApplicationReadView("APF-2", null, null, null, null, null, null, null);
-        given(applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-                        ApprovalStatus.DRAFTED.code())).willReturn(List.of(a1, a2));
+        given(
+                        applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
+                                ApprovalStatus.DRAFTED.code()))
+                .willReturn(List.of(a1, a2));
         // APF-1 결재선 2건(순서 유지 검증), APF-2 결재선 없음
         ApproverReadView d1 = new ApproverReadView("APF-1", 1, "E001", "1", null, null, "N");
         ApproverReadView d2 =
@@ -703,8 +707,10 @@ class ApplicationServiceTest {
     void getApplications_결재자표시정보_배치해석() {
         ApplicationReadView view =
                 new ApplicationReadView("APF-1", null, null, null, null, null, null, null);
-        given(applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-                        ApprovalStatus.DRAFTED.code())).willReturn(List.of(view));
+        given(
+                        applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
+                                ApprovalStatus.DRAFTED.code()))
+                .willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(
                         List.of(
@@ -755,8 +761,10 @@ class ApplicationServiceTest {
                         null);
         ApproverReadView legacyPending =
                 new ApproverReadView(APF_MNG_NO, 1, "E10001", "0", null, null, "Y");
-        given(applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-                        ApprovalStatus.DRAFTED.code())).willReturn(List.of(view));
+        given(
+                        applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
+                                ApprovalStatus.DRAFTED.code()))
+                .willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(legacyPending));
 
@@ -770,8 +778,10 @@ class ApplicationServiceTest {
     @Test
     @DisplayName("getApplications: 신청서가 없으면 빈 목록을 반환한다")
     void getApplications_신청서없음_빈목록반환() {
-        given(applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-                        ApprovalStatus.DRAFTED.code())).willReturn(List.of());
+        given(
+                        applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
+                                ApprovalStatus.DRAFTED.code()))
+                .willReturn(List.of());
 
         List<ApplicationDto.Response> result = applicationService.getApplications();
 
@@ -1317,8 +1327,10 @@ class ApplicationServiceTest {
     void getApplications_부서명null조직_제외() {
         ApplicationReadView view =
                 new ApplicationReadView(APF_MNG_NO, null, null, null, "10001", null, null, "18001");
-        given(applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-                        ApprovalStatus.DRAFTED.code())).willReturn(List.of(view));
+        given(
+                        applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
+                                ApprovalStatus.DRAFTED.code()))
+                .willReturn(List.of(view));
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
         given(userRepository.findNameViewsByEnoIn(any()))

@@ -117,9 +117,9 @@ public final class OwnershipVerifier {
     /**
      * 현재 인증 주체의 사번(로그인 ID)을 반환합니다.
      *
-     * <p>{@link Authentication#getName()}을 그대로 쓰므로 principal이 {@link CustomUserDetails}가 아니어도(예: 배치·이관
-     * 컨텍스트) 동작합니다. 작성완료 신청서 스탬프처럼 "인증된 이름을 그대로 저장"해야 하는 용도에 씁니다 — 소유권 판정처럼
-     * {@link CustomUserDetails}로 캐스팅해 역할을 확인해야 하는 경우는 이 메서드로 대체할 수 없습니다.
+     * <p>{@link Authentication#getName()}을 그대로 쓰므로 principal이 {@link CustomUserDetails}가 아니어도(예:
+     * 배치·이관 컨텍스트) 동작합니다. 작성완료 신청서 스탬프처럼 "인증된 이름을 그대로 저장"해야 하는 용도에 씁니다 — 소유권 판정처럼 {@link
+     * CustomUserDetails}로 캐스팅해 역할을 확인해야 하는 경우는 이 메서드로 대체할 수 없습니다.
      *
      * @return 인증 주체 이름(사번). 인증 정보가 없으면 {@code null}
      */
