@@ -297,8 +297,7 @@ class ProjectVersionServiceTest {
     @Test
     @DisplayName("주관부서가 빈 최종본은 재신청하지 못한다")
     void 재신청_주관부서빈값_거부() {
-        Bprojm source =
-                Bprojm.builder().abusMngNo("PRJ-1").sno(1).svnDpmC(" ").lstYn("Y").build();
+        Bprojm source = Bprojm.builder().abusMngNo("PRJ-1").sno(1).svnDpmC(" ").lstYn("Y").build();
         given(projectRepository.findCurrentVersionForUpdate("PRJ-1"))
                 .willReturn(Optional.of(source));
 
@@ -306,8 +305,7 @@ class ProjectVersionServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("주관부서");
 
-        verify(applicationMapRepository, never())
-                .findLatestApplicationStatus("BPROJM", "PRJ-1", 1);
+        verify(applicationMapRepository, never()).findLatestApplicationStatus("BPROJM", "PRJ-1", 1);
     }
 
     @Test
@@ -321,7 +319,8 @@ class ProjectVersionServiceTest {
                 .willReturn(Optional.of(ApprovalStatus.COMPLETED.code()));
         given(projectRepository.getNextVersionSno("PRJ-1")).willReturn(2);
         CustomUserDetails actor =
-                new CustomUserDetails("10001", java.util.List.of(CustomUserDetails.ATH_USER), "D001");
+                new CustomUserDetails(
+                        "10001", java.util.List.of(CustomUserDetails.ATH_USER), "D001");
 
         ProjectVersionService.ProjectVersion result = service.createReapplication("PRJ-1", actor);
 

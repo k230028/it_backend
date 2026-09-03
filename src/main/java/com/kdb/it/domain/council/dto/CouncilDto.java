@@ -262,7 +262,7 @@ public class CouncilDto extends CouncilWorkflowDto {
                             nullable = true,
                             allowableValues = {"Y", "N"})
                     String csfHeldYn,
-            /** 주관부서코드 (BPROJM.SVN_DPM_C) — 추진부서 담당자 식별용 (사전 Q&A 답변 권한) */
+            /** 주관부서코드 (BPROJM.SVN_DPM_C) — 추진부서 담당자 식별용 (사전 Q&amp;A 답변 권한) */
             @Schema(nullable = true) String svnDpm) {}
 
     // =========================================================================

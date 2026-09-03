@@ -25,9 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TerminalBulkImportService {
 
-    private static final String YEAR_2025 = "2025";
-    private static final String YEAR_2026 = "2026";
-
     private final TerminalBulkImportPlanner planner;
     private final CostService costService;
     private final CostRepository costRepository;
@@ -81,14 +78,12 @@ public class TerminalBulkImportService {
         }
 
         List<PreparedGroup> groups = new ArrayList<>();
-        for (TerminalBulkImportPlanner.PlannedGroup plan : planner.plan(rows)) {
+        for (TerminalBulkImportPlanner.PlannedGroup plan : planner.plan(request.baseYear(), rows)) {
             if (!plan.createNew()) {
                 validateExistingCost(plan.costId(), plan.bseYy());
             }
             List<PreparedRow> preparedRows =
-                    plan.rows().stream()
-                            .map(row -> prepareRow(row, plan.bseYy(), org, codes))
-                            .toList();
+                    plan.rows().stream().map(row -> prepareRow(row, plan, org, codes)).toList();
             groups.add(new PreparedGroup(plan, preparedRows));
         }
         return new Prepared(groups);
@@ -96,7 +91,7 @@ public class TerminalBulkImportService {
 
     private PreparedRow prepareRow(
             TerminalBulkImportDto.Row row,
-            String year,
+            TerminalBulkImportPlanner.PlannedGroup plan,
             OrgIdentityResolver.Index org,
             TerminalCodeCatalog codes) {
         String department = resolveOrg(org, row.department(), row.excelRow(), "부서");
@@ -116,7 +111,7 @@ public class TerminalBulkImportService {
                 codes.resolve(CommonCodeGroups.DFR_CLE, row.paymentCycle(), row.excelRow(), "지급주기");
         String businessType = codes.resolveBusinessType(row.currentKind(), row.excelRow());
         TerminalBulkImportDto.YearValues values =
-                YEAR_2025.equals(year) ? row.previousValues() : row.currentValues();
+                plan.previousPeriod() ? row.previousValues() : row.currentValues();
         BigDecimal annual = values.annualAmount();
         BigDecimal foreignAnnual =
                 "KRW".equals(currency) || values.foreignMonthly() == null

@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
@@ -89,7 +92,8 @@ class CostQueryAssemblerTest {
         }
     }
 
-    private record ApproverView(String dcdMngNo) implements ApproverRepository.ApproverReadView {
+    private record ApproverView(String dcdMngNo, String dcrEno)
+            implements ApproverRepository.ApproverReadView {
         @Override
         public String getDcdMngNo() {
             return dcdMngNo;
@@ -102,7 +106,7 @@ class CostQueryAssemblerTest {
 
         @Override
         public String getDcrEno() {
-            return "10002";
+            return dcrEno;
         }
 
         @Override
@@ -202,7 +206,7 @@ class CostQueryAssemblerTest {
                                 new ApplicationSummaryView(
                                         "APF-1", ApprovalStatus.COMPLETED.code())));
         given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-1"))
-                .willReturn(List.of(new ApproverView("APF-1")));
+                .willReturn(List.of(new ApproverView("APF-1", "10002")));
         given(organizationRepository.findNameViewByPrlmOgzCCone("D01"))
                 .willReturn(Optional.of(new OrgView("D01", "정보기술부")));
         given(organizationRepository.findNameViewByPrlmOgzCCone("T01"))
@@ -276,6 +280,102 @@ class CostQueryAssemblerTest {
         assertThat(result.getCgprNm()).isEqualTo("담당자");
         assertThat(result.getPrevBgAmt()).isEqualByComparingTo("900");
         assertThat(result.getPrevDupBg()).isEqualByComparingTo("700");
+    }
+
+    @Test
+    @DisplayName("이력 조립: 개정본 세 건의 단말기·신청·사용자·코드를 각각 한 번만 배치 조회한다")
+    void assembleHistory_개정본세건_단말기연관정보배치조회() {
+        List<Bcostm> history =
+                List.of(
+                        Bcostm.builder().costBgNo("COST-HISTORY").bgSno(1).build(),
+                        Bcostm.builder().costBgNo("COST-HISTORY").bgSno(2).build(),
+                        Bcostm.builder().costBgNo("COST-HISTORY").bgSno(3).build());
+        given(terminalRepository.findByTermBgNoInAndDelYn(List.of("COST-HISTORY"), "N"))
+                .willReturn(
+                        List.of(
+                                historyTerminal("TMN-1", 1, "20001"),
+                                historyTerminal("TMN-2", 2, "20002"),
+                                historyTerminal("TMN-3", 3, "20003")));
+        given(
+                        applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                "BCOSTM", List.of("COST-HISTORY")))
+                .willReturn(
+                        List.of(
+                                new ApplicationMapView("APF-3", "COST-HISTORY", 3),
+                                new ApplicationMapView("APF-2", "COST-HISTORY", 2),
+                                new ApplicationMapView("APF-1", "COST-HISTORY", 1)));
+        given(
+                        applicationRepository.findSummaryViewsByApfMngNoIn(
+                                List.of("APF-3", "APF-2", "APF-1")))
+                .willReturn(
+                        List.of(
+                                new ApplicationSummaryView(
+                                        "APF-1", ApprovalStatus.COMPLETED.code()),
+                                new ApplicationSummaryView(
+                                        "APF-2", ApprovalStatus.IN_PROGRESS.code()),
+                                new ApplicationSummaryView(
+                                        "APF-3", ApprovalStatus.REJECTED.code())));
+        given(
+                        approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(
+                                List.of("APF-3", "APF-2", "APF-1")))
+                .willReturn(
+                        List.of(
+                                new ApproverView("APF-1", "10011"),
+                                new ApproverView("APF-2", "10012"),
+                                new ApproverView("APF-3", "10013")));
+        given(userRepository.findNameViewsByEnoIn(java.util.Set.of("20001", "20002", "20003")))
+                .willReturn(
+                        List.of(
+                                new UserView("20001", "단말담당1", "대리"),
+                                new UserView("20002", "단말담당2", "대리"),
+                                new UserView("20003", "단말담당3", "대리")));
+        stubCodes();
+
+        List<CostDto.Response> responses = assembler.assembleHistory(history);
+
+        assertThat(responses).extracting(CostDto.Response::getBgSno).containsExactly(1, 2, 3);
+        assertThat(responses)
+                .extracting(response -> response.getTerminals().getFirst().getTmnMngNo())
+                .containsExactly("TMN-1", "TMN-2", "TMN-3");
+        assertThat(responses)
+                .extracting(response -> response.getTerminals().getFirst().getCgprNm())
+                .containsExactly("단말담당1", "단말담당2", "단말담당3");
+        assertThat(responses)
+                .extracting(CostDto.Response::getApfMngNo)
+                .containsExactly("APF-1", "APF-2", "APF-3");
+        assertThat(responses)
+                .extracting(CostDto.Response::getApfSts)
+                .containsExactly(
+                        ApprovalStatus.COMPLETED.label(),
+                        ApprovalStatus.IN_PROGRESS.label(),
+                        ApprovalStatus.REJECTED.label());
+        assertThat(responses)
+                .extracting(response -> response.getApplicationInfo().getApprovers())
+                .allSatisfy(approvers -> assertThat(approvers).hasSize(1));
+        assertThat(responses)
+                .extracting(
+                        response ->
+                                response.getApplicationInfo().getApprovers().getFirst().getDcdEno())
+                .containsExactly("10011", "10012", "10013");
+        assertThat(responses)
+                .extracting(response -> response.getTerminals().getFirst().getTmnClsfCNm())
+                .containsOnly("금융망");
+        assertThat(responses)
+                .extracting(response -> response.getTerminals().getFirst().getTmnKdTcNm())
+                .containsOnly("전용");
+        assertThat(responses)
+                .extracting(response -> response.getTerminals().getFirst().getDfrCleCNm())
+                .containsOnly("매월");
+        verify(applicationMapRepository)
+                .findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        "BCOSTM", List.of("COST-HISTORY"));
+        verify(terminalRepository).findByTermBgNoInAndDelYn(List.of("COST-HISTORY"), "N");
+        verify(userRepository).findNameViewsByEnoIn(java.util.Set.of("20001", "20002", "20003"));
+        verify(codeRepository, times(1))
+                .findByCIdWithValidDate(CommonCodeGroups.TERM_SERVICE, null);
+        verify(codeRepository, times(1)).findByCIdWithValidDate(CommonCodeGroups.TERM_KIND, null);
+        verify(codeRepository, times(1)).findByCIdWithValidDate(CommonCodeGroups.DFR_CLE, null);
+        verifyNoMoreInteractions(userRepository, codeRepository);
     }
 
     @Test
@@ -390,6 +490,19 @@ class CostQueryAssemblerTest {
                 .abusTc("20")
                 .bseYy("2027")
                 .cncdRfrNo("COST-PREV")
+                .build();
+    }
+
+    private static Btermm historyTerminal(String terminalNo, int costSno, String managerId) {
+        return Btermm.builder()
+                .tmnMngNo(terminalNo)
+                .sno(1)
+                .termBgNo("COST-HISTORY")
+                .termBgSno(costSno)
+                .cgprId(managerId)
+                .tmnClsfC("SVC")
+                .tmnKdTc("KIND")
+                .dfrCleC("M")
                 .build();
     }
 

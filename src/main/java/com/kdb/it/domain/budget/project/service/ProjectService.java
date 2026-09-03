@@ -6,6 +6,7 @@ import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
+import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -111,6 +112,15 @@ public class ProjectService {
         return projectQueryService.searchProjectList(condition, paging);
     }
 
+    /** 인증 사용자의 부서 범위를 적용해 프로젝트 목록을 조회합니다. */
+    public List<ProjectDto.Response> searchProjectList(
+            ProjectDto.SearchCondition condition,
+            CustomUserDetails user,
+            com.kdb.it.common.util.ListPageParams paging) {
+        applyReadableScope(condition, user);
+        return projectQueryService.searchProjectList(condition, paging);
+    }
+
     /**
      * 검색 조건에 맞는 정보화사업 전체 건수를 조회합니다.
      *
@@ -118,6 +128,12 @@ public class ProjectService {
      * @return 조건에 맞는 전체 건수 (페이지 응답의 X-Total-Count 용도)
      */
     public long countProjectList(ProjectDto.SearchCondition condition) {
+        return projectQueryService.countProjectList(condition);
+    }
+
+    /** 목록과 동일한 부서 범위를 적용해 프로젝트 건수를 조회합니다. */
+    public long countProjectList(ProjectDto.SearchCondition condition, CustomUserDetails user) {
+        applyReadableScope(condition, user);
         return projectQueryService.countProjectList(condition);
     }
 
@@ -703,5 +719,24 @@ public class ProjectService {
      */
     public ProjectDto.BulkResponse getProjectsByIds(ProjectDto.BulkGetRequest request) {
         return projectQueryService.getProjectsByIds(request);
+    }
+
+    /** 인증 사용자의 부서 범위를 적용해 프로젝트를 일괄 조회합니다. */
+    public ProjectDto.BulkResponse getProjectsByIds(
+            ProjectDto.BulkGetRequest request, CustomUserDetails user) {
+        return projectQueryService.getProjectsByIds(request, user);
+    }
+
+    private void applyReadableScope(ProjectDto.SearchCondition condition, CustomUserDetails user) {
+        if (user == null) {
+            throw new org.springframework.security.access.AccessDeniedException("인증 정보가 없습니다.");
+        }
+        if (BudgetDetailAccessVerifier.canReadAllDepartments(user)) {
+            return;
+        }
+        if (!org.springframework.util.StringUtils.hasText(user.getBbrC())) {
+            throw new org.springframework.security.access.AccessDeniedException("소속 부서 정보가 없습니다.");
+        }
+        condition.setSvnDpmC(user.getBbrC());
     }
 }

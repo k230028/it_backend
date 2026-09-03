@@ -114,16 +114,6 @@ public class Cinfmm extends BaseEntity {
         this.inqDtm = LocalDateTime.now();
     }
 
-    /**
-     * 발송 완료 메타 기록.
-     *
-     * @param itPtlSdTc 발송 채널 코드 (공통코드 SD; 01=인앱, 02=알림톡, 03=SMS, 04=이메일)
-     * @param payload 외부 발송 페이로드 (JSON 또는 null)
-     */
-    public void markDispatched(String itPtlSdTc, String payload) {
-        markDispatchSent(itPtlSdTc, payload);
-    }
-
     /** 발송 성공 상태와 채널 메타를 기록합니다. */
     public void markDispatchSent(String itPtlSdTc, String payload) {
         this.itPtlSdTc = itPtlSdTc;

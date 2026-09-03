@@ -78,11 +78,23 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
             BoardPostDto.SearchCondition cond,
             boolean isAdmin,
             boolean includePrivatePosts) {
+        return searchPostRows(blbMngNo, cond, isAdmin, includePrivatePosts, null);
+    }
+
+    @Override
+    public Page<BoardPostDto.ListRow> searchPostRows(
+            String blbMngNo,
+            BoardPostDto.SearchCondition cond,
+            boolean isAdmin,
+            boolean includePrivatePosts,
+            String privatePostAuthorEno) {
         QCblbcm p = QCblbcm.cblbcm;
         QCcmmtm comment = new QCcmmtm("boardPostComment");
         QCuserI writer = new QCuserI("boardPostWriter");
         QCorgnI writerOrganization = new QCorgnI("boardPostWriterOrganization");
-        BooleanBuilder builder = buildPredicate(p, blbMngNo, cond, isAdmin, includePrivatePosts);
+        BooleanBuilder builder =
+                buildPredicate(
+                        p, blbMngNo, cond, isAdmin, includePrivatePosts, privatePostAuthorEno);
 
         int page = Math.max(cond.getPage(), 0);
         int size = Math.min(Math.max(cond.getSize(), 1), 100);
@@ -136,12 +148,24 @@ public class BoardPostRepositoryImpl implements BoardPostRepositoryCustom {
             BoardPostDto.SearchCondition cond,
             boolean isAdmin,
             boolean includePrivatePosts) {
+        return buildPredicate(p, blbMngNo, cond, isAdmin, includePrivatePosts, null);
+    }
+
+    private BooleanBuilder buildPredicate(
+            QCblbcm p,
+            String blbMngNo,
+            BoardPostDto.SearchCondition cond,
+            boolean isAdmin,
+            boolean includePrivatePosts,
+            String privatePostAuthorEno) {
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(p.blbMngNo.eq(blbMngNo));
         builder.and(p.delYn.eq("N"));
 
         if (!isAdmin || cond.isPublicOnly()) {
-            if (!includePrivatePosts) {
+            if (includePrivatePosts && StringUtils.hasText(privatePostAuthorEno)) {
+                builder.and(p.xpoYn.eq("Y").or(p.fstEnrUsid.eq(privatePostAuthorEno)));
+            } else {
                 builder.and(p.xpoYn.eq("Y"));
             }
             if (!cond.isIgnorePublicationPeriod()) {

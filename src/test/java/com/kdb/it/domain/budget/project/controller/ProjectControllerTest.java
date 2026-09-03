@@ -68,7 +68,7 @@ class ProjectControllerTest {
         // given
         ProjectDto.Response project =
                 ProjectDto.Response.builder().abusMngNo("PRJ-2026-0001").abusNm("테스트 사업").build();
-        given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class), any()))
+        given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class), any(), any()))
                 .willReturn(List.of(project));
 
         // when & then
@@ -86,9 +86,9 @@ class ProjectControllerTest {
     @DisplayName("GET /api/projects?page=1&size=100 - 페이지 조회는 X-Total-Count로 전체 건수를 알린다")
     @WithMockUser(username = "10001")
     void getProjects_페이지지정_총건수헤더() throws Exception {
-        given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class), any()))
+        given(projectService.searchProjectList(any(ProjectDto.SearchCondition.class), any(), any()))
                 .willReturn(List.of());
-        given(projectService.countProjectList(any(ProjectDto.SearchCondition.class)))
+        given(projectService.countProjectList(any(ProjectDto.SearchCondition.class), any()))
                 .willReturn(1234L);
 
         mockMvc.perform(get("/api/projects").param("page", "1").param("size", "100"))
@@ -318,7 +318,7 @@ class ProjectControllerTest {
         request.setPrjMngNos(List.of("PRJ-2026-0001", "PRJ-2026-0002"));
         ProjectDto.Response project =
                 ProjectDto.Response.builder().abusMngNo("PRJ-2026-0001").abusNm("테스트 사업").build();
-        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
+        given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class), any()))
                 .willReturn(
                         new ProjectDto.BulkResponse(List.of(project), List.of("PRJ-2026-0002")));
 

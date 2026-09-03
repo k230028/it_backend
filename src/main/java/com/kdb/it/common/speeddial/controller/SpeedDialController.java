@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 전역 스피드다이얼의 FAQ·Q&A·담당자 정보 API입니다. */
+/** 전역 스피드다이얼의 FAQ·Q&amp;A·담당자 정보 API입니다. */
 @RestController
 @RequestMapping("/api/speed-dial")
 @RequiredArgsConstructor

@@ -7,7 +7,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.config.SwaggerConfig;
+import com.kdb.it.domain.banner.controller.BannerController;
+import com.kdb.it.domain.banner.service.BannerService;
 import com.kdb.it.domain.migration.request.service.RequestFormSourceArchiveService;
+import com.kdb.it.domain.userguide.controller.UserGuideController;
+import com.kdb.it.domain.userguide.service.UserGuideService;
 import com.kdb.it.infra.file.FileOwnershipChecker;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.service.BoardAttachmentArchiveService;
@@ -38,6 +42,8 @@ class FileControllerOpenApiContractTest {
     @MockitoBean private FileTargetWriteAuthorizerRegistry targetWriteAuthorizerRegistry;
     @MockitoBean private RequestFormSourceArchiveService requestFormSourceArchiveService;
     @MockitoBean private BoardAttachmentArchiveService boardAttachmentArchiveService;
+    @MockitoBean private BannerService bannerService;
+    @MockitoBean private UserGuideService userGuideService;
 
     @Test
     @DisplayName("원본 ZIP 200 응답은 application/zip binary string으로 공개된다")
@@ -59,8 +65,42 @@ class FileControllerOpenApiContractTest {
         assertThat(schema.path("format").asText()).isEqualTo("binary");
     }
 
+    @Test
+    @DisplayName("첨부파일 API는 APG 컬럼의 메타 표준 한글명을 공개한다")
+    void attachmentMetadataUsesMetaStandardNames() throws Exception {
+        JsonNode document = readOpenApiDocument();
+        String scopedContract =
+                document.at("/paths/~1api~1files").toString()
+                        + document.at("/paths/~1api~1files~1{flMpnId}").toString()
+                        + document.at("/paths/~1api~1banners").toString()
+                        + document.at("/paths/~1api~1user-guides").toString()
+                        + document.at("/components/schemas/FileDto.CreateRequest").toString()
+                        + document.at("/components/schemas/FileDto.UpdateRequest").toString()
+                        + document.at("/components/schemas/FileDto.Response").toString()
+                        + document.at("/components/schemas/FileDto.BulkDeleteRequest").toString();
+
+        assertThat(scopedContract)
+                .contains("첨부파일종류명", "첨부파일연결콘텐츠명")
+                .doesNotContain("주식별자컬럼명", "주식별자내용");
+    }
+
+    private JsonNode readOpenApiDocument() throws Exception {
+        String document =
+                mockMvc.perform(get("/v3/api-docs"))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        return objectMapper.readTree(document);
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration
-    @Import({FileController.class, SwaggerConfig.class})
+    @Import({
+        FileController.class,
+        BannerController.class,
+        UserGuideController.class,
+        SwaggerConfig.class
+    })
     static class OpenApiTestApp {}
 }

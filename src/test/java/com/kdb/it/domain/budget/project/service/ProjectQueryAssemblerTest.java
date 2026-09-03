@@ -31,7 +31,9 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -797,6 +799,33 @@ class ProjectQueryAssemblerTest {
                             assertThat(result.getAssetBg()).isEqualByComparingTo("100");
                             assertThat(result.getMplCpitAmt()).isEqualByComparingTo("30");
                         });
+    }
+
+    @Test
+    @DisplayName("bulk 조립: 비목 유형으로 편성예산을 자본·경상 예산으로 분류한다")
+    void assembleBulk_비목유형별_편성예산분류() {
+        String projectId = "PRJ-BUDGET-001";
+        Bprojm project = Bprojm.builder().abusMngNo(projectId).sno(1).delYn("N").build();
+        Ccodem assetCode =
+                Ccodem.builder().cId(CommonCodeGroups.IOE).cdva("101").cTp("IOE_DVC").build();
+        Ccodem costCode =
+                Ccodem.builder().cId(CommonCodeGroups.IOE).cdva("201").cTp("IOE_XPN").build();
+        Ccodem unrelatedCode =
+                Ccodem.builder().cId(CommonCodeGroups.IOE).cdva("999").cTp("IOE_OTHER").build();
+        given(codeService.findCodeEntitiesByCIdWithoutCache(CommonCodeGroups.IOE))
+                .willReturn(List.of(assetCode, costCode, unrelatedCode));
+        given(budgetRepository.sumDupBgByPrjMngNos(List.of(projectId), "2027"))
+                .willReturn(Map.of(projectId, new BigDecimal("1000")));
+        given(budgetRepository.sumAssetDupBgByPrjMngNos(List.of(projectId), "2027", Set.of("101")))
+                .willReturn(Map.of(projectId, new BigDecimal("700")));
+        given(budgetRepository.sumCostDupBgByPrjMngNos(List.of(projectId), "2027", Set.of("201")))
+                .willReturn(Map.of(projectId, new BigDecimal("300")));
+
+        ProjectDto.Response result = assembler.assembleBulk(List.of(project), "2027").getFirst();
+
+        assertThat(result.getDupBgAmt()).isEqualByComparingTo("1000");
+        assertThat(result.getAssetDupBg()).isEqualByComparingTo("700");
+        assertThat(result.getCostDupBg()).isEqualByComparingTo("300");
     }
 
     private void stubCodeName(String group, String value, String name) {

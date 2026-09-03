@@ -34,6 +34,7 @@ import org.mockito.quality.Strictness;
 class GuideDocServiceTest {
 
     @Mock private GuideDocRepository guideDocRepository;
+    @Mock private BgdocNumberAllocator bgdocNumberAllocator;
 
     @InjectMocks private GuideDocService guideDocService;
 
@@ -148,7 +149,7 @@ class GuideDocServiceTest {
     @DisplayName("createDocument: 문서관리번호 미입력 시 시퀀스로 자동 채번하여 생성한다")
     void createDocument_번호미입력_자동채번생성() {
         // given
-        given(guideDocRepository.getNextSequenceValue()).willReturn(1L);
+        given(bgdocNumberAllocator.next("GDOC-")).willReturn("GDOC-2026-0001");
         GuideDocDto.CreateRequest request =
                 GuideDocDto.CreateRequest.builder()
                         .docTtlCone("가이드문서")
@@ -159,7 +160,7 @@ class GuideDocServiceTest {
         String result = guideDocService.createDocument(request);
 
         // then
-        assertThat(result).startsWith("GDOC-");
+        assertThat(result).isEqualTo("GDOC-2026-0001");
         verify(guideDocRepository).save(any(Bgdocm.class));
     }
 

@@ -32,11 +32,11 @@ public class FileDto {
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private String flTpCone;
 
-        @Schema(description = "주식별자내용 (연결할 도메인 레코드 기본키)", example = "PRJ-2026-0001")
+        @Schema(description = "첨부파일연결콘텐츠명 (연결할 도메인 레코드 식별값)", example = "PRJ-2026-0001")
         private String apgFlLnkCtzNm;
 
         @Schema(
-                description = "주식별자컬럼명 (연결할 도메인 종류)",
+                description = "첨부파일종류명 (연결할 도메인 종류)",
                 example = "요구사항정의서",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private String apgFlKdNm;
@@ -59,11 +59,11 @@ public class FileDto {
     @Builder
     public static class UpdateRequest {
 
-        @Schema(description = "변경할 주식별자내용", example = "PRJ-2026-0002")
+        @Schema(description = "변경할 첨부파일연결콘텐츠명", example = "PRJ-2026-0002")
         private String apgFlLnkCtzNm;
 
         @Schema(
-                description = "변경할 주식별자컬럼명",
+                description = "변경할 첨부파일종류명",
                 example = "정보화사업",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private String apgFlKdNm;
@@ -103,10 +103,10 @@ public class FileDto {
                 nullable = true)
         private String relativePath;
 
-        @Schema(description = "주식별자내용", example = "PRJ-2026-0001")
+        @Schema(description = "첨부파일연결콘텐츠명", example = "PRJ-2026-0001")
         private String apgFlLnkCtzNm;
 
-        @Schema(description = "주식별자컬럼명", example = "요구사항정의서")
+        @Schema(description = "첨부파일종류명", example = "요구사항정의서")
         private String apgFlKdNm;
 
         @Schema(description = "최초등록일시")
@@ -136,13 +136,13 @@ public class FileDto {
     public static class BulkDeleteRequest {
 
         @Schema(
-                description = "주식별자컬럼명",
+                description = "첨부파일종류명",
                 example = "요구사항정의서",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private String apgFlKdNm;
 
         @Schema(
-                description = "주식별자내용",
+                description = "첨부파일연결콘텐츠명",
                 example = "PRJ-2026-0001",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private String apgFlLnkCtzNm;
@@ -157,10 +157,10 @@ public class FileDto {
     @Builder
     public static class SearchCondition {
 
-        @Schema(description = "주식별자컬럼명 (필수)", example = "요구사항정의서")
+        @Schema(description = "첨부파일종류명 (필수)", example = "요구사항정의서")
         private String apgFlKdNm;
 
-        @Schema(description = "주식별자내용 (선택 - 미입력 시 apgFlKdNm 전체 조회)", example = "PRJ-2026-0001")
+        @Schema(description = "첨부파일연결콘텐츠명 (선택 - 미입력 시 종류 전체 조회)", example = "PRJ-2026-0001")
         private String apgFlLnkCtzNm;
 
         @Schema(description = "파일유형내용 (선택 - '이미지' 또는 '첨부파일')", example = "첨부파일")

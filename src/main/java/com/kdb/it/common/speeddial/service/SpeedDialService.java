@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-/** 전역 스피드다이얼의 FAQ 조회와 Q&A 등록을 범용 게시판에 연결합니다. */
+/** 전역 스피드다이얼의 FAQ 조회와 Q&amp;A 등록을 범용 게시판에 연결합니다. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -61,7 +61,7 @@ public class SpeedDialService {
                 .toList();
     }
 
-    /** Q&A 유형 게시판에 스피드다이얼 문의를 저장합니다. */
+    /** Q&amp;A 유형 게시판에 스피드다이얼 문의를 저장합니다. */
     @Transactional
     public String createQna(SpeedDialDto.QnaCreateRequest request, CustomUserDetails user) {
         validateRequest(request);

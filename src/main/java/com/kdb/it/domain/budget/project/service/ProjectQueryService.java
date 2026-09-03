@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -118,6 +119,20 @@ public class ProjectQueryService {
      * @throws DataCorruptionException 같은 관리번호의 활성 기본행이 둘 이상인 경우
      */
     public ProjectDto.BulkResponse getProjectsByIds(ProjectDto.BulkGetRequest request) {
+        return getProjectsByIdsInternal(request, null);
+    }
+
+    /** 인증 사용자의 부서 범위를 적용해 여러 프로젝트를 일괄 조회합니다. */
+    public ProjectDto.BulkResponse getProjectsByIds(
+            ProjectDto.BulkGetRequest request, CustomUserDetails actor) {
+        if (actor == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
+        return getProjectsByIdsInternal(request, actor);
+    }
+
+    private ProjectDto.BulkResponse getProjectsByIdsInternal(
+            ProjectDto.BulkGetRequest request, CustomUserDetails actor) {
         if (request == null || request.getPrjMngNos() == null || request.getPrjMngNos().isEmpty()) {
             return new ProjectDto.BulkResponse(List.of(), List.of());
         }
@@ -127,7 +142,10 @@ public class ProjectQueryService {
         List<String> failedIds = new ArrayList<>();
         for (String prjMngNo : request.getPrjMngNos()) {
             Bprojm project = projectById.get(prjMngNo);
-            if (project == null) {
+            if (project == null
+                    || (actor != null
+                            && !BudgetDetailAccessVerifier.isReadable(
+                                    project.getSvnDpmC(), actor))) {
                 failedIds.add(prjMngNo);
             } else {
                 projects.add(project);

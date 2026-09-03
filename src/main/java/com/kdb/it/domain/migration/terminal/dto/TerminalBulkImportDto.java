@@ -1,6 +1,8 @@
 package com.kdb.it.domain.migration.terminal.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,8 +25,8 @@ public final class TerminalBulkImportDto {
     /** 프론트에서 2단 헤더를 해석한 단말기 한 행입니다. */
     public record Row(
             int excelRow,
-            String costId2026,
-            String costId2025,
+            String previousCostId,
+            String currentCostId,
             String department,
             String team,
             String managerName,
@@ -74,8 +76,8 @@ public final class TerminalBulkImportDto {
         }
     }
 
-    /** 일괄업로드 요청입니다. */
-    public record Request(@NotEmpty List<@Valid Row> rows) {}
+    /** 일괄업로드 요청입니다. 이전 연도는 기준연도에서 1을 뺀 값으로 계산합니다. */
+    public record Request(@Min(2000) @Max(2100) int baseYear, @NotEmpty List<@Valid Row> rows) {}
 
     /** 미리보기·확정 반영 결과의 요약입니다. */
     public record Response(

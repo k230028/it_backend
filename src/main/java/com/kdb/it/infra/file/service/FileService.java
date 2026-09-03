@@ -139,7 +139,7 @@ public class FileService {
      * <ol>
      *   <li>apgFlKdNm + apgFlLnkCtzNm + flTpCone 모두 입력 → 세 조건으로 필터링
      *   <li>apgFlKdNm + apgFlLnkCtzNm 입력 → 두 조건으로 필터링
-     *   <li>apgFlKdNm만 입력 → 해당 주식별자컬럼명 전체 조회
+     *   <li>apgFlKdNm만 입력 → 해당 첨부파일종류명 전체 조회
      * </ol>
      *
      * @param condition 검색 조건 (apgFlKdNm 필수, apgFlLnkCtzNm·flTpCone 선택)
@@ -150,14 +150,14 @@ public class FileService {
     public List<FileDto.Response> getFiles(
             FileDto.SearchCondition condition, CustomUserDetails user) {
         if (!StringUtils.hasText(condition.getApgFlKdNm())) {
-            throw new CustomGeneralException("주식별자컬럼명(apgFlKdNm)은 필수입니다.");
+            throw new CustomGeneralException("첨부파일종류명(apgFlKdNm)은 필수입니다.");
         }
 
         List<Cfilem> list;
 
         if (StringUtils.hasText(condition.getApgFlLnkCtzNm())
                 && StringUtils.hasText(condition.getFlTpCone())) {
-            // 주식별자컬럼명 + 주식별자내용 + 파일유형내용 필터링
+            // 첨부파일종류명 + 첨부파일연결콘텐츠명 + 파일유형내용 필터링
             list =
                     fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndFlTpConeAndDelYn(
                             condition.getApgFlKdNm(),
@@ -165,12 +165,12 @@ public class FileService {
                             condition.getFlTpCone(),
                             "N");
         } else if (StringUtils.hasText(condition.getApgFlLnkCtzNm())) {
-            // 주식별자컬럼명 + 주식별자내용 필터링
+            // 첨부파일종류명 + 첨부파일연결콘텐츠명 필터링
             list =
                     fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
                             condition.getApgFlKdNm(), condition.getApgFlLnkCtzNm(), "N");
         } else {
-            // 주식별자컬럼명 전체 조회
+            // 첨부파일종류명 전체 조회
             list = fileRepository.findAllByApgFlKdNmAndDelYn(condition.getApgFlKdNm(), "N");
         }
 
@@ -194,7 +194,7 @@ public class FileService {
      * <p>중복 부모 키는 최초 요청 순서로 한 번만 처리하며, 파일이 없거나 읽을 수 없는 부모도 빈 목록으로 결과에 포함합니다. 파일 조회는 한 번만 수행하고 같은
      * 부모의 읽기 권한도 한 번만 판정합니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명
+     * @param apgFlKdNm 첨부파일종류명
      * @param apgFlLnkCtzNms 조회할 부모 키 목록
      * @param user 현재 인증 사용자
      * @return 부모 키를 키로 하는 접근 가능한 파일 목록
@@ -203,13 +203,13 @@ public class FileService {
     public Map<String, List<FileDto.Response>> getFilesBatch(
             String apgFlKdNm, List<String> apgFlLnkCtzNms, CustomUserDetails user) {
         if (!StringUtils.hasText(apgFlKdNm)) {
-            throw new CustomGeneralException("주식별자컬럼명(apgFlKdNm)은 필수입니다.");
+            throw new CustomGeneralException("첨부파일종류명(apgFlKdNm)은 필수입니다.");
         }
         if (apgFlLnkCtzNms == null
                 || apgFlLnkCtzNms.isEmpty()
                 || apgFlLnkCtzNms.stream()
                         .anyMatch(apgFlLnkCtzNm -> !StringUtils.hasText(apgFlLnkCtzNm))) {
-            throw new CustomGeneralException("주식별자내용(apgFlLnkCtzNm)은 한 건 이상 필요하며 공백일 수 없습니다.");
+            throw new CustomGeneralException("첨부파일연결콘텐츠명(apgFlLnkCtzNm)은 한 건 이상 필요하며 공백일 수 없습니다.");
         }
 
         Set<String> distinctParents = new LinkedHashSet<>(apgFlLnkCtzNms);
@@ -383,8 +383,8 @@ public class FileService {
     /**
      * 파일 메타데이터 수정
      *
-     * <p>파일이 연결된 원본 도메인 정보(주식별자컬럼명, 주식별자내용)를 변경합니다. 파일 자체(서버파일명, 저장경로)는 변경되지 않습니다. 파일 교체가 필요한 경우 삭제
-     * 후 재업로드를 사용하세요.
+     * <p>파일이 연결된 원본 도메인 정보(첨부파일종류명, 첨부파일연결콘텐츠명)를 변경합니다. 파일 자체(서버파일명, 저장경로)는 변경되지 않습니다. 파일 교체가 필요한
+     * 경우 삭제 후 재업로드를 사용하세요.
      *
      * @param flMpnId 수정할 파일매핑ID
      * @param request 수정 요청 DTO (apgFlKdNm, apgFlLnkCtzNm)
@@ -456,8 +456,8 @@ public class FileService {
      * <p>소유권 검증: 관리자가 아닌 경우 대상 파일이 모두 본인이 업로드한 파일일 때만 삭제할 수 있습니다. 하나라도 타인이 업로드한 파일이 섞여 있으면 {@link
      * AccessDeniedException}을 던집니다. 관리자는 소유권 검증만 우회하며, 보호 종류 차단은 우회하지 않습니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명 (예: 요구사항정의서)
-     * @param apgFlLnkCtzNm 주식별자내용 (예: PRJ-2026-0001)
+     * @param apgFlKdNm 첨부파일종류명 (예: 요구사항정의서)
+     * @param apgFlLnkCtzNm 첨부파일연결콘텐츠명 (예: PRJ-2026-0001)
      * @param user 현재 사용자 — 비관리자는 본인 소유 파일만 일괄 삭제 가능
      * @return 논리 삭제된 파일 수
      * @throws AccessDeniedException 비관리자가 타인 소유 파일을 포함해 삭제를 시도한 경우, 또는 대상 파일 종류가 전용 writer만 관리하는 보호

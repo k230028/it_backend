@@ -88,7 +88,7 @@ public class UserGuideController {
             summary = "사용자가이드 업로드 (관리자)",
             description =
                     "multipart/form-data로 가이드 파일 1개를 업로드합니다. "
-                            + "주식별자컬럼명('사용자가이드')·주식별자내용('HEADER')·파일유형내용('첨부파일')은 서버가 고정합니다. "
+                            + "첨부파일종류명('사용자가이드')·첨부파일연결콘텐츠명('HEADER')·파일유형내용('첨부파일')은 서버가 고정합니다. "
                             + "기존 현재 가이드는 같은 트랜잭션에서 이력으로 내려갑니다. "
                             + "허용 확장자는 pdf, hwp, hwpx, docx, pptx입니다.")
     public ResponseEntity<UserGuideDto.Response> upload(

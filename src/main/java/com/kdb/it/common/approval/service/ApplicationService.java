@@ -2,7 +2,6 @@ package com.kdb.it.common.approval.service;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.domain.DecisionStatus;
-import com.kdb.it.common.approval.dto.ApplicationApproverDisplay;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
@@ -479,17 +478,8 @@ public class ApplicationService {
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
-        // 결재자 목록 조회 (순번 오름차순)
-        List<ApproverRepository.ApproverReadView> approvers =
-                approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(apfMngNo);
-        java.util.Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
-                ApplicationBulkReadSupport.resolveApproverDisplays(approvers, userRepository);
-        String requesterNm =
-                requesterName(resolveRequesterNames(List.of(view)), view.getDcdReqUsid());
-        String requesterBbrNm =
-                requesterDeptName(resolveRequesterDeptNames(List.of(view)), view.getDcdReqBbrC());
-        return ApplicationDto.Response.fromReadViews(
-                view, approvers, requesterNm, requesterBbrNm, approverDisplaysByEno);
+        return ApplicationBulkReadSupport.assembleOne(
+                view, approverRepository, userRepository, organizationRepository);
     }
 
     /**
@@ -551,86 +541,6 @@ public class ApplicationService {
             return null;
         }
         return userRepository.findById(eno).map(user -> user.getBbrC()).orElse(null);
-    }
-
-    /**
-     * 사번이 비어 있거나 맵 구현체가 null key를 허용하지 않는 경우를 방어하며 신청자명을 조회합니다.
-     *
-     * @param requesterNamesByEno 사번별 신청자명 맵
-     * @param eno 신청자 사번
-     * @return 신청자명, 없으면 null
-     */
-    private String requesterName(java.util.Map<String, String> requesterNamesByEno, String eno) {
-        if (eno == null || eno.isBlank()) {
-            return null;
-        }
-        return requesterNamesByEno.get(eno);
-    }
-
-    /**
-     * 부점코드가 비어 있거나 맵 구현체가 null key를 허용하지 않는 경우를 방어하며 신청부서명을 조회합니다.
-     *
-     * @param requesterDeptNamesByBbrC 부점코드별 신청부서명 맵
-     * @param bbrC 신청부서코드
-     * @return 신청부서명, 없으면 null
-     */
-    private String requesterDeptName(
-            java.util.Map<String, String> requesterDeptNamesByBbrC, String bbrC) {
-        if (bbrC == null || bbrC.isBlank()) {
-            return null;
-        }
-        return requesterDeptNamesByBbrC.get(bbrC);
-    }
-
-    /**
-     * 신청서 read view 목록의 신청자 사번을 사용자명으로 일괄 변환합니다.
-     *
-     * @param views 신청서 마스터 read view 목록
-     * @return 사번을 키로 하는 사용자명 맵
-     */
-    private java.util.Map<String, String> resolveRequesterNames(
-            List<ApplicationRepository.ApplicationReadView> views) {
-        java.util.Set<String> requesterEnos =
-                views.stream()
-                        .map(application -> application.getDcdReqUsid())
-                        .filter(eno -> eno != null && !eno.isBlank())
-                        .collect(java.util.stream.Collectors.toSet());
-        if (requesterEnos.isEmpty()) {
-            return java.util.Map.of();
-        }
-
-        return userRepository.findNameViewsByEnoIn(requesterEnos).stream()
-                .collect(
-                        java.util.stream.Collectors.toMap(
-                                user -> user.getEno(),
-                                user -> user.getUsrNm(),
-                                (left, right) -> left));
-    }
-
-    /**
-     * 신청서 read view 목록의 신청부서코드를 부서명으로 일괄 변환합니다.
-     *
-     * @param views 신청서 마스터 read view 목록
-     * @return 부점코드를 키로 하는 부점명 맵
-     */
-    private java.util.Map<String, String> resolveRequesterDeptNames(
-            List<ApplicationRepository.ApplicationReadView> views) {
-        java.util.Set<String> requesterBbrCs =
-                views.stream()
-                        .map(application -> application.getDcdReqBbrC())
-                        .filter(bbrC -> bbrC != null && !bbrC.isBlank())
-                        .collect(java.util.stream.Collectors.toSet());
-        if (requesterBbrCs.isEmpty()) {
-            return java.util.Map.of();
-        }
-
-        return organizationRepository.findNameViewsByPrlmOgzCConeIn(requesterBbrCs).stream()
-                .filter(org -> org.getBbrNm() != null)
-                .collect(
-                        java.util.stream.Collectors.toMap(
-                                organization -> organization.getPrlmOgzCCone(),
-                                organization -> organization.getBbrNm(),
-                                (left, right) -> left));
     }
 
     /** 일괄 조회 (여러 신청관리번호를 배치로 읽어 응답 조립). */

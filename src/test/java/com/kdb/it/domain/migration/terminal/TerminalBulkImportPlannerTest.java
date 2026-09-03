@@ -2,6 +2,7 @@ package com.kdb.it.domain.migration.terminal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.kdb.it.domain.migration.terminal.dto.TerminalBulkImportDto;
@@ -12,6 +13,32 @@ import org.junit.jupiter.api.Test;
 class TerminalBulkImportPlannerTest {
 
     private final TerminalBulkImportPlanner planner = new TerminalBulkImportPlanner();
+
+    @Test
+    void 기준연도_2027은_이전연도와_당해연도_그룹을_2026과_2027로_만든다() {
+        List<TerminalBulkImportPlanner.PlannedGroup> groups =
+                planner.plan(
+                        2027,
+                        List.of(
+                                row(
+                                        3,
+                                        null,
+                                        null,
+                                        new BigDecimal("100"),
+                                        null,
+                                        "신규",
+                                        new BigDecimal("200"))));
+
+        assertEquals(
+                List.of("2026", "2027"),
+                groups.stream().map(TerminalBulkImportPlanner.PlannedGroup::bseYy).toList());
+    }
+
+    @Test
+    void 기준연도는_2000부터_2100까지만_허용한다() {
+        assertThrows(IllegalArgumentException.class, () -> planner.plan(1999, List.of()));
+        assertThrows(IllegalArgumentException.class, () -> planner.plan(2101, List.of()));
+    }
 
     @Test
     void 전년도집행액이_있고_ID가_비어있으면_전년도_신규그룹을_만든다() {
@@ -27,7 +54,7 @@ class TerminalBulkImportPlannerTest {
                                 new BigDecimal("200")),
                         row(4, null, null, null, "COST-2026-0001", "유지", new BigDecimal("300")));
 
-        List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(rows);
+        List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(2026, rows);
 
         assertEquals(2, groups.size());
         assertEquals("2025", groups.get(0).bseYy());
@@ -44,6 +71,7 @@ class TerminalBulkImportPlannerTest {
     void 해지이고_당해연도_금액이_없으면_당해연도_반영에서_제외한다() {
         List<TerminalBulkImportPlanner.PlannedGroup> groups =
                 planner.plan(
+                        2026,
                         List.of(
                                 row(
                                         3,
@@ -67,7 +95,7 @@ class TerminalBulkImportPlannerTest {
                         rowWithDepartmentAndTerminal(3, "부서", "블룸버그", new BigDecimal("100")),
                         rowWithDepartmentAndTerminal(4, "부서", "블룸버그(***)", new BigDecimal("200")));
 
-        List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(rows);
+        List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(2026, rows);
 
         assertEquals(2, groups.size());
         TerminalBulkImportPlanner.PlannedGroup previousYear = groups.get(0);
@@ -84,7 +112,7 @@ class TerminalBulkImportPlannerTest {
                         rowWithDepartmentAndTerminal(3, "부서A", "블룸버그", new BigDecimal("100")),
                         rowWithDepartmentAndTerminal(4, "부서B", "블룸버그", new BigDecimal("200")));
 
-        List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(rows);
+        List<TerminalBulkImportPlanner.PlannedGroup> groups = planner.plan(2026, rows);
 
         assertEquals(4, groups.size());
         assertEquals(1, groups.get(0).rows().size());
@@ -97,8 +125,8 @@ class TerminalBulkImportPlannerTest {
                 row(excelRow, null, null, previousAnnual, null, "신규", new BigDecimal("300"));
         return new TerminalBulkImportDto.Row(
                 base.excelRow(),
-                base.costId2026(),
-                base.costId2025(),
+                base.previousCostId(),
+                base.currentCostId(),
                 department,
                 base.team(),
                 base.managerName(),
@@ -121,16 +149,16 @@ class TerminalBulkImportPlannerTest {
 
     private static TerminalBulkImportDto.Row row(
             int excelRow,
-            String costId2026,
-            String costId2025,
+            String currentCostIdFallback,
+            String previousCostId,
             BigDecimal previousAnnual,
             String currentCostId,
             String currentKind,
             BigDecimal currentAnnual) {
         return new TerminalBulkImportDto.Row(
                 excelRow,
-                currentCostId != null ? currentCostId : costId2026,
-                costId2025,
+                previousCostId,
+                currentCostId != null ? currentCostId : currentCostIdFallback,
                 "부서",
                 "팀",
                 "관리자",

@@ -30,7 +30,7 @@ class ContactInfoServiceTest {
     void getContactInfo_returnsEmptyResponseWhenDocumentDoesNotExist() {
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
                 .willReturn(Optional.empty());
 
         ContactInfoDto.Response response = contactInfoService.getContactInfo();
@@ -40,23 +40,23 @@ class ContactInfoServiceTest {
     }
 
     @Test
-    @DisplayName("첫 저장은 고정 식별자와 GDOC 자동 채번으로 문서를 생성한다")
-    void saveContactInfo_createsIdentifiedDocumentWithGeneratedGdocNumber() {
+    @DisplayName("첫 저장은 고정 식별자와 CDOC 자동 채번으로 문서를 생성한다")
+    void saveContactInfo_createsIdentifiedDocumentWithGeneratedContactNumber() {
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
                 .willReturn(Optional.empty());
         given(contactInfoCreationService.createContactInfo("<p>홍길동</p>"))
                 .willReturn(
                         new ContactInfoDto.Response(
-                                "GDOC-" + java.time.LocalDate.now().getYear() + "-0017",
+                                "CDOC-" + java.time.LocalDate.now().getYear() + "-0017",
                                 "<p>홍길동</p>"));
 
         ContactInfoDto.Response response = contactInfoService.saveContactInfo("<p>홍길동</p>");
 
         verify(contactInfoCreationService).createContactInfo("<p>홍길동</p>");
         assertThat(response.docMngNo())
-                .isEqualTo("GDOC-" + java.time.LocalDate.now().getYear() + "-0017");
+                .isEqualTo("CDOC-" + java.time.LocalDate.now().getYear() + "-0017");
         assertThat(response.contentHtml()).isEqualTo("<p>홍길동</p>");
     }
 
@@ -64,16 +64,16 @@ class ContactInfoServiceTest {
     @DisplayName("이미 작성한 담당자 정보는 같은 문서를 갱신한다")
     void saveContactInfo_updatesExistingDocument() {
         Bgdocm existing = org.mockito.Mockito.mock(Bgdocm.class);
-        given(existing.getDocMngNo()).willReturn("GDOC-2026-0042");
+        given(existing.getDocMngNo()).willReturn("CDOC-2026-0042");
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
                 .willReturn(Optional.of(existing));
 
         ContactInfoDto.Response response = contactInfoService.saveContactInfo("<p>새 담당자</p>");
 
         verify(existing).update(ContactInfoService.DOCUMENT_IDENTIFIER, "<p>새 담당자</p>");
-        assertThat(response.docMngNo()).isEqualTo("GDOC-2026-0042");
+        assertThat(response.docMngNo()).isEqualTo("CDOC-2026-0042");
         assertThat(response.contentHtml()).isEqualTo("<p>새 담당자</p>");
     }
 
@@ -91,10 +91,10 @@ class ContactInfoServiceTest {
     @DisplayName("동시 최초 등록 충돌 뒤에는 생성된 문서를 다시 찾아 갱신한다")
     void saveContactInfo_updatesDocumentCreatedByConcurrentRequest() {
         Bgdocm existing = org.mockito.Mockito.mock(Bgdocm.class);
-        given(existing.getDocMngNo()).willReturn("GDOC-2026-0042");
+        given(existing.getDocMngNo()).willReturn("CDOC-2026-0042");
         given(
                         guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "GDOC-", "N"))
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
                 .willReturn(Optional.empty())
                 .willReturn(Optional.of(existing));
         given(contactInfoCreationService.createContactInfo("<p>새 담당자</p>"))
@@ -103,6 +103,6 @@ class ContactInfoServiceTest {
         ContactInfoDto.Response response = contactInfoService.saveContactInfo("<p>새 담당자</p>");
 
         verify(existing).update(ContactInfoService.DOCUMENT_IDENTIFIER, "<p>새 담당자</p>");
-        assertThat(response.docMngNo()).isEqualTo("GDOC-2026-0042");
+        assertThat(response.docMngNo()).isEqualTo("CDOC-2026-0042");
     }
 }

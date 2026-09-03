@@ -2,9 +2,7 @@ package com.kdb.it.domain.budget.project.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
-import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.common.system.validation.NotBlankUnlessAdmin;
-import com.kdb.it.common.util.Utf8ByteLimit;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -27,16 +25,6 @@ import lombok.Setter;
  *
  * <p>정보화사업(TPRMPP_BPROJM) 엔티티의 생성, 수정, 조회, 일괄 조회 및 연관 품목(TPRMPP_BITEMM) 정보 전달에 사용되는 DTO를 정적 중첩
  * 클래스(Static Nested Class) 형태로 관리합니다.
- *
- * <p>포함된 DTO:
- *
- * <ul>
- *   <li>{@link CreateRequest}: 정보화사업 생성 요청 (품목 목록 포함)
- *   <li>{@link UpdateRequest}: 정보화사업 수정 요청 (품목 동기화 포함)
- *   <li>{@link Response}: 정보화사업 조회 응답 (신청서 정보, 품목 목록 포함)
- *   <li>{@link BitemmDto}: 품목 정보 DTO (생성/수정/조회 공통)
- *   <li>{@link BulkGetRequest}: 일괄 조회 요청
- * </ul>
  */
 public class ProjectDto {
 
@@ -134,16 +122,7 @@ public class ProjectDto {
         @JsonIgnore
         @AssertTrue(message = "사업 본문 입력값이 DB Byte 상한을 초과했습니다.")
         public boolean isTextFieldsWithinByteLimit() {
-            return isProjectTextWithinByteLimit(
-                    abusNm,
-                    abusCone,
-                    cpnSafCone,
-                    abusNcsCone,
-                    dgogPpoCone,
-                    plmDes,
-                    abusRngCone,
-                    mnPrgCone,
-                    hrfPlnCone);
+            return ProjectDtoSupport.isTextWithinByteLimit(this);
         }
 
         /** 기대효과 (사업 완료 후 기대 효과) */
@@ -248,44 +227,7 @@ public class ProjectDto {
          * @return 변환된 Bprojm 엔티티
          */
         public Bprojm toEntity() {
-            return Bprojm.builder()
-                    .abusMngNo(abusMngNo) // 프로젝트관리번호
-                    .sno(1) // 프로젝트순번 (신규 생성 시 1로 고정)
-                    .abusNm(abusNm) // 프로젝트명
-                    .bzTpC(bzTpC) // 프로젝트유형
-                    .svnDpmC(svnDpmC) // 주관부서
-                    .svnTemC(svnTemC) // 주관팀
-                    .dvmDpmC(dvmDpmC) // IT부서
-                    .dvmTemC(dvmTemC) // 개발팀
-                    .sttDtm(sttDtm) // 시작일자
-                    .endDtm(endDtm) // 종료일자
-                    .usid(usid) // 주관부서담당자
-                    .dvmUsid(dvmUsid) // IT부서담당자
-                    .prlmHrkOgzCCone(prlmHrkOgzCCone) // 주관본부/부문
-                    .tlrUsid(tlrUsid) // 주관부서담당팀장
-                    .dvmTlrUsid(dvmTlrUsid) // IT부서담당팀장
-                    .edrtTc(edrtTc) // 전결권
-                    .abusCone(abusCone) // 사업설명
-                    .cpnSafCone(cpnSafCone) // 현황
-                    .abusNcsCone(abusNcsCone) // 필요성
-                    .dgogPpoCone(dgogPpoCone) // 기대효과
-                    .plmDes(plmDes) // 문제
-                    .abusRngCone(abusRngCone) // 사업범위
-                    .mnPrgCone(mnPrgCone) // 추진경과
-                    .hrfPlnCone(hrfPlnCone) // 향후계획
-                    .bzDttNm(bzDttNm) // 업무구분
-                    .sklTpTc(sklTpTc) // 기술유형
-                    .cstTpTc(cstTpTc) // 주요사용자
-                    .dplYn(dplYn == null ? "N" : dplYn) // 중복여부 (기본값 "N")
-                    .flfFsgDt(flfFsgDt) // 의무완료기한
-                    .rprStsTc(rprStsTc) // 보고상태
-                    .lstYn("Y") // 최종여부: 신규 등록은 항상 최신 레코드
-                    .exePttYn(exePttYn) // 프로젝트추진가능성
-                    .bseYy(bseYy) // 사업연도
-                    .odnYn(odnYn) // 경상여부
-                    .abusTc(CodeDefaults.orNotApplicable(abusTc)) // 사업구분 (NOT NULL, 빈값은 해당없음 '0')
-                    .cncdRfrNo(cncdRfrNo) // 관련프로젝트관리번호
-                    .build();
+            return ProjectDtoSupport.toEntity(this);
         }
     }
 
@@ -366,16 +308,7 @@ public class ProjectDto {
         @JsonIgnore
         @AssertTrue(message = "사업 본문 입력값이 DB Byte 상한을 초과했습니다.")
         public boolean isTextFieldsWithinByteLimit() {
-            return isProjectTextWithinByteLimit(
-                    abusNm,
-                    abusCone,
-                    cpnSafCone,
-                    abusNcsCone,
-                    dgogPpoCone,
-                    plmDes,
-                    abusRngCone,
-                    mnPrgCone,
-                    hrfPlnCone);
+            return ProjectDtoSupport.isTextWithinByteLimit(this);
         }
 
         /** 기대효과 */
@@ -968,7 +901,7 @@ public class ProjectDto {
         @JsonIgnore
         @AssertTrue(message = "소요자원 입력값이 DB Byte 상한을 초과했습니다.")
         public boolean isTextFieldsWithinByteLimit() {
-            return isWithinByteLimit(gclNm, 100) && isWithinByteLimit(cncdFdtnCone, 600);
+            return ProjectDtoSupport.isTextWithinByteLimit(this);
         }
 
         /**
@@ -978,25 +911,7 @@ public class ProjectDto {
          * @return 변환된 BitemmDto
          */
         public static BitemmDto fromEntity(com.kdb.it.domain.budget.project.entity.Bitemm bitemm) {
-            return BitemmDto.builder()
-                    .gclMngNo(bitemm.getGclMngNo()) // 품목관리번호
-                    .sno(bitemm.getSno()) // 품목일련번호
-                    .ioeC(bitemm.getIoeC()) // 품목구분
-                    .gclNm(bitemm.getGclNm()) // 품목명
-                    .qty(bitemm.getQty()) // 품목수량
-                    .curC(bitemm.getCurC()) // 통화
-                    .xcr(bitemm.getXcr()) // 환율
-                    .xcrBseDt(bitemm.getXcrBseDt()) // 환율기준일자
-                    .cncdFdtnCone(bitemm.getCncdFdtnCone()) // 예산근거
-                    .bseYm(bitemm.getBseYm()) // 도입시기
-                    .dfrCleC(bitemm.getDfrCleC()) // 지급주기
-                    .sectSysUtzYn(bitemm.getSectSysUtzYn()) // 정보보호여부
-                    .itrInfrYn(bitemm.getItrInfrYn()) // 통합인프라여부
-                    .lstYn(bitemm.getLstYn()) // 최종여부
-                    .amt(bitemm.getAmt()) // 당해 요청금액(원화)
-                    .fcAmt(bitemm.getFcAmt()) // 당해 외화 원금
-                    .mplAmt(bitemm.getMplAmt()) // 내년 이후 요청금액
-                    .build();
+            return ProjectDtoSupport.fromEntity(bitemm);
         }
     }
 
@@ -1061,17 +976,7 @@ public class ProjectDto {
          * @return 모든 필드가 null 또는 빈 문자열이면 true
          */
         public boolean isEmpty() {
-            return isBlank(apfSts)
-                    && isBlank(bseYy)
-                    && isBlank(stsTc)
-                    && isBlank(bzTpC)
-                    && isBlank(dvmDpmC)
-                    && isBlank(svnDpmC)
-                    && isBlank(odnYn);
-        }
-
-        private boolean isBlank(String value) {
-            return value == null || value.isBlank();
+            return ProjectDtoSupport.isEmpty(this);
         }
     }
 
@@ -1125,29 +1030,4 @@ public class ProjectDto {
     public record BulkResponse(
             @Schema(description = "조회 성공 항목") java.util.List<Response> items,
             @Schema(description = "조회 실패(미존재) 프로젝트관리번호 목록") java.util.List<String> failedIds) {}
-
-    private static boolean isProjectTextWithinByteLimit(
-            String abusNm,
-            String abusCone,
-            String cpnSafCone,
-            String abusNcsCone,
-            String dgogPpoCone,
-            String plmDes,
-            String abusRngCone,
-            String mnPrgCone,
-            String hrfPlnCone) {
-        return isWithinByteLimit(abusNm, 100)
-                && isWithinByteLimit(abusCone, 1000)
-                && isWithinByteLimit(cpnSafCone, 1000)
-                && isWithinByteLimit(abusNcsCone, 300)
-                && isWithinByteLimit(dgogPpoCone, 4000)
-                && isWithinByteLimit(plmDes, 4000)
-                && isWithinByteLimit(abusRngCone, 600)
-                && isWithinByteLimit(mnPrgCone, 2000)
-                && isWithinByteLimit(hrfPlnCone, 300);
-    }
-
-    private static boolean isWithinByteLimit(String value, int maxBytes) {
-        return Utf8ByteLimit.length(value) <= maxBytes;
-    }
 }

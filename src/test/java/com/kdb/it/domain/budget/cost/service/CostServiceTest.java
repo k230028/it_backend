@@ -3,6 +3,8 @@ package com.kdb.it.domain.budget.cost.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -398,6 +400,50 @@ class CostServiceTest {
 
         assertThat(result.items()).isEmpty();
         assertThat(result.failedIds()).containsExactly("COST-X", "COST-Y");
+    }
+
+    @Test
+    @DisplayName("getCostsByIds: 일반 사용자는 타 부서 항목을 실패 목록으로 분리한다")
+    void getCostsByIds_타부서항목_실패목록분리() {
+        Bcostm readable =
+                Bcostm.builder()
+                        .costBgNo("COST-OWN")
+                        .bgSno(1)
+                        .costSvnDpmC("101")
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        Bcostm outsideScope =
+                Bcostm.builder()
+                        .costBgNo("COST-OTHER")
+                        .bgSno(1)
+                        .costSvnDpmC("999")
+                        .lstYn("Y")
+                        .delYn("N")
+                        .build();
+        given(costRepository.findByCostBgNoInAndDelYn(List.of("COST-OWN", "COST-OTHER"), "N"))
+                .willReturn(List.of(readable, outsideScope));
+        CostDto.BulkGetRequest request =
+                new CostDto.BulkGetRequest(List.of("COST-OWN", "COST-OTHER"), null);
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+
+        CostDto.BulkResponse result = costService.getCostsByIds(request, user);
+
+        assertThat(result.items())
+                .extracting(CostDto.Response::getCostBgNo)
+                .containsExactly("COST-OWN");
+        assertThat(result.failedIds()).containsExactly("COST-OTHER");
+    }
+
+    @Test
+    @DisplayName("getCostsByIds: 인증 정보가 없으면 저장소 조회 없이 거부한다")
+    void getCostsByIds_인증정보없음_거부() {
+        CostDto.BulkGetRequest request = new CostDto.BulkGetRequest(List.of("COST-OWN"), null);
+
+        assertThatThrownBy(() -> costService.getCostsByIds(request, null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(costRepository, never()).findByCostBgNoInAndDelYn(anyList(), anyString());
     }
 
     // ───────────────────────────────────────────────────────
@@ -977,6 +1023,19 @@ class CostServiceTest {
     }
 
     @Test
+    @DisplayName("searchCostList: 인증 정보가 없으면 저장소 조회 없이 거부한다")
+    void searchCostList_인증정보없음_거부() {
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+
+        assertThatThrownBy(() -> costService.searchCostList(condition, null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(costRepository, never())
+                .searchByCondition(
+                        any(CostDto.SearchCondition.class),
+                        any(com.kdb.it.common.util.ListPageParams.class));
+    }
+
+    @Test
     @DisplayName("searchCostList: 시스템관리자가 myDeptOnly=false이면 전체 조회한다")
     void searchCostList_관리자_전체조회() {
         CustomUserDetails admin =
@@ -1038,6 +1097,7 @@ class CostServiceTest {
     @DisplayName("countCostList: 일반 사용자는 본인 부서로 집계한다")
     void countCostList_일반사용자_본인부서집계() {
         CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setCostSvnDpmC("999");
         CustomUserDetails user =
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
         given(costRepository.countBySearchCondition(condition)).willReturn(9L);

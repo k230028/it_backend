@@ -94,15 +94,16 @@ public class ProjectController {
                             + "size를 지정하면 해당 페이지만 반환하고 X-Total-Count 헤더에 전체 건수를 담습니다.")
     public ResponseEntity<List<ProjectDto.Response>> getProjects(
             @ParameterObject @ModelAttribute ProjectDto.SearchCondition condition,
-            @ParameterObject @ModelAttribute ListPageParams paging) {
-        List<ProjectDto.Response> body = projectService.searchProjectList(condition, paging);
+            @ParameterObject @ModelAttribute ListPageParams paging,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        List<ProjectDto.Response> body = projectService.searchProjectList(condition, user, paging);
         if (!paging.isPaged()) {
             return ResponseEntity.ok(body);
         }
         return ResponseEntity.ok()
                 .header(
                         ListPageParams.TOTAL_COUNT_HEADER,
-                        String.valueOf(projectService.countProjectList(condition)))
+                        String.valueOf(projectService.countProjectList(condition, user)))
                 .body(body);
     }
 
@@ -278,8 +279,9 @@ public class ProjectController {
             summary = "정보화사업 일괄 조회",
             description = "여러 개의 정보화사업을 한 번에 조회합니다. 존재하지 않는 프로젝트는 failedIds로 함께 반환됩니다 (부분 성공).")
     public ResponseEntity<ProjectDto.BulkResponse> bulkGetProjects(
-            @Valid @RequestBody ProjectDto.BulkGetRequest request) {
-        ProjectDto.BulkResponse responses = projectService.getProjectsByIds(request);
+            @Valid @RequestBody ProjectDto.BulkGetRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        ProjectDto.BulkResponse responses = projectService.getProjectsByIds(request, user);
         return ResponseEntity.ok(responses);
     }
 }

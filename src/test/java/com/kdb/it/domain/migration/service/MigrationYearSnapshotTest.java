@@ -181,9 +181,9 @@ class MigrationYearSnapshotTest {
                                         .build()));
         when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N"))
                 .thenReturn(List.of(projectOf("PRJ-2026-0001", "정보화 사업", "571", "N")));
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "신규", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "01", "N"))
                 .thenReturn(true);
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "조정", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "02", "N"))
                 .thenReturn(false);
         when(projectItemRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-2026-0001"), "N"))
                 .thenReturn(List.of());
@@ -201,8 +201,8 @@ class MigrationYearSnapshotTest {
 
         assertThat(data.bseYy()).isEqualTo("2026");
         assertThat(data.projectNoByName("정보화사업")).isEqualTo("PRJ-2026-0001");
-        assertThat(data.planExists("신규")).isTrue();
-        assertThat(data.planExists("조정")).isFalse();
+        assertThat(data.planExists("01")).isTrue();
+        assertThat(data.planExists("02")).isFalse();
         assertThat(data.existingCostRateOf("COST-2026-0001")).isEqualByComparingTo("90");
         assertThat(data.allCostNos()).containsExactly("COST-2026-0001");
         assertThat(data.allProjectNos()).containsExactly("PRJ-2026-0001");
@@ -213,16 +213,16 @@ class MigrationYearSnapshotTest {
     void 미등록값은_not_found_경로를_돌려준다() {
         when(costRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).thenReturn(List.of());
         when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).thenReturn(List.of());
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "신규", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "01", "N"))
                 .thenReturn(false);
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "조정", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "02", "N"))
                 .thenReturn(false);
         when(bbugtmRepository.findByBseYyAndDelYn("2026", "N")).thenReturn(List.of());
 
         MigrationYearSnapshot.Data data = snapshot.load("2026");
 
         assertThat(data.projectNoByName("없는사업")).isNull();
-        assertThat(data.planExists("신규")).isFalse();
+        assertThat(data.planExists("01")).isFalse();
         assertThat(data.costOf("COST-없음")).isNull();
         assertThat(data.costNoByDeptKey("없는키")).isNull();
         assertThat(data.costNosByDeptAndIoe("없음", "999")).isEmpty();
@@ -242,9 +242,9 @@ class MigrationYearSnapshotTest {
                         List.of(
                                 projectOf("PRJ-2026-0001", "정보화 사업", "571", "N"),
                                 projectOf("PRJ-2026-0002", "정보화사업", "571", "N")));
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "신규", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "01", "N"))
                 .thenReturn(false);
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "조정", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "02", "N"))
                 .thenReturn(false);
         when(projectItemRepository.findByAbusMngNoInAndDelYn(anyList(), eq("N")))
                 .thenReturn(List.of());
@@ -260,9 +260,9 @@ class MigrationYearSnapshotTest {
     void 중복_편성률원천은_먼저나온값을_유지한다() {
         when(costRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).thenReturn(List.of());
         when(projectRepository.findByBseYyAndLstYnAndDelYn("2026", "Y", "N")).thenReturn(List.of());
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "신규", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "01", "N"))
                 .thenReturn(false);
-        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "조정", "N"))
+        when(planRepository.existsByBseYyAndItPtlPlnTpCAndDelYn("2026", "02", "N"))
                 .thenReturn(false);
         when(bbugtmRepository.findByBseYyAndDelYn("2026", "N"))
                 .thenReturn(

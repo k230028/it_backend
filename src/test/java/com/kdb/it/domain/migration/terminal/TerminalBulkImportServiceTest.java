@@ -35,7 +35,7 @@ class TerminalBulkImportServiceTest {
     @Mock private OrgIdentityResolver orgIdentityResolver;
 
     @Test
-    void 미리보기와확정은_2025와2026그룹을각각검증하고반영한다() {
+    void 미리보기와확정은_기준연도에따른_이전과당해그룹을각각검증하고반영한다() {
         TerminalBulkImportService service =
                 new TerminalBulkImportService(
                         new TerminalBulkImportPlanner(),
@@ -47,7 +47,8 @@ class TerminalBulkImportServiceTest {
         when(codeService.findCodeEntitiesByCIdWithoutCache(any()))
                 .thenAnswer(invocation -> codes((String) invocation.getArgument(0)));
 
-        TerminalBulkImportDto.Request request = new TerminalBulkImportDto.Request(List.of(row()));
+        TerminalBulkImportDto.Request request =
+                new TerminalBulkImportDto.Request(2027, List.of(row()));
 
         TerminalBulkImportDto.Response preview = service.dryRun(request);
         TerminalBulkImportDto.Response committed = service.commit(request, "999999");
@@ -58,7 +59,7 @@ class TerminalBulkImportServiceTest {
         assertThat(committed.createCount()).isEqualTo(2);
         assertThat(committed.groups())
                 .extracting(TerminalBulkImportDto.Group::bseYy)
-                .containsExactly("2025", "2026");
+                .containsExactly("2026", "2027");
     }
 
     @Test
@@ -81,8 +82,8 @@ class TerminalBulkImportServiceTest {
         TerminalBulkImportDto.Row row =
                 new TerminalBulkImportDto.Row(
                         4,
-                        "COST-2026-0002",
                         "COST-2025-0002",
+                        "COST-2026-0002",
                         "부서",
                         "팀",
                         null,
@@ -103,7 +104,7 @@ class TerminalBulkImportServiceTest {
                         null);
 
         TerminalBulkImportDto.Response result =
-                service.commit(new TerminalBulkImportDto.Request(List.of(row)), "999999");
+                service.commit(new TerminalBulkImportDto.Request(2026, List.of(row)), "999999");
 
         assertThat(result.updateCount()).isEqualTo(2);
         assertThat(result.groups())
@@ -120,7 +121,8 @@ class TerminalBulkImportServiceTest {
         TerminalBulkImportDto.Row second = rowWithTerminal(first, "블룸버그(***)");
 
         TerminalBulkImportDto.Response result =
-                service.commit(new TerminalBulkImportDto.Request(List.of(first, second)), "999999");
+                service.commit(
+                        new TerminalBulkImportDto.Request(2026, List.of(first, second)), "999999");
 
         assertThat(result.createCount()).isEqualTo(2);
         assertThat(result.groups())
@@ -141,56 +143,58 @@ class TerminalBulkImportServiceTest {
                         () ->
                                 service.dryRun(
                                         new TerminalBulkImportDto.Request(
+                                                2026,
                                                 Arrays.asList((TerminalBulkImportDto.Row) null))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("빈 업로드 행");
         assertThatThrownBy(
                         () ->
                                 service.dryRun(
-                                        new TerminalBulkImportDto.Request(List.of(rowNoAmount()))))
+                                        new TerminalBulkImportDto.Request(
+                                                2026, List.of(rowNoAmount()))))
                 .hasMessageContaining("집행금액");
         assertThatThrownBy(
                         () ->
                                 service.dryRun(
                                         new TerminalBulkImportDto.Request(
-                                                List.of(rowFor("", "KRW", "신규")))))
+                                                2026, List.of(rowFor("", "KRW", "신규")))))
                 .hasMessageContaining("단말기명");
         assertThatThrownBy(
                         () ->
                                 service.dryRun(
                                         new TerminalBulkImportDto.Request(
-                                                List.of(rowFor("블룸버그", null, "신규")))))
+                                                2026, List.of(rowFor("블룸버그", null, "신규")))))
                 .hasMessageContaining("통화");
         assertThatThrownBy(
                         () ->
                                 service.dryRun(
                                         new TerminalBulkImportDto.Request(
-                                                List.of(rowFor("알 수 없는 단말기", "KRW", "신규")))))
+                                                2026, List.of(rowFor("알 수 없는 단말기", "KRW", "신규")))))
                 .hasMessageContaining("단말기명 공통코드");
 
         assertThat(
                         service.dryRun(
                                         new TerminalBulkImportDto.Request(
-                                                List.of(rowFor("블룸버그", "KRW", null))))
+                                                2026, List.of(rowFor("블룸버그", "KRW", null))))
                                 .groups())
                 .hasSize(2);
         assertThat(
                         service.dryRun(
                                         new TerminalBulkImportDto.Request(
-                                                List.of(rowFor("블룸버그", "KRW", "해지"))))
+                                                2026, List.of(rowFor("블룸버그", "KRW", "해지"))))
                                 .groups())
                 .hasSize(1);
         assertThat(
                         service.dryRun(
                                         new TerminalBulkImportDto.Request(
-                                                List.of(rowWithManager("없는 담당자"))))
+                                                2026, List.of(rowWithManager("없는 담당자"))))
                                 .groups())
                 .hasSize(2);
 
         assertThat(
                         service.dryRun(
                                         new TerminalBulkImportDto.Request(
-                                                List.of(rowWithTeam("유가증권운용전략팀"))))
+                                                2026, List.of(rowWithTeam("유가증권운용전략팀"))))
                                 .groups())
                 .hasSize(2);
     }
@@ -229,8 +233,8 @@ class TerminalBulkImportServiceTest {
             TerminalBulkImportDto.Row base, String terminalName) {
         return new TerminalBulkImportDto.Row(
                 base.excelRow() + 1,
-                base.costId2026(),
-                base.costId2025(),
+                base.previousCostId(),
+                base.currentCostId(),
                 base.department(),
                 base.team(),
                 base.managerName(),
@@ -280,8 +284,8 @@ class TerminalBulkImportServiceTest {
         TerminalBulkImportDto.Row base = rowFor("블룸버그", "KRW", "신규");
         return new TerminalBulkImportDto.Row(
                 base.excelRow(),
-                base.costId2026(),
-                base.costId2025(),
+                base.previousCostId(),
+                base.currentCostId(),
                 base.department(),
                 base.team(),
                 managerName,
@@ -306,8 +310,8 @@ class TerminalBulkImportServiceTest {
         TerminalBulkImportDto.Row base = rowFor("블룸버그", "KRW", "신규");
         return new TerminalBulkImportDto.Row(
                 base.excelRow(),
-                base.costId2026(),
-                base.costId2025(),
+                base.previousCostId(),
+                base.currentCostId(),
                 base.department(),
                 team,
                 base.managerName(),

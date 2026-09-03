@@ -158,8 +158,8 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("Q&A 목록은 비공개 문의도 자물쇠 표시를 위해 반환한다")
-    void searchPosts_qnaIncludesPrivatePosts() {
+    @DisplayName("Q&A 목록은 본인이 작성한 비공개 문의만 반환한다")
+    void searchPosts_qnaIncludesOwnPrivatePosts() {
         Cblbmm qnaBoard =
                 Cblbmm.builder()
                         .blbMngNo("BLBM-QNA")
@@ -171,12 +171,15 @@ class BoardPostServiceTest {
         BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-QNA", "N"))
                 .willReturn(Optional.of(qnaBoard));
-        given(postRepository.searchPostRows("BLBM-QNA", condition, false, true))
+        given(
+                        postRepository.searchPostRows(
+                                "BLBM-QNA", condition, false, true, normalUser.getEno()))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         service.searchPosts("BLBM-QNA", condition, normalUser);
 
-        verify(postRepository).searchPostRows("BLBM-QNA", condition, false, true);
+        verify(postRepository)
+                .searchPostRows("BLBM-QNA", condition, false, true, normalUser.getEno());
     }
 
     @Test

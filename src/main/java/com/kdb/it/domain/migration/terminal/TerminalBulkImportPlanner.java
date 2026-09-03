@@ -18,18 +18,36 @@ public final class TerminalBulkImportPlanner {
             String bseYy,
             String costId,
             boolean createNew,
+            boolean previousPeriod,
             List<TerminalBulkImportDto.Row> rows,
             BigDecimal totalKrwAmount) {}
 
-    /** 2025년 집행 데이터와 2026년 집행 예상 데이터를 각각 계획합니다. */
-    public List<PlannedGroup> plan(List<TerminalBulkImportDto.Row> rows) {
+    /** 기준연도와 그 이전 연도의 집행 데이터를 각각 계획합니다. */
+    public List<PlannedGroup> plan(int baseYear, List<TerminalBulkImportDto.Row> rows) {
+        if (baseYear < 2000 || baseYear > 2100) {
+            throw new IllegalArgumentException("기준연도는 2000년부터 2100년까지 입력할 수 있습니다.");
+        }
+        String previousYear = String.valueOf(baseYear - 1);
+        String currentYear = String.valueOf(baseYear);
         Map<String, MutableGroup> grouped = new LinkedHashMap<>();
         for (TerminalBulkImportDto.Row row : rows) {
             if (row.hasPreviousData()) {
-                add(grouped, "2025", row.costId2025(), row, row.previousAnnualAmount());
+                add(
+                        grouped,
+                        previousYear,
+                        row.previousCostId(),
+                        true,
+                        row,
+                        row.previousAnnualAmount());
             }
             if (row.hasCurrentData()) {
-                add(grouped, "2026", row.costId2026(), row, row.currentAnnualAmount());
+                add(
+                        grouped,
+                        currentYear,
+                        row.currentCostId(),
+                        false,
+                        row,
+                        row.currentAnnualAmount());
             }
         }
         return grouped.values().stream().map(MutableGroup::toPlan).toList();
@@ -39,6 +57,7 @@ public final class TerminalBulkImportPlanner {
             Map<String, MutableGroup> grouped,
             String year,
             String rawCostId,
+            boolean previousPeriod,
             TerminalBulkImportDto.Row row,
             BigDecimal amount) {
         String costId = normalize(rawCostId);
@@ -50,7 +69,8 @@ public final class TerminalBulkImportPlanner {
                                 ? "NEW:" + groupingKey(row.department(), row.terminalName())
                                 : costId);
         MutableGroup group =
-                grouped.computeIfAbsent(groupKey, key -> new MutableGroup(year, costId, createNew));
+                grouped.computeIfAbsent(
+                        groupKey, key -> new MutableGroup(year, costId, createNew, previousPeriod));
         group.rows.add(row);
         group.totalKrwAmount = group.totalKrwAmount.add(amount);
     }
@@ -82,17 +102,21 @@ public final class TerminalBulkImportPlanner {
         private final String year;
         private final String costId;
         private final boolean createNew;
+        private final boolean previousPeriod;
         private final List<TerminalBulkImportDto.Row> rows = new ArrayList<>();
         private BigDecimal totalKrwAmount = BigDecimal.ZERO;
 
-        private MutableGroup(String year, String costId, boolean createNew) {
+        private MutableGroup(
+                String year, String costId, boolean createNew, boolean previousPeriod) {
             this.year = year;
             this.costId = costId;
             this.createNew = createNew;
+            this.previousPeriod = previousPeriod;
         }
 
         private PlannedGroup toPlan() {
-            return new PlannedGroup(year, costId, createNew, List.copyOf(rows), totalKrwAmount);
+            return new PlannedGroup(
+                    year, costId, createNew, previousPeriod, List.copyOf(rows), totalKrwAmount);
         }
     }
 }

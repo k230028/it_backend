@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.cost.controller;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,6 +53,7 @@ public class CostController {
     private final CostService costService;
 
     private final CostVersionService costVersionService;
+    private final CostQueryAssembler costQueryAssembler;
 
     /**
      * 특정 전산관리비 단건 조회
@@ -105,9 +107,7 @@ public class CostController {
     public ResponseEntity<CostVersionService.CostVersion> createReapplication(
             @PathVariable("itMngcNo") String itMngcNo,
             @AuthenticationPrincipal CustomUserDetails user) {
-        // 복제 전에 원본 상세와 동일한 부서/IT조직/관리자 권한을 적용합니다.
-        costService.getCost(itMngcNo, user);
-        return ResponseEntity.ok(costVersionService.createReapplication(itMngcNo));
+        return ResponseEntity.ok(costVersionService.createReapplication(itMngcNo, user));
     }
 
     /** 전산업무비의 개정 이력을 조회합니다. */
@@ -116,9 +116,7 @@ public class CostController {
             @PathVariable("itMngcNo") String itMngcNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(
-                costVersionService.findHistory(itMngcNo).stream()
-                        .map(cost -> costService.getCost(itMngcNo, cost.getBgSno(), user))
-                        .toList());
+                costQueryAssembler.assembleHistory(costVersionService.findHistory(itMngcNo, user)));
     }
 
     /**
@@ -292,8 +290,9 @@ public class CostController {
             })
     @PostMapping("/bulk-get")
     public ResponseEntity<CostDto.BulkResponse> getCostsByIds(
-            @RequestBody CostDto.BulkGetRequest request) {
-        return ResponseEntity.ok(costService.getCostsByIds(request));
+            @RequestBody CostDto.BulkGetRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(costService.getCostsByIds(request, user));
     }
 
     /**

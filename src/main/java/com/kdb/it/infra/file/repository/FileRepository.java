@@ -50,12 +50,12 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
     Optional<Cfilem> findByFlMpnIdAndDelYn(String flMpnId, String delYn);
 
     /**
-     * 주식별자컬럼명 + 주식별자내용으로 파일 목록 조회
+     * 첨부파일종류명 + 첨부파일연결콘텐츠명으로 파일 목록 조회
      *
      * <p>특정 도메인 레코드(예: 요구사항정의서 PRJ-2026-0001)에 연결된 모든 첨부파일을 조회합니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명 (예: 요구사항정의서)
-     * @param apgFlLnkCtzNm 주식별자내용 (예: PRJ-2026-0001)
+     * @param apgFlKdNm 첨부파일종류명 (예: 요구사항정의서)
+     * @param apgFlLnkCtzNm 첨부파일연결콘텐츠명 (예: PRJ-2026-0001)
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 파일 목록
      */
@@ -63,10 +63,10 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
             String apgFlKdNm, String apgFlLnkCtzNm, String delYn);
 
     /**
-     * 주식별자컬럼명과 여러 주식별자내용으로 파일 목록을 한 번에 조회합니다.
+     * 첨부파일종류명과 여러 첨부파일연결콘텐츠명으로 파일 목록을 한 번에 조회합니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명
-     * @param apgFlLnkCtzNms 중복이 제거된 주식별자내용 집합
+     * @param apgFlKdNm 첨부파일종류명
+     * @param apgFlLnkCtzNms 중복이 제거된 첨부파일연결콘텐츠명 집합
      * @param delYn 삭제여부
      * @return 조건에 맞는 파일 목록
      */
@@ -74,10 +74,10 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
             String apgFlKdNm, Set<String> apgFlLnkCtzNms, String delYn);
 
     /**
-     * 주식별자컬럼명과 주식별자내용에 연결된 파일 수를 삭제 여부별로 집계합니다.
+     * 첨부파일종류명과 첨부파일연결콘텐츠명에 연결된 파일 수를 삭제 여부별로 집계합니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명
-     * @param apgFlLnkCtzNm 주식별자내용
+     * @param apgFlKdNm 첨부파일종류명
+     * @param apgFlLnkCtzNm 첨부파일연결콘텐츠명
      * @param delYn 삭제 여부
      * @return 조건에 맞는 파일 수
      */
@@ -85,36 +85,36 @@ public interface FileRepository extends JpaRepository<Cfilem, String> {
             String apgFlKdNm, String apgFlLnkCtzNm, String delYn);
 
     /**
-     * 주식별자컬럼명으로 파일 목록 전체 조회
+     * 첨부파일종류명으로 파일 목록 전체 조회
      *
      * <p>특정 도메인 종류(예: 요구사항정의서)에 속한 모든 파일을 조회합니다. apgFlLnkCtzNm 미지정 시 사용합니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명
+     * @param apgFlKdNm 첨부파일종류명
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 파일 목록
      */
     List<Cfilem> findAllByApgFlKdNmAndDelYn(String apgFlKdNm, String delYn);
 
     /**
-     * 주식별자컬럼명 + 주식별자내용으로 삭제 여부와 무관하게 파일 목록을 조회합니다.
+     * 첨부파일종류명 + 첨부파일연결콘텐츠명으로 삭제 여부와 무관하게 파일 목록을 조회합니다.
      *
      * <p>배너 관리 화면처럼 활성(DEL_YN='N')과 비활성(DEL_YN='Y')을 함께 보여줘야 하는 경우에만 사용합니다. 일반 조회는 반드시 delYn 조건이 있는
      * 메서드를 씁니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명
-     * @param apgFlLnkCtzNm 주식별자내용
+     * @param apgFlKdNm 첨부파일종류명
+     * @param apgFlLnkCtzNm 첨부파일연결콘텐츠명
      * @return 파일매핑ID 오름차순 파일 목록 (활성·비활성 포함)
      */
     List<Cfilem> findAllByApgFlKdNmAndApgFlLnkCtzNmOrderByFlMpnIdAsc(
             String apgFlKdNm, String apgFlLnkCtzNm);
 
     /**
-     * 주식별자컬럼명 + 주식별자내용 + 파일유형내용으로 파일 목록 조회
+     * 첨부파일종류명 + 첨부파일연결콘텐츠명 + 파일유형내용으로 파일 목록 조회
      *
      * <p>특정 레코드에서 이미지 또는 첨부파일만 필터링하여 조회합니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명
-     * @param apgFlLnkCtzNm 주식별자내용
+     * @param apgFlKdNm 첨부파일종류명
+     * @param apgFlLnkCtzNm 첨부파일연결콘텐츠명
      * @param flTpCone 파일유형내용 ('이미지' 또는 '첨부파일')
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 파일 목록

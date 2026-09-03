@@ -77,8 +77,8 @@ public class FileController {
     @Operation(
             summary = "파일 목록 조회",
             description =
-                    "주식별자컬럼명(apgFlKdNm) 기준으로 파일 목록을 조회합니다. "
-                            + "apgFlLnkCtzNm(주식별자내용)을 추가하면 특정 레코드의 파일만 조회합니다. "
+                    "첨부파일종류명(apgFlKdNm) 기준으로 파일 목록을 조회합니다. "
+                            + "apgFlLnkCtzNm(첨부파일연결콘텐츠명)을 추가하면 특정 레코드의 파일만 조회합니다. "
                             + "flTpCone('이미지' 또는 '첨부파일')로 파일 종류를 필터링할 수 있습니다.")
     public ResponseEntity<List<FileDto.Response>> getFiles(
             @ParameterObject @ModelAttribute FileDto.SearchCondition condition,
@@ -89,8 +89,8 @@ public class FileController {
     /**
      * 여러 부모 키에 연결된 파일을 한 번에 조회합니다.
      *
-     * @param apgFlKdNm 주식별자컬럼명
-     * @param apgFlLnkCtzNms 반복 가능한 주식별자내용
+     * @param apgFlKdNm 첨부파일종류명
+     * @param apgFlLnkCtzNms 반복 가능한 첨부파일연결콘텐츠명
      * @param userDetails 인증 사용자
      * @return 요청한 부모 키별 접근 가능한 파일 목록
      * @throws com.kdb.it.exception.CustomGeneralException 종류나 부모 키가 비어 있거나 공백인 경우
@@ -248,10 +248,10 @@ public class FileController {
             @Parameter(description = "파일유형내용 ('이미지' 또는 '첨부파일')", required = true)
                     @RequestPart("flTpCone")
                     String flTpCone,
-            @Parameter(description = "주식별자내용 (연결할 도메인 레코드 기본키)")
+            @Parameter(description = "첨부파일연결콘텐츠명 (연결할 도메인 레코드 식별값)")
                     @RequestPart(value = "apgFlLnkCtzNm", required = false)
                     String apgFlLnkCtzNm,
-            @Parameter(description = "주식별자컬럼명 (연결할 도메인 종류, 예: 요구사항정의서)", required = true)
+            @Parameter(description = "첨부파일종류명 (연결할 도메인 종류, 예: 요구사항정의서)", required = true)
                     @RequestPart("apgFlKdNm")
                     String apgFlKdNm,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -294,10 +294,10 @@ public class FileController {
             @Parameter(description = "파일유형내용 ('이미지' 또는 '첨부파일')", required = true)
                     @RequestPart("flTpCone")
                     String flTpCone,
-            @Parameter(description = "주식별자내용 (연결할 도메인 레코드 기본키)")
+            @Parameter(description = "첨부파일연결콘텐츠명 (연결할 도메인 레코드 식별값)")
                     @RequestPart(value = "apgFlLnkCtzNm", required = false)
                     String apgFlLnkCtzNm,
-            @Parameter(description = "주식별자컬럼명 (연결할 도메인 종류)", required = true)
+            @Parameter(description = "첨부파일종류명 (연결할 도메인 종류)", required = true)
                     @RequestPart("apgFlKdNm")
                     String apgFlKdNm,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -331,7 +331,7 @@ public class FileController {
     @Operation(
             summary = "파일 메타데이터 수정",
             description =
-                    "파일이 연결된 원본 도메인 정보(주식별자컬럼명, 주식별자내용)를 변경합니다. "
+                    "파일이 연결된 원본 도메인 정보(첨부파일종류명, 첨부파일연결콘텐츠명)를 변경합니다. "
                             + "파일 자체(파일물리명, 저장경로)는 변경되지 않습니다. "
                             + "파일 교체가 필요하면 삭제 후 재업로드를 사용하세요. "
                             + "현재 파일 쓰기 권한과 새 첨부 대상 쓰기 권한을 모두 검증합니다. "

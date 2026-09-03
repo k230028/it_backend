@@ -650,6 +650,60 @@ class ProjectServiceTest {
         assertThat(result).hasSize(1);
     }
 
+    @Test
+    @DisplayName("searchProjectList/countProjectList: 일반 사용자의 위조 부서 조건을 인증 부서로 강제한다")
+    void searchAndCountProjectList_일반사용자_인증부서로강제() {
+        ProjectDto.SearchCondition listCondition = new ProjectDto.SearchCondition();
+        listCondition.setSvnDpmC("999");
+        ProjectDto.SearchCondition countCondition = new ProjectDto.SearchCondition();
+        countCondition.setSvnDpmC("999");
+        CustomUserDetails user =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
+        given(
+                        projectRepository.searchByCondition(
+                                any(ProjectDto.SearchCondition.class),
+                                any(com.kdb.it.common.util.ListPageParams.class)))
+                .willReturn(List.of());
+        given(projectRepository.countBySearchCondition(any(ProjectDto.SearchCondition.class)))
+                .willReturn(3L);
+
+        List<ProjectDto.Response> result =
+                projectService.searchProjectList(
+                        listCondition, user, com.kdb.it.common.util.ListPageParams.unpaged());
+        long count = projectService.countProjectList(countCondition, user);
+
+        assertThat(result).isEmpty();
+        assertThat(count).isEqualTo(3L);
+        assertThat(listCondition.getSvnDpmC()).isEqualTo("101");
+        assertThat(countCondition.getSvnDpmC()).isEqualTo("101");
+        verify(projectRepository)
+                .searchByCondition(
+                        eq(listCondition), any(com.kdb.it.common.util.ListPageParams.class));
+        verify(projectRepository).countBySearchCondition(countCondition);
+    }
+
+    @Test
+    @DisplayName("searchProjectList/countProjectList: 인증 정보가 없으면 저장소 조회 없이 거부한다")
+    void searchAndCountProjectList_인증정보없음_거부() {
+        ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
+
+        assertThatThrownBy(
+                        () ->
+                                projectService.searchProjectList(
+                                        condition,
+                                        null,
+                                        com.kdb.it.common.util.ListPageParams.unpaged()))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> projectService.countProjectList(condition, null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(projectRepository, never())
+                .searchByCondition(
+                        any(ProjectDto.SearchCondition.class),
+                        any(com.kdb.it.common.util.ListPageParams.class));
+        verify(projectRepository, never())
+                .countBySearchCondition(any(ProjectDto.SearchCondition.class));
+    }
+
     // ───────────────────────────────────────────────────────
     // createProject (신규) — 관리번호 자동 채번
     // ───────────────────────────────────────────────────────

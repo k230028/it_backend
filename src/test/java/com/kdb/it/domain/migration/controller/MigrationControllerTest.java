@@ -76,6 +76,20 @@ class MigrationControllerTest {
     }
 
     @Test
+    void 기준연도가_허용범위를_벗어나면_400을반환한다() throws Exception {
+        TerminalBulkImportDto.Request request = request();
+        TerminalBulkImportDto.Request invalidRequest =
+                new TerminalBulkImportDto.Request(1999, request.rows());
+
+        mockMvc.perform(
+                        post("/api/admin/migration/terminals/dry-run")
+                                .with(adminUser())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void 확정반영은_관리자사번을_서비스에넘기고_201을반환한다() throws Exception {
         given(terminalBulkImportService.commit(any(), eq("999999")))
                 .willReturn(new TerminalBulkImportDto.Response(1, 1, 1, 0, List.of()));
@@ -101,6 +115,7 @@ class MigrationControllerTest {
 
     private static TerminalBulkImportDto.Request request() {
         return new TerminalBulkImportDto.Request(
+                2026,
                 List.of(
                         new TerminalBulkImportDto.Row(
                                 3,
