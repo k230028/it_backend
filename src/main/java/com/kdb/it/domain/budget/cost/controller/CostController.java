@@ -105,9 +105,7 @@ public class CostController {
     public ResponseEntity<CostVersionService.CostVersion> createReapplication(
             @PathVariable("itMngcNo") String itMngcNo,
             @AuthenticationPrincipal CustomUserDetails user) {
-        // 복제 전에 원본 상세와 동일한 부서/IT조직/관리자 권한을 적용합니다.
-        costService.getCost(itMngcNo, user);
-        return ResponseEntity.ok(costVersionService.createReapplication(itMngcNo));
+        return ResponseEntity.ok(costVersionService.createReapplication(itMngcNo, user));
     }
 
     /** 전산업무비의 개정 이력을 조회합니다. */
@@ -116,7 +114,7 @@ public class CostController {
             @PathVariable("itMngcNo") String itMngcNo,
             @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(
-                costVersionService.findHistory(itMngcNo).stream()
+                costVersionService.findHistory(itMngcNo, user).stream()
                         .map(cost -> costService.getCost(itMngcNo, cost.getBgSno(), user))
                         .toList());
     }

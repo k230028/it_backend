@@ -2,6 +2,8 @@ package com.kdb.it.domain.budget.cost.service;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
+import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
@@ -26,6 +28,12 @@ public class CostVersionService {
     /** 결재 완료된 현재 전산업무비와 단말기를 다음 순번의 미상신 초안으로 복제합니다. */
     @Transactional
     public CostVersion createReapplication(String costBgNo) {
+        return createReapplication(costBgNo, null);
+    }
+
+    /** 인증 사용자의 부서 범위를 확인한 뒤 재상신 초안을 생성합니다. */
+    @Transactional
+    public CostVersion createReapplication(String costBgNo, CustomUserDetails actor) {
         Bcostm source =
                 costRepository
                         .findCurrentVersionForUpdate(costBgNo)
@@ -33,6 +41,9 @@ public class CostVersionService {
                                 () ->
                                         new IllegalArgumentException(
                                                 "재상신할 최종 전산업무비가 없습니다: " + costBgNo));
+        if (actor != null) {
+            BudgetDetailAccessVerifier.verifyReadable(source.getCostSvnDpmC(), actor);
+        }
         // 원본을 잠근 뒤 미결 초안 존재를 확인한다. 잠금이 동시 요청을 직렬화하므로
         // 두 번째 트랜잭션은 여기서 차단되어 초안이 중첩 생성되지 않는다.
         // 판정은 최종본 순번 초과로 한다 — LST_YN='N'만 보면 승격으로 강등된 과거 버전까지
@@ -66,6 +77,13 @@ public class CostVersionService {
     /** 관리번호에 속한 모든 미삭제 전산업무비 개정본을 순번순으로 반환합니다. */
     public List<Bcostm> findHistory(String costBgNo) {
         return costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(costBgNo, "N");
+    }
+
+    /** 인증 사용자의 부서 범위 안에 있는 개정 이력만 반환합니다. */
+    public List<Bcostm> findHistory(String costBgNo, CustomUserDetails actor) {
+        List<Bcostm> history = findHistory(costBgNo);
+        history.forEach(cost -> BudgetDetailAccessVerifier.verifyReadable(cost.getCostSvnDpmC(), actor));
+        return history;
     }
 
     /** 관리번호와 순번이 정확히 일치하는 개정본을 반환합니다. */
