@@ -18,6 +18,7 @@ import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,12 @@ import org.mockito.quality.Strictness;
 class CapitalProjectFormAdapterTest {
 
     @Test
+    @DisplayName("1-1 시트 종류를 처리 트리거로 선언한다")
+    void declaresCapitalOverviewTrigger() {
+        assertThat(adapter.trigger()).isEqualTo(FormSheetKind.CAPITAL_OVERVIEW);
+    }
+
+    @Test
     @DisplayName("자본 품목 합계가 비어도 일반관리비 기준액을 계산한다")
     void calculatesCurrentBasisWhenCapitalTotalIsNull() {
         BigDecimal result =
@@ -46,6 +53,19 @@ class CapitalProjectFormAdapterTest {
                         new BigDecimal("300"));
 
         assertThat(result).isEqualByComparingTo("300");
+    }
+
+    @Test
+    @DisplayName("정확히 대사되지 않으면 일반관리비 앞쪽 누계 중 당해 선언액에 가장 가까운 값을 고른다")
+    void selectsClosestGeneralExpensePrefixWhenNoUnitReconciles() {
+        BigDecimal result =
+                CapitalProjectFormAdapter.closestCurrentBasis(
+                        new BigDecimal("10"),
+                        Arrays.asList(null, new BigDecimal("20"), new BigDecimal("100")),
+                        new BigDecimal("7"),
+                        new BigDecimal("35"));
+
+        assertThat(result).isEqualByComparingTo("30");
     }
 
     @Mock private OrgIdentityResolver.Index orgIndex;
@@ -347,6 +367,28 @@ class CapitalProjectFormAdapterTest {
                             assertThat(item.getAmt()).isEqualByComparingTo("188624700");
                             assertThat(item.getSno()).isEqualTo(3);
                         });
+    }
+
+    @Test
+    @DisplayName("자본예산 표 헤더를 읽지 못해도 뒤쪽 일반관리비 품목은 보존한다")
+    void retainsGeneralExpenseItemsWhenCapitalHeaderIsMissing() {
+        Map<FormSheetKind, Sheet> sheets =
+                new EnumMap<>(
+                        reader.classify(reader.open(RequestFormFixtures.fullFormXls(), "픽스처.xls")));
+        Sheet resource = sheets.get(FormSheetKind.CAPITAL_RESOURCE);
+        for (var row : resource) {
+            for (var cell : row) {
+                if (SheetAnchorScanner.normalize(cell.toString()).startsWith("소요예산")) {
+                    cell.setCellValue("삭제된 자본예산 헤더");
+                }
+            }
+        }
+
+        ProjectDto.CreateRequest project = adapter.adapt(contextOf(sheets)).projects().getFirst();
+
+        assertThat(project.getItems())
+                .extracting(ProjectDto.BitemmDto::getGclNm)
+                .containsExactly("전용망 회선 이용료");
     }
 
     @Test
