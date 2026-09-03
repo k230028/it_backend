@@ -310,7 +310,7 @@ class RequestFormImportIt {
                                                 + " ON a.APF_DCM_NO = m.APF_DCM_NO WHERE m.APF_DCM_NO"
                                                 + " LIKE 'APF-"
                                                 + BSE_YY
-                                                + "-%' AND m.IT_PTL_APF_PRG_STS_C = '0'")
+                                                + "-%' AND m.IT_PTL_APF_PRG_STS_C = '9'")
                                 .getSingleResult();
         return count.intValue();
     }
