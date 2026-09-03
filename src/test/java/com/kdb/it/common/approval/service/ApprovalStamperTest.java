@@ -1,4 +1,4 @@
-package com.kdb.it.domain.migration.service;
+package com.kdb.it.common.approval.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,6 +9,8 @@ import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,11 +22,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 /** 이관용 결재완료 받이 생성 규칙을 고정합니다 (§3.6). */
 @ExtendWith(MockitoExtension.class)
-class MigrationApprovalStamperTest {
+class ApprovalStamperTest {
 
     @Mock private ApplicationRepository applicationRepository;
     @Mock private ApplicationMapRepository applicationMapRepository;
-    @InjectMocks private MigrationApprovalStamper stamper;
+    @InjectMocks private ApprovalStamper stamper;
 
     @Captor private ArgumentCaptor<Capplm> capplmCaptor;
     @Captor private ArgumentCaptor<Cappla> capplaCaptor;
@@ -119,5 +121,107 @@ class MigrationApprovalStamperTest {
         Cappla savedApplicationMap = capplaCaptor.getValue();
         assertThat(savedApplicationMap.getFstEnrUsid()).isEqualTo("999999");
         assertThat(savedApplicationMap.getLstChgUsid()).isEqualTo("999999");
+    }
+
+    @Test
+    @DisplayName("작성완료 스탬프: 연결된 신청서가 없으면 결재선 없는 0 신청서를 새로 만든다")
+    void 작성완료_신규생성() {
+        when(applicationMapRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                        "BPROJM", "PRJ-2026-0001", 1))
+                .thenReturn(List.of());
+        when(applicationRepository.getNextVal()).thenReturn(5L);
+        when(applicationRepository.save(any(Capplm.class))).thenAnswer(i -> i.getArgument(0));
+
+        String apfNo =
+                stamper.stampDrafted("BPROJM", "PRJ-2026-0001", 1, "사업A", "K10001", "D001", "2026");
+
+        assertThat(apfNo).isEqualTo("APF-2026-00000005");
+        org.mockito.Mockito.verify(applicationRepository).save(capplmCaptor.capture());
+        Capplm saved = capplmCaptor.getValue();
+        assertThat(saved.getItPtlApfPrgStsC()).isEqualTo(ApprovalStatus.DRAFTED.code());
+        assertThat(saved.getDcdReqTtl()).isEqualTo("사업A");
+        assertThat(saved.getDcdReqBbrC()).isEqualTo("D001");
+        assertThat(saved.getDcdReqDtm()).isNull();
+        assertThat(saved.getRgprDcdReqCone()).isNull();
+        assertThat(saved.getFstEnrUsid()).isEqualTo("K10001");
+    }
+
+    @Test
+    @DisplayName("작성완료 스탬프: 최신 신청서가 이미 0이면 새로 만들지 않고 제목만 갱신한다")
+    void 작성완료_멱등갱신() {
+        Cappla link = Cappla.builder().apfDcmNo("APF-2026-00000003").fntTbNm("BPROJM").build();
+        Capplm existing =
+                Capplm.builder()
+                        .apfMngNo("APF-2026-00000003")
+                        .itPtlApfPrgStsC(ApprovalStatus.DRAFTED.code())
+                        .dcdReqTtl("옛 제목")
+                        .build();
+        when(applicationMapRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                        "BPROJM", "PRJ-2026-0001", 1))
+                .thenReturn(List.of(link));
+        when(applicationRepository.findById("APF-2026-00000003")).thenReturn(Optional.of(existing));
+
+        String apfNo =
+                stamper.stampDrafted(
+                        "BPROJM", "PRJ-2026-0001", 1, "새 제목", "K10001", "D001", "2026");
+
+        assertThat(apfNo).isEqualTo("APF-2026-00000003");
+        assertThat(existing.getDcdReqTtl()).isEqualTo("새 제목");
+        org.mockito.Mockito.verify(applicationRepository, org.mockito.Mockito.never())
+                .save(any(Capplm.class));
+    }
+
+    @Test
+    @DisplayName("작성완료 스탬프: 최신 신청서가 결재중이면 저장을 거부한다")
+    void 작성완료_결재중_거부() {
+        Cappla link = Cappla.builder().apfDcmNo("APF-2026-00000004").fntTbNm("BPROJM").build();
+        Capplm inProgress =
+                Capplm.builder()
+                        .apfMngNo("APF-2026-00000004")
+                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                        .build();
+        when(applicationMapRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                        "BPROJM", "PRJ-2026-0001", 1))
+                .thenReturn(List.of(link));
+        when(applicationRepository.findById("APF-2026-00000004"))
+                .thenReturn(Optional.of(inProgress));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                stamper.stampDrafted(
+                                        "BPROJM",
+                                        "PRJ-2026-0001",
+                                        1,
+                                        "제목",
+                                        "K10001",
+                                        "D001",
+                                        "2026"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("결재중");
+    }
+
+    @Test
+    @DisplayName("작성완료 스탬프: 최신 신청서가 반려면 새 0 신청서를 만든다")
+    void 작성완료_반려후_신규생성() {
+        Cappla link = Cappla.builder().apfDcmNo("APF-2026-00000002").fntTbNm("BCOSTM").build();
+        Capplm rejected =
+                Capplm.builder()
+                        .apfMngNo("APF-2026-00000002")
+                        .itPtlApfPrgStsC(ApprovalStatus.REJECTED.code())
+                        .build();
+        when(applicationMapRepository.findByFntTbNmAndPkColNmAndFntTbCrySnoOrderByApfDcmNoDesc(
+                        "BCOSTM", "COST-2026-0001", 2))
+                .thenReturn(List.of(link));
+        when(applicationRepository.findById("APF-2026-00000002")).thenReturn(Optional.of(rejected));
+        when(applicationRepository.getNextVal()).thenReturn(9L);
+        when(applicationRepository.save(any(Capplm.class))).thenAnswer(i -> i.getArgument(0));
+
+        String apfNo =
+                stamper.stampDrafted("BCOSTM", "COST-2026-0001", 2, null, "K10001", "D001", null);
+
+        assertThat(apfNo).startsWith("APF-").endsWith("00000009");
+        org.mockito.Mockito.verify(applicationRepository).save(capplmCaptor.capture());
+        // 제목이 비면 관리번호로 대신하고, 연도가 비면 올해를 쓴다
+        assertThat(capplmCaptor.getValue().getDcdReqTtl()).isEqualTo("COST-2026-0001");
     }
 }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
@@ -21,7 +22,6 @@ import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import com.kdb.it.domain.migration.dto.MigrationDto;
 import com.kdb.it.domain.migration.dto.RowDecision;
 import com.kdb.it.domain.migration.dto.SheetKind;
-import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import com.kdb.it.domain.migration.service.MigrationImportService;
 import com.kdb.it.domain.migration.service.MigrationIoeCodes;
 import com.kdb.it.support.MfaTestSupportConfig;
@@ -58,8 +58,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <ul>
  *   <li>BLOCKER가 남은 요청은 트랜잭션 전체가 롤백되어 아무 원장도 남기지 않는다.
- *   <li>{@link com.kdb.it.domain.migration.service.MigrationApprovalStamper}가 붙인 결재완료 받이가 실제로
- *       {@code BbugtmRepositoryImpl}의 집계 조인(결재완료 서브쿼리)을 통과해 예산 집계에 잡힌다.
+ *   <li>{@link com.kdb.it.common.approval.service.ApprovalStamper}가 붙인 결재완료 받이가 실제로 {@code
+ *       BbugtmRepositoryImpl}의 집계 조인(결재완료 서브쿼리)을 통과해 예산 집계에 잡힌다.
  *   <li>편성률 단일 적용({@code applyItemRates}의 연도 전체 재작성)이 서로 다른 원천(자본예산·전산업무비)의 기존 편성행을 지우지 않는다.
  *   <li>편성요청서 반입(1단계)이 만든 원장에 종합본·하반기 조정(2·3단계)을 매칭으로 반영해도 차단되지 않고, 요청 품목({@code BITEMM})은 그대로 활성으로
  *       남는다(Task 10). 부문계획 조정은 더 이상 품목을 버전 교체하지 않는다 — {@code
@@ -143,7 +143,7 @@ class MigrationImportIt {
     @Autowired private BbugtmRepository bbugtmRepository;
     @Autowired private ProjectService projectService;
     @Autowired private CostService costService;
-    @Autowired private MigrationApprovalStamper approvalStamper;
+    @Autowired private ApprovalStamper approvalStamper;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private EntityManager entityManager;
     @Autowired private PlatformTransactionManager transactionManager;
@@ -152,7 +152,7 @@ class MigrationImportIt {
      * JPA Auditing이 채우는 감사자 필드(NOT NULL)를 위해 인증된 SecurityContext를 심습니다.
      *
      * <p>이관 오케스트레이션은 {@code CostService.createCost}·{@code ProjectService.createProject}를 그대로
-     * 호출하는데, 두 서비스의 엔티티는 {@code MigrationApprovalStamper}처럼 감사자 필드를 직접 채우지 않고 {@code
+     * 호출하는데, 두 서비스의 엔티티는 {@code ApprovalStamper}처럼 감사자 필드를 직접 채우지 않고 {@code
      * JpaAuditConfig.auditorProvider()}(=SecurityContext 기반)에 의존합니다. 인증 컨텍스트 없이 실행하면 {@code
      * ORA-01400}(NOT NULL 위반)으로 실패합니다.
      */
@@ -761,8 +761,8 @@ class MigrationImportIt {
     /**
      * 편성요청서 반입(1단계)이 만드는 상태를 직접 조립합니다. {@code RequestFormImportService}를 부르지 않고 실제 반입 경로({@code
      * RequestFormFileImporter.apply})가 쓰는 것과 같은 두 호출({@code ProjectService.createProject} + {@link
-     * MigrationApprovalStamper#stamp})만으로 같은 결과(BPROJM·BITEMM 원장 + 결재완료 받이)를 만듭니다 — 두 기능의 결합을 테스트에
-     * 끌어들이지 않기 위해서입니다.
+     * ApprovalStamper#stamp})만으로 같은 결과(BPROJM·BITEMM 원장 + 결재완료 받이)를 만듭니다 — 두 기능의 결합을 테스트에 끌어들이지 않기
+     * 위해서입니다.
      *
      * @param projectName 사업명
      * @param items 요청 품목 목록 (비지 않음)

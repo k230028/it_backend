@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
@@ -21,7 +22,6 @@ import com.kdb.it.domain.migration.request.service.RequestFormValidator;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.support.FormDiagnostics;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
-import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.io.ByteArrayInputStream;
@@ -368,7 +368,7 @@ class CapitalDeclaredAmountsTest {
         FormAdapterOutput output = fundingDeskSample("1,211백만원");
         ProjectService projectService = Mockito.mock(ProjectService.class);
         CostService costService = Mockito.mock(CostService.class);
-        MigrationApprovalStamper stamper = Mockito.mock(MigrationApprovalStamper.class);
+        ApprovalStamper stamper = Mockito.mock(ApprovalStamper.class);
         RequestFormValidator validator = Mockito.mock(RequestFormValidator.class);
         given(validator.validate(any(), anyString())).willReturn(java.util.List.of());
         given(validator.withoutDuplicateProjects(output, "2026")).willReturn(output);

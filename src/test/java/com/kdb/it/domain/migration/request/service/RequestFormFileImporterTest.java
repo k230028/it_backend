@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -21,7 +22,6 @@ import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
 import com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts;
-import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +40,7 @@ class RequestFormFileImporterTest {
 
     @Mock private CostService costService;
     @Mock private ProjectService projectService;
-    @Mock private MigrationApprovalStamper stamper;
+    @Mock private ApprovalStamper stamper;
     @Mock private RequestFormValidator validator;
 
     private static final RequestFormDto.FileEntry ENTRY =

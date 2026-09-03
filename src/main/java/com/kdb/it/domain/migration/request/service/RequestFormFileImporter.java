@@ -1,6 +1,7 @@
 package com.kdb.it.domain.migration.request.service;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -9,7 +10,6 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
 import com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts;
-import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -54,7 +54,7 @@ public class RequestFormFileImporter {
 
     private final CostService costService;
     private final ProjectService projectService;
-    private final MigrationApprovalStamper approvalStamper;
+    private final ApprovalStamper approvalStamper;
     private final RequestFormValidator validator;
 
     /**

@@ -98,4 +98,13 @@ public class Capplm extends BaseEntity {
     public void updateDetailContent(String detailContent) {
         this.dcdReqInf = detailContent;
     }
+
+    /**
+     * 작성완료 신청서의 제목을 다시 저장한 원천 제목으로 맞춥니다.
+     *
+     * @param title 새 결재요청제목
+     */
+    public void renewDraft(String title) {
+        this.dcdReqTtl = title;
+    }
 }

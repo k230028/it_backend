@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
@@ -68,7 +69,7 @@ class MigrationImportServiceTest {
     @Mock private ProjectService projectService;
     @Mock private ProjectRepository projectRepository;
     @Mock private BudgetRateApplicationService budgetRateApplicationService;
-    @Mock private MigrationApprovalStamper approvalStamper;
+    @Mock private ApprovalStamper approvalStamper;
     @Mock private MigrationValidator validator;
     @Mock private MigrationYearSnapshot yearSnapshot;
     @Mock private OrgIdentityResolver orgIdentityResolver;

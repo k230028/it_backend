@@ -9,6 +9,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -30,7 +31,6 @@ import com.kdb.it.domain.migration.request.service.adapter.GeneralExpenseFormAda
 import com.kdb.it.domain.migration.request.service.adapter.RecurringProjectFormAdapter;
 import com.kdb.it.domain.migration.request.service.adapter.ResourceTableReader;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
-import com.kdb.it.domain.migration.service.MigrationApprovalStamper;
 import com.kdb.it.domain.migration.service.MigrationIoeCatalogReader;
 import com.kdb.it.domain.migration.service.OrgIdentityResolver;
 import java.io.IOException;
@@ -221,7 +221,7 @@ class RequestForm2026SampleSmokeTest {
                         new RequestFormFileImporter(
                                 mock(CostService.class),
                                 mock(ProjectService.class),
-                                mock(MigrationApprovalStamper.class),
+                                mock(ApprovalStamper.class),
                                 new RequestFormValidator(costRepository, projectRepository)));
         RequestFormImportService service =
                 new RequestFormImportService(

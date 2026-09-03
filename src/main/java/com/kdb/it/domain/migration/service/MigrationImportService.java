@@ -1,5 +1,6 @@
 package com.kdb.it.domain.migration.service;
 
+import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
@@ -79,7 +80,7 @@ public class MigrationImportService {
     private final MigrationYearSnapshot yearSnapshot;
     private final OrgIdentityResolver orgIdentityResolver;
     private final MigrationIoeCatalogReader catalogReader;
-    private final MigrationApprovalStamper approvalStamper;
+    private final ApprovalStamper approvalStamper;
     private final CostService costService;
     private final CostRepository costRepository;
     private final ProjectService projectService;
@@ -101,7 +102,7 @@ public class MigrationImportService {
             MigrationYearSnapshot yearSnapshot,
             OrgIdentityResolver orgIdentityResolver,
             MigrationIoeCatalogReader catalogReader,
-            MigrationApprovalStamper approvalStamper,
+            ApprovalStamper approvalStamper,
             CostService costService,
             CostRepository costRepository,
             ProjectService projectService,
