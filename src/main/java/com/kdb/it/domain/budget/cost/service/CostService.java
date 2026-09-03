@@ -358,17 +358,9 @@ public class CostService {
                 cost.getCostBgNo(),
                 cost.getBgSno(),
                 cost.getCttNm(),
-                currentEno(),
+                OwnershipVerifier.currentEno(),
                 cost.getCostSvnDpmC(),
                 cost.getBseYy());
-    }
-
-    /** 인증 주체 사번. 미인증이면 null */
-    private static String currentEno() {
-        org.springframework.security.core.Authentication auth =
-                org.springframework.security.core.context.SecurityContextHolder.getContext()
-                        .getAuthentication();
-        return auth == null ? null : auth.getName();
     }
 
     /** 편성요청서 반입에서 사번을 추정하지 않고 양식의 작성자 이름만 스냅샷 컬럼에 기록합니다. */
