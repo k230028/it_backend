@@ -121,6 +121,28 @@ final class ApplicationBulkReadSupport {
                 .toList();
     }
 
+    /** 단건 신청서에 결재선·신청자·부서 정보를 붙여 응답 DTO로 조립합니다. */
+    static ApplicationDto.Response assembleOne(
+            ApplicationRepository.ApplicationReadView view,
+            ApproverRepository approverRepository,
+            UserRepository userRepository,
+            OrganizationRepository organizationRepository) {
+        List<ApproverRepository.ApproverReadView> approvers =
+                approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(view.getApfMngNo());
+        Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
+                resolveApproverDisplays(approvers, userRepository);
+        Map<String, String> requesterNamesByEno =
+                resolveRequesterNames(List.of(view), userRepository);
+        Map<String, String> requesterDeptNamesByBbrC =
+                resolveRequesterDeptNames(List.of(view), organizationRepository);
+        return ApplicationDto.Response.fromReadViews(
+                view,
+                approvers,
+                requesterName(requesterNamesByEno, view.getDcdReqUsid()),
+                requesterDeptName(requesterDeptNamesByBbrC, view.getDcdReqBbrC()),
+                approverDisplaysByEno);
+    }
+
     /** 결재선의 사번을 한 번에 해석해 결재자 표시 정보 맵으로 변환합니다. */
     static Map<String, ApplicationApproverDisplay> resolveApproverDisplays(
             List<ApproverRepository.ApproverReadView> approvers, UserRepository userRepository) {

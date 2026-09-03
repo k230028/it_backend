@@ -70,4 +70,41 @@ class ApplicationBulkReadSupportTest {
         assertThat(result.items()).hasSize(1);
         assertThat(result.failedIds()).isEmpty();
     }
+
+    @Test
+    @DisplayName("단건 조회도 결재선·신청자·부서 정보를 같은 조립기로 해석한다")
+    void assembleOne_resolvesNamesAndApprovers() {
+        ApproverRepository approverRepository = mock(ApproverRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        OrganizationRepository organizationRepository = mock(OrganizationRepository.class);
+        ApplicationRepository.ApplicationReadView view =
+                mock(ApplicationRepository.ApplicationReadView.class);
+        ApproverRepository.ApproverReadView approver =
+                mock(ApproverRepository.ApproverReadView.class);
+        UserRepository.UserNameView user = mock(UserRepository.UserNameView.class);
+        OrganizationRepository.OrganizationNameView organization =
+                mock(OrganizationRepository.OrganizationNameView.class);
+        given(view.getApfMngNo()).willReturn("APF-1");
+        given(view.getDcdReqUsid()).willReturn("E-1");
+        given(view.getDcdReqBbrC()).willReturn("D-1");
+        given(approver.getDcdMngNo()).willReturn("APF-1");
+        given(user.getEno()).willReturn("E-1");
+        given(user.getUsrNm()).willReturn("홍길동");
+        given(organization.getPrlmOgzCCone()).willReturn("D-1");
+        given(organization.getBbrNm()).willReturn("정보기획부");
+        given(approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc("APF-1"))
+                .willReturn(List.of(approver));
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(user));
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any()))
+                .willReturn(List.of(organization));
+
+        ApplicationDto.Response result =
+                ApplicationBulkReadSupport.assembleOne(
+                        view, approverRepository, userRepository, organizationRepository);
+
+        assertThat(result.getApfMngNo()).isEqualTo("APF-1");
+        assertThat(result.getRqsNm()).isEqualTo("홍길동");
+        assertThat(result.getRqsBbrNm()).isEqualTo("정보기획부");
+        assertThat(result.getApprovers()).hasSize(1);
+    }
 }
