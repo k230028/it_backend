@@ -220,20 +220,26 @@ WAS를 2대로 운영할 때 **인스턴스마다 값이 달라야 하는** 환�
 
 `WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2`는 이름과 달리 **두 대에 같은 값**을 넣습니다. 각 서버가 동일한 인스턴스 목록을 갖고, 자기 자신이 아닌 대상만 내부 HTTP로 위임하기 때문입니다.
 
-`DB_URL`은 아래 세 형태 중 하나를 씁니다. 선택 기준과 주의사항은 [`application-prod.properties`](src/main/resources/application-prod.properties)의 `spring.datasource.url` 주석이 SoT입니다.
+`DB_URL`은 두 DB 노드 주소를 `ADDRESS_LIST`에 넣고 **AP마다 순서를 교차**해 주입합니다. 두 URL은 `ADDRESS` 순서만 다르고 나머지는 완전히 같습니다. 선택 기준과 주의사항은 [`application-prod.properties`](src/main/resources/application-prod.properties)의 `spring.datasource.url` 주석이 SoT입니다.
 
-| 형태 | SVR1 | SVR2 |
-| --- | --- | --- |
-| (A) 노드 선호 서비스 — 권장 | `jdbc:oracle:thin:@//scan-host:11521/pprmdb_a` | `jdbc:oracle:thin:@//scan-host:11521/pprmdb_b` |
-| (B) 앱에서 노드 고정 | `ADDRESS_LIST`에 `rac1-vip`를 먼저 | `rac2-vip`를 먼저 |
-| (C) 노드 고정 없음 | `jdbc:oracle:thin:@//scan-host:11521/PPRMDB` | 같은 값 |
+|      | 첫 번째 `ADDRESS` (평상시) | 두 번째 `ADDRESS` (장애 시) |
+| ---- | -------------------------- | --------------------------- |
+| AP1  | 1번 노드                   | 2번 노드                    |
+| AP2  | 2번 노드                   | 1번 노드                    |
 
-(A)는 DBA가 `pprmdb_a`(preferred 1번 노드 / available 2번 노드)와 `pprmdb_b`(반대)를 등록해 주면 앱은 서비스명만 바꾸면 되고, 장애 노드가 복구될 때 서비스가 원래 노드로 relocate 되므로 앱 재기동 없이 배분이 되돌아옵니다.
-
-(B)의 전체 URL은 한 줄로 씁니다. `LOAD_BALANCE=OFF`가 노드 고정을, `FAILOVER=ON`이 자동 전환을 담당하므로 둘 다 명시해야 하고, `HOST`에는 물리 IP가 아니라 VIP를 넣어야 노드 다운을 TCP 타임아웃 없이 즉시 감지합니다. SVR2는 두 `ADDRESS`의 순서만 뒤집습니다.
+`LOAD_BALANCE=OFF`가 앞 주소 고정을, `FAILOVER=ON`이 뒤 주소로의 자동 전환을 담당하므로 **둘 다 명시해야 합니다**. 빠뜨리면 Oracle이 두 주소 중 하나를 무작위로 골라 교차 배분 자체가 무너집니다. 전체 URL은 줄바꿈·공백 없이 한 줄로 주입합니다.
 
 ```
-jdbc:oracle:thin:@(DESCRIPTION=(CONNECT_TIMEOUT=5)(RETRY_COUNT=3)(RETRY_DELAY=1)(ADDRESS_LIST=(LOAD_BALANCE=OFF)(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=rac1-vip)(PORT=11521))(ADDRESS=(PROTOCOL=TCP)(HOST=rac2-vip)(PORT=11521)))(CONNECT_DATA=(SERVICE_NAME=PPRMDB)))
+AP1: jdbc:oracle:thin:@(DESCRIPTION=(CONNECT_TIMEOUT=5)(RETRY_COUNT=3)(RETRY_DELAY=1)(ADDRESS_LIST=(LOAD_BALANCE=OFF)(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=db1-ip)(PORT=11521))(ADDRESS=(PROTOCOL=TCP)(HOST=db2-ip)(PORT=11521)))(CONNECT_DATA=(SERVICE_NAME=PPRMDB)))
+AP2: jdbc:oracle:thin:@(DESCRIPTION=(CONNECT_TIMEOUT=5)(RETRY_COUNT=3)(RETRY_DELAY=1)(ADDRESS_LIST=(LOAD_BALANCE=OFF)(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=db2-ip)(PORT=11521))(ADDRESS=(PROTOCOL=TCP)(HOST=db1-ip)(PORT=11521)))(CONNECT_DATA=(SERVICE_NAME=PPRMDB)))
+```
+
+**받은 주소가 노드 VIP인지 물리 IP인지 확인합니다.** VIP는 노드가 죽으면 살아있는 노드가 넘겨받아 즉시 거절 응답을 주므로 두 번째 주소로 곧바로 넘어갑니다. 물리 IP는 아무 응답이 없어 `CONNECT_TIMEOUT`(위 예시 5초)을 다 기다린 뒤에야 전환하므로, 그 시간만큼 로그인·조회가 멈춥니다.
+
+**주소를 교차했다고 노드가 반드시 고정되지는 않습니다.** RAC의 각 노드 리스너는 그 서비스가 떠 있는 모든 인스턴스를 알고 있어서, AP1이 1번 노드 주소로 접속해도 리스너가 서버 사이드 로드밸런싱으로 2번 인스턴스에 넘길 수 있습니다(`LOAD_BALANCE=OFF`는 클라이언트 쪽 주소 선택만 끕니다). 배포 후 아래로 실제 분포를 확인하고, 의도대로 갈리지 않으면 DBA와 서비스의 `CLB_GOAL` 조정 또는 노드 선호 서비스 전환을 협의합니다.
+
+```sql
+SELECT inst_id, COUNT(*) FROM gv$session WHERE username = 'ITPAPP' GROUP BY inst_id;
 ```
 
 AP 2대 · RAC 2노드의 최종 주입 예시입니다. 위쪽 두 블록만 서버마다 다르고, 아래 공통 블록은 **한 글자라도 다르면 안 됩니다**.
@@ -241,11 +247,11 @@ AP 2대 · RAC 2노드의 최종 주입 예시입니다. 위쪽 두 블록만 �
 ```
 # ── AP1 전용 ───────────────────────────────
 SERVER_INSTANCE_ID=SVR1
-DB_URL=jdbc:oracle:thin:@//scan-host:11521/pprmdb_a
+DB_URL=jdbc:oracle:thin:@(DESCRIPTION=(CONNECT_TIMEOUT=5)(RETRY_COUNT=3)(RETRY_DELAY=1)(ADDRESS_LIST=(LOAD_BALANCE=OFF)(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=db1-ip)(PORT=11521))(ADDRESS=(PROTOCOL=TCP)(HOST=db2-ip)(PORT=11521)))(CONNECT_DATA=(SERVICE_NAME=PPRMDB)))
 
 # ── AP2 전용 ───────────────────────────────
 SERVER_INSTANCE_ID=SVR2
-DB_URL=jdbc:oracle:thin:@//scan-host:11521/pprmdb_b
+DB_URL=jdbc:oracle:thin:@(DESCRIPTION=(CONNECT_TIMEOUT=5)(RETRY_COUNT=3)(RETRY_DELAY=1)(ADDRESS_LIST=(LOAD_BALANCE=OFF)(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=db2-ip)(PORT=11521))(ADDRESS=(PROTOCOL=TCP)(HOST=db1-ip)(PORT=11521)))(CONNECT_DATA=(SERVICE_NAME=PPRMDB)))
 
 # ── 두 대 공통 ─────────────────────────────
 DB_USERNAME=ITPAPP
@@ -266,6 +272,7 @@ WAS_LOG_PEER_SVR2=https://ap2-host:28080
 - **Hikari는 FAN(ONS)을 구독하지 않습니다.** 노드 장애를 통보로 알지 못하므로 죽은 커넥션은 획득·검증 시점에야 걸러지고, 복구된 노드로의 원복도 `spring.datasource.hikari.max-lifetime`(기본 30분)에 맞춰 커넥션이 재생성되면서 서서히 일어납니다. 전환을 빠르게 하려면 이 값을 줄입니다.
 - **쓰기를 두 노드에 흩뿌리지 않습니다.** 같은 테이블을 두 노드에서 동시에 갱신하면 cache fusion(`gc buffer busy`)으로 오히려 느려집니다. 인스턴스 단위 고정은 안전하지만, 요청·트랜잭션마다 노드를 바꾸는 `AbstractRoutingDataSource` 라운드로빈은 이 프로젝트에 넣지 않습니다.
 - **이름 세 가지를 혼동하지 않습니다.** 접속 계정은 `ITPAPP`, 객체 소유 스키마는 `ITPOWN`, DB 서비스명은 `PPRMDB`입니다. URL 끝(또는 `SERVICE_NAME`)에 오는 것은 **서비스명**이고, 스키마는 `DB_SCHEMA`가 커넥션 초기화 SQL(`CURRENT_SCHEMA`)로 전환합니다.
+- **다른 선택지도 있었습니다.** DBA가 노드 선호 서비스(`srvctl add service -preferred/-available`)를 등록해 주면 AP는 서비스명만 다르게 쓰고 노드 배치를 DB 쪽에서 옮길 수 있고, 노드 고정이 필요 없으면 SCAN 주소 하나로 끝낼 수도 있습니다. 이 환경은 AP에 DB 주소를 교차 주입하는 방식으로 정해졌으므로 위 구성을 따릅니다.
 
 ### 내부망 MFA (지정맥·FIDO·mOTP)
 
