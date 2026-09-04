@@ -63,4 +63,23 @@ class CommonPopupCreationServiceTest {
         verify(guideDocRepository).saveAndFlush(concurrent);
         verify(guideDocRepository, org.mockito.Mockito.never()).getNextSequenceValue();
     }
+
+    @Test
+    @DisplayName("전결권 안내도 전용 식별자와 PDOC 관리번호로 생성한다")
+    void createPopup_createsApprovalAuthorityDocument() {
+        String identifier = CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER;
+        given(
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                identifier, "PDOC-", "N"))
+                .willReturn(Optional.empty());
+        given(bgdocNumberAllocator.next("PDOC-")).willReturn("PDOC-2026-0018");
+        given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        Bgdocm created = creationService.createPopup(identifier, "<p>전결권 안내</p>");
+
+        assertThat(created.getDocMngNo()).isEqualTo("PDOC-2026-0018");
+        assertThat(created.getDocTtlCone()).isEqualTo(identifier);
+        assertThat(created.getNacTxtInf()).isEqualTo("<p>전결권 안내</p>");
+    }
 }

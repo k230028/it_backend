@@ -72,6 +72,13 @@ class QnaRegisteredEventListenerTest {
                         .readValue(captor.getAllValues().getFirst().sdPayload(), MailPayload.class);
         assertThat(payload.subject()).isEqualTo("[IT정보화포탈] (기능 개선) 검색 조건 저장");
         assertThat(payload.html()).contains("문의 등록", "문의 개요", "등록자", "등록 화면", "문의 확인 ↗");
+        assertThat(payload.html())
+                .contains(
+                        "background:#1e3a8a",
+                        "color:#1e3a8a",
+                        "background:#f3f4f6",
+                        "border-color:#d1d5db",
+                        "font-size:13px;line-height:1.9");
     }
 
     @Test

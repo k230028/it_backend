@@ -54,6 +54,25 @@ class CommonPopupServiceTest {
     }
 
     @Test
+    @DisplayName("전결권 안내는 별도 문서 식별자와 PDOC 관리번호 범위에서 조회된다")
+    void getApprovalAuthorityNotice_usesDedicatedDocumentIdentifier() {
+        Bgdocm document = popupDocument();
+        given(document.getNacTxtInf()).willReturn("<p>전결권 안내</p>");
+        given(
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
+                                "PDOC-",
+                                "N"))
+                .willReturn(Optional.of(document));
+
+        CommonPopupDto.Response response = service.getApprovalAuthorityNotice().orElseThrow();
+
+        assertThat(response.docMngNo()).isEqualTo(DOC_NO);
+        assertThat(response.contentHtml()).isEqualTo("<p>전결권 안내</p>");
+        assertThat(response.contentVersion()).isEqualTo(VERSION);
+    }
+
+    @Test
     @DisplayName("관리자 조회는 미등록 상태를 null 필드로 반환한다")
     void getAdminPopup_returnsUnregisteredResponse() {
         givenActiveDocument(Optional.empty());
@@ -87,7 +106,10 @@ class CommonPopupServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("본문");
 
-        verify(creationService, never()).createPopup(org.mockito.ArgumentMatchers.anyString());
+        verify(creationService, never())
+                .createPopup(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -95,7 +117,8 @@ class CommonPopupServiceTest {
     void save_createsPopupWhenNoDocumentExists() {
         Bgdocm created = popupDocument();
         givenActiveDocument(Optional.empty());
-        given(creationService.createPopup("<p>첫 안내</p>")).willReturn(created);
+        given(creationService.createPopup(CommonPopupService.DOCUMENT_IDENTIFIER, "<p>첫 안내</p>"))
+                .willReturn(created);
 
         CommonPopupDto.AdminResponse response = service.save("<p>첫 안내</p>");
 
@@ -104,11 +127,34 @@ class CommonPopupServiceTest {
     }
 
     @Test
+    @DisplayName("전결권 안내 최초 저장은 전용 식별자로 PDOC 문서를 생성한다")
+    void saveApprovalAuthorityNotice_createsDedicatedDocument() {
+        given(
+                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                                CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
+                                "PDOC-",
+                                "N"))
+                .willReturn(Optional.empty());
+        Bgdocm created = popupDocument();
+        given(
+                        creationService.createPopup(
+                                CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
+                                "<p>전결권 안내</p>"))
+                .willReturn(created);
+
+        CommonPopupDto.AdminResponse response =
+                service.saveApprovalAuthorityNotice("<p>전결권 안내</p>");
+
+        assertThat(response.docMngNo()).isEqualTo(DOC_NO);
+        assertThat(response.contentHtml()).isEqualTo("<p>전결권 안내</p>");
+    }
+
+    @Test
     @DisplayName("동시 최초 저장 충돌 뒤에는 생성된 활성 문서를 갱신한다")
     void save_updatesConcurrentDocumentAfterUniqueConstraintConflict() {
         Bgdocm concurrent = popupDocument();
         givenActiveDocument(Optional.empty(), Optional.of(concurrent));
-        given(creationService.createPopup("<p>내 안내</p>"))
+        given(creationService.createPopup(CommonPopupService.DOCUMENT_IDENTIFIER, "<p>내 안내</p>"))
                 .willThrow(new DataIntegrityViolationException("UX_BGDOCM_COMMON_POPUP"));
         given(guideDocRepository.saveAndFlush(concurrent)).willReturn(concurrent);
 

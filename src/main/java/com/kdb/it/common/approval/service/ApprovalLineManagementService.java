@@ -142,7 +142,7 @@ public class ApprovalLineManagementService {
      * @param approverEnos 변경 후 미결재 결재자 사번 목록
      * @param currentEno 요청한 사용자 사번
      * @param isAdmin 관리자 권한 여부
-     * @throws IllegalArgumentException 결재자 목록에 공백·중복·미존재 사번이 있거나 목록이 비어 있으면 발생
+     * @throws IllegalArgumentException 결재자 목록에 공백·미존재 사번이 있거나 목록이 비어 있으면 발생
      * @throws IllegalStateException 신청서가 결재중이 아니거나 교체할 미결재 결재자가 없으면 발생
      * @throws AccessDeniedException 결재선 참여자 또는 관리자가 아닌 사용자가 요청하면 발생
      */
@@ -240,13 +240,9 @@ public class ApprovalLineManagementService {
         if (approverEnos == null || approverEnos.isEmpty()) {
             throw new IllegalArgumentException("미결재 결재자를 한 명 이상 지정해야 합니다.");
         }
-        Set<String> uniqueEnos = new HashSet<>();
         for (String approverEno : approverEnos) {
             if (approverEno == null || approverEno.isBlank()) {
                 throw new IllegalArgumentException("결재자 사번은 비어 있을 수 없습니다.");
-            }
-            if (!uniqueEnos.add(approverEno)) {
-                throw new IllegalArgumentException("결재자 사번은 중복될 수 없습니다.");
             }
         }
     }

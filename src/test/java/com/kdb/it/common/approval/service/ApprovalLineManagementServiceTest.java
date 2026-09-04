@@ -52,22 +52,30 @@ class ApprovalLineManagementServiceTest {
     }
 
     @Test
-    @DisplayName("중복 사번은 저장 전에 거부하고 기존 결재선을 변경하지 않는다")
-    void replacePendingApprovers_중복사번_롤백() {
-        given(applicationRepository.findById(APF))
-                .willReturn(Optional.of(application("1", "E001")));
+    @SuppressWarnings("unchecked")
+    @DisplayName("동일한 결재자를 여러 차례 지정하면 각 순번을 보존해 저장한다")
+    void replacePendingApprovers_중복사번_순번별저장() {
+        Capplm application = application("1", "E001");
+        Cdecim completed = approver(1, "E001", "2");
+        Cdecim pending = approver(2, "E002", "1");
+        CuserI repeatedUser =
+                CuserI.builder().eno("E100").usrNm("반복결재자").ptCNm("과장").delYn("N").build();
+        given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
-                .willReturn(List.of(approver(1, "E001", "2"), approver(2, "E002", "1")));
+                .willReturn(List.of(completed, pending));
+        given(userRepository.findByEnoIn(List.of("E100", "E100")))
+                .willReturn(List.of(repeatedUser));
 
-        assertThatThrownBy(
-                        () ->
-                                service.replacePendingApprovers(
-                                        APF, List.of("E100", "E100"), "E001", false))
-                .isInstanceOf(IllegalArgumentException.class);
+        service.replacePendingApprovers(APF, List.of("E100", "E100"), "E001", false);
 
-        verify(approverRepository, never()).saveAll(anyCollection());
-        verify(approverRepository, never()).deleteAll(anyCollection());
-        verify(approvalLineDelegate, never()).replacePendingApproversInDetail(any(), any(), any());
+        ArgumentCaptor<Iterable<Cdecim>> replacements = ArgumentCaptor.forClass(Iterable.class);
+        verify(approverRepository).saveAll(replacements.capture());
+        assertThat(replacements.getValue())
+                .extracting(value -> value.getDcrSqnSno() + ":" + value.getDcrEno())
+                .containsExactly("2:E100", "3:E100");
+        verify(approvalLineDelegate)
+                .replacePendingApproversInDetail(
+                        eq(application), any(), eq(List.of(repeatedUser, repeatedUser)));
     }
 
     @Test

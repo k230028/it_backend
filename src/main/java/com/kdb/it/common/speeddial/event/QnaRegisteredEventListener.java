@@ -25,6 +25,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class QnaRegisteredEventListener {
 
     private static final String SYSTEM_ADMIN_AUTH_ID = "ITPAD001";
+    private static final String MAIL_PRIMARY = "#1e3a8a";
+    private static final String MAIL_HEADER_BG = "#f3f4f6";
+    private static final String MAIL_BORDER = "#d1d5db";
 
     private final RoleRepository roleRepository;
     private final NotificationOutboxService outboxService;
@@ -80,17 +83,27 @@ public class QnaRegisteredEventListener {
                         + row("등록 화면", event.screenName())
                         + row("화면 URL", event.screenUrl());
         return "<div style=\"font-family:'Malgun Gothic',sans-serif;color:#111827;max-width:720px;\">"
-                + "<div style=\"background:#1d4ed8;color:#fff;font-size:16px;font-weight:700;padding:10px 12px;margin:0 0 14px;\">문의 등록</div>"
-                + "<div style=\"font-size:15px;font-weight:700;margin:0 0 8px;\">문의 개요</div>"
-                + "<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\" style=\"border-collapse:collapse;width:100%;margin:0 0 14px;\">"
+                + "<div style=\"background:"
+                + MAIL_PRIMARY
+                + ";color:#fff;font-size:16px;font-weight:700;padding:10px 12px;margin:0 0 14px;\">문의 등록</div>"
+                + "<div style=\"font-size:14px;font-weight:700;color:"
+                + MAIL_PRIMARY
+                + ";margin:0 0 6px;\">문의 개요</div>"
+                + "<table border=\"1\" cellpadding=\"10\" cellspacing=\"0\" style=\"border-collapse:collapse;width:100%;margin:0 0 12px;border-color:"
+                + MAIL_BORDER
+                + ";font-size:13px;line-height:1.9;\">"
                 + rows
                 + "</table><div style=\"margin:0 0 18px;text-align:right;\"><a href=\""
                 + escape(event.qnaUrl())
-                + "\" style=\"display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;font-size:13px;font-weight:600;padding:8px 14px;border-radius:4px;\">문의 확인 ↗</a></div></div>";
+                + "\" style=\"display:inline-block;background:"
+                + MAIL_PRIMARY
+                + ";color:#fff;text-decoration:none;font-size:13px;font-weight:600;padding:8px 14px;border-radius:4px;\">문의 확인 ↗</a></div></div>";
     }
 
     private String row(String label, String value) {
-        return "<tr><th style=\"background:#eff6ff;text-align:left;width:130px;\">"
+        return "<tr><th style=\"background:"
+                + MAIL_HEADER_BG
+                + ";\">"
                 + escape(label)
                 + "</th><td>"
                 + escape(value)
