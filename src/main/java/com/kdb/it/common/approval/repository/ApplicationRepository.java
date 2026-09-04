@@ -88,16 +88,6 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     List<ApplicationReadView> findAllProjectedBy();
 
     /**
-     * 신청서 목록 API용 경량 read view를 안정된 순서와 상한으로 조회합니다.
-     *
-     * <p>정렬은 신청서식별번호 내림차순(최신 상신 우선)입니다. 상한(500건)에 걸려 잘리는 쪽이 항상 오래된 건이 되도록 하기 위한 것으로, 오름차순이면 최근 상신되어
-     * 지금 결재해야 할 건이 목록에서 사라집니다.
-     *
-     * @return 신청서 read view 목록 (최신순, 최대 500건)
-     */
-    List<ApplicationReadView> findTop500ByOrderByApfMngNoDesc();
-
-    /**
      * 지정한 상태를 제외한 신청서 read view를 최신순 상한 500건으로 조회합니다.
      *
      * <p>결재함 목록은 결재선이 없는 작성완료({@code 0}) 신청서를 보이지 않습니다.

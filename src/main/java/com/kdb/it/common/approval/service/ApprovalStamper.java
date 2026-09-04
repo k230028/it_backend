@@ -21,6 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>신청서번호는 기존 {@code APF-{연도}-{8자리}} 형식을 그대로 씁니다. {@code ApplicationMapRepository}가 신청서번호 사전식
  * 내림차순을 시간순으로 전제하므로 별도 접두어를 쓰지 않습니다.
  *
+ * <p>연도부의 출처는 두 용도가 다릅니다. 엑셀 반입({@link #stamp})은 원천의 예산연도({@code bseYy})를 그대로 씁니다. 반면 작성 화면의
+ * [저장]({@link #stampDrafted})은 이후 {@code ApplicationService#submit}이 상신 시점에 현재 연도로 채번하는 것과 어긋나지 않도록
+ * 항상 현재 연도로 채번합니다. 9월 이후에는 기본 예산연도가 내년이 되어, 예산연도로 채번하면 저장 시점의 번호가 이후 상신 시점의 번호보다 사전식으로 더 커져 "최신
+ * 신청서" 판정이 영구히 저장 시점 것으로 고정되는 문제가 있었습니다.
+ *
  * <p>{@code TPRMPP_CAPPLM}, {@code TPRMPP_CAPPLA} 모두 최초등록자·최종변경자가 물리 NOT NULL이고 이관 배치는 로그인 세션 없이
  * 실행될 수 있어, JPA Auditing에 기대지 않고 {@code actorEno}로 두 필드를 직접 채웁니다. 이 대입을 지우면 무인 실행에서 {@code
  * ORA-01400}이 재발합니다.
@@ -69,6 +74,7 @@ public class ApprovalStamper {
             String actorEno,
             String bseYy,
             ApprovalStatus status) {
+        String year = (bseYy == null || bseYy.isBlank()) ? currentYear() : bseYy;
         return create(
                 fntTbNm,
                 pkColNm,
@@ -76,7 +82,7 @@ public class ApprovalStamper {
                 title,
                 actorEno,
                 null,
-                bseYy,
+                year,
                 status,
                 MigrationApprovalMarker.NOTE,
                 LocalDate.now());
@@ -94,7 +100,9 @@ public class ApprovalStamper {
      * @param title 결재요청제목. 비면 관리번호를 씁니다
      * @param actorEno 저장 사용자 사번
      * @param bbrC 결재요청부점코드 (원천의 주관부서)
-     * @param bseYy 예산연도. 비면 올해를 씁니다
+     * @param bseYy 예산연도. 신청서번호 채번에는 쓰지 않습니다 — 작성완료는 이후 {@code ApplicationService#submit}의 상신 채번과
+     *     시간순이 어긋나지 않도록 항상 현재 연도로 채번합니다(§클래스 JavaDoc). 호출자 시그니처를 유지하기 위해 파라미터는 남겨 두되 본문에서는 사용하지
+     *     않습니다.
      * @return 작성완료 신청서식별번호
      * @throws IllegalStateException 최신 신청서가 결재중인 경우
      */
@@ -129,7 +137,7 @@ public class ApprovalStamper {
                 title,
                 actorEno,
                 bbrC,
-                bseYy,
+                currentYear(),
                 ApprovalStatus.DRAFTED,
                 null,
                 null);
@@ -142,14 +150,10 @@ public class ApprovalStamper {
             String title,
             String actorEno,
             String bbrC,
-            String bseYy,
+            String year,
             ApprovalStatus status,
             String note,
             LocalDate requestDate) {
-        String year =
-                (bseYy == null || bseYy.isBlank())
-                        ? String.valueOf(LocalDate.now().getYear())
-                        : bseYy;
         Long sequence = applicationRepository.getNextVal();
         String apfDcmNo = String.format("APF-%s-%08d", year, sequence);
 
@@ -183,5 +187,9 @@ public class ApprovalStamper {
 
     private static String resolveTitle(String title, String fallback) {
         return (title == null || title.isBlank()) ? fallback : title;
+    }
+
+    private static String currentYear() {
+        return String.valueOf(LocalDate.now().getYear());
     }
 }

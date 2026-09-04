@@ -304,8 +304,12 @@ public class ProjectService {
         bprojaSyncService.upsert(prjMngNo, prjMngNo, "01");
 
         // [저장](complete=true)이면 결재선 없는 작성완료(0) 신청서를 스탬프한다. 임시저장(false)이나
-        // 반입 경로(미지정, null)는 스탬프하지 않는다.
-        stampDraftedIfCompleted(request.getComplete(), project);
+        // 반입 경로(미지정, null)는 스탬프하지 않는다. skipBudgetPeriodValidation(수기 엑셀 이관 전용
+        // 경로)에서는 CostService의 preserveSubmittedAmounts 가드와 동일하게 스탬프 자체를 건너뛴다.
+        // 이관 DTO는 complete를 채우지 않아 현재는 도달하지 않지만, 두 예산 서비스의 가드를 대칭으로 둔다.
+        if (!skipBudgetPeriodValidation) {
+            stampDraftedIfCompleted(request.getComplete(), project);
+        }
 
         return project.getAbusMngNo(); // 저장된 관리번호 반환
     }
