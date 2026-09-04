@@ -21,7 +21,8 @@ public class BoardCommentDto {
             description = "댓글 응답",
             requiredProperties = {
                 "cmmtMngNo", "nacMngNo", "cmmtCone", "cmmtGrpNo", "cmmtGrpSqn", "cmmtGrpLev",
-                "hrkCmmtMngNo", "delYn", "fstEnrUsid", "fstEnrDtm", "lstChgDtm", "canModify"
+                "hrkCmmtMngNo", "delYn", "fstEnrUsid", "fstEnrUsNm", "fstEnrDtm", "lstChgDtm",
+                "canModify"
             })
     public static class Response {
         @Schema(description = "댓글관리번호")
@@ -52,6 +53,9 @@ public class BoardCommentDto {
 
         @Schema(description = "작성자사번")
         private String fstEnrUsid;
+
+        @Schema(description = "작성자명", nullable = true)
+        private String fstEnrUsNm;
 
         @Schema(description = "등록일시")
         private LocalDateTime fstEnrDtm;
@@ -89,7 +93,7 @@ public class BoardCommentDto {
          * @param canModify 현재 사용자의 수정 가능 여부
          * @return 응답 DTO
          */
-        public static Response from(BoardCommentListRow row, boolean canModify) {
+        public static Response from(BoardCommentListRow row, boolean canModify, String fstEnrUsNm) {
             // 삭제된 댓글은 본문을 마스킹한다
             String displayCone = "Y".equals(row.delYn()) ? "삭제된 댓글입니다." : row.cmmtCone();
             return Response.builder()
@@ -102,6 +106,7 @@ public class BoardCommentDto {
                     .hrkCmmtMngNo(row.hrkCmmtMngNo())
                     .delYn(row.delYn())
                     .fstEnrUsid(row.fstEnrUsid())
+                    .fstEnrUsNm(fstEnrUsNm)
                     .fstEnrDtm(row.fstEnrDtm())
                     .lstChgDtm(row.lstChgDtm())
                     .canModify(canModify)

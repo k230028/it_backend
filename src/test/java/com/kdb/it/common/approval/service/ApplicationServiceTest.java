@@ -1197,6 +1197,83 @@ class ApplicationServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
+    // getHomeInbox — 전자결재 Home 결재함·기안함 목록
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getHomeInbox: 인증 사용자의 결재함과 기안함을 상태별 전체 목록으로 분류한다")
+    void getHomeInbox_사용자별상태분류() {
+        ApplicationRepository.HomeInboxRow approvalPending =
+                homeRow("APF-005", "승인 대기", "김기안", "1", 1, 0, null, 1);
+        ApplicationRepository.HomeInboxRow approvalCompleted =
+                homeRow("APF-004", "승인 완료", "박기안", "2", 0, 1, null, 0);
+        ApplicationRepository.HomeInboxRow draftInProgress =
+                homeRow("APF-003", "내 진행 문서", "홍길동", "1", 0, 0, "IN_PROGRESS", 0);
+        ApplicationRepository.HomeInboxRow draftCompleted =
+                homeRow("APF-002", "내 완료 문서", "홍길동", "2", 0, 0, "COMPLETED", 0);
+        ApplicationRepository.HomeInboxRow draftRejected =
+                homeRow("APF-001", "내 반려 문서", "홍길동", "3", 0, 0, "REJECTED", 0);
+        given(applicationRepository.findHomeInboxRowsByEno("E10001"))
+                .willReturn(
+                        List.of(
+                                approvalPending,
+                                approvalCompleted,
+                                draftInProgress,
+                                draftCompleted,
+                                draftRejected));
+
+        ApplicationDto.HomeInboxResponse result = applicationService.getHomeInbox("E10001");
+
+        assertThat(result.approvalPending())
+                .extracting(ApplicationDto.HomeInboxItem::apfMngNo)
+                .containsExactly("APF-005");
+        assertThat(result.approvalPending().getFirst().actionable()).isTrue();
+        assertThat(result.approvalCompleted())
+                .extracting(ApplicationDto.HomeInboxItem::apfMngNo)
+                .containsExactly("APF-004");
+        assertThat(result.draftInProgress())
+                .extracting(ApplicationDto.HomeInboxItem::apfMngNo)
+                .containsExactly("APF-003");
+        assertThat(result.draftCompleted())
+                .extracting(ApplicationDto.HomeInboxItem::apfMngNo)
+                .containsExactly("APF-002");
+        assertThat(result.draftRejected())
+                .extracting(ApplicationDto.HomeInboxItem::apfMngNo)
+                .containsExactly("APF-001");
+    }
+
+    @Test
+    @DisplayName("getHomeInbox: 인증 사번이 비어 있으면 빈 목록이 아닌 입력 오류로 구분한다")
+    void getHomeInbox_사번없음_예외() {
+        assertThatThrownBy(() -> applicationService.getHomeInbox(" "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("사번");
+        verify(applicationRepository, never()).findHomeInboxRowsByEno(any());
+    }
+
+    private ApplicationRepository.HomeInboxRow homeRow(
+            String id,
+            String title,
+            String requesterName,
+            String statusCode,
+            int approvalPending,
+            int approvalCompleted,
+            String draftCategory,
+            int actionable) {
+        ApplicationRepository.HomeInboxRow row = mock(ApplicationRepository.HomeInboxRow.class);
+        given(row.getApfMngNo()).willReturn(id);
+        given(row.getTitle()).willReturn(title);
+        given(row.getRequesterName()).willReturn(requesterName);
+        given(row.getRequestedAt()).willReturn(LocalDate.of(2026, 9, 1).atStartOfDay());
+        given(row.getStatusCode()).willReturn(statusCode);
+        given(row.getApprovalPending()).willReturn(approvalPending);
+        given(row.getApprovalCompleted()).willReturn(approvalCompleted);
+        given(row.getDraftCategory()).willReturn(draftCategory);
+        given(row.getActionable()).willReturn(actionable);
+        return row;
+    }
+
+    // ───────────────────────────────────────────────────────
     // getDashboard — 대시보드 집계
     // ───────────────────────────────────────────────────────
 

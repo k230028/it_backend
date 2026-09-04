@@ -260,7 +260,7 @@ class ApiResponseOpenApiContractTest {
                 "hrkNacNo",
                 "fstEnrUsNm",
                 "fstEnrBbrNm");
-        assertAllPropertiesRequired(BoardCommentDto.Response.class, "hrkCmmtMngNo");
+        assertAllPropertiesRequired(BoardCommentDto.Response.class, "hrkCmmtMngNo", "fstEnrUsNm");
         assertEnum(BoardMetaDto.Response.class, "repUseYn", "Y", "N");
         assertEnum(BoardMetaDto.Response.class, "cmmtUseYn", "Y", "N");
         assertEnum(BoardMetaDto.Response.class, "flEsnYn", "Y", "N");

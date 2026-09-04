@@ -230,6 +230,82 @@ class RequestFormFileImporterTest {
     }
 
     @Test
+    @DisplayName("일반관리비 BLOCKER는 같은 시트의 정상 계약을 차단하지 않는다")
+    void importsUnblockedCostsFromSameSheet() {
+        CostDto.CreateRequest blocked = new CostDto.CreateRequest();
+        blocked.setCttNm("비목 미확정 계약");
+        CostDto.CreateRequest applicable = new CostDto.CreateRequest();
+        applicable.setCttNm("정상 계약");
+        RequestFormDto.FormDiagnostic blocker =
+                RequestFormDto.FormDiagnostic.about(
+                        FormSheetKind.GENERAL_EXPENSE,
+                        14,
+                        "ioeC",
+                        blocked.getCttNm(),
+                        RequestFormDiagnosticCode.CODE_AMBIGUOUS,
+                        "비목을 확정하지 못했습니다.",
+                        List.of());
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(), List.of(blocked, applicable), List.of(blocker), null);
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(costService.createCost(any(), anyBoolean())).thenReturn("COST-2026-0001");
+
+        RequestFormDto.FileResult result = importer().apply(output, ENTRY, "2026", "12345678");
+
+        ArgumentCaptor<CostDto.CreateRequest> captor =
+                ArgumentCaptor.forClass(CostDto.CreateRequest.class);
+        verify(costService).createCost(captor.capture(), eq(true));
+        assertThat(captor.getValue().getCttNm()).isEqualTo("정상 계약");
+        assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
+        assertThat(result.blockedCounts()).isEqualTo(new RequestFormDto.RecordCounts(0, 0, 1));
+    }
+
+    @Test
+    @DisplayName("정보화사업 BLOCKER는 같은 영역의 정상 사업을 차단하지 않는다")
+    void importsUnblockedCapitalProjectsFromSameSection() {
+        ProjectDto.CreateRequest blocked = new ProjectDto.CreateRequest();
+        blocked.setAbusNm("비목 미확정 사업");
+        blocked.setItems(List.of());
+        ProjectDto.CreateRequest firstApplicable = new ProjectDto.CreateRequest();
+        firstApplicable.setAbusNm("정상 사업 1");
+        firstApplicable.setItems(List.of());
+        ProjectDto.CreateRequest secondApplicable = new ProjectDto.CreateRequest();
+        secondApplicable.setAbusNm("정상 사업 2");
+        secondApplicable.setItems(List.of());
+        RequestFormDto.FormDiagnostic blocker =
+                RequestFormDto.FormDiagnostic.about(
+                        FormSheetKind.CAPITAL_OVERVIEW,
+                        20,
+                        "abusNm",
+                        blocked.getAbusNm(),
+                        RequestFormDiagnosticCode.REQUIRED_MISSING,
+                        "필수값이 비어 있습니다.",
+                        List.of());
+        FormAdapterOutput output =
+                new FormAdapterOutput(
+                        List.of(blocked, firstApplicable, secondApplicable),
+                        List.of(),
+                        List.of(blocker),
+                        null);
+        when(validator.validate(any(), anyString())).thenReturn(List.of());
+        when(projectService.createProject(any(), anyBoolean()))
+                .thenReturn("PRJ-2026-0001", "PRJ-2026-0002");
+
+        RequestFormDto.FileResult result = importer().apply(output, ENTRY, "2026", "12345678");
+
+        ArgumentCaptor<ProjectDto.CreateRequest> captor =
+                ArgumentCaptor.forClass(ProjectDto.CreateRequest.class);
+        verify(projectService, org.mockito.Mockito.times(2))
+                .createProject(captor.capture(), eq(true));
+        assertThat(captor.getAllValues())
+                .extracting(ProjectDto.CreateRequest::getAbusNm)
+                .containsExactly("정상 사업 1", "정상 사업 2");
+        assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
+        assertThat(result.blockedCounts()).isEqualTo(new RequestFormDto.RecordCounts(1, 0, 0));
+    }
+
+    @Test
     @DisplayName("경상사업 BLOCKER가 있어도 진단을 유지하고 일반관리비는 반입한다")
     void importsCostsWhenOnlyRecurringSectionIsBlocked() {
         FormAdapterOutput output = outputWithOneOfEach();

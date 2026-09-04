@@ -618,6 +618,47 @@ public class ApplicationService {
     }
 
     /**
+     * 인증 사용자의 전자결재 Home 결재함·기안함 전체 목록을 상태별로 분류합니다.
+     *
+     * @param eno 인증 사용자 사번
+     * @return 결재함·기안함 상태별 목록
+     */
+    public ApplicationDto.HomeInboxResponse getHomeInbox(String eno) {
+        if (eno == null || eno.isBlank()) {
+            throw new IllegalArgumentException("사용자 사번이 필요합니다.");
+        }
+
+        List<ApplicationDto.HomeInboxItem> approvalPending = new java.util.ArrayList<>();
+        List<ApplicationDto.HomeInboxItem> approvalCompleted = new java.util.ArrayList<>();
+        List<ApplicationDto.HomeInboxItem> draftInProgress = new java.util.ArrayList<>();
+        List<ApplicationDto.HomeInboxItem> draftCompleted = new java.util.ArrayList<>();
+        List<ApplicationDto.HomeInboxItem> draftRejected = new java.util.ArrayList<>();
+
+        for (ApplicationRepository.HomeInboxRow row :
+                applicationRepository.findHomeInboxRowsByEno(eno)) {
+            ApplicationDto.HomeInboxItem item =
+                    new ApplicationDto.HomeInboxItem(
+                            row.getApfMngNo(),
+                            row.getTitle(),
+                            row.getRequesterName(),
+                            row.getRequestedAt() == null
+                                    ? null
+                                    : row.getRequestedAt().toLocalDate(),
+                            row.getStatusCode(),
+                            ApprovalStatus.ofCode(row.getStatusCode()).label(),
+                            row.getActionable() == 1);
+            if (row.getApprovalPending() == 1) approvalPending.add(item);
+            if (row.getApprovalCompleted() == 1) approvalCompleted.add(item);
+            if ("IN_PROGRESS".equals(row.getDraftCategory())) draftInProgress.add(item);
+            if ("COMPLETED".equals(row.getDraftCategory())) draftCompleted.add(item);
+            if ("REJECTED".equals(row.getDraftCategory())) draftRejected.add(item);
+        }
+
+        return new ApplicationDto.HomeInboxResponse(
+                approvalPending, approvalCompleted, draftInProgress, draftCompleted, draftRejected);
+    }
+
+    /**
      * 사이드바 배지용 결재 현황 수 조회
      *
      * @param bbrC 부서코드 (향후 부서 기준 집계 확장용, 현재 미사용)

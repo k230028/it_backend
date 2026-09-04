@@ -24,6 +24,7 @@ import com.kdb.it.exception.NotFoundException;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -665,6 +666,33 @@ class BoardCommentServiceTest {
     }
 
     @Test
+    @DisplayName("getComments — 댓글 작성자명을 한 번에 조회해 응답에 포함한다")
+    void getComments_includesAuthorNamesFromBatchLookup() {
+        BoardCommentListRow firstRow = buildCommentRow(1L, "USER001");
+        BoardCommentListRow secondRow = buildCommentRow(2L, "OTHER_USER");
+
+        given(metaRepository.findByBlbMngNoAndDelYn("BLBM-2026-0001", "N"))
+                .willReturn(Optional.of(boardWithComment));
+        given(postRepository.findByNacMngNoAndDelYn("NAC-2026-0001", "N"))
+                .willReturn(Optional.of(post));
+        willDoNothing().given(postService).verifyCanReadPost(any(), any(), any());
+        given(commentRepository.findCommentRowsByPost("NAC-2026-0001"))
+                .willReturn(List.of(firstRow, secondRow));
+        given(userRepository.findNameViewsByEnoIn(Set.of("USER001", "OTHER_USER")))
+                .willReturn(
+                        List.of(
+                                new UserNameView("USER001", "홍길동", null),
+                                new UserNameView("OTHER_USER", "김직원", null)));
+
+        var result = service.getComments("BLBM-2026-0001", "NAC-2026-0001", normalUser);
+
+        assertThat(result)
+                .extracting(BoardCommentDto.Response::getFstEnrUsNm)
+                .containsExactly("홍길동", "김직원");
+        then(userRepository).should().findNameViewsByEnoIn(Set.of("USER001", "OTHER_USER"));
+    }
+
+    @Test
     @DisplayName("getComments — 관리자는 타인 댓글도 canModify=true로 반환된다")
     void getComments_admin_canModifyTrue() {
         // Arrange
@@ -802,5 +830,23 @@ class BoardCommentServiceTest {
                 fstEnrUsid,
                 null,
                 null);
+    }
+
+    private record UserNameView(String eno, String usrNm, String ptCNm)
+            implements UserRepository.UserNameView {
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
+
+        @Override
+        public String getPtCNm() {
+            return ptCNm;
+        }
     }
 }

@@ -288,6 +288,48 @@ class BoardPostListProjectionIt extends AbstractOracleRepositoryTest {
     }
 
     @Test
+    @DisplayName("Q&A 목록 모드는 일반 사용자에게 다른 작성자의 비공개 게시물도 반환한다")
+    void searchPostRows_qnaModeIncludesEveryPrivatePostForNormalUser() {
+        postRepository.saveAllAndFlush(
+                List.of(
+                        post(
+                                "QNA-LIST-PUBLIC",
+                                "공개 문의",
+                                "본문",
+                                "writer-a",
+                                "N",
+                                "Y",
+                                9702,
+                                1,
+                                null,
+                                null,
+                                "N"),
+                        post(
+                                "QNA-LIST-PRIVATE",
+                                "다른 작성자의 비공개 문의",
+                                "본문",
+                                "writer-b",
+                                "N",
+                                "N",
+                                9701,
+                                1,
+                                null,
+                                null,
+                                "N")));
+
+        BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
+        condition.setPage(0);
+        condition.setSize(100);
+
+        var result = postRepository.searchPostRows("BLB-BE03", condition, false, true);
+
+        assertThat(result.getContent())
+                .filteredOn(row -> row.nacMngNo().startsWith("QNA-LIST-"))
+                .extracting(BoardPostDto.ListRow::nacMngNo)
+                .containsExactly("QNA-LIST-PUBLIC", "QNA-LIST-PRIVATE");
+    }
+
+    @Test
     @DisplayName("관리자의 publicOnly 검색은 비공개와 공개기간 외 게시물을 페이지·총계 전에 제외한다")
     void searchPostRows_publicOnlyFiltersAdminBeforePaginationAndCount() {
         LocalDate today = LocalDate.now();

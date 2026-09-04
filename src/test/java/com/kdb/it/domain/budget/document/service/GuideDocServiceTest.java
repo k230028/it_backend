@@ -8,12 +8,15 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.iam.repository.UserRepository.UserNameView;
 import com.kdb.it.domain.budget.document.dto.GuideDocDto;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository.GuideDocListView;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +37,7 @@ import org.mockito.quality.Strictness;
 class GuideDocServiceTest {
 
     @Mock private GuideDocRepository guideDocRepository;
+    @Mock private UserRepository userRepository;
     @Mock private BgdocNumberAllocator bgdocNumberAllocator;
 
     @InjectMocks private GuideDocService guideDocService;
@@ -47,11 +51,12 @@ class GuideDocServiceTest {
         return doc;
     }
 
-    private GuideDocListView mockListView(String docMngNo, String docNm) {
+    private GuideDocListView mockListView(String docMngNo, String docNm, String lstChgUsid) {
         GuideDocListView view = mock(GuideDocListView.class);
         given(view.getDocMngNo()).willReturn(docMngNo);
         given(view.getDocTtlCone()).willReturn(docNm);
         given(view.getDelYn()).willReturn("N");
+        given(view.getLstChgUsid()).willReturn(lstChgUsid);
         return view;
     }
 
@@ -63,9 +68,13 @@ class GuideDocServiceTest {
     @DisplayName("getDocumentList: GDOC 문서만 본문 없는 DTO로 반환한다")
     void getDocumentList_GDOC문서만_본문없는DTO목록반환() {
         // given
-        GuideDocListView view1 = mockListView("GDOC-2026-0001", "가이드문서1");
+        GuideDocListView view1 = mockListView("GDOC-2026-0001", "가이드문서1", "K10001");
+        UserNameView modifier = mock(UserNameView.class);
+        given(modifier.getEno()).willReturn("K10001");
+        given(modifier.getUsrNm()).willReturn("홍길동");
         given(guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N"))
                 .willReturn(List.of(view1));
+        given(userRepository.findNameViewsByEnoIn(Set.of("K10001"))).willReturn(List.of(modifier));
 
         // when
         List<GuideDocDto.ListResponse> result = guideDocService.getDocumentList();
@@ -74,8 +83,11 @@ class GuideDocServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).docMngNo()).isEqualTo("GDOC-2026-0001");
         assertThat(result.get(0).docTtlCone()).isEqualTo("가이드문서1");
+        assertThat(result.get(0).lstChgUsNm()).isEqualTo("홍길동");
         assertThat(declaredMethodNames(GuideDocDto.ListResponse.class)).doesNotContain("nacTxtInf");
+        assertThat(declaredMethodNames(GuideDocDto.ListResponse.class)).contains("lstChgUsNm");
         verify(guideDocRepository).findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N");
+        verify(userRepository).findNameViewsByEnoIn(Set.of("K10001"));
     }
 
     @Test

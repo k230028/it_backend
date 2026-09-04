@@ -77,11 +77,13 @@ class GuideDocControllerTest {
                                         null,
                                         "10001",
                                         null,
-                                        "10001")));
+                                        "10001",
+                                        "홍길동")));
 
         mockMvc.perform(get("/api/guide-documents"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].docMngNo").value("GDOC-2026-0001"))
+                .andExpect(jsonPath("$[0].lstChgUsNm").value("홍길동"))
                 .andExpect(jsonPath("$[0].nacTxtInf").doesNotExist());
     }
 

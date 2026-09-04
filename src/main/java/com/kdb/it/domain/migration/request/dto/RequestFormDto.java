@@ -355,6 +355,7 @@ public final class RequestFormDto {
      * @param diagnostics 진단 목록. 없으면 빈 목록
      * @param created 생성된 원장. dry-run이거나 반영하지 않았으면 빈 목록
      * @param counts 파일에서 읽어낸 원장 종류별 건수. 차단된 파일도 채우므로 실제 반영 여부는 `status`로 판단합니다
+     * @param blockedCounts BLOCKER로 제외된 원장 종류별 건수
      * @param suggestedGeneralExpenseUnit 시트 ③ 단위 제안값. 시트 ③이 없으면 null
      */
     @Schema(name = "RequestFormFileResult", description = "파일 처리 결과")
@@ -372,10 +373,35 @@ public final class RequestFormDto {
             @Schema(description = "원장 종류별 건수", requiredMode = Schema.RequiredMode.REQUIRED)
                     RecordCounts counts,
             @Schema(
+                            description = "BLOCKER로 제외된 원장 종류별 건수",
+                            requiredMode = Schema.RequiredMode.REQUIRED)
+                    RecordCounts blockedCounts,
+            @Schema(
                             description = "시트 ③ 단위 제안값",
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             nullable = true)
-                    AmountUnit suggestedGeneralExpenseUnit) {}
+                    AmountUnit suggestedGeneralExpenseUnit) {
+
+        /** 차단 건수 필드가 없던 내부 호출을 위한 생성자입니다. */
+        public FileResult(
+                String fileKey,
+                String deptName,
+                FileStatus status,
+                List<FormDiagnostic> diagnostics,
+                List<CreatedRecord> created,
+                RecordCounts counts,
+                AmountUnit suggestedGeneralExpenseUnit) {
+            this(
+                    fileKey,
+                    deptName,
+                    status,
+                    diagnostics,
+                    created,
+                    counts,
+                    RecordCounts.zero(),
+                    suggestedGeneralExpenseUnit);
+        }
+    }
 
     /**
      * 배치 요약입니다.

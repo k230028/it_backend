@@ -4,6 +4,7 @@ import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.entity.Cblbcm;
 import com.kdb.it.common.board.entity.Cblbmm;
 import com.kdb.it.common.board.entity.Ccmmtm;
+import com.kdb.it.common.board.repository.BoardCommentListRow;
 import com.kdb.it.common.board.repository.BoardCommentRepository;
 import com.kdb.it.common.board.repository.BoardMetaRepository;
 import com.kdb.it.common.board.repository.BoardPostRepository;
@@ -16,8 +17,11 @@ import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.exception.NotFoundException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -60,8 +64,31 @@ public class BoardCommentService {
         verifyCommentsEnabled(board);
         postService.verifyCanReadPost(user, post, board);
 
-        return commentRepository.findCommentRowsByPost(nacMngNo).stream()
-                .map(row -> BoardCommentDto.Response.from(row, canModify(user, row.fstEnrUsid())))
+        List<BoardCommentListRow> rows = commentRepository.findCommentRowsByPost(nacMngNo);
+        Set<String> authorEnos =
+                rows.stream()
+                        .map(BoardCommentListRow::fstEnrUsid)
+                        .filter(eno -> eno != null && !eno.isBlank())
+                        .collect(Collectors.toSet());
+        Map<String, String> authorNameByEno = new HashMap<>();
+        if (!authorEnos.isEmpty()) {
+            userRepository
+                    .findNameViewsByEnoIn(authorEnos)
+                    .forEach(
+                            author -> {
+                                if (author.getEno() != null) {
+                                    authorNameByEno.putIfAbsent(author.getEno(), author.getUsrNm());
+                                }
+                            });
+        }
+
+        return rows.stream()
+                .map(
+                        row ->
+                                BoardCommentDto.Response.from(
+                                        row,
+                                        canModify(user, row.fstEnrUsid()),
+                                        authorNameByEno.get(row.fstEnrUsid())))
                 .toList();
     }
 

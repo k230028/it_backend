@@ -25,6 +25,7 @@
 | `요구사항정의서` | `Brdocm`(`DOC_MNG_NO`, 최신 버전) | 관리자 OR 작성자(`FST_ENR_USID`) OR 주관부서(`SVN_DPM_C == 사용자 bbrC`) |
 | `사업계획서`·`타당성검토표`·`협의회관련자료` | 협의회(`IT_PTL_ASCT_ID`) | 관리자/정보보안관리자 OR 해당 협의회 위원 OR 관련부서(협의회 사업 `BPROJM.SVN_DPM_C == 사용자 bbrC`) |
 | `가이드문서` | `Bgdocm` | 인증 사용자 전체(전사 공개, default-deny의 명시적 예외) |
+| `다이어그램` | Excalidraw를 삽입한 모든 화면 | 인증 사용자 전체. 장면 파일과 장면 내부 이미지에 동일하게 적용 |
 | `정보화사업` | `Bprojm`(`ABUS_MNG_NO`, `DEL_YN='N'`) | 인증 사용자 전체(사업 상세 API와 같은 범위, default-deny의 명시적 예외). 사업이 없거나 삭제되었으면 거부. 경상사업도 같은 원장이라 종류를 공유 |
 | `편성요청서반입` | 반입받은 신청서번호 → `Cappla` 매핑이 가리키는 원장(`BPROJM`·`BCOSTM`) | 관리자 OR 연결 원장의 주관부서(`SVN_DPM_C == 사용자 bbrC`). 매핑·원장이 없으면 거부 |
 | (미등록·`null` 종류) | — | 관리자만(default-deny) |

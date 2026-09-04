@@ -376,6 +376,13 @@ public class ApplicationController {
         return ResponseEntity.ok(applicationService.getDashboard(bbrC, eno));
     }
 
+    /** 인증 사용자의 전자결재 Home 결재함·기안함 전체 목록을 반환합니다. */
+    @GetMapping("/home-inbox")
+    @Operation(summary = "전자결재 Home 목록 조회", description = "인증 사용자의 결재함과 기안함을 상태별로 반환합니다.")
+    public ResponseEntity<ApplicationDto.HomeInboxResponse> getHomeInbox(Authentication auth) {
+        return ResponseEntity.ok(applicationService.getHomeInbox(auth.getName()));
+    }
+
     /**
      * 사이드바 배지용 결재 현황 수 조회
      *

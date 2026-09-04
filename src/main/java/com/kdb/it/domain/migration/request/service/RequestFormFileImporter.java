@@ -7,6 +7,7 @@ import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.migration.request.dto.FormSheetKind;
+import com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.adapter.FormAdapterOutput;
 import com.kdb.it.domain.migration.request.service.adapter.ProjectAmounts;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 편성요청서 파일 1건을 반영합니다.
  *
  * <p>이 클래스가 <b>트랜잭션 원자 단위</b>입니다. `REQUIRES_NEW`로 파일마다 독립 트랜잭션을 열어, 한 파일이 실패해도 같은 배치의 다른 파일은 커밋되게
- * 합니다. 파일 안의 업무 영역은 독립적으로 검증해 BLOCKER가 난 정보화사업·경상사업·일반관리비 영역만 제외합니다.
+ * 합니다. 파일 안의 레코드는 독립적으로 검증해 BLOCKER가 가리키는 사업·일반관리비만 제외합니다.
  *
  * <p>원장은 기존 서비스의 이관 전용 오버로드로 만듭니다. 이관은 편성 시즌 밖에서도 실행되어야 해 기간 검증을 건너뛰지만, 채번·조직명 스냅샷·감사로그는 그대로 타야 하므로
  * 새 INSERT 경로를 만들지 않습니다.
@@ -60,8 +61,8 @@ public class RequestFormFileImporter {
     /**
      * 파일 1건을 원장에 반영합니다.
      *
-     * <p>독립 트랜잭션에서 실행됩니다. BLOCKER가 남은 업무 영역은 제외하고 같은 파일의 정상 영역은 반입합니다. 파일 단위 BLOCKER이거나 반입 가능한 영역이
-     * 하나도 없을 때만 파일을 차단합니다. 제외 진단은 응답에 그대로 남겨 화면에서 원인을 확인할 수 있게 합니다.
+     * <p>독립 트랜잭션에서 실행됩니다. BLOCKER가 가리키는 레코드는 제외하고 같은 파일의 정상 레코드는 반입합니다. 파일 단위 BLOCKER이거나 반입 가능한
+     * 레코드가 하나도 없을 때만 파일을 차단합니다. 제외 진단은 응답에 그대로 남겨 화면에서 원인을 확인할 수 있게 합니다.
      *
      * @param output 어댑터가 조립한 생성 요청
      * @param entry 파일별 부가 정보
@@ -79,9 +80,15 @@ public class RequestFormFileImporter {
         List<RequestFormDto.FormDiagnostic> diagnostics =
                 new ArrayList<>(allDiagnostics(output, bseYy));
         prepareNameOnlyImport(output, diagnostics);
-        FormAdapterOutput applicable = withoutBlockedSections(output, diagnostics);
+        FormAdapterOutput applicable = withoutBlockedRecords(output, diagnostics);
         if (RequestFormValidator.hasBlocker(diagnostics) && hasNoRecords(applicable)) {
-            return result(entry, RequestFormDto.FileStatus.BLOCKED, diagnostics, List.of(), output);
+            return result(
+                    entry,
+                    RequestFormDto.FileStatus.BLOCKED,
+                    diagnostics,
+                    List.of(),
+                    output,
+                    applicable);
         }
         FormAdapterOutput importTarget = validator.withoutDuplicateProjects(applicable, bseYy);
 
@@ -129,7 +136,8 @@ public class RequestFormFileImporter {
                 RequestFormDto.FileStatus.APPLIED,
                 List.copyOf(diagnostics),
                 List.copyOf(created),
-                output);
+                output,
+                applicable);
     }
 
     /**
@@ -146,12 +154,12 @@ public class RequestFormFileImporter {
                 new ArrayList<>(allDiagnostics(output, bseYy));
         prepareNameOnlyImport(output, diagnostics);
         clearIds(output);
-        FormAdapterOutput applicable = withoutBlockedSections(output, diagnostics);
+        FormAdapterOutput applicable = withoutBlockedRecords(output, diagnostics);
         RequestFormDto.FileStatus status =
                 RequestFormValidator.hasBlocker(diagnostics) && hasNoRecords(applicable)
                         ? RequestFormDto.FileStatus.BLOCKED
                         : RequestFormDto.FileStatus.APPLIED;
-        return result(entry, status, List.copyOf(diagnostics), List.of(), output);
+        return result(entry, status, List.copyOf(diagnostics), List.of(), output, applicable);
     }
 
     /** 양식의 담당자 표기는 이름 스냅샷으로 옮기고 사번 컬럼에는 넣지 않습니다. */
@@ -187,45 +195,146 @@ public class RequestFormFileImporter {
                         null,
                         field,
                         name,
-                        com.kdb.it.domain.migration.request.dto.RequestFormDiagnosticCode
-                                .SUBSTITUTE_DROPPED,
+                        RequestFormDiagnosticCode.SUBSTITUTE_DROPPED,
                         "%s `%s`는 대응하는 이름 컬럼이 없어 ID 컬럼에 저장하지 않습니다.".formatted(label, name),
                         List.of()));
     }
 
     /**
-     * BLOCKER가 속한 시트 영역만 저장 대상에서 제외합니다.
+     * BLOCKER가 가리키는 사업·일반관리비만 저장 대상에서 제외합니다.
      *
-     * <p>진단 목록은 건드리지 않아 제외 사유가 화면의 진단 컬럼에 그대로 남습니다. 시트가 없는 파일 단위 BLOCKER는 어느 원장도 안전하게 만들 수 없으므로 전체를
-     * 제외합니다.
+     * <p>사업명·품목명·계약명으로 대상을 식별하며, 대상이 없거나 일치하지 않으면 안전을 위해 해당 시트 종류 전체를 제외합니다. 진단 목록은 건드리지 않아 제외 사유가
+     * 화면의 진단 컬럼에 그대로 남습니다. 시트가 없는 파일 단위 BLOCKER는 어느 원장도 안전하게 만들 수 없으므로 전체를 제외합니다.
      */
-    private FormAdapterOutput withoutBlockedSections(
+    private FormAdapterOutput withoutBlockedRecords(
             FormAdapterOutput output, List<RequestFormDto.FormDiagnostic> diagnostics) {
         boolean globalBlocked = hasBlockerFor(diagnostics, null);
-        boolean capitalBlocked =
-                globalBlocked
-                        || hasBlockerFor(diagnostics, FormSheetKind.CAPITAL_OVERVIEW)
-                        || hasBlockerFor(diagnostics, FormSheetKind.CAPITAL_RESOURCE);
-        boolean recurringBlocked =
-                globalBlocked || hasBlockerFor(diagnostics, FormSheetKind.RECURRING);
-        boolean costsBlocked =
-                globalBlocked || hasBlockerFor(diagnostics, FormSheetKind.GENERAL_EXPENSE);
+        List<ProjectDto.CreateRequest> capitalProjects =
+                output.projects().stream()
+                        .filter(project -> !RECURRING_FLAG.equals(project.getOdnYn()))
+                        .toList();
+        List<ProjectDto.CreateRequest> recurringProjects =
+                output.projects().stream()
+                        .filter(project -> RECURRING_FLAG.equals(project.getOdnYn()))
+                        .toList();
+        List<RequestFormDto.FormDiagnostic> capitalBlockers =
+                blockersFor(
+                        diagnostics,
+                        FormSheetKind.CAPITAL_OVERVIEW,
+                        FormSheetKind.CAPITAL_RESOURCE);
+        List<RequestFormDto.FormDiagnostic> recurringBlockers =
+                blockersFor(diagnostics, FormSheetKind.RECURRING);
+        List<RequestFormDto.FormDiagnostic> costBlockers =
+                blockersFor(diagnostics, FormSheetKind.GENERAL_EXPENSE);
+        boolean capitalSectionBlocked =
+                globalBlocked || hasUnmatchedProjectBlocker(capitalBlockers, capitalProjects);
+        boolean recurringSectionBlocked =
+                globalBlocked || hasUnmatchedProjectBlocker(recurringBlockers, recurringProjects);
+        boolean costSectionBlocked =
+                globalBlocked || hasUnmatchedCostBlocker(costBlockers, output.costs(), diagnostics);
 
         List<ProjectDto.CreateRequest> projects = new ArrayList<>();
         List<ProjectAmounts> amounts = new ArrayList<>();
         for (int index = 0; index < output.projects().size(); index++) {
             ProjectDto.CreateRequest project = output.projects().get(index);
             boolean recurring = RECURRING_FLAG.equals(project.getOdnYn());
-            if ((recurring && recurringBlocked) || (!recurring && capitalBlocked)) continue;
+            List<RequestFormDto.FormDiagnostic> blockers =
+                    recurring ? recurringBlockers : capitalBlockers;
+            boolean sectionBlocked = recurring ? recurringSectionBlocked : capitalSectionBlocked;
+            if (sectionBlocked || blockers.stream().anyMatch(d -> targets(project, d.subject()))) {
+                continue;
+            }
             projects.add(project);
             amounts.add(output.projectAmounts().get(index));
         }
+        List<CostDto.CreateRequest> costs =
+                costSectionBlocked
+                        ? List.of()
+                        : output.costs().stream()
+                                .filter(
+                                        cost ->
+                                                costBlockers.stream()
+                                                        .noneMatch(
+                                                                d -> targets(cost, d, diagnostics)))
+                                .toList();
         return new FormAdapterOutput(
                 List.copyOf(projects),
-                costsBlocked ? List.of() : output.costs(),
+                costs,
                 output.diagnostics(),
                 output.suggestedGeneralExpenseUnit(),
                 List.copyOf(amounts));
+    }
+
+    private static List<RequestFormDto.FormDiagnostic> blockersFor(
+            List<RequestFormDto.FormDiagnostic> diagnostics, FormSheetKind... sheets) {
+        List<FormSheetKind> targets = List.of(sheets);
+        return diagnostics.stream()
+                .filter(diagnostic -> diagnostic.code().blocks())
+                .filter(diagnostic -> diagnostic.sheet() != null)
+                .filter(diagnostic -> targets.contains(diagnostic.sheet()))
+                .toList();
+    }
+
+    private static boolean hasUnmatchedProjectBlocker(
+            List<RequestFormDto.FormDiagnostic> blockers, List<ProjectDto.CreateRequest> projects) {
+        return blockers.stream()
+                .anyMatch(
+                        diagnostic ->
+                                diagnostic.subject() == null
+                                        || projects.stream()
+                                                .noneMatch(
+                                                        project ->
+                                                                targets(
+                                                                        project,
+                                                                        diagnostic.subject())));
+    }
+
+    private static boolean hasUnmatchedCostBlocker(
+            List<RequestFormDto.FormDiagnostic> blockers,
+            List<CostDto.CreateRequest> costs,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        return blockers.stream()
+                .anyMatch(
+                        blocker ->
+                                blocker.subject() == null
+                                        || costs.stream()
+                                                .noneMatch(
+                                                        cost ->
+                                                                targets(
+                                                                        cost,
+                                                                        blocker,
+                                                                        diagnostics)));
+    }
+
+    private static boolean targets(ProjectDto.CreateRequest project, String subject) {
+        if (sameSubject(project.getAbusNm(), subject)) return true;
+        return project.getItems() != null
+                && project.getItems().stream()
+                        .anyMatch(item -> sameSubject(item.getGclNm(), subject));
+    }
+
+    private static boolean targets(
+            CostDto.CreateRequest cost,
+            RequestFormDto.FormDiagnostic blocker,
+            List<RequestFormDto.FormDiagnostic> diagnostics) {
+        if (sameSubject(cost.getCttNm(), blocker.subject())) return true;
+        String normalizedCost = SheetAnchorScanner.normalize(cost.getCttNm());
+        return !normalizedCost.isEmpty()
+                && diagnostics.stream()
+                        .filter(
+                                diagnostic ->
+                                        diagnostic.code()
+                                                == RequestFormDiagnosticCode.TEXT_TRUNCATED)
+                        .filter(diagnostic -> "cttNm".equals(diagnostic.field()))
+                        .filter(diagnostic -> sameSubject(diagnostic.subject(), blocker.subject()))
+                        .anyMatch(
+                                diagnostic ->
+                                        SheetAnchorScanner.normalize(diagnostic.subject())
+                                                .startsWith(normalizedCost));
+    }
+
+    private static boolean sameSubject(String value, String subject) {
+        return SheetAnchorScanner.normalize(value).equals(SheetAnchorScanner.normalize(subject));
     }
 
     private static boolean hasBlockerFor(
@@ -261,7 +370,8 @@ public class RequestFormFileImporter {
             RequestFormDto.FileStatus status,
             List<RequestFormDto.FormDiagnostic> diagnostics,
             List<RequestFormDto.CreatedRecord> created,
-            FormAdapterOutput output) {
+            FormAdapterOutput output,
+            FormAdapterOutput applicable) {
         return new RequestFormDto.FileResult(
                 entry.fileKey(),
                 entry.deptName(),
@@ -269,7 +379,18 @@ public class RequestFormFileImporter {
                 diagnostics,
                 created,
                 countOf(output),
+                blockedCountOf(output, applicable),
                 output.suggestedGeneralExpenseUnit());
+    }
+
+    private RequestFormDto.RecordCounts blockedCountOf(
+            FormAdapterOutput output, FormAdapterOutput applicable) {
+        RequestFormDto.RecordCounts total = countOf(output);
+        RequestFormDto.RecordCounts remaining = countOf(applicable);
+        return new RequestFormDto.RecordCounts(
+                total.capitalProjects() - remaining.capitalProjects(),
+                total.recurringProjects() - remaining.recurringProjects(),
+                total.costs() - remaining.costs());
     }
 
     /**

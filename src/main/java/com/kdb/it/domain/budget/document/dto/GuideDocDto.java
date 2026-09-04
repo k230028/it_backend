@@ -151,6 +151,7 @@ public class GuideDocDto {
      * @param fstEnrUsid 최초생성자 사번
      * @param lstChgDtm 마지막수정시간
      * @param lstChgUsid 마지막수정자 사번
+     * @param lstChgUsNm 마지막수정자 이름
      */
     @Schema(name = "GuideDocListResponse", description = "가이드 문서 목록 조회 응답 (본문 제외)")
     public record ListResponse(
@@ -160,15 +161,18 @@ public class GuideDocDto {
             @Schema(description = "최초생성시간") LocalDateTime fstEnrDtm,
             @Schema(description = "최초생성자") String fstEnrUsid,
             @Schema(description = "마지막수정시간") LocalDateTime lstChgDtm,
-            @Schema(description = "마지막수정자") String lstChgUsid) {
+            @Schema(description = "마지막수정자 사번") String lstChgUsid,
+            @Schema(description = "마지막수정자 이름") String lstChgUsNm) {
 
         /**
          * {@link GuideDocRepository.GuideDocListView} 프로젝션을 ListResponse로 변환합니다.
          *
          * @param view 변환할 목록 프로젝션
+         * @param lstChgUsNm 마지막수정자 이름
          * @return 변환된 ListResponse
          */
-        public static ListResponse fromView(GuideDocRepository.GuideDocListView view) {
+        public static ListResponse fromView(
+                GuideDocRepository.GuideDocListView view, String lstChgUsNm) {
             return new ListResponse(
                     view.getDocMngNo(),
                     view.getDocTtlCone(),
@@ -176,7 +180,8 @@ public class GuideDocDto {
                     view.getFstEnrDtm(),
                     view.getFstEnrUsid(),
                     view.getLstChgDtm(),
-                    view.getLstChgUsid());
+                    view.getLstChgUsid(),
+                    lstChgUsNm);
         }
     }
 }

@@ -29,7 +29,7 @@ public interface BoardPostRepositoryCustom {
             boolean isAdmin,
             boolean includePrivatePosts);
 
-    /** Q&amp;A 작성자에게만 비공개 게시물을 포함해 목록을 조회합니다. */
+    /** 지정한 작성자의 비공개 게시물만 추가로 포함해 목록을 조회합니다. */
     Page<BoardPostDto.ListRow> searchPostRows(
             String blbMngNo,
             BoardPostDto.SearchCondition cond,

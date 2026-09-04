@@ -72,6 +72,7 @@ class FileReadAuthorizationIT {
     // 파일 종류(APG_FL_KD_NM) 상수
     // ─────────────────────────────────────────
     private static final String KIND_REQUIREMENT = "요구사항정의서";
+    private static final String KIND_DIAGRAM = "다이어그램";
     private static final String KIND_GUIDE = "가이드문서";
     private static final String KIND_PLAN = "사업계획서";
     private static final String KIND_FEASIBILITY = "타당성검토표";
@@ -191,6 +192,14 @@ class FileReadAuthorizationIT {
     void guideDoc_authenticatedAllowed_nullDenied() {
         Cfilem file = fileOfKind(KIND_GUIDE, NS + "GUIDE" + uid);
         assertThat(registry.canRead(file, user(NS + "U" + uid, NS + "D" + uid))).isTrue();
+        assertThat(registry.canRead(file, null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("다이어그램: 연결 화면과 부서에 관계없이 인증 사용자 허용, null 사용자 거부")
+    void diagram_authenticatedAllowedAcrossEveryParent_nullDenied() {
+        Cfilem file = fileOfKind(KIND_DIAGRAM, NS + "OTHER-DEPARTMENT-PARENT" + uid);
+        assertThat(registry.canRead(file, user(NS + "U" + uid, NS + "UNRELATED" + uid))).isTrue();
         assertThat(registry.canRead(file, null)).isFalse();
     }
 

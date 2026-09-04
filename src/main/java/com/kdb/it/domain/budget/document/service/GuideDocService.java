@@ -1,10 +1,15 @@
 package com.kdb.it.domain.budget.document.service;
 
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.document.dto.GuideDocDto;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +34,9 @@ public class GuideDocService {
     /** 가이드 문서 데이터 접근 리포지토리 (TPRMPP_BGDOCM) */
     private final GuideDocRepository guideDocRepository;
 
+    /** 마지막 수정자 이름 조회용 사용자 리포지토리 */
+    private final UserRepository userRepository;
+
     private final BgdocNumberAllocator bgdocNumberAllocator;
 
     /**
@@ -40,10 +48,33 @@ public class GuideDocService {
      * @return 가이드 문서 목록 응답 DTO 목록 (본문 제외)
      */
     public List<GuideDocDto.ListResponse> getDocumentList() {
-        return guideDocRepository
-                .findListViewsByDocMngNoStartingWithAndDelYn(GUIDE_DOCUMENT_PREFIX, "N")
-                .stream()
-                .map(GuideDocDto.ListResponse::fromView)
+        List<GuideDocRepository.GuideDocListView> views =
+                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn(
+                        GUIDE_DOCUMENT_PREFIX, "N");
+
+        Set<String> modifierEnos =
+                views.stream()
+                        .map(GuideDocRepository.GuideDocListView::getLstChgUsid)
+                        .filter(eno -> eno != null && !eno.isBlank())
+                        .collect(Collectors.toSet());
+
+        Map<String, String> modifierNameByEno = new HashMap<>();
+        if (!modifierEnos.isEmpty()) {
+            userRepository
+                    .findNameViewsByEnoIn(modifierEnos)
+                    .forEach(
+                            user -> {
+                                if (user.getEno() != null) {
+                                    modifierNameByEno.putIfAbsent(user.getEno(), user.getUsrNm());
+                                }
+                            });
+        }
+
+        return views.stream()
+                .map(
+                        view ->
+                                GuideDocDto.ListResponse.fromView(
+                                        view, modifierNameByEno.get(view.getLstChgUsid())))
                 .toList();
     }
 

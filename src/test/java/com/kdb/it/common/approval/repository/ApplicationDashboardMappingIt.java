@@ -3,8 +3,13 @@ package com.kdb.it.common.approval.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.approval.dto.PendingApprovalRow;
+import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import jakarta.persistence.EntityManager;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
 
     @Autowired ApplicationRepository applicationRepository;
+    @Autowired EntityManager entityManager;
 
     @Test
     @DisplayName("findMonthlyTrendByBbrC: Object[] 경로와 LabeledCountRow 경로가 컬럼별로 동일하다")
@@ -48,5 +54,61 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
             assertThat(d.usrNm()).isEqualTo(r[2] == null ? null : r[2].toString());
             assertThat(d.rqsDt()).isEqualTo(r[3] == null ? null : r[3].toString());
         }
+    }
+
+    @Test
+    @DisplayName("findHomeInboxRowsByEno: Oracle 조회값과 현재 결재 차례를 projection으로 봉인한다")
+    void homeInbox_nativeQuery_executes() {
+        String apfMngNo = "APF-HOME-INBOX-IT";
+        String eno = "EHOMEIT001";
+        LocalDate requestedAt = LocalDate.of(2026, 9, 4);
+        LocalDateTime auditAt = LocalDateTime.of(2026, 9, 4, 9, 0);
+        entityManager.persist(
+                Capplm.builder()
+                        .apfMngNo(apfMngNo)
+                        .itPtlApfPrgStsC("1")
+                        .dcdReqTtl("Home projection 검증")
+                        .dcdReqUsid(eno)
+                        .dcdReqDtm(requestedAt)
+                        .fstEnrDtm(auditAt)
+                        .fstEnrUsid("HOME-IT")
+                        .lstChgDtm(auditAt)
+                        .lstChgUsid("HOME-IT")
+                        .delYn("N")
+                        .build());
+        entityManager.persist(decision(apfMngNo, 1, "EBEFORE001", auditAt));
+        entityManager.persist(decision(apfMngNo, 2, eno, auditAt));
+        entityManager.flush();
+        entityManager.clear();
+
+        List<ApplicationRepository.HomeInboxRow> rows =
+                applicationRepository.findHomeInboxRowsByEno(eno);
+
+        assertThat(rows).hasSize(1);
+        ApplicationRepository.HomeInboxRow row = rows.getFirst();
+        assertThat(row.getApfMngNo()).isEqualTo(apfMngNo);
+        assertThat(row.getTitle()).isEqualTo("Home projection 검증");
+        assertThat(row.getRequestedAt().toLocalDate()).isEqualTo(requestedAt);
+        assertThat(row.getStatusCode()).isEqualTo("1");
+        assertThat(row.getApprovalPending()).isEqualTo(1);
+        assertThat(row.getApprovalCompleted()).isZero();
+        assertThat(row.getDraftCategory()).isEqualTo("IN_PROGRESS");
+        assertThat(row.getActionable()).isZero();
+    }
+
+    private Cdecim decision(String apfMngNo, int sequence, String eno, LocalDateTime auditAt) {
+        return Cdecim.builder()
+                .dcdMngNo(apfMngNo)
+                .dcrSqnSno(sequence)
+                .dcrEno(eno)
+                .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
+                .itPtlDcdStsC("1")
+                .lstDcdYn(sequence == 2 ? "Y" : "N")
+                .fstEnrDtm(auditAt)
+                .fstEnrUsid("HOME-IT")
+                .lstChgDtm(auditAt)
+                .lstChgUsid("HOME-IT")
+                .delYn("N")
+                .build();
     }
 }

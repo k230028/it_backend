@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -74,7 +75,7 @@ public class BoardPostService {
         var rows =
                 qnaBoard
                         ? postRepository.searchPostRows(
-                                blbMngNo, effectiveCond, user.isAdmin(), true, user.getEno())
+                                blbMngNo, effectiveCond, user.isAdmin(), true)
                         : postRepository.searchPostRows(blbMngNo, effectiveCond, user.isAdmin());
         return rows.map(BoardPostDto.ListItem::from);
     }
@@ -87,7 +88,8 @@ public class BoardPostService {
      * @param user 인증 사용자
      * @return 게시물 상세 DTO
      * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
-     * @throws CustomGeneralException 비공개 또는 공개기간 외 게시물에 대한 접근 권한이 없는 경우
+     * @throws AccessDeniedException 다른 부서의 비공개 Q&amp;A 게시물인 경우
+     * @throws CustomGeneralException 그 밖의 비공개 또는 공개기간 외 게시물인 경우
      */
     public BoardPostDto.Detail getPostDetail(
             String blbMngNo, String nacMngNo, CustomUserDetails user) {
@@ -110,7 +112,8 @@ public class BoardPostService {
      * @param nacMngNo 게시물관리번호
      * @param user 인증 사용자
      * @throws NotFoundException 게시판·게시물이 존재하지 않거나 게시물이 해당 게시판 소속이 아닌 경우
-     * @throws CustomGeneralException 비공개 또는 공개기간 외 게시물에 대한 접근 권한이 없는 경우
+     * @throws AccessDeniedException 다른 부서의 비공개 Q&amp;A 게시물인 경우
+     * @throws CustomGeneralException 그 밖의 비공개 또는 공개기간 외 게시물인 경우
      */
     @Transactional
     public void incrementPostView(String blbMngNo, String nacMngNo, CustomUserDetails user) {
@@ -369,7 +372,8 @@ public class BoardPostService {
      * @param user 인증 사용자
      * @param post 게시물 엔티티
      * @param board 게시판 엔티티
-     * @throws CustomGeneralException 게시물 접근 권한 없음
+     * @throws AccessDeniedException 다른 부서의 비공개 Q&amp;A 게시물인 경우
+     * @throws CustomGeneralException 그 밖의 게시물 접근 권한이 없는 경우
      */
     public void verifyCanReadPost(CustomUserDetails user, Cblbcm post, Cblbmm board) {
         if (user.isAdmin()) return;
@@ -377,7 +381,7 @@ public class BoardPostService {
         if (BoardTypeResolver.QNA_BOARD_TYPE.equals(board.getItPtlBlbTc())
                 && "N".equals(post.getXpoYn())) {
             if (post.getBbrC() != null && post.getBbrC().equals(user.getBbrC())) return;
-            throw new CustomGeneralException("비공개 문의는 작성부서와 관리자만 조회할 수 있습니다.");
+            throw new AccessDeniedException("비공개 문의는 작성부서와 관리자만 조회할 수 있습니다.");
         }
 
         LocalDate today = LocalDate.now();

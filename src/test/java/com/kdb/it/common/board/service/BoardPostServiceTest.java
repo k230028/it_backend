@@ -158,8 +158,8 @@ class BoardPostServiceTest {
     }
 
     @Test
-    @DisplayName("Q&A 목록은 본인이 작성한 비공개 문의만 반환한다")
-    void searchPosts_qnaIncludesOwnPrivatePosts() {
+    @DisplayName("Q&A 목록은 모든 비공개 문의를 포함한다")
+    void searchPosts_qnaIncludesAllPrivatePosts() {
         Cblbmm qnaBoard =
                 Cblbmm.builder()
                         .blbMngNo("BLBM-QNA")
@@ -171,14 +171,13 @@ class BoardPostServiceTest {
         BoardPostDto.SearchCondition condition = new BoardPostDto.SearchCondition();
         given(metaRepository.findByBlbMngNoAndDelYn("BLBM-QNA", "N"))
                 .willReturn(Optional.of(qnaBoard));
-        given(
-                        postRepository.searchPostRows(
-                                "BLBM-QNA", condition, false, true, normalUser.getEno()))
+        given(postRepository.searchPostRows("BLBM-QNA", condition, false, true))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         service.searchPosts("BLBM-QNA", condition, normalUser);
 
-        verify(postRepository)
+        verify(postRepository).searchPostRows("BLBM-QNA", condition, false, true);
+        verify(postRepository, never())
                 .searchPostRows("BLBM-QNA", condition, false, true, normalUser.getEno());
     }
 
@@ -966,7 +965,7 @@ class BoardPostServiceTest {
                                                 "USER002", List.of("ITPZZ001"), "10003"),
                                         privatePost,
                                         qnaBoard))
-                .isInstanceOf(CustomGeneralException.class);
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test

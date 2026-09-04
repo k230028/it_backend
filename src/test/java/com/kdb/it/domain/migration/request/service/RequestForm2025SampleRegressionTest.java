@@ -88,6 +88,39 @@ class RequestForm2025SampleRegressionTest {
     }
 
     @Test
+    @DisplayName("IT기획부 일반관리비는 BLOCKER 대상 두 건만 차단한다")
+    void blocksOnlyAffectedItPlanningCosts() throws IOException {
+        List<FormAdapterOutput> outputs =
+                List.of(
+                        adapt("2025년 전산예산 편성 요청서(품질관리팀).xls", "180"),
+                        adapt("(붙임)_2025년 전산예산 편성 요청서(품질관리팀).xls", "180"));
+
+        List<RequestFormDto.FileResult> results =
+                outputs.stream().map(output -> preview(output, "180")).toList();
+
+        assertThat(results.stream().flatMap(result -> result.diagnostics().stream()))
+                .filteredOn(diagnostic -> diagnostic.severity() == MigrationDto.Severity.BLOCKER)
+                .hasSize(2);
+        assertThat(results.stream().map(RequestFormDto.FileResult::blockedCounts))
+                .extracting(RequestFormDto.RecordCounts::costs)
+                .containsExactly(1, 1);
+    }
+
+    @Test
+    @DisplayName("윤리준법부 정보화사업은 BLOCKER 대상 한 건만 차단한다")
+    void blocksOnlyAffectedComplianceProject() throws IOException {
+        FormAdapterOutput output = adapt("붙임 1. 2025년 전산예산 편성 요청서(윤리준법부).xls", "122");
+
+        RequestFormDto.FileResult result = preview(output, "122");
+
+        assertThat(result.diagnostics())
+                .filteredOn(diagnostic -> diagnostic.severity() == MigrationDto.Severity.BLOCKER)
+                .hasSize(1);
+        assertThat(result.counts().capitalProjects()).isEqualTo(3);
+        assertThat(result.blockedCounts()).isEqualTo(new RequestFormDto.RecordCounts(1, 0, 0));
+    }
+
+    @Test
     @DisplayName("계약명이 비면 비목명을 계약명으로 사용한다")
     void defaultsMissingContractNameFromExpenseName() throws IOException {
         FormAdapterOutput output = adapt("2025년 전산예산 편성 요청서(하노이지점).xls", "952");
@@ -181,18 +214,28 @@ class RequestForm2025SampleRegressionTest {
     }
 
     private List<RequestFormDto.FormDiagnostic> validatedDiagnostics(FormAdapterOutput output) {
+        List<RequestFormDto.FormDiagnostic> diagnostics =
+                new java.util.ArrayList<>(output.diagnostics());
+        diagnostics.addAll(validator().validate(output, "2025"));
+        return List.copyOf(diagnostics);
+    }
+
+    private RequestFormDto.FileResult preview(FormAdapterOutput output, String departmentCode) {
+        RequestFormFileImporter importer =
+                new RequestFormFileImporter(null, null, null, validator());
+        RequestFormDto.FileEntry entry =
+                new RequestFormDto.FileEntry("sample.xls", "sample", departmentCode, null, "571");
+        return importer.preview(output, entry, "2025");
+    }
+
+    private RequestFormValidator validator() {
         CostRepository costRepository = mock(CostRepository.class);
         ProjectRepository projectRepository = mock(ProjectRepository.class);
         when(costRepository.findByBseYyAndLstYnAndDelYn(anyString(), anyString(), anyString()))
                 .thenReturn(List.of());
         when(projectRepository.findByBseYyAndLstYnAndDelYn(anyString(), anyString(), anyString()))
                 .thenReturn(List.of());
-        List<RequestFormDto.FormDiagnostic> diagnostics =
-                new java.util.ArrayList<>(output.diagnostics());
-        diagnostics.addAll(
-                new RequestFormValidator(costRepository, projectRepository)
-                        .validate(output, "2025"));
-        return List.copyOf(diagnostics);
+        return new RequestFormValidator(costRepository, projectRepository);
     }
 
     private FormAdapterOutput adapt(String filename, String departmentCode) throws IOException {
@@ -263,7 +306,7 @@ class RequestForm2025SampleRegressionTest {
         when(reader.candidates(anyString(), any(Boolean.class))).thenReturn(List.of());
         when(reader.edrtCapitalCandidates()).thenReturn(List.of());
         when(reader.exePttCodeByName()).thenReturn(Map.of());
-        when(reader.edrtCapitalCodeByName()).thenReturn(Map.of());
+        when(reader.edrtCapitalCodeByName()).thenReturn(Map.of("부점장", "DPT", "전무이사", "SEVP"));
         when(reader.reportStatusCodeByName()).thenReturn(Map.of());
         return reader;
     }

@@ -111,6 +111,40 @@ class ApplicationControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/applications/home-inbox - 인증 주체의 결재함·기안함만 조회한다")
+    @WithMockUser(username = "10001")
+    void getHomeInbox_인증주체_200() throws Exception {
+        given(applicationService.getHomeInbox("10001"))
+                .willReturn(
+                        new ApplicationDto.HomeInboxResponse(
+                                List.of(
+                                        new ApplicationDto.HomeInboxItem(
+                                                "APF-001",
+                                                "결재 대기 문서",
+                                                "김기안",
+                                                java.time.LocalDate.of(2026, 9, 1),
+                                                "1",
+                                                "결재중",
+                                                true)),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of()));
+
+        mockMvc.perform(get("/api/applications/home-inbox"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvalPending[0].apfMngNo").value("APF-001"))
+                .andExpect(jsonPath("$.approvalPending[0].actionable").value(true));
+        verify(applicationService).getHomeInbox("10001");
+    }
+
+    @Test
+    @DisplayName("GET /api/applications/home-inbox - 비인증 사용자는 조회할 수 없다")
+    void getHomeInbox_비인증_401() throws Exception {
+        mockMvc.perform(get("/api/applications/home-inbox")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("GET /api/applications/pending-count - 인증 주체와 결재상태를 서비스에 전달한다")
     void getPendingCount_인증_200() throws Exception {
         given(applicationService.getPendingCount("2027", "1", USER))

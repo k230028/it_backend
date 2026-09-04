@@ -5,6 +5,7 @@ import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.util.LabeledCountRow;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -127,6 +128,92 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         """,
             nativeQuery = true)
     List<String> findPendingApfMngNosByEno(@Param("eno") String eno);
+
+    /** 전자결재 Home의 결재함·기안함을 한 번에 구성하는 최소 조회 필드입니다. */
+    interface HomeInboxRow {
+        String getApfMngNo();
+
+        String getTitle();
+
+        String getRequesterName();
+
+        LocalDateTime getRequestedAt();
+
+        String getStatusCode();
+
+        int getApprovalPending();
+
+        int getApprovalCompleted();
+
+        String getDraftCategory();
+
+        int getActionable();
+    }
+
+    /**
+     * 인증 사용자의 결재함·기안함 전체 목록을 최신순으로 조회합니다.
+     *
+     * <p>결재 대기에는 아직 본인 차례가 오지 않은 문서도 포함하되, 현재 최소 미결 순번인 경우에만 {@code actionable=1}로 표시합니다. 기안함은 본인이
+     * 기안한 결재중·완료·반려 문서만 포함합니다.
+     */
+    @Query(
+            value =
+                    """
+        SELECT a.APF_DCM_NO AS "apfMngNo",
+               a.DCD_REQ_TTL AS "title",
+               u.USR_NM AS "requesterName",
+               a.DCD_REQ_DTM AS "requestedAt",
+               a.IT_PTL_APF_PRG_STS_C AS "statusCode",
+               CASE WHEN a.IT_PTL_APF_PRG_STS_C = '1'
+                          AND EXISTS (
+                            SELECT 1 FROM TPRMPP_CDECIM d
+                            WHERE d.APF_DCM_NO = a.APF_DCM_NO
+                              AND d.DCR_ENO = :eno
+                              AND d.IT_PTL_DCD_STS_C = '1'
+                          ) THEN 1 ELSE 0 END AS "approvalPending",
+               CASE WHEN a.IT_PTL_APF_PRG_STS_C = '2'
+                          AND EXISTS (
+                            SELECT 1 FROM TPRMPP_CDECIM d
+                            WHERE d.APF_DCM_NO = a.APF_DCM_NO
+                              AND d.DCR_ENO = :eno
+                              AND d.IT_PTL_DCD_STS_C = '2'
+                          ) THEN 1 ELSE 0 END AS "approvalCompleted",
+               CASE WHEN a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C = '1' THEN 'IN_PROGRESS'
+                    WHEN a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C = '2' THEN 'COMPLETED'
+                    WHEN a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C = '3' THEN 'REJECTED'
+                    ELSE NULL END AS "draftCategory",
+               CASE WHEN a.IT_PTL_APF_PRG_STS_C = '1'
+                          AND EXISTS (
+                            SELECT 1 FROM TPRMPP_CDECIM d
+                            WHERE d.APF_DCM_NO = a.APF_DCM_NO
+                              AND d.DCR_ENO = :eno
+                              AND d.IT_PTL_DCD_STS_C = '1'
+                              AND d.DCR_SQN_SNO = (
+                                SELECT MIN(d2.DCR_SQN_SNO)
+                                FROM TPRMPP_CDECIM d2
+                                WHERE d2.APF_DCM_NO = a.APF_DCM_NO
+                                  AND d2.IT_PTL_DCD_STS_C = '1'
+                              )
+                          ) THEN 1 ELSE 0 END AS "actionable"
+        FROM TPRMPP_CAPPLM a
+        LEFT JOIN TPRMPP_CUSERI u ON u.ENO = a.DCD_REQ_USID
+        WHERE (a.IT_PTL_APF_PRG_STS_C = '1' AND EXISTS (
+                 SELECT 1 FROM TPRMPP_CDECIM d
+                 WHERE d.APF_DCM_NO = a.APF_DCM_NO
+                   AND d.DCR_ENO = :eno
+                   AND d.IT_PTL_DCD_STS_C = '1'
+               ))
+           OR (a.IT_PTL_APF_PRG_STS_C = '2' AND EXISTS (
+                 SELECT 1 FROM TPRMPP_CDECIM d
+                 WHERE d.APF_DCM_NO = a.APF_DCM_NO
+                   AND d.DCR_ENO = :eno
+                   AND d.IT_PTL_DCD_STS_C = '2'
+               ))
+           OR (a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C IN ('1', '2', '3'))
+        ORDER BY a.DCD_REQ_DTM DESC, a.APF_DCM_NO DESC
+        """,
+            nativeQuery = true)
+    List<HomeInboxRow> findHomeInboxRowsByEno(@Param("eno") String eno);
 
     /** 여러 신청서를 응답 조립용 read view로 조회합니다. */
     List<ApplicationReadView> findReadViewsByApfMngNoIn(Collection<String> apfMngNos);
