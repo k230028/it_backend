@@ -181,7 +181,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 
 | 환경변수                | 용도                                                                 |
 | ----------------------- | -------------------------------------------------------------------- |
-| `DB_URL`                | Oracle JDBC URL. 공통 로컬 기본값은 `127.0.0.1:11521/XEPDB1`        |
+| `DB_URL`                | Oracle JDBC URL. 공통 로컬 기본값은 `127.0.0.1:11521/XEPDB1`. RAC 2노드 운영에서는 인스턴스마다 다르게 주입합니다 — [인스턴스별 환경변수](#인스턴스별-환경변수-rac-2노드) 참조 |
 | `DB_USERNAME`           | DB 접속 계정. 기본값은 `ITPAPP`                                     |
 | `DB_PASSWORD`           | 애플리케이션 DB 비밀번호                                             |
 | `DB_SCHEMA`             | 객체 소유 스키마. 기본값은 `ITPOWN`                                 |
@@ -208,6 +208,64 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `JAVA_HOME`             | JDK25 설치 경로(C:\Program Files\Java\jdk-25.0.2)                 |
 
 운영에서는 개발·로컬 프로파일의 기본값을 사용하지 않습니다. `EnvironmentValidator`는 모든 프로파일에서 DB 비밀번호와 JWT 시크릿의 빈값을 차단하고, `prod`에서는 Gemini 키, 활성 EAI URL, 프론트 URL, 명시적 CORS Origin과 운영 보안 토글을 추가로 검증합니다.
+
+### 인스턴스별 환경변수 (RAC 2노드)
+
+WAS를 2대로 운영할 때 **인스턴스마다 값이 달라야 하는** 환경변수는 두 개뿐입니다. 나머지는 두 대에 똑같이 주입합니다.
+
+| 환경변수 | SVR1 | SVR2 | 다르게 주는 이유 |
+| --- | --- | --- | --- |
+| `SERVER_INSTANCE_ID` | `SVR1` | `SVR2` | 첨부파일명 충돌 방지와 WAS 로그 인스턴스 식별. 두 대가 같으면 피어 조회가 언제나 자기 링버퍼만 읽습니다 |
+| `DB_URL` | 1번 RAC 노드 우선 | 2번 RAC 노드 우선 | 두 노드에 접속을 나눠 붙입니다. 값 형태는 아래 표 참조 |
+
+`WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2`는 이름과 달리 **두 대에 같은 값**을 넣습니다. 각 서버가 동일한 인스턴스 목록을 갖고, 자기 자신이 아닌 대상만 내부 HTTP로 위임하기 때문입니다.
+
+`DB_URL`은 아래 세 형태 중 하나를 씁니다. 선택 기준과 주의사항은 [`application-prod.properties`](src/main/resources/application-prod.properties)의 `spring.datasource.url` 주석이 SoT입니다.
+
+| 형태 | SVR1 | SVR2 |
+| --- | --- | --- |
+| (A) 노드 선호 서비스 — 권장 | `jdbc:oracle:thin:@//scan-host:11521/pprmdb_a` | `jdbc:oracle:thin:@//scan-host:11521/pprmdb_b` |
+| (B) 앱에서 노드 고정 | `ADDRESS_LIST`에 `rac1-vip`를 먼저 | `rac2-vip`를 먼저 |
+| (C) 노드 고정 없음 | `jdbc:oracle:thin:@//scan-host:11521/PPRMDB` | 같은 값 |
+
+(A)는 DBA가 `pprmdb_a`(preferred 1번 노드 / available 2번 노드)와 `pprmdb_b`(반대)를 등록해 주면 앱은 서비스명만 바꾸면 되고, 장애 노드가 복구될 때 서비스가 원래 노드로 relocate 되므로 앱 재기동 없이 배분이 되돌아옵니다.
+
+(B)의 전체 URL은 한 줄로 씁니다. `LOAD_BALANCE=OFF`가 노드 고정을, `FAILOVER=ON`이 자동 전환을 담당하므로 둘 다 명시해야 하고, `HOST`에는 물리 IP가 아니라 VIP를 넣어야 노드 다운을 TCP 타임아웃 없이 즉시 감지합니다. SVR2는 두 `ADDRESS`의 순서만 뒤집습니다.
+
+```
+jdbc:oracle:thin:@(DESCRIPTION=(CONNECT_TIMEOUT=5)(RETRY_COUNT=3)(RETRY_DELAY=1)(ADDRESS_LIST=(LOAD_BALANCE=OFF)(FAILOVER=ON)(ADDRESS=(PROTOCOL=TCP)(HOST=rac1-vip)(PORT=11521))(ADDRESS=(PROTOCOL=TCP)(HOST=rac2-vip)(PORT=11521)))(CONNECT_DATA=(SERVICE_NAME=PPRMDB)))
+```
+
+AP 2대 · RAC 2노드의 최종 주입 예시입니다. 위쪽 두 블록만 서버마다 다르고, 아래 공통 블록은 **한 글자라도 다르면 안 됩니다**.
+
+```
+# ── AP1 전용 ───────────────────────────────
+SERVER_INSTANCE_ID=SVR1
+DB_URL=jdbc:oracle:thin:@//scan-host:11521/pprmdb_a
+
+# ── AP2 전용 ───────────────────────────────
+SERVER_INSTANCE_ID=SVR2
+DB_URL=jdbc:oracle:thin:@//scan-host:11521/pprmdb_b
+
+# ── 두 대 공통 ─────────────────────────────
+DB_USERNAME=ITPAPP
+DB_SCHEMA=ITPOWN
+DB_PASSWORD=...
+JWT_SECRET=...                      # 두 대가 다르면 AP1이 발급한 토큰을 AP2가 거부합니다
+TOKEN_FINGERPRINT_SECRET=...        # 위와 같은 이유로 반드시 동일
+FILE_BASE_PATH=/dat/springitp       # 두 대가 같은 공유 스토리지를 봐야 합니다
+WAS_LOG_INTERNAL_SECRET=...
+WAS_LOG_PEER_SVR1=https://ap1-host:28080
+WAS_LOG_PEER_SVR2=https://ap2-host:28080
+```
+
+알아 둘 점:
+
+- **데이터는 한 벌입니다.** RAC 두 노드는 같은 DB를 보므로 어느 노드에 붙든 MFA·로그인대기 공유 테이블(`app.mfa.store=jpa`)과 감사 로그가 그대로 동작합니다. 노드를 나눠 붙이는 것은 다중 인스턴스 정합성과 무관합니다.
+- **한 노드가 죽으면 AP 2대가 모두 살아남은 노드로 몰립니다.** 정상 시 노드당 커넥션은 AP 1대분이지만 장애 시에는 2대분이 됩니다. Hikari `maximum-pool-size`는 현재 지정하지 않아 기본값 10이므로 최대 20 세션이 한 노드에 몰리며, 노드의 `sessions`·`processes` 여유가 이 값을 감당해야 합니다. 풀 크기를 올릴 때는 정상치가 아니라 이 장애 시 합계로 계산합니다.
+- **Hikari는 FAN(ONS)을 구독하지 않습니다.** 노드 장애를 통보로 알지 못하므로 죽은 커넥션은 획득·검증 시점에야 걸러지고, 복구된 노드로의 원복도 `spring.datasource.hikari.max-lifetime`(기본 30분)에 맞춰 커넥션이 재생성되면서 서서히 일어납니다. 전환을 빠르게 하려면 이 값을 줄입니다.
+- **쓰기를 두 노드에 흩뿌리지 않습니다.** 같은 테이블을 두 노드에서 동시에 갱신하면 cache fusion(`gc buffer busy`)으로 오히려 느려집니다. 인스턴스 단위 고정은 안전하지만, 요청·트랜잭션마다 노드를 바꾸는 `AbstractRoutingDataSource` 라운드로빈은 이 프로젝트에 넣지 않습니다.
+- **이름 세 가지를 혼동하지 않습니다.** 접속 계정은 `ITPAPP`, 객체 소유 스키마는 `ITPOWN`, DB 서비스명은 `PPRMDB`입니다. URL 끝(또는 `SERVICE_NAME`)에 오는 것은 **서비스명**이고, 스키마는 `DB_SCHEMA`가 커넥션 초기화 SQL(`CURRENT_SCHEMA`)로 전환합니다.
 
 ### 내부망 MFA (지정맥·FIDO·mOTP)
 
