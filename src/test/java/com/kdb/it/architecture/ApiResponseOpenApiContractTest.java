@@ -34,6 +34,32 @@ class ApiResponseOpenApiContractTest {
 
     @Test
     void itBudgetApprovalSchemasExposeRequiredFieldsAndStableEnums() {
+        Class<?> requester =
+                java.util.Arrays.stream(
+                                ItBudgetApprovalDto.SnapshotApprovalLine.class
+                                        .getRecordComponents())
+                        .filter(c -> c.getName().equals("requester"))
+                        .findFirst()
+                        .orElseThrow()
+                        .getType();
+        assertContract(requester, fields("eno", "name", "rank"), fields("rank"));
+        assertContract(
+                ItBudgetApprovalDto.Person.class,
+                fields("eno", "name", "rank"),
+                fields("eno", "name", "rank"));
+        assertContract(
+                ItBudgetApprovalDto.ApprovalPerson.class,
+                fields("eno", "name", "rank", "date"),
+                Set.of());
+        assertStringProperties(ItBudgetApprovalDto.Project.class, "currentRequestAmount");
+        var projectSchema = resolve(ItBudgetApprovalDto.Project.class);
+        assertThat(projectSchema.getRequired()).contains("currentRequestAmount");
+        assertThat(
+                        Boolean.TRUE.equals(
+                                property(projectSchema, "currentRequestAmount").getNullable()))
+                .isFalse();
+        assertPatternProperties(
+                ItBudgetApprovalDto.Project.class, "^-?\\d+\\.\\d{3}$", "currentRequestAmount");
         assertContract(
                 ItBudgetApprovalDto.PreviewRequest.class,
                 fields("approvers", "documents"),

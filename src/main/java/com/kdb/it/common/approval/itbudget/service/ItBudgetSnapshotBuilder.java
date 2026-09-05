@@ -103,11 +103,14 @@ public class ItBudgetSnapshotBuilder {
                 }
                 BigDecimal asset = BigDecimal.ZERO;
                 BigDecimal expense = BigDecimal.ZERO;
+                BigDecimal currentRequests = BigDecimal.ZERO;
                 for (var p : projectRows) {
+                    currentRequests = currentRequests.add(p.currentRequestAmount());
                     asset = asset.add(p.assetBudget());
                     expense = expense.add(p.costBudget());
                 }
                 for (var c : costRows) {
+                    currentRequests = currentRequests.add(orZero(c.totalAmount()));
                     asset = asset.add(c.assetBudget());
                     expense = expense.add(c.costBudget());
                 }
@@ -116,7 +119,7 @@ public class ItBudgetSnapshotBuilder {
                                 projectRows,
                                 costRows,
                                 new Summary(
-                                        canonical.money(asset.add(expense)),
+                                        canonical.money(currentRequests),
                                         canonical.money(asset),
                                         canonical.money(expense)));
                 result.add(
@@ -213,6 +216,12 @@ public class ItBudgetSnapshotBuilder {
                         p.getTotRqmAmt() != null
                                 ? p.getTotRqmAmt()
                                 : calculated.totalRequiredAmt());
+        BigDecimal currentRequestAmount =
+                canonical.money(
+                        p.getTotRqmAmt() == null
+                                ? calculated.currentRequestAmt()
+                                : amountCalculator.restoreCurrentRequestAmount(
+                                        p.getTotRqmAmt(), p.getMplAmt(), p.getDfrAmt()));
         BigDecimal asset = BigDecimal.ZERO;
         BigDecimal expense = BigDecimal.ZERO;
         for (var i : active) {
@@ -244,6 +253,7 @@ public class ItBudgetSnapshotBuilder {
                 p.getAbusNm(),
                 p.getBseYy(),
                 total,
+                currentRequestAmount,
                 label(display, CommonCodeGroups.EDRT, p.getEdrtTc()),
                 label(display, CommonCodeGroups.REPORT_STS, p.getRprStsTc()),
                 p.getSttDtm(),

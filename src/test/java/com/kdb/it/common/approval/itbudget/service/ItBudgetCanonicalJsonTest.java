@@ -107,7 +107,9 @@ class ItBudgetCanonicalJsonTest {
         assertThat(recordComponentType(ItBudgetSnapshot.class, "integrity"))
                 .isEqualTo(ItBudgetSnapshot.Integrity.class);
         assertThat(recordComponentType(ItBudgetSnapshot.ApprovalLine.class, "requester"))
-                .isEqualTo(ItBudgetSnapshot.Person.class);
+                .isEqualTo(ItBudgetSnapshot.Requester.class);
+        assertThat(recordComponentType(ItBudgetSnapshot.Project.class, "currentRequestAmount"))
+                .isEqualTo(BigDecimal.class);
         assertThat(recordComponentType(ItBudgetSnapshot.ProjectItem.class, "quantity"))
                 .isEqualTo(BigDecimal.class);
         assertThat(recordComponentType(ItBudgetSnapshot.ProjectItem.class, "amount"))
@@ -214,7 +216,7 @@ class ItBudgetCanonicalJsonTest {
         return new ItBudgetSnapshot.Project(
                 "P-1", 1, null, null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, items);
+                null, null, null, null, null, null, null, items);
     }
 
     private static ItBudgetSnapshot.Cost cost(List<ItBudgetSnapshot.Terminal> terminals) {

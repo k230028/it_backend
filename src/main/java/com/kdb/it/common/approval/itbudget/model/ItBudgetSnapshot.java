@@ -21,9 +21,12 @@ public record ItBudgetSnapshot(
 
     public record Person(String eno, String name, String rank) {}
 
+    /** 결재 신청자는 선택 담당자와 구분하며 HTTP 경계에서 사번·성명을 필수 검증한다. */
+    public record Requester(String eno, String name, String rank) {}
+
     public record ApprovalPerson(String eno, String name, String rank, LocalDate date) {}
 
-    public record ApprovalLine(Person requester, List<ApprovalPerson> approvers) {
+    public record ApprovalLine(Requester requester, List<ApprovalPerson> approvers) {
         public ApprovalLine {
             approvers = List.copyOf(approvers);
         }
@@ -52,6 +55,7 @@ public record ItBudgetSnapshot(
             String name,
             String baseYear,
             BigDecimal projectBudget,
+            BigDecimal currentRequestAmount,
             CodeLabel editType,
             CodeLabel progressStatus,
             LocalDate startDate,

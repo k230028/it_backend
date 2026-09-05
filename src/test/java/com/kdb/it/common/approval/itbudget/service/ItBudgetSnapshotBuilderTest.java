@@ -326,4 +326,144 @@ class ItBudgetSnapshotBuilderTest {
                         List.of(ItBudgetSourceLoader.aggregate(r, p, children)))
                 .getFirst();
     }
+
+    @Test
+    void unclassifiedRequestsRemainInTotalWithoutPlannedOrPaidAmounts() {
+        var p =
+                Bprojm.builder()
+                        .abusMngNo("P1")
+                        .sno(1)
+                        .usid("U1")
+                        .dfrAmt(new BigDecimal("5.000"))
+                        .delYn("N")
+                        .build();
+        var i =
+                Bitemm.builder()
+                        .gclMngNo("I1")
+                        .sno(1)
+                        .abusMngNo("P1")
+                        .fntTbCrySno(1)
+                        .amt(new BigDecimal("10.125"))
+                        .mplAmt(new BigDecimal("100.000"))
+                        .curC("KRW")
+                        .ioeC("UNKNOWN")
+                        .delYn("N")
+                        .build();
+        var built = build(p, List.of(i));
+        assertThat(built.payload().summary().total()).isEqualTo(new BigDecimal("10.125"));
+        assertThat(built.payload().summary().asset()).isEqualTo(new BigDecimal("0.000"));
+        assertThat(built.payload().summary().cost()).isEqualTo(new BigDecimal("0.000"));
+        assertThat(built.payload().projects().getFirst().projectBudget())
+                .isEqualTo(new BigDecimal("115.125"));
+        var mapper = new ObjectMapper().findAndRegisterModules();
+        var wire =
+                mapper.valueToTree(
+                        mapper.convertValue(
+                                built.payload(),
+                                com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Payload
+                                        .class));
+        assertThat(wire.at("/projects/0/currentRequestAmount").asText()).isEqualTo("10.125");
+    }
+
+    @Test
+    void storedSnapshotRestoresCurrentRequestWithNullAndNegativeBoundaries() {
+        var item =
+                Bitemm.builder()
+                        .gclMngNo("I1")
+                        .sno(1)
+                        .abusMngNo("P1")
+                        .fntTbCrySno(1)
+                        .amt(new BigDecimal("3.000"))
+                        .ioeC("A")
+                        .delYn("N")
+                        .build();
+        var cases =
+                List.of(
+                        new String[] {"100.000", "20.000", "10.000", "70.000"},
+                        new String[] {"100.000", null, null, "100.000"},
+                        new String[] {"100.000", null, "10.000", "90.000"},
+                        new String[] {"100.000", "20.000", null, "80.000"},
+                        new String[] {"5.000", "10.000", "1.000", "-6.000"});
+        for (var values : cases) {
+            var p =
+                    Bprojm.builder()
+                            .abusMngNo("P1")
+                            .sno(1)
+                            .usid("U1")
+                            .totRqmAmt(decimal(values[0]))
+                            .mplAmt(decimal(values[1]))
+                            .dfrAmt(decimal(values[2]))
+                            .delYn("N")
+                            .build();
+            var built = build(p, List.of(item));
+            assertThat(built.payload().summary().total())
+                    .as(java.util.Arrays.toString(values))
+                    .isEqualTo(decimal(values[3]));
+            assertThat(built.payload().summary().asset()).isEqualTo(new BigDecimal("3.000"));
+            assertThat(
+                            new ObjectMapper()
+                                    .valueToTree(built.payload())
+                                    .at("/projects/0/currentRequestAmount")
+                                    .decimalValue())
+                    .isEqualByComparingTo(decimal(values[3]));
+        }
+    }
+
+    @Test
+    void mixedAndContractOnlyTotalsCountEveryRequestExactlyOnce() {
+        var p1 = project("P1", 1);
+        var p2 = project("P2", 1);
+        var i1 =
+                Bitemm.builder()
+                        .gclMngNo("I1")
+                        .sno(1)
+                        .abusMngNo("P1")
+                        .fntTbCrySno(1)
+                        .amt(new BigDecimal("5.000"))
+                        .ioeC("A")
+                        .delYn("N")
+                        .build();
+        var i2 =
+                Bitemm.builder()
+                        .gclMngNo("I2")
+                        .sno(1)
+                        .abusMngNo("P2")
+                        .fntTbCrySno(1)
+                        .amt(new BigDecimal("2.000"))
+                        .delYn("N")
+                        .build();
+        var c =
+                Bcostm.builder()
+                        .costBgNo("C1")
+                        .bgSno(1)
+                        .cgprId("U1")
+                        .costTotXpAmt(new BigDecimal("7.000"))
+                        .delYn("N")
+                        .build();
+        var a1 = ItBudgetSourceLoader.aggregate(ref("P1", 1, 1), p1, List.of(i1));
+        var a2 = ItBudgetSourceLoader.aggregate(ref("P2", 1, 2), p2, List.of(i2));
+        var ac =
+                ItBudgetSourceLoader.aggregate(
+                        new SourceRef(SourceKind.COST, "C1", 1, 3), c, List.of());
+        var mixed =
+                builder.buildDocuments(
+                                List.of(
+                                        new DocumentRequest(
+                                                "mixed", List.of(a1.ref(), a2.ref(), ac.ref()))),
+                                List.of(a1, a2, ac))
+                        .getFirst();
+        assertThat(mixed.payload().summary().total()).isEqualTo(new BigDecimal("14.000"));
+        assertThat(mixed.payload().summary().asset()).isEqualTo(new BigDecimal("5.000"));
+        assertThat(mixed.payload().summary().cost()).isEqualTo(new BigDecimal("7.000"));
+        var only =
+                builder.buildDocuments(
+                                List.of(new DocumentRequest("contract", List.of(ac.ref()))),
+                                List.of(ac))
+                        .getFirst();
+        assertThat(only.payload().summary().total()).isEqualTo(new BigDecimal("7.000"));
+    }
+
+    private static BigDecimal decimal(String value) {
+        return value == null ? null : new BigDecimal(value);
+    }
 }

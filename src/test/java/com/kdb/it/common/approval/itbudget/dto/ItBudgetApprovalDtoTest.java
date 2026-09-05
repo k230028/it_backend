@@ -20,6 +20,7 @@ import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewDocume
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewRequest;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewResponse;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ProjectItem;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Requester;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SnapshotApprovalLine;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SnapshotSource;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SourceKind;
@@ -47,6 +48,28 @@ class ItBudgetApprovalDtoTest {
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private static final String DIGEST = "a".repeat(64);
+
+    @Test
+    void requesterRequiresIdentityAndNameWhileOptionalPersonRemainsNullable() throws Exception {
+        for (String requester :
+                List.of("{}", "{\"eno\":null,\"name\":null}", "{\"eno\":\" \",\"name\":\"\"}")) {
+            var line =
+                    objectMapper.readValue(
+                            "{\"requester\":"
+                                    + requester
+                                    + ",\"approvers\":[{\"eno\":\"E2\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}]}",
+                            SnapshotApprovalLine.class);
+            assertThat(validator.validate(line))
+                    .extracting(v -> v.getPropertyPath().toString())
+                    .containsExactlyInAnyOrder("requester.eno", "requester.name");
+        }
+        var valid =
+                objectMapper.readValue(
+                        "{\"requester\":{\"eno\":\"E1\",\"name\":\"신청자\"},\"approvers\":[{\"eno\":\"E2\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}]}",
+                        SnapshotApprovalLine.class);
+        assertThat(validator.validate(valid)).isEmpty();
+        assertThat(validator.validate(new Person(null, null, null))).isEmpty();
+    }
 
     @Test
     void previewRequest_acceptsTypedApproversAndSourceRefs_andSerializesTheirStableJsonNames()
@@ -155,7 +178,7 @@ class ItBudgetApprovalDtoTest {
                 new ItBudgetSnapshot(
                         new Form("it-budget", 2),
                         new Payload(List.of(), List.of(), new Summary("1.000", "2.000", "3.000")),
-                        new SnapshotApprovalLine(new Person("E10001", "신청자", "과장"), List.of()),
+                        new SnapshotApprovalLine(new Requester("E10001", "신청자", "과장"), List.of()),
                         new Integrity(
                                 "SHA-256",
                                 "IT_BUDGET_V2",
@@ -232,6 +255,22 @@ class ItBudgetApprovalDtoTest {
 
     @Test
     void snapshotNumericStrings_requireExactScaleAndAllowNegativeValues() {
+        for (String invalid : Arrays.asList(null, "", " ", "1", "1.00", "1.0000", "1e3")) {
+            assertThat(
+                            validator.validateValue(
+                                    ItBudgetApprovalDto.Project.class,
+                                    "currentRequestAmount",
+                                    invalid))
+                    .isNotEmpty();
+        }
+        for (String valid : List.of("0.000", "-1.000", "123456789.123")) {
+            assertThat(
+                            validator.validateValue(
+                                    ItBudgetApprovalDto.Project.class,
+                                    "currentRequestAmount",
+                                    valid))
+                    .isEmpty();
+        }
         Summary validSummary = new Summary("-1.000", "0.000", "2.000");
         Summary invalidMoneyScale = new Summary("1.00", "0.000", "2.000");
         ProjectItem invalidQuantity =
@@ -280,6 +319,7 @@ class ItBudgetApprovalDtoTest {
                 ItBudgetApprovalDto.Project.class,
                 "^-?\\d+\\.\\d{3}$",
                 "projectBudget",
+                "currentRequestAmount",
                 "assetBudget",
                 "costBudget");
         assertPattern(ItBudgetApprovalDto.Terminal.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");

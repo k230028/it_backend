@@ -193,7 +193,7 @@ public class ProjectBudgetSummaryService {
         BigDecimal storedPlannedAmt = nvl(mplAmt);
         BigDecimal storedPaidAmt = nvl(dfrAmt);
         BigDecimal storedCurrentRequestAmt =
-                totRqmAmt.subtract(storedPlannedAmt).subtract(storedPaidAmt);
+                amountCalculator.restoreCurrentRequestAmount(totRqmAmt, mplAmt, dfrAmt);
         warnSnapshotDiff(response, "tyyBgAmt", response.getTyyBgAmt(), storedCurrentRequestAmt);
         warnSnapshotDiff(response, "prjBgAmt", response.getPrjBgAmt(), totRqmAmt);
         warnSnapshotDiff(response, "mplAmt", response.getMplAmt(), storedPlannedAmt);

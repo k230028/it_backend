@@ -152,6 +152,13 @@ public final class ItBudgetApprovalDto {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String name,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String rank) {}
 
+    /** 신청자 사번·성명은 필수이며, 원장 선택 담당자용 Person과 혼용하지 않는다. */
+    @Schema(name = "ItBudgetSnapshotRequester", description = "서버가 확정한 필수 결재 신청자")
+    public record Requester(
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String eno,
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String rank) {}
+
     @Schema(name = "ItBudgetSnapshotApprovalPerson", description = "결재선 사용자 표시 정보")
     public record ApprovalPerson(
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String eno,
@@ -167,7 +174,8 @@ public final class ItBudgetApprovalDto {
 
     @Schema(name = "ItBudgetSnapshotApprovalLine", description = "서버가 해석한 신청자와 결재선")
     public record SnapshotApprovalLine(
-            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Person requester,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Requester requester,
             @NotEmpty @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid ApprovalPerson> approvers) {}
 
@@ -214,6 +222,15 @@ public final class ItBudgetApprovalDto {
                             example = "0.000",
                             nullable = true)
                     String projectBudget,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            description = "예정·지급금액을 제외한 당해 요청금액")
+                    String currentRequestAmount,
             @NotNull @Valid CodeLabel editType,
             @NotNull @Valid CodeLabel progressStatus,
             @JsonFormat(
