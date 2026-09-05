@@ -164,12 +164,15 @@ public final class ItBudgetApprovalDto {
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String eno,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String rank,
-            @NotNull
-                    @JsonFormat(
+            @JsonFormat(
                             shape = JsonFormat.Shape.STRING,
                             pattern = "uuuu-MM-dd",
                             lenient = OptBoolean.FALSE)
-                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, format = "date")
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            format = "date",
+                            nullable = true,
+                            description = "실제 결재일, 미결재 상태는 null")
                     LocalDate date) {}
 
     @Schema(name = "ItBudgetSnapshotApprovalLine", description = "서버가 해석한 신청자와 결재선")

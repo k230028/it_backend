@@ -109,7 +109,13 @@ class ItBudgetSourceLoaderTest {
         invalid(() -> loader.load(List.of(ref("P1", 1, 1), ref("P1", 1, 2))));
         when(projects.findVersions(anyCollection(), anyCollection()))
                 .thenReturn(List.of(project("P1", 2)));
-        invalid(() -> loader.load(List.of(ref("P1", 1, 1))));
+        assertThatThrownBy(() -> loader.load(List.of(ref("P1", 1, 1))))
+                .isInstanceOfSatisfying(
+                        ItBudgetApprovalException.class,
+                        e -> {
+                            assertThat(e.code()).isEqualTo("IT_BUDGET_SOURCE_NOT_FOUND");
+                            assertThat(e.status().value()).isEqualTo(404);
+                        });
     }
 
     @Test

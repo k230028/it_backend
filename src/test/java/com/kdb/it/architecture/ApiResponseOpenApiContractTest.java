@@ -50,7 +50,7 @@ class ApiResponseOpenApiContractTest {
         assertContract(
                 ItBudgetApprovalDto.ApprovalPerson.class,
                 fields("eno", "name", "rank", "date"),
-                Set.of());
+                fields("date"));
         assertStringProperties(ItBudgetApprovalDto.Project.class, "currentRequestAmount");
         var projectSchema = resolve(ItBudgetApprovalDto.Project.class);
         assertThat(projectSchema.getRequired()).contains("currentRequestAmount");

@@ -44,7 +44,7 @@ public class ItBudgetSourceLoader {
         }
     }
 
-    /** 1~500개 참조의 정확한 버전을 읽는다. 중복·누락·잘못된 입력은 PREVIEW_INVALID다. 삭제행은 변경 판정을 위해 보존한다. */
+    /** 1~500개 참조의 정확한 버전을 읽는다. 중복·잘못된 입력은 400, 버전 누락은 SOURCE_NOT_FOUND 404다. 삭제행은 보존한다. */
     public List<SourceAggregate> load(List<SourceRef> refs) {
         return read(refs, false);
     }
@@ -81,7 +81,7 @@ public class ItBudgetSourceLoader {
                     throw invalid("원장 버전이 중복되었습니다.");
             }
         }
-        if (parents.size() != refs.size()) throw invalid("정확한 원장 개정본을 찾을 수 없습니다.");
+        if (parents.size() != refs.size()) throw notFound();
         for (SourceKind kind : SourceKind.values()) {
             var selected = refs.stream().filter(r -> r.kind() == kind).toList();
             if (selected.isEmpty()) continue;
@@ -178,5 +178,13 @@ public class ItBudgetSourceLoader {
     static ItBudgetApprovalException invalid(String message) {
         return new ItBudgetApprovalException(
                 HttpStatus.BAD_REQUEST, "IT_BUDGET_PREVIEW_INVALID", message, List.of());
+    }
+
+    static ItBudgetApprovalException notFound() {
+        return new ItBudgetApprovalException(
+                HttpStatus.NOT_FOUND,
+                "IT_BUDGET_SOURCE_NOT_FOUND",
+                "신청 대상의 정확한 원장 개정본을 찾을 수 없습니다.",
+                List.of());
     }
 }

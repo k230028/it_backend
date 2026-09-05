@@ -24,6 +24,7 @@ public record ItBudgetSnapshot(
     /** 결재 신청자는 선택 담당자와 구분하며 HTTP 경계에서 사번·성명을 필수 검증한다. */
     public record Requester(String eno, String name, String rank) {}
 
+    /** date는 실제 결재일이며 미리보기의 미결재 사용자는 null이다. */
     public record ApprovalPerson(String eno, String name, String rank, LocalDate date) {}
 
     public record ApprovalLine(Requester requester, List<ApprovalPerson> approvers) {
