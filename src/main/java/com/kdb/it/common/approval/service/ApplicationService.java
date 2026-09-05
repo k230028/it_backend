@@ -104,11 +104,10 @@ public class ApplicationService {
     /** 결재요청 알림 발행 전담 컴포넌트 — 결재선의 다음 결재자 조회, 메일 페이로드 렌더링, 이벤트 발행을 위임한다. */
     private final ApprovalRequestNotifier approvalRequestNotifier;
 
+    private final ApplicationPersistenceService persistence;
+
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
-
-    /** 전산업무비 원천 테이블명 — 개정 순번 검증 대상입니다. */
-    private static final String FNT_TB_BCOSTM = "BCOSTM";
 
     /**
      * 신청서 등록 (결재 요청)
@@ -133,117 +132,7 @@ public class ApplicationService {
      */
     @Transactional
     public String submit(ApplicationDto.CreateRequest request) {
-
-        // Oracle 시퀀스로 채번하여 신청관리번호 생성 (APF-{yyyy}-{seq:08d})
-        Long capplmSeq = applicationRepository.getNextVal();
-        String apfMngNo =
-                String.format("APF-%s-%08d", java.time.LocalDate.now().getYear(), capplmSeq);
-
-        // 1. 신청서 마스터 생성 (초기 상태: "결재중")
-        Capplm capplm =
-                Capplm.builder()
-                        .apfMngNo(apfMngNo) // 신청관리번호 (PK)
-                        .dcdReqTtl(request.getApfNm()) // 결재요청제목
-                        .dcdReqInf(request.getApfDtlCone()) // 결재요청정보 (JSON)
-                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
-                        .dcdReqUsid(request.getRqsEno()) // 결재요청사용자ID
-                        .dcdReqBbrC(resolveRequesterBbrC(request.getRqsEno())) // 결재요청부점코드
-                        .dcdReqDtm(LocalDate.now()) // 결재요청일시 = 오늘
-                        .rgprDcdReqCone(request.getRqsOpnn()) // 등록자결재요청내용
-                        .build();
-        applicationRepository.save(capplm);
-
-        // 1-1. 원천 데이터 연결 저장 (orcItems 각각에 대해 Cappla 생성)
-        // 하나의 신청서가 복수의 원천 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
-        if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
-            for (ApplicationDto.OrcItem item : request.getOrcItems()) {
-                Integer crySno = resolveSourceVersionSno(item);
-                Cappla cappla =
-                        Cappla.builder()
-                                .apfDcmNo(apfMngNo)
-                                .fntTbNm(item.getFntTbNm())
-                                .pkColNm(item.getPkColNm())
-                                .fntTbCrySno(crySno)
-                                .build();
-                applicationMapRepository.save(cappla);
-
-                // 정보화사업(BPROJM) 결재 상신 → 정보화사업관계(BPROJA) 상태를 결재중('05')으로 갱신.
-                // 단계 key(CNCD_RFR_NO)는 작성('01') 시와 동일하게 프로젝트관리번호(pkColNm) 자신을 사용해
-                // 동일 행을 멱등 upsert 한다. 전산업무비(BCOSTM) 등 비-프로젝트 원천은 적재 대상이 아니다.
-                if (FNT_TB_BPROJM.equals(item.getFntTbNm())) {
-                    bprojaSyncService.upsert(item.getPkColNm(), item.getPkColNm(), "05");
-                }
-            }
-        }
-
-        // 2. 결재선 생성: 요청받은 결재자 사번 목록을 순번(dcdSqn)대로 저장
-        List<String> approverEnos = request.getApproverEnos();
-        List<Cdecim> savedApprovers = new java.util.ArrayList<>();
-
-        for (int i = 0; i < approverEnos.size(); i++) {
-            Cdecim cdecim =
-                    Cdecim.builder()
-                            .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
-                            .dcrSqnSno(i + 1) // 결재순번 (1부터 시작)
-                            .dcrEno(approverEnos.get(i)) // 결재자 사원번호
-                            .itPtlDcdStsC(
-                                    DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
-                            .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
-                            .dcdTpC(Cdecim.DECISION_TYPE_REQUEST) // 결재유형: 요청(10) — NOT NULL
-                            .build();
-            approverRepository.save(cdecim);
-            savedApprovers.add(cdecim);
-        }
-
-        // 3. 다음 결재 차례인 결재자에게 알림 발행 (결재선의 가장 앞 순번 결재자)
-        //    AFTER_COMMIT 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다.
-        //    참고: 기안자와 1차 결재자가 동일하더라도 자동 승인하지 않고 명시적 결재를 요구합니다.
-        approvalRequestNotifier.notifyApprovalRequest(capplm);
-
-        return apfMngNo; // 생성된 신청관리번호 반환
-    }
-
-    /**
-     * 상신 대상 원천 개정본의 순번을 검증해 반환합니다.
-     *
-     * <p>결재 매핑의 순번은 승인 완료 시 어느 개정본을 최종본으로 승격할지 결정합니다. 잘못된 순번이 실리면 승인 시점에 폐기된 구버전이 다시 최종본이 되거나(내용
-     * 롤백), 순번이 비어 있으면 승격 리스너가 예외를 던져 승인 트랜잭션 전체가 롤백됩니다. 두 경우 모두 결재자에게 원인을 알 수 없는 실패로 보이므로 상신 시점에
-     * 거절합니다.
-     *
-     * <p>순번 개념이 없는 원천 테이블은 검증 대상이 아니며 입력값을 그대로 씁니다.
-     *
-     * @param item 상신 요청의 원천 데이터 연결 항목
-     * @return 검증된 개정 순번 (검증 대상이 아니면 입력값 그대로, 없으면 null)
-     * @throws IllegalArgumentException 순번이 없거나 활성 개정본이 존재하지 않는 경우
-     */
-    private Integer resolveSourceVersionSno(ApplicationDto.OrcItem item) {
-        Integer sno =
-                item.getFntTbCrySno() != null && !item.getFntTbCrySno().isBlank()
-                        ? Integer.parseInt(item.getFntTbCrySno().trim())
-                        : null;
-        boolean versioned =
-                FNT_TB_BPROJM.equals(item.getFntTbNm()) || FNT_TB_BCOSTM.equals(item.getFntTbNm());
-        if (!versioned) {
-            return sno;
-        }
-        if (sno == null) {
-            throw new IllegalArgumentException(
-                    "상신 대상 개정본 순번이 없습니다: %s %s".formatted(item.getFntTbNm(), item.getPkColNm()));
-        }
-        boolean exists =
-                FNT_TB_BPROJM.equals(item.getFntTbNm())
-                        ? projectRepository
-                                .findByAbusMngNoAndSnoAndDelYn(item.getPkColNm(), sno, "N")
-                                .isPresent()
-                        : costRepository
-                                .findByCostBgNoAndBgSnoAndDelYn(item.getPkColNm(), sno, "N")
-                                .isPresent();
-        if (!exists) {
-            throw new IllegalArgumentException(
-                    "상신 대상 개정본이 없습니다: %s %s #%d"
-                            .formatted(item.getFntTbNm(), item.getPkColNm(), sno));
-        }
-        return sno;
+        return persistence.persist(ApplicationPersistenceService.ApplicationDraft.from(request));
     }
 
     /**
@@ -533,19 +422,6 @@ public class ApplicationService {
             List<ApplicationRepository.ApplicationReadView> views) {
         return ApplicationBulkReadSupport.assembleList(
                 views, approverRepository, userRepository, organizationRepository);
-    }
-
-    /**
-     * 신청자 사번으로 현재 소속 부점코드를 조회합니다.
-     *
-     * @param eno 신청자 사번
-     * @return 신청자 소속 부점코드, 없으면 null
-     */
-    private String resolveRequesterBbrC(String eno) {
-        if (eno == null || eno.isBlank()) {
-            return null;
-        }
-        return userRepository.findById(eno).map(user -> user.getBbrC()).orElse(null);
     }
 
     /** 일괄 조회 (여러 신청관리번호를 배치로 읽어 응답 조립). */

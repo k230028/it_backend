@@ -71,7 +71,7 @@ class ApiResponseOpenApiContractTest {
         assertContract(
                 ItBudgetApprovalDto.ChangedSource.class,
                 fields("kind", "id", "revision", "displayName", "modifiedBy", "modifiedAt"),
-                Set.of());
+                Set.of("modifiedAt"));
         assertContract(
                 ItBudgetApprovalDto.PreviewResponse.class,
                 fields("previewDigest", "previewToken", "expiresAt", "documents"),
@@ -86,7 +86,7 @@ class ApiResponseOpenApiContractTest {
                 Set.of());
         assertContract(
                 ItBudgetApprovalDto.SourceDigest.class,
-                fields("kind", "id", "revision", "order", "sourceDigest"),
+                fields("kind", "id", "revision", "order", "sourceDigest", "displayName"),
                 Set.of());
         assertContract(
                 ItBudgetApprovalDto.SubmissionDocument.class,

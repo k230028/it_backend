@@ -55,7 +55,17 @@ public class ItBudgetSourceLoader {
         return read(refs, true);
     }
 
+    /** 상신 비교를 위해 없는 부모는 결과에서 누락한다. 호출자가 서명된 참조와 대조해 삭제 충돌로 응답한다. */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public List<SourceAggregate> loadForSubmission(List<SourceRef> refs) {
+        return read(refs, true, true);
+    }
+
     private List<SourceAggregate> read(List<SourceRef> refs, boolean lock) {
+        return read(refs, lock, false);
+    }
+
+    private List<SourceAggregate> read(List<SourceRef> refs, boolean lock, boolean allowMissing) {
         validateRefs(refs);
         Map<SourceKey, SourceRef> requested = new HashMap<>();
         refs.forEach(r -> requested.put(new SourceKey(r.kind(), r.id(), r.revision()), r));
@@ -81,7 +91,7 @@ public class ItBudgetSourceLoader {
                     throw invalid("원장 버전이 중복되었습니다.");
             }
         }
-        if (parents.size() != refs.size()) throw notFound();
+        if (!allowMissing && parents.size() != refs.size()) throw notFound();
         for (SourceKind kind : SourceKind.values()) {
             var selected = refs.stream().filter(r -> r.kind() == kind).toList();
             if (selected.isEmpty()) continue;
@@ -98,6 +108,7 @@ public class ItBudgetSourceLoader {
             }
         }
         return refs.stream()
+                .filter(r -> parents.containsKey(new SourceKey(r.kind(), r.id(), r.revision())))
                 .sorted(
                         Comparator.comparing(SourceRef::order)
                                 .thenComparing(r -> r.kind().name())

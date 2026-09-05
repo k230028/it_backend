@@ -36,6 +36,36 @@ class ItBudgetPreviewOpenApiContractTest {
                                         .getResponse()
                                         .getContentAsString());
         var operation = json.at("/paths/~1api~1applications~1it-budget~1previews/post");
+        assertThat(json.at("/components/schemas/ItBudgetSourceDigest/required").toString())
+                .contains("displayName", "sourceDigest", "order");
+        assertThat(
+                        json.at(
+                                        "/components/schemas/ItBudgetChangedSource/properties/modifiedAt/type")
+                                .toString())
+                .contains("string", "null");
+        assertThat(
+                        json.at("/components/schemas/ItBudgetChangedSource/properties/no")
+                                .isMissingNode())
+                .isTrue();
+        var submission = json.at("/paths/~1api~1applications~1it-budget~1submissions/post");
+        assertThat(submission.isMissingNode()).isFalse();
+        assertThat(submission.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetSubmissionRequest");
+        assertThat(submission.at("/responses/200/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetSubmissionResponse");
+        for (var code : new String[] {"400", "409"})
+            assertThat(
+                            submission
+                                    .at(
+                                            "/responses/"
+                                                    + code
+                                                    + "/content/application~1json/schema/$ref")
+                                    .asText())
+                    .isEqualTo("#/components/schemas/ItBudgetApprovalErrorResponse");
+        assertThat(
+                        json.at("/components/schemas/ItBudgetSubmissionRequest/properties/snapshot")
+                                .isMissingNode())
+                .isTrue();
         assertThat(operation.isMissingNode()).isFalse();
         assertThat(operation.at("/requestBody/content/application~1json/schema/$ref").asText())
                 .isEqualTo("#/components/schemas/ItBudgetPreviewRequest");

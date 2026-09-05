@@ -47,6 +47,77 @@ class ItBudgetApplicationControllerTest {
     @MockitoBean CustomUserDetailsService customUserDetailsService;
     @MockitoBean MfaService mfaService;
 
+    static final String SUBMIT_URL = "/api/applications/it-budget/submissions";
+    static final String SUBMIT_BODY =
+            """
+        {"previewDigest":"%s","previewToken":"signed","approvers":[{"role":"TEAM_LEAD","eno":"A1"}],"documents":[{"clientDocumentKey":"one","payloadDigest":"%s","sources":[{"kind":"PROJECT","id":"P1","revision":1,"order":1,"sourceDigest":"%s","displayName":"사업"}]}]}
+        """
+                    .formatted("a".repeat(64), "b".repeat(64), "c".repeat(64));
+
+    @Test
+    void submissionRequiresApprovalMfaBeforeCallingFacade() throws Exception {
+        mvc.perform(
+                        post(SUBMIT_URL)
+                                .with(user(USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(SUBMIT_BODY))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("MFA_REQUIRED"));
+        verifyNoInteractions(facade, mfaService);
+    }
+
+    @Test
+    void submissionConsumesMfaOnceAndUsesRealPrincipal() throws Exception {
+        when(facade.submit(eq(USER), any()))
+                .thenReturn(new SubmissionResponse(List.of("APF-1", "APF-2")));
+        mvc.perform(
+                        post(SUBMIT_URL)
+                                .with(user(USER))
+                                .cookie(
+                                        new jakarta.servlet.http.Cookie(
+                                                CookieUtil.MFA_PROOF_COOKIE, "proof"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(SUBMIT_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applicationNumbers[0]").value("APF-1"))
+                .andExpect(jsonPath("$.applicationNumbers[1]").value("APF-2"));
+        var order = inOrder(mfaService, facade);
+        order.verify(mfaService).consumeApprovalProof(USER, "proof");
+        order.verify(facade).submit(eq(USER), any());
+    }
+
+    @Test
+    void submissionBeanValidationAndAuthenticationRunBeforeMfa() throws Exception {
+        mvc.perform(post(SUBMIT_URL).contentType(MediaType.APPLICATION_JSON).content(SUBMIT_BODY))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(
+                        post(SUBMIT_URL)
+                                .with(user(USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(SUBMIT_BODY.replace("\"revision\":1", "\"revision\":0")))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(facade, mfaService);
+    }
+
+    @Test
+    void rejectedProofStopsBeforeSubmission() throws Exception {
+        doThrow(
+                        new com.kdb.it.common.mfa.exception.MfaException(
+                                com.kdb.it.common.mfa.exception.MfaErrorCode.MFA_REQUIRED))
+                .when(mfaService)
+                .consumeApprovalProof(USER, "used-proof");
+        mvc.perform(
+                        post(SUBMIT_URL)
+                                .with(user(USER))
+                                .cookie(
+                                        new jakarta.servlet.http.Cookie(
+                                                CookieUtil.MFA_PROOF_COOKIE, "used-proof"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(SUBMIT_BODY))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(facade);
+    }
+
     @Test
     void previewAcceptsCustomPrincipalWithoutMfaAndReturnsV2Contract() throws Exception {
         var snapshot =

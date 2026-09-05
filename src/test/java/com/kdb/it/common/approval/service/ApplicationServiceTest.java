@@ -216,6 +216,18 @@ class ApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                applicationService,
+                "persistence",
+                new ApplicationPersistenceService(
+                        applicationRepository,
+                        approverRepository,
+                        applicationMapRepository,
+                        projectRepository,
+                        costRepository,
+                        userRepository,
+                        bprojaSyncService,
+                        approvalRequestNotifier));
         given(applicationRepository.findByIdForUpdate(anyString()))
                 .willAnswer(
                         invocation -> applicationRepository.findById(invocation.getArgument(0)));
@@ -285,7 +297,16 @@ class ApplicationServiceTest {
                 eventPublisher,
                 new ApprovalLineDelegate(new ObjectMapper()),
                 bprojaSyncService,
-                approvalRequestNotifier);
+                approvalRequestNotifier,
+                new ApplicationPersistenceService(
+                        applicationRepository,
+                        approverRepository,
+                        applicationMapRepository,
+                        projectRepository,
+                        costRepository,
+                        userRepository,
+                        bprojaSyncService,
+                        approvalRequestNotifier));
     }
 
     // ───────────────────────────────────────────────────────
@@ -1578,5 +1599,37 @@ class ApplicationServiceTest {
                                         .bgSno(bgSno)
                                         .delYn("N")
                                         .build()));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(
+            strings = {
+                "<p>범용 신청 원문</p>",
+                "{\"form\":{\"id\":\"it-budget\",\"version\":1},\"payload\":{\"legacy\":true}}"
+            })
+    void submit_preservesGenericAndHistoricalV1DetailExactly(String detail) {
+        given(applicationRepository.getNextVal()).willReturn(321L);
+        given(userRepository.findById("10001"))
+                .willReturn(Optional.of(CuserI.builder().eno("10001").bbrC("D1").build()));
+        var request = new ApplicationDto.CreateRequest();
+        request.setApfNm(" 원래 제목 ");
+        request.setRqsEno("10001");
+        request.setRqsOpnn(" 원래 의견 ");
+        request.setApfDtlCone(detail);
+        request.setApproverEnos(List.of("10002"));
+        String number = applicationService.submit(request);
+        var saved = ArgumentCaptor.forClass(Capplm.class);
+        verify(applicationRepository).save(saved.capture());
+        assertThat(saved.getValue().getDcdReqInf()).isEqualTo(detail);
+        assertThat(saved.getValue().getDcdReqTtl()).isEqualTo(" 원래 제목 ");
+        assertThat(saved.getValue().getRgprDcdReqCone()).isEqualTo(" 원래 의견 ");
+        assertThat(saved.getValue().getDcdReqBbrC()).isEqualTo("D1");
+        assertThat(number).isEqualTo("APF-" + LocalDate.now().getYear() + "-00000321");
+        var order =
+                org.mockito.Mockito.inOrder(
+                        applicationRepository, approverRepository, approvalRequestNotifier);
+        order.verify(applicationRepository).save(any());
+        order.verify(approverRepository).save(any());
+        order.verify(approvalRequestNotifier).notifyApprovalRequest(saved.getValue());
     }
 }

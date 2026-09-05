@@ -2,6 +2,8 @@ package com.kdb.it.common.approval.itbudget.controller;
 
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.*;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetApprovalFacade;
+import com.kdb.it.common.mfa.domain.MfaPurpose;
+import com.kdb.it.common.mfa.security.MfaRequired;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,7 +15,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/** 인증된 사용자의 전산예산 조회용 미리보기 API다. 결재 상태를 변경하지 않아 MFA를 요구하지 않는다. */
+/** 전산예산 미리보기와 상신 API다. 상신만 결재용 MFA를 요구한다. */
 @RestController
 @RequestMapping("/api/applications/it-budget")
 @RequiredArgsConstructor
@@ -46,5 +48,44 @@ public class ItBudgetApplicationController {
             @Valid @RequestBody PreviewRequest request) {
         if (actor == null) throw new AccessDeniedException("인증 정보가 없습니다.");
         return facade.preview(actor, request);
+    }
+
+    /** 미리보기 결속을 검증하여 모든 문서를 함께 상신한다. 인증·MFA·검증 실패 시 저장하지 않는다. */
+    @MfaRequired(purpose = MfaPurpose.APPROVAL)
+    @PostMapping(
+            value = "/submissions",
+            consumes = "application/json",
+            produces = "application/json")
+    @Operation(
+            summary = "전산예산 원자적 결재 상신",
+            responses = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "입력 순서의 신청관리번호",
+                        content =
+                                @Content(
+                                        schema =
+                                                @Schema(
+                                                        implementation =
+                                                                SubmissionResponse.class))),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "미리보기 입력 변조 또는 결속 오류",
+                        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+                @ApiResponse(responseCode = "401", description = "미인증", content = @Content),
+                @ApiResponse(
+                        responseCode = "403",
+                        description = "권한 없음 또는 결재용 MFA 필요",
+                        content = @Content),
+                @ApiResponse(
+                        responseCode = "409",
+                        description = "원장 변경·미리보기 만료·표시 정보 변경·잠금 경합",
+                        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            })
+    public SubmissionResponse submit(
+            @AuthenticationPrincipal CustomUserDetails actor,
+            @Valid @RequestBody SubmissionRequest request) {
+        if (actor == null) throw new AccessDeniedException("인증 정보가 없습니다.");
+        return facade.submit(actor, request);
     }
 }

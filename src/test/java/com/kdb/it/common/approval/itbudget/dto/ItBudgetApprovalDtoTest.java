@@ -125,7 +125,7 @@ class ItBudgetApprovalDtoTest {
                         DIGEST,
                         List.of(
                                 new ItBudgetApprovalDto.SourceDigest(
-                                        SourceKind.PROJECT, "P-001", 1, 1, DIGEST)));
+                                        SourceKind.PROJECT, "P-001", 1, 1, DIGEST, "사업")));
         SubmissionRequest requestWithNullApprover =
                 new SubmissionRequest(
                         DIGEST,
@@ -160,7 +160,7 @@ class ItBudgetApprovalDtoTest {
                         DIGEST,
                         List.of(
                                 new ItBudgetApprovalDto.SourceDigest(
-                                        SourceKind.PROJECT, "P-001", 1, 1, DIGEST)));
+                                        SourceKind.PROJECT, "P-001", 1, 1, DIGEST, "사업")));
 
         assertThat(objectMapper.writeValueAsString(document))
                 .isEqualTo(
@@ -169,7 +169,7 @@ class ItBudgetApprovalDtoTest {
                                 + "\",\"sources\":[{\"kind\":\"PROJECT\",\"id\":\"P-001\",\"revision\":1,"
                                 + "\"order\":1,\"sourceDigest\":\""
                                 + DIGEST
-                                + "\"}]}");
+                                + "\",\"displayName\":\"사업\"}]}");
     }
 
     @Test
@@ -203,7 +203,8 @@ class ItBudgetApprovalDtoTest {
                                                         "P-001",
                                                         1,
                                                         1,
-                                                        DIGEST)))));
+                                                        DIGEST,
+                                                        "사업")))));
 
         var json = objectMapper.readTree(objectMapper.writeValueAsString(response));
 

@@ -56,7 +56,8 @@ class ItBudgetApprovalFacadeTest {
                             mapper,
                             clock));
     final ItBudgetApprovalFacade facade =
-            new ItBudgetApprovalFacade(loader, builder, canonical, tokens, users, mapper);
+            new ItBudgetApprovalFacade(
+                    loader, builder, canonical, tokens, users, mapper, null, null);
 
     ItBudgetApprovalFacadeTest() {
         when(projects.findVersions(anyCollection(), anyCollection()))
@@ -120,23 +121,7 @@ class ItBudgetApprovalFacadeTest {
                                 new DocumentRequest(
                                         " combined ", List.of(costRef(), projectRef()))));
         assertThat(claims.requestDigest()).isEqualTo(canonical.digest(normalized));
-        var sources =
-                response.documents().stream()
-                        .map(
-                                d ->
-                                        d.sources().stream()
-                                                .map(
-                                                        s ->
-                                                                new com.kdb.it.common.approval
-                                                                        .itbudget.model
-                                                                        .ItBudgetSnapshot.Source(
-                                                                        s.kind().name(),
-                                                                        s.id(),
-                                                                        s.revision(),
-                                                                        s.order(),
-                                                                        s.sourceDigest()))
-                                                .toList())
-                        .toList();
+        var sources = response.documents().stream().map(PreviewDocument::sources).toList();
         assertThat(claims.sourceSetDigest()).isEqualTo(canonical.digest(sources));
         assertThat(claims.payloadSetDigest())
                 .isEqualTo(
@@ -158,7 +143,8 @@ class ItBudgetApprovalFacadeTest {
                         mapper,
                         futureClock);
         var future =
-                new ItBudgetApprovalFacade(loader, builder, canonical, futureTokens, users, mapper)
+                new ItBudgetApprovalFacade(
+                                loader, builder, canonical, futureTokens, users, mapper, null, null)
                         .preview(actor, normalized);
         assertThat(future.previewDigest()).isEqualTo(response.previewDigest());
         assertThat(future.documents().getFirst().snapshot().integrity().capturedAt())

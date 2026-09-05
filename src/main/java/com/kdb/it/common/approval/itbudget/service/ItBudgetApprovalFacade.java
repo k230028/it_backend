@@ -8,6 +8,9 @@ import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetPreviewTokenService.PreviewBinding;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotBuilder.BuiltDocument;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSourceLoader.SourceAggregate;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetSourceLoader.SourceKey;
+import com.kdb.it.common.approval.service.ApplicationPersistenceService.ApplicationDraft;
+import com.kdb.it.common.approval.service.ApplicationPersistenceService.SourceLink;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
@@ -22,7 +25,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 인증 주체와 원장을 검증하여 저장 없이 전산예산 v2 미리보기와 서명 토큰을 만든다. */
+/** 인증 주체와 원장을 검증해 전산예산 v2 미리보기를 발급하고 잠금 아래 원자적으로 상신한다. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -33,6 +36,120 @@ public class ItBudgetApprovalFacade {
     private final ItBudgetPreviewTokenService tokens;
     private final UserRepository users;
     private final ObjectMapper mapper;
+    private final com.kdb.it.common.approval.service.ApplicationPersistenceService persistence;
+    private final com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalGuard;
+
+    /**
+     * 서명된 미리보기와 잠긴 현재 원장을 비교하고 모든 문서를 하나의 트랜잭션으로 저장한다.
+     *
+     * @param actor 서버 인증 주체
+     * @param request 미리보기 토큰·문서별 다이제스트·역할별 결재자 입력
+     * @return 입력 문서 순서의 신청관리번호
+     * @throws ItBudgetApprovalException 변조(400), 변경·만료·오래된 미리보기·잠금 경합(409)
+     * @throws AccessDeniedException 인증 또는 현재 원장의 상신 권한이 없는 경우
+     */
+    @Transactional
+    public SubmissionResponse submit(CustomUserDetails actor, SubmissionRequest request) {
+        requireActor(actor);
+        var claims = tokens.verify(request == null ? null : request.previewToken(), actor.getEno());
+        var normalized = boundRequest(request, claims);
+        var refs = normalized.documents().stream().flatMap(d -> d.sourceRefs().stream()).toList();
+        List<SourceAggregate> aggregates;
+        try {
+            aggregates = loader.loadForSubmission(refs);
+        } catch (RuntimeException exception) {
+            if (isLockTimeout(exception))
+                throw conflict("IT_BUDGET_CONCURRENT_UPDATE", "다른 작업이 신청 대상을 변경 중입니다.");
+            throw exception;
+        }
+        boolean approvalBlocked = false;
+        for (var aggregate : aggregates) {
+            authorize(actor, aggregate, false);
+            try {
+                approvalGuard.verifyWritable(
+                        table(aggregate.ref().kind()),
+                        aggregate.ref().id(),
+                        aggregate.ref().revision(),
+                        "상신");
+            } catch (IllegalStateException exception) {
+                approvalBlocked = true;
+            }
+        }
+        // 삭제·누락은 payload 생성 이전에 비교하며 원장 변경을 표시 정보 stale보다 먼저 보고한다.
+        var changed = changedSources(request, aggregates);
+        if (!changed.isEmpty())
+            throw new ItBudgetApprovalException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "IT_BUDGET_SOURCE_CHANGED",
+                    "신청 대상이 중간에 변경되었습니다.",
+                    changed);
+        if (approvalBlocked) throw stale();
+
+        ItBudgetSnapshot.ApprovalLine line;
+        List<BuiltDocument> built;
+        try {
+            line = approvalLine(actor.getEno(), normalized.approvers());
+            built = builder.buildDocuments(normalized.documents(), aggregates);
+        } catch (ItBudgetApprovalException exception) {
+            // 업무 다이제스트가 같으므로 여기서 사라진 필수 표시 정보는 미리보기의 갱신 사유다.
+            throw stale();
+        }
+        if (!claims.payloadSetDigest()
+                        .equals(
+                                canonical.digest(
+                                        built.stream().map(BuiltDocument::payloadDigest).toList()))
+                || !claims.sourceSetDigest()
+                        .equals(canonical.digest(built.stream().map(this::publicSources).toList()))
+                || !claims.previewDigest()
+                        .equals(
+                                canonical.digest(
+                                        new PreviewView(
+                                                actor.getEno(),
+                                                normalized,
+                                                line,
+                                                built.stream()
+                                                        .map(BuiltDocument::payload)
+                                                        .toList())))
+                || !built.stream()
+                        .map(BuiltDocument::clientDocumentKey)
+                        .toList()
+                        .equals(
+                                normalized.documents().stream()
+                                        .map(DocumentRequest::clientDocumentKey)
+                                        .toList())) throw stale();
+        var numbers = new ArrayList<String>();
+        for (var document : built) {
+            String json;
+            try {
+                json =
+                        mapper.writeValueAsString(
+                                publicDocument(document, line, claims.issuedAt()).snapshot());
+            } catch (JsonProcessingException exception) {
+                throw new IllegalStateException("신청서 스냅샷을 저장할 수 없습니다.", exception);
+            }
+            numbers.add(
+                    persistence.persist(
+                            new ApplicationDraft(
+                                    "전산예산 결재 신청",
+                                    json,
+                                    actor.getEno(),
+                                    "전산예산 결재를 요청합니다.",
+                                    document.sources().stream()
+                                            .map(
+                                                    s ->
+                                                            new SourceLink(
+                                                                    table(
+                                                                            SourceKind.valueOf(
+                                                                                    s.kind())),
+                                                                    s.id(),
+                                                                    Integer.toString(s.revision())))
+                                            .toList(),
+                                    normalized.approvers().stream()
+                                            .map(ApproverRef::eno)
+                                            .toList())));
+        }
+        return new SubmissionResponse(List.copyOf(numbers));
+    }
 
     /**
      * 신청 대상·결재선을 한 번 정규화하고 모든 대상의 조회·수정 범위를 검사한다.
@@ -44,8 +161,7 @@ public class ItBudgetApprovalFacade {
      * @throws ItBudgetApprovalException 입력·원장 값 오류(400), 원장 미존재·삭제(404)
      */
     public PreviewResponse preview(CustomUserDetails actor, PreviewRequest request) {
-        if (actor == null || actor.getEno() == null || actor.getEno().isBlank())
-            throw new AccessDeniedException("인증 정보가 없습니다.");
+        requireActor(actor);
         var normalized = normalize(request);
         var refs = normalized.documents().stream().flatMap(d -> d.sourceRefs().stream()).toList();
         var aggregates = loader.load(refs);
@@ -54,8 +170,7 @@ public class ItBudgetApprovalFacade {
         var line = approvalLine(actor.getEno(), normalized.approvers());
         var built = builder.buildDocuments(normalized.documents(), aggregates);
         String requestDigest = canonical.digest(normalized);
-        String sourceSetDigest =
-                canonical.digest(built.stream().map(BuiltDocument::sources).toList());
+        String sourceSetDigest = canonical.digest(built.stream().map(this::publicSources).toList());
         String payloadSetDigest =
                 canonical.digest(built.stream().map(BuiltDocument::payloadDigest).toList());
         String previewDigest =
@@ -137,13 +252,18 @@ public class ItBudgetApprovalFacade {
     }
 
     private void authorize(CustomUserDetails actor, SourceAggregate aggregate) {
+        authorize(actor, aggregate, true);
+    }
+
+    private void authorize(
+            CustomUserDetails actor, SourceAggregate aggregate, boolean requireActive) {
         var parent = aggregate.parent();
         String department =
                 parent instanceof Bprojm p ? p.getSvnDpmC() : ((Bcostm) parent).getCostSvnDpmC();
         BudgetDetailAccessVerifier.verifyReadable(department, actor);
         if (!OwnershipVerifier.canModify(parent.getFstEnrUsid(), department, actor))
             throw new AccessDeniedException("신청 대상의 상신 권한이 없습니다.");
-        if (!"N".equals(parent.getDelYn())) throw ItBudgetSourceLoader.notFound();
+        if (requireActive && !"N".equals(parent.getDelYn())) throw ItBudgetSourceLoader.notFound();
     }
 
     private ItBudgetSnapshot.ApprovalLine approvalLine(
@@ -220,16 +340,199 @@ public class ItBudgetApprovalFacade {
                 document.clientDocumentKey(),
                 snapshot,
                 document.payloadDigest(),
-                document.sources().stream()
-                        .map(
-                                s ->
-                                        new SourceDigest(
-                                                SourceKind.valueOf(s.kind()),
-                                                s.id(),
-                                                s.revision(),
-                                                s.order(),
-                                                s.digest()))
-                        .toList());
+                publicSources(document));
+    }
+
+    private List<SourceDigest> publicSources(BuiltDocument document) {
+        return document.sources().stream()
+                .map(
+                        s ->
+                                new SourceDigest(
+                                        SourceKind.valueOf(s.kind()),
+                                        s.id(),
+                                        s.revision(),
+                                        s.order(),
+                                        s.digest(),
+                                        snapshotName(document, s)))
+                .toList();
+    }
+
+    private String snapshotName(BuiltDocument document, ItBudgetSnapshot.Source source) {
+        String name =
+                source.kind().equals("PROJECT")
+                        ? document.payload().projects().stream()
+                                .filter(
+                                        p ->
+                                                p.id().equals(source.id())
+                                                        && p.revision() == source.revision())
+                                .map(p -> p.name() == null ? "" : p.name())
+                                .findFirst()
+                                .orElse("")
+                        : document.payload().costs().stream()
+                                .filter(
+                                        c ->
+                                                c.id().equals(source.id())
+                                                        && c.revision() == source.revision())
+                                .map(c -> c.name() == null ? "" : c.name())
+                                .findFirst()
+                                .orElse("");
+        return name.isBlank() ? source.id() : name;
+    }
+
+    private PreviewRequest boundRequest(
+            SubmissionRequest request, ItBudgetPreviewTokenService.Claims claims) {
+        if (request.documents() == null
+                || request.documents().isEmpty()
+                || request.documents().size() > 100) throw invalid("문서는 1~100개여야 합니다.");
+        var documents = new ArrayList<DocumentRequest>();
+        var sourceSets = new ArrayList<List<SourceDigest>>();
+        for (var d : request.documents()) {
+            if (d == null
+                    || d.sources() == null
+                    || d.sources().isEmpty()
+                    || d.sources().size() > 500
+                    || d.payloadDigest() == null
+                    || !d.payloadDigest().matches("[a-f0-9]{64}"))
+                throw invalid("상신 문서가 올바르지 않습니다.");
+            for (var s : d.sources()) {
+                if (s == null
+                        || s.sourceDigest() == null
+                        || !s.sourceDigest().matches("[a-f0-9]{64}")
+                        || s.displayName() == null
+                        || s.displayName().isBlank()) throw invalid("원장 다이제스트가 올바르지 않습니다.");
+            }
+            var ordered =
+                    d.sources().stream()
+                            .sorted(Comparator.comparingInt(SourceDigest::order))
+                            .toList();
+            sourceSets.add(ordered);
+            documents.add(
+                    new DocumentRequest(
+                            d.clientDocumentKey(),
+                            ordered.stream()
+                                    .map(
+                                            s ->
+                                                    new SourceRef(
+                                                            s.kind(),
+                                                            s.id(),
+                                                            s.revision(),
+                                                            s.order()))
+                                    .toList()));
+        }
+        var normalized = normalize(new PreviewRequest(request.approvers(), documents));
+        if (!claims.requestDigest().equals(canonical.digest(normalized))
+                || !claims.sourceSetDigest().equals(canonical.digest(sourceSets))
+                || !claims.payloadSetDigest()
+                        .equals(
+                                canonical.digest(
+                                        request.documents().stream()
+                                                .map(SubmissionDocument::payloadDigest)
+                                                .toList()))
+                || !claims.previewDigest().equals(request.previewDigest()))
+            throw invalid("미리보기 요청 결속이 올바르지 않습니다.");
+        return normalized;
+    }
+
+    private List<ChangedSource> changedSources(
+            SubmissionRequest request, List<SourceAggregate> aggregates) {
+        Map<SourceKey, SourceAggregate> byKey = new HashMap<>();
+        aggregates.forEach(a -> byKey.put(a.key(), a));
+        var changed = new ArrayList<SourceDigest>();
+        for (var document : request.documents()) {
+            for (var source :
+                    document.sources().stream()
+                            .sorted(Comparator.comparingInt(SourceDigest::order))
+                            .toList()) {
+                var aggregate =
+                        byKey.get(new SourceKey(source.kind(), source.id(), source.revision()));
+                if (aggregate == null
+                        || !"N".equals(aggregate.parent().getDelYn())
+                        || !sourceMatches(source.sourceDigest(), aggregate)) changed.add(source);
+            }
+        }
+        if (changed.isEmpty()) return List.of();
+        var modifierIds = new LinkedHashSet<String>();
+        for (var source : changed) {
+            var aggregate = byKey.get(new SourceKey(source.kind(), source.id(), source.revision()));
+            if (aggregate != null && aggregate.latestAudit().modifierUserId() != null)
+                modifierIds.add(aggregate.latestAudit().modifierUserId());
+        }
+        Map<String, String> names = new HashMap<>();
+        if (!modifierIds.isEmpty())
+            for (var person : users.findByEnoIn(modifierIds)) {
+                if (person.getUsrNm() != null && !person.getUsrNm().isBlank())
+                    names.put(person.getEno(), person.getUsrNm());
+            }
+        return changed.stream()
+                .map(
+                        source -> {
+                            var aggregate =
+                                    byKey.get(
+                                            new SourceKey(
+                                                    source.kind(), source.id(), source.revision()));
+                            String name =
+                                    aggregate == null
+                                            ? null
+                                            : aggregate.parent() instanceof Bprojm p
+                                                    ? p.getAbusNm()
+                                                    : ((Bcostm) aggregate.parent()).getCttNm();
+                            String modifier =
+                                    aggregate == null
+                                            ? null
+                                            : aggregate.latestAudit().modifierUserId();
+                            return new ChangedSource(
+                                    source.kind(),
+                                    source.id(),
+                                    source.revision(),
+                                    name == null || name.isBlank() ? source.displayName() : name,
+                                    modifier == null || modifier.isBlank()
+                                            ? "확인 불가"
+                                            : names.getOrDefault(modifier, modifier),
+                                    aggregate == null
+                                            ? null
+                                            : aggregate.latestAudit().modifiedAt());
+                        })
+                .toList();
+    }
+
+    private boolean sourceMatches(String expected, SourceAggregate aggregate) {
+        try {
+            return expected.equals(builder.sourceDigest(aggregate));
+        } catch (ItBudgetApprovalException exception) {
+            // 발급 때 유효했던 업무 값이 정규형으로 표현할 수 없게 바뀐 경우도 원장 변경이다.
+            if ("IT_BUDGET_PREVIEW_INVALID".equals(exception.code())) return false;
+            throw exception;
+        }
+    }
+
+    private static void requireActor(CustomUserDetails actor) {
+        if (actor == null || actor.getEno() == null || actor.getEno().isBlank())
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+    }
+
+    private static String table(SourceKind kind) {
+        return kind == SourceKind.PROJECT ? "BPROJM" : "BCOSTM";
+    }
+
+    private static ItBudgetApprovalException stale() {
+        return conflict("IT_BUDGET_PREVIEW_STALE", "미리보기를 다시 확인해 주세요.");
+    }
+
+    private static ItBudgetApprovalException conflict(String code, String message) {
+        return new ItBudgetApprovalException(
+                org.springframework.http.HttpStatus.CONFLICT, code, message, List.of());
+    }
+
+    private static boolean isLockTimeout(Throwable failure) {
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (var cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
+            if (cause instanceof jakarta.persistence.LockTimeoutException
+                    || cause instanceof org.springframework.dao.CannotAcquireLockException
+                    || cause instanceof java.sql.SQLException sql
+                            && (sql.getErrorCode() == 30006 || sql.getErrorCode() == 54))
+                return true;
+        }
+        return false;
     }
 
     private Payload publicPayload(ItBudgetSnapshot.Payload payload) {

@@ -74,7 +74,12 @@ public final class ItBudgetApprovalDto {
             @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
             @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int order,
             @NotBlank @Size(min = 64, max = 64) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-                    String sourceDigest) {}
+                    String sourceDigest,
+            @NotBlank
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            description = "미리보기 명칭. 토큰에 결속되어 삭제된 원장의 충돌 안내에도 사용한다.")
+                    String displayName) {}
 
     @Schema(name = "ItBudgetPreviewDocument", description = "서버가 생성한 전산예산 미리보기 문서")
     public record PreviewDocument(
@@ -456,6 +461,9 @@ public final class ItBudgetApprovalDto {
             @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String displayName,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String modifiedBy,
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            nullable = true,
+                            description = "원장 물리 삭제 등으로 실제 수정 시각을 확인할 수 없으면 null")
                     LocalDateTime modifiedAt) {}
 }
