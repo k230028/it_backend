@@ -23,7 +23,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.dto.ApprovalHomeInboxDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.approval.service.ApprovalHomeInboxService;
 import com.kdb.it.common.approval.service.ApprovalLineManagementService;
 import com.kdb.it.common.approval.service.ApprovalLineSuggestionService;
 import com.kdb.it.common.approval.service.PendingApproverService;
@@ -66,6 +68,7 @@ class ApplicationControllerTest {
     @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private ApplicationService applicationService;
+    @MockitoBean private ApprovalHomeInboxService approvalHomeInboxService;
     @MockitoBean private PendingApproverService pendingApproverService;
     @MockitoBean private ApprovalLineManagementService approvalLineManagementService;
     @MockitoBean private ApprovalLineSuggestionService approvalLineSuggestionService;
@@ -114,11 +117,11 @@ class ApplicationControllerTest {
     @DisplayName("GET /api/applications/home-inbox - 인증 주체의 결재함·기안함만 조회한다")
     @WithMockUser(username = "10001")
     void getHomeInbox_인증주체_200() throws Exception {
-        given(applicationService.getHomeInbox("10001"))
+        given(approvalHomeInboxService.getHomeInbox("10001"))
                 .willReturn(
-                        new ApplicationDto.HomeInboxResponse(
+                        new ApprovalHomeInboxDto.Response(
                                 List.of(
-                                        new ApplicationDto.HomeInboxItem(
+                                        new ApprovalHomeInboxDto.Item(
                                                 "APF-001",
                                                 "결재 대기 문서",
                                                 "김기안",
@@ -135,7 +138,7 @@ class ApplicationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.approvalPending[0].apfMngNo").value("APF-001"))
                 .andExpect(jsonPath("$.approvalPending[0].actionable").value(true));
-        verify(applicationService).getHomeInbox("10001");
+        verify(approvalHomeInboxService).getHomeInbox("10001");
     }
 
     @Test

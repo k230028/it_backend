@@ -600,46 +600,6 @@ public class ApplicationDto {
         private List<PendingItem> pendingList;
     }
 
-    /** 전자결재 Home 목록의 신청서 요약 항목입니다. */
-    @Schema(
-            name = "ApprovalHomeInboxItem",
-            description = "전자결재 Home 신청서 요약",
-            requiredProperties = {
-                "apfMngNo",
-                "title",
-                "requesterName",
-                "requestedAt",
-                "statusCode",
-                "statusName",
-                "actionable"
-            })
-    public record HomeInboxItem(
-            @Schema(description = "신청서관리번호") String apfMngNo,
-            @Schema(description = "신청서명") String title,
-            @Schema(description = "신청자명") String requesterName,
-            @Schema(description = "신청일자") LocalDate requestedAt,
-            @Schema(description = "결재상태 코드") String statusCode,
-            @Schema(description = "결재상태명") String statusName,
-            @Schema(description = "현재 사용자가 즉시 승인·반려할 수 있는지 여부") boolean actionable) {}
-
-    /** 인증 사용자의 전자결재 Home 결재함·기안함 전체 목록입니다. */
-    @Schema(
-            name = "ApprovalHomeInboxResponse",
-            description = "전자결재 Home 결재함·기안함 목록",
-            requiredProperties = {
-                "approvalPending",
-                "approvalCompleted",
-                "draftInProgress",
-                "draftCompleted",
-                "draftRejected"
-            })
-    public record HomeInboxResponse(
-            @Schema(description = "결재 대기 목록") List<HomeInboxItem> approvalPending,
-            @Schema(description = "결재 완료 목록") List<HomeInboxItem> approvalCompleted,
-            @Schema(description = "기안 진행 중 목록") List<HomeInboxItem> draftInProgress,
-            @Schema(description = "기안 결재 완료 목록") List<HomeInboxItem> draftCompleted,
-            @Schema(description = "기안 반려 목록") List<HomeInboxItem> draftRejected) {}
-
     /** 월별 건수 DTO (결재 대시보드) */
     @Getter
     @Builder

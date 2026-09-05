@@ -193,6 +193,8 @@ public class SecurityConfig {
                                     // 비밀값이 비면 컨트롤러 자체가 등록되지 않아 404가 된다.
                                     .requestMatchers("/internal/was-logs/**")
                                     .permitAll()
+                                    .requestMatchers("/internal/server-metrics/**")
+                                    .permitAll()
                                     // 관리자 전용 엔드포인트 (ITPAD001만 접근 가능)
                                     .requestMatchers("/api/admin/**")
                                     .hasRole("ADMIN")

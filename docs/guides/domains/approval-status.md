@@ -24,5 +24,5 @@
 ## 목록·집계
 
 - `BudgetListVersionScope`: `0`·`1`·`3`·`4` 스코프는 재상신 초안(`LST_YN='N'`)까지 노출한다.
-- 결재함 목록(`GET /api/applications`)과 대시보드는 `0`을 제외한다.
+- 결재함 목록(`GET /api/applications`)은 `0`과 `9`(수기등록)를 DB 조건으로 제외한다. 대시보드는 `0`을 제외한다.
 - 사이드바 상신 대상 건수(`/pending-count`)는 `apfSts=0`으로 집계한다.

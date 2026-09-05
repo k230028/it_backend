@@ -89,15 +89,15 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     List<ApplicationReadView> findAllProjectedBy();
 
     /**
-     * 지정한 상태를 제외한 신청서 read view를 최신순 상한 500건으로 조회합니다.
+     * 지정한 상태들을 제외한 신청서 read view를 최신순 상한 500건으로 조회합니다.
      *
-     * <p>결재함 목록은 결재선이 없는 작성완료({@code 0}) 신청서를 보이지 않습니다.
+     * <p>결재함 목록은 결재선이 없는 작성완료({@code 0})와 편성요청서 반입 표식인 수기등록({@code 9}) 신청서를 보이지 않습니다.
      *
-     * @param itPtlApfPrgStsC 제외할 신청서 상태 코드
+     * @param itPtlApfPrgStsCs 제외할 신청서 상태 코드 목록 (비어 있으면 안 됨)
      * @return 신청서 read view 목록 (최신순, 최대 500건)
      */
-    List<ApplicationReadView> findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-            String itPtlApfPrgStsC);
+    List<ApplicationReadView> findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+            Collection<String> itPtlApfPrgStsCs);
 
     /**
      * 특정 결재자가 지금 처리해야 할 신청서 식별번호를 최신순으로 조회합니다.

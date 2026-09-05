@@ -482,18 +482,23 @@ public class ApplicationService {
                 view, approverRepository, userRepository, organizationRepository);
     }
 
+    /** 결재함 목록에서 제외하는 신청서 상태: 결재선 없는 작성완료(0)와 편성요청서 반입 표식인 수기등록(9). */
+    static final List<String> INBOX_EXCLUDED_STATUS_CODES =
+            List.of(ApprovalStatus.DRAFTED.code(), ApprovalStatus.MANUAL.code());
+
     /**
      * 전체 신청서 목록 조회
      *
-     * <p>결재선이 없는 작성완료({@code 0}) 신청서는 결재함 대상이 아니므로 제외하고, 그 외 신청서를 각각의 결재자 목록과 함께 반환합니다.
+     * <p>결재선이 없는 작성완료({@code 0})와 결재를 거치지 않는 수기등록({@code 9}) 신청서는 결재함 대상이 아니므로 제외하고, 그 외 신청서를 각각의
+     * 결재자 목록과 함께 반환합니다.
      *
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
      */
     public List<ApplicationDto.Response> getApplications() {
-        // 결재선 없는 작성완료(0) 신청서는 결재함 대상이 아니므로 제외한다 (최신순 상한 500건)
+        // 작성완료(0)·수기등록(9)은 결재함 대상이 아니므로 DB에서 제외한다 (최신순 상한 500건)
         return assembleList(
-                applicationRepository.findTop500ByItPtlApfPrgStsCNotOrderByApfMngNoDesc(
-                        ApprovalStatus.DRAFTED.code()));
+                applicationRepository.findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                        INBOX_EXCLUDED_STATUS_CODES));
     }
 
     /**
@@ -615,47 +620,6 @@ public class ApplicationService {
                 .monthlyTrend(monthlyTrend)
                 .pendingList(pendingList)
                 .build();
-    }
-
-    /**
-     * 인증 사용자의 전자결재 Home 결재함·기안함 전체 목록을 상태별로 분류합니다.
-     *
-     * @param eno 인증 사용자 사번
-     * @return 결재함·기안함 상태별 목록
-     */
-    public ApplicationDto.HomeInboxResponse getHomeInbox(String eno) {
-        if (eno == null || eno.isBlank()) {
-            throw new IllegalArgumentException("사용자 사번이 필요합니다.");
-        }
-
-        List<ApplicationDto.HomeInboxItem> approvalPending = new java.util.ArrayList<>();
-        List<ApplicationDto.HomeInboxItem> approvalCompleted = new java.util.ArrayList<>();
-        List<ApplicationDto.HomeInboxItem> draftInProgress = new java.util.ArrayList<>();
-        List<ApplicationDto.HomeInboxItem> draftCompleted = new java.util.ArrayList<>();
-        List<ApplicationDto.HomeInboxItem> draftRejected = new java.util.ArrayList<>();
-
-        for (ApplicationRepository.HomeInboxRow row :
-                applicationRepository.findHomeInboxRowsByEno(eno)) {
-            ApplicationDto.HomeInboxItem item =
-                    new ApplicationDto.HomeInboxItem(
-                            row.getApfMngNo(),
-                            row.getTitle(),
-                            row.getRequesterName(),
-                            row.getRequestedAt() == null
-                                    ? null
-                                    : row.getRequestedAt().toLocalDate(),
-                            row.getStatusCode(),
-                            ApprovalStatus.ofCode(row.getStatusCode()).label(),
-                            row.getActionable() == 1);
-            if (row.getApprovalPending() == 1) approvalPending.add(item);
-            if (row.getApprovalCompleted() == 1) approvalCompleted.add(item);
-            if ("IN_PROGRESS".equals(row.getDraftCategory())) draftInProgress.add(item);
-            if ("COMPLETED".equals(row.getDraftCategory())) draftCompleted.add(item);
-            if ("REJECTED".equals(row.getDraftCategory())) draftRejected.add(item);
-        }
-
-        return new ApplicationDto.HomeInboxResponse(
-                approvalPending, approvalCompleted, draftInProgress, draftCompleted, draftRejected);
     }
 
     /**

@@ -112,7 +112,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `common.system`, `common.iam`                                                 | JWT 인증, Refresh Token, 로그인 이력, 사용자·조직·권한 | 전체 API의 인증 주체와 부서 범위를 제공                              |
 | `common.sso`                                                                  | ESSO 연동, SSO 상태 보관, 인증 완료 복귀                | 검증한 외부 인증 결과를 `common.system`의 JWT 발급 흐름으로 전달     |
 | `common.approval`                                                             | 신청서, 결재선, 승인·반려·회수                         | 사업·협의회 상태 동기화와 알림 이벤트 발행                           |
-| `common.board`, `common.code`, `common.admin`                                 | 공통 게시판·코드와 관리자 운영 API. `common.admin.realtime`은 감사·실시간 로그, `common.admin.waslog`는 인메모리 링버퍼 기반 WAS 로그 조회·런타임 레벨 변경 | 파일·메뉴·사용자·감사로그 등 공통 관리 기능을 조합                   |
+| `common.board`, `common.code`, `common.admin`                                 | 공통 게시판·코드와 관리자 운영 API. `common.admin.realtime`은 감사·실시간 로그, `common.admin.waslog`는 인메모리 링버퍼 기반 WAS 로그 조회·런타임 레벨 변경, `common.admin.metrics`는 인스턴스별 서버 자원 사용량(CPU·메모리·load·디스크·스레드·DB 풀) 샘플링과 대시보드 조회 | 파일·메뉴·사용자·감사로그 등 공통 관리 기능을 조합                   |
 | `common.mfa`                                                                  | 추가 인증 거래 발급·검증·소비와 공유 저장소            | 수동 로그인과 전자결재 명령의 증표를 `common.system`·`common.approval`에 제공 |
 | `common.i18n`                                                                 | 메뉴명·공통코드 표시명 번역과 변경 이력                | 메뉴·코드 조회 응답의 표시명을 언어별로 제공                         |
 | `common.speeddial`                                                            | 전역 스피드다이얼의 FAQ 조회·Q&A 등록·담당자 정보 조회 | 전용 테이블 없이 `common.board`의 FAQ(`004`)·Q&A(`005`) 유형 게시판과 `BGDOCM` 단일 문서를 재사용 |
@@ -195,8 +195,8 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `SSO_AGENT_ID`          | ESSO가 발급한 업무 시스템 식별 번호                                 |
 | `FILE_BASE_PATH`        | 첨부파일 저장 경로                                                   |
 | `SERVER_INSTANCE_ID`    | 인스턴스 ID. 멀티 서버 파일명 충돌 방지와 WAS 로그 인스턴스 식별에 함께 사용하므로 서버마다 서로 달라야 합니다 |
-| `WAS_LOG_INTERNAL_SECRET` | WAS 로그 피어 내부 API(`/internal/was-logs/**`) 공유 비밀값. 비어 있으면 내부 컨트롤러 자체가 등록되지 않습니다 |
-| `WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2` | 인스턴스별 내부 호출 base URL. 지정하지 않으면 해당 인스턴스를 조회 대상에서 뺍니다 |
+| `WAS_LOG_INTERNAL_SECRET` | 피어 내부 API(`/internal/was-logs/**`, `/internal/server-metrics/**`) 공유 비밀값. 비어 있으면 내부 컨트롤러 자체가 등록되지 않습니다 |
+| `WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2` | 인스턴스별 내부 호출 base URL. WAS 로그 뷰어와 대시보드 서버 자원 사용량이 함께 씁니다. 지정하지 않으면 해당 인스턴스를 조회 대상에서 뺍니다 |
 | `GEMINI_API_KEY`        | Gemini API 키. `prod`에서는 기동 시 필수 검증                        |
 | `EAI_ENABLED`           | EAI 전송 활성화 여부. 공통 기본값 `false`, `prod` 기본값 `true`     |
 | `EAI_URL`               | EAI 전송 URL. `prod`에서 EAI가 활성화되면 기동 시 필수 검증         |
@@ -218,7 +218,7 @@ WAS를 2대로 운영할 때 **인스턴스마다 값이 달라야 하는** 환�
 | `SERVER_INSTANCE_ID` | `SVR1` | `SVR2` | 첨부파일명 충돌 방지와 WAS 로그 인스턴스 식별. 두 대가 같으면 피어 조회가 언제나 자기 링버퍼만 읽습니다 |
 | `DB_URL` | 1번 RAC 노드 우선 | 2번 RAC 노드 우선 | 두 노드에 접속을 나눠 붙입니다. 값 형태는 아래 표 참조 |
 
-`WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2`는 이름과 달리 **두 대에 같은 값**을 넣습니다. 각 서버가 동일한 인스턴스 목록을 갖고, 자기 자신이 아닌 대상만 내부 HTTP로 위임하기 때문입니다.
+`WAS_LOG_PEER_SVR1`·`WAS_LOG_PEER_SVR2`는 이름과 달리 **두 대에 같은 값**을 넣습니다. 각 서버가 동일한 인스턴스 목록을 갖고, 자기 자신이 아닌 대상만 내부 HTTP로 위임하기 때문입니다. 관리자 대시보드의 서버 자원 사용량도 같은 목록으로 두 인스턴스를 한 응답에 모읍니다. 각 인스턴스는 자기 자원만 10초마다 샘플링해 메모리에 60분 보관하며(`app.server-metrics.*`), 재기동하면 이력이 비워집니다.
 
 `DB_URL`은 두 DB 노드 주소를 `ADDRESS_LIST`에 넣고 **AP마다 순서를 교차**해 주입합니다. 두 URL은 `ADDRESS` 순서만 다르고 나머지는 완전히 같습니다. 선택 기준과 주의사항은 [`application-prod.properties`](src/main/resources/application-prod.properties)의 `spring.datasource.url` 주석이 SoT입니다.
 

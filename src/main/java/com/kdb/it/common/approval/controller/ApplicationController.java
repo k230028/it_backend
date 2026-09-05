@@ -1,7 +1,9 @@
 package com.kdb.it.common.approval.controller;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.dto.ApprovalHomeInboxDto;
 import com.kdb.it.common.approval.service.ApplicationService;
+import com.kdb.it.common.approval.service.ApprovalHomeInboxService;
 import com.kdb.it.common.approval.service.ApprovalLineManagementService;
 import com.kdb.it.common.approval.service.ApprovalLineSuggestionService;
 import com.kdb.it.common.approval.service.PendingApproverService;
@@ -54,6 +56,9 @@ public class ApplicationController {
     /** 신청서 비즈니스 로직 서비스 */
     private final ApplicationService applicationService;
 
+    /** 전자결재 Home 결재함·기안함 조회 서비스 */
+    private final ApprovalHomeInboxService approvalHomeInboxService;
+
     private final PendingApproverService pendingApproverService;
 
     private final ApprovalLineManagementService approvalLineManagementService;
@@ -63,12 +68,13 @@ public class ApplicationController {
     /**
      * 전체 신청서 목록 조회
      *
-     * <p>결재선이 없는 작성완료({@code 0}) 신청서는 결재함 대상이 아니므로 제외하고, 그 외 신청서를 각각의 결재자 목록과 함께 반환합니다.
+     * <p>결재선이 없는 작성완료({@code 0})와 결재를 거치지 않는 수기등록({@code 9}) 신청서는 결재함 대상이 아니므로 제외하고, 그 외 신청서를 각각의
+     * 결재자 목록과 함께 반환합니다.
      *
      * @return HTTP 200 + 신청서 목록 ({@link ApplicationDto.Response} 리스트)
      */
     @GetMapping
-    @Operation(summary = "전체 신청서 조회", description = "작성완료(0) 신청서를 제외한 신청서 정보를 조회합니다.")
+    @Operation(summary = "전체 신청서 조회", description = "작성완료(0)·수기등록(9) 신청서를 제외한 신청서 정보를 조회합니다.")
     public ResponseEntity<java.util.List<ApplicationDto.Response>> getApplications() {
         return ResponseEntity.ok(applicationService.getApplications());
     }
@@ -379,8 +385,8 @@ public class ApplicationController {
     /** 인증 사용자의 전자결재 Home 결재함·기안함 전체 목록을 반환합니다. */
     @GetMapping("/home-inbox")
     @Operation(summary = "전자결재 Home 목록 조회", description = "인증 사용자의 결재함과 기안함을 상태별로 반환합니다.")
-    public ResponseEntity<ApplicationDto.HomeInboxResponse> getHomeInbox(Authentication auth) {
-        return ResponseEntity.ok(applicationService.getHomeInbox(auth.getName()));
+    public ResponseEntity<ApprovalHomeInboxDto.Response> getHomeInbox(Authentication auth) {
+        return ResponseEntity.ok(approvalHomeInboxService.getHomeInbox(auth.getName()));
     }
 
     /**
