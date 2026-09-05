@@ -34,6 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
             "spring.datasource.password=test-db-password",
             "jwt.secret=test-secret-key-for-junit-test-minimum-256-bits-length-ok",
             "security.token-fingerprint-secret=test-token-fingerprint-secret-for-junit-minimum-256-bits-ok",
+            "app.approval.it-budget.preview.active-key-id=test-v1",
+            "app.approval.it-budget.preview.active-signing-key=test-it-budget-preview-signing-key-at-least-32-bytes",
             "gemini.api.key=test-gemini-key",
             "eai.enabled=false"
         })

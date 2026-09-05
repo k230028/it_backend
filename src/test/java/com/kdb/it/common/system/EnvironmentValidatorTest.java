@@ -141,7 +141,46 @@ class EnvironmentValidatorTest {
         env.setProperty("server.servlet.session.cookie.http-only", "true");
         env.setProperty("server.servlet.session.cookie.same-site", "lax");
         env.setProperty("app.frontend-url", "https://it.kdb.co.kr");
+        env.setProperty("app.approval.it-budget.preview.active-key-id", "prod-v2");
+        env.setProperty(
+                "app.approval.it-budget.preview.active-signing-key",
+                "preview-signing-key-for-production-minimum-32-bytes");
         return env;
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 미리보기 활성 키 ID가 없으면 기동을 차단한다")
+    void validate_prodMissingPreviewActiveKeyId_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.active-key-id", " ");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("IT_BUDGET_PREVIEW_ACTIVE_KEY_ID");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 미리보기 활성 서명 키가 UTF-8 32바이트보다 짧으면 기동을 차단한다")
+    void validate_prodShortPreviewActiveSigningKey_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.active-signing-key", "가나다라마바사아자차");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("IT_BUDGET_PREVIEW_SIGNING_KEY")
+                .hasMessageContaining("32바이트");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 직전 키 ID와 서명 키는 함께 설정해야 한다")
+    void validate_prodPreviewPreviousKeyPairRequired_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.previous-key-id", "prod-v1");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("previous-key-id")
+                .hasMessageContaining("previous-signing-key");
     }
 
     @ParameterizedTest
@@ -635,6 +674,10 @@ class EnvironmentValidatorTest {
         requiredProperties.put("server.servlet.session.cookie.http-only", "true");
         requiredProperties.put("server.servlet.session.cookie.same-site", "lax");
         requiredProperties.put("app.frontend-url", "https://it.kdb.co.kr");
+        requiredProperties.put("app.approval.it-budget.preview.active-key-id", "prod-v2");
+        requiredProperties.put(
+                "app.approval.it-budget.preview.active-signing-key",
+                "preview-signing-key-for-production-minimum-32-bytes");
         requiredProperties.putAll(overrides);
 
         if (includeProdProfile) {

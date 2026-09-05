@@ -162,6 +162,10 @@ class EnvironmentValidatorStartupTest {
         properties.put("app.frontend-url", "https://it.kdb.co.kr");
         properties.put("springdoc.api-docs.enabled", "false");
         properties.put("springdoc.swagger-ui.enabled", "false");
+        properties.put("app.approval.it-budget.preview.active-key-id", "prod-v2");
+        properties.put(
+                "app.approval.it-budget.preview.active-signing-key",
+                "preview-signing-key-for-production-minimum-32-bytes");
         properties.putAll(overrides);
         return properties.entrySet().stream()
                 .map(entry -> "--" + entry.getKey() + "=" + entry.getValue())
