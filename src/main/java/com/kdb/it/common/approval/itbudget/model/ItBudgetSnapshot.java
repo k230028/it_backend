@@ -23,7 +23,11 @@ public record ItBudgetSnapshot(
 
     public record ApprovalPerson(String eno, String name, String rank, LocalDate date) {}
 
-    public record ApprovalLine(Person requester, List<ApprovalPerson> approvers) {}
+    public record ApprovalLine(Person requester, List<ApprovalPerson> approvers) {
+        public ApprovalLine {
+            approvers = List.copyOf(approvers);
+        }
+    }
 
     public record ProjectItem(
             int revision,
@@ -70,7 +74,11 @@ public record ItBudgetSnapshot(
             String deploymentYn,
             BigDecimal assetBudget,
             BigDecimal costBudget,
-            List<ProjectItem> items) {}
+            List<ProjectItem> items) {
+        public Project {
+            items = List.copyOf(items);
+        }
+    }
 
     public record Terminal(
             int revision,
@@ -103,18 +111,31 @@ public record ItBudgetSnapshot(
             String securitySystemUseYn,
             BigDecimal assetBudget,
             BigDecimal costBudget,
-            List<Terminal> terminals) {}
+            List<Terminal> terminals) {
+        public Cost {
+            terminals = List.copyOf(terminals);
+        }
+    }
 
     public record Summary(BigDecimal total, BigDecimal asset, BigDecimal cost) {}
 
-    public record Payload(List<Project> projects, List<Cost> costs, Summary summary) {}
+    public record Payload(List<Project> projects, List<Cost> costs, Summary summary) {
+        public Payload {
+            projects = List.copyOf(projects);
+            costs = List.copyOf(costs);
+        }
+    }
 
     public record Integrity(
             String algorithm,
             String canonicalization,
             String payloadDigest,
             Instant capturedAt,
-            List<Source> sources) {}
+            List<Source> sources) {
+        public Integrity {
+            sources = List.copyOf(sources);
+        }
+    }
 
     public record Source(String kind, String id, int revision, int order, String digest) {}
 }

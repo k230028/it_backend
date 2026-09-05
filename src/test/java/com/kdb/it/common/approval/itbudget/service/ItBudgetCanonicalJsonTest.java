@@ -8,6 +8,8 @@ import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,12 +122,104 @@ class ItBudgetCanonicalJsonTest {
                 .isEqualTo(String.class);
     }
 
+    @Test
+    void snapshot_defensivelyCopiesCallerOwnedListsBeforeCanonicalDigest() {
+        List<ItBudgetSnapshot.ApprovalPerson> approvers =
+                new ArrayList<>(
+                        List.of(new ItBudgetSnapshot.ApprovalPerson("E1", "결재자", "부장", null)));
+        List<ItBudgetSnapshot.ProjectItem> items =
+                new ArrayList<>(
+                        List.of(
+                                new ItBudgetSnapshot.ProjectItem(
+                                        1, 1, null, null, null, null, null, null)));
+        List<ItBudgetSnapshot.Project> projects = new ArrayList<>(List.of(project(items)));
+        List<ItBudgetSnapshot.Terminal> terminals =
+                new ArrayList<>(
+                        List.of(
+                                new ItBudgetSnapshot.Terminal(
+                                        1, 1, null, null, null, null, null, null, null, null)));
+        List<ItBudgetSnapshot.Cost> costs = new ArrayList<>(List.of(cost(terminals)));
+        List<ItBudgetSnapshot.Source> sources =
+                new ArrayList<>(
+                        List.of(
+                                new ItBudgetSnapshot.Source(
+                                        "PROJECT", "P-1", 1, 1, "a".repeat(64))));
+        ItBudgetSnapshot snapshot =
+                new ItBudgetSnapshot(
+                        new ItBudgetSnapshot.Form("it-budget", 2),
+                        new ItBudgetSnapshot.Payload(
+                                projects, costs, new ItBudgetSnapshot.Summary(null, null, null)),
+                        new ItBudgetSnapshot.ApprovalLine(null, approvers),
+                        new ItBudgetSnapshot.Integrity(
+                                "SHA-256", "IT_BUDGET_V2", "b".repeat(64), null, sources));
+        String digestBeforeMutation = canonical.digest(snapshot);
+
+        approvers.clear();
+        items.clear();
+        projects.clear();
+        terminals.clear();
+        costs.clear();
+        sources.clear();
+
+        assertThat(snapshot.approvalLine().approvers()).hasSize(1);
+        assertThat(snapshot.payload().projects()).hasSize(1);
+        assertThat(snapshot.payload().projects().getFirst().items()).hasSize(1);
+        assertThat(snapshot.payload().costs()).hasSize(1);
+        assertThat(snapshot.payload().costs().getFirst().terminals()).hasSize(1);
+        assertThat(snapshot.integrity().sources()).hasSize(1);
+        assertThat(canonical.digest(snapshot)).isEqualTo(digestBeforeMutation);
+    }
+
+    @Test
+    void requiredSnapshotLists_rejectNullReferencesAndNullElements() {
+        assertThatThrownBy(() -> new ItBudgetSnapshot.ApprovalLine(null, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ItBudgetSnapshot.ApprovalLine(
+                                        null, Collections.singletonList(null)))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> project(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> project(Collections.singletonList(null)))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> cost(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> cost(Collections.singletonList(null)))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ItBudgetSnapshot.Payload(null, List.of(), null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ItBudgetSnapshot.Payload(
+                                        Collections.singletonList(null), List.of(), null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ItBudgetSnapshot.Integrity(null, null, null, null, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new ItBudgetSnapshot.Integrity(
+                                        null, null, null, null, Collections.singletonList(null)))
+                .isInstanceOf(NullPointerException.class);
+    }
+
     private static Class<?> recordComponentType(Class<?> recordType, String componentName) {
         return java.util.Arrays.stream(recordType.getRecordComponents())
                 .filter(component -> component.getName().equals(componentName))
                 .findFirst()
                 .orElseThrow()
                 .getType();
+    }
+
+    private static ItBudgetSnapshot.Project project(List<ItBudgetSnapshot.ProjectItem> items) {
+        return new ItBudgetSnapshot.Project(
+                "P-1", 1, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, items);
+    }
+
+    private static ItBudgetSnapshot.Cost cost(List<ItBudgetSnapshot.Terminal> terminals) {
+        return new ItBudgetSnapshot.Cost(
+                "C-1", 1, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, terminals);
     }
 
     private record ObjectFields(String b, String a) {}
