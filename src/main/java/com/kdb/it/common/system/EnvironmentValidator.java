@@ -2,6 +2,8 @@ package com.kdb.it.common.system;
 
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.web.server.Cookie;
@@ -34,6 +36,9 @@ import org.springframework.stereotype.Component;
 @Lazy(false)
 @RequiredArgsConstructor
 public class EnvironmentValidator {
+
+    private static final Pattern TOKEN_KEY_ID = Pattern.compile("[A-Za-z0-9_-]+");
+    private static final Duration IT_BUDGET_PREVIEW_TTL = Duration.ofMinutes(30);
 
     private final Environment environment;
 
@@ -148,6 +153,7 @@ public class EnvironmentValidator {
                 "app.approval.it-budget.preview.active-signing-key",
                 "IT_BUDGET_PREVIEW_SIGNING_KEY",
                 32);
+        validateTokenKeyId("app.approval.it-budget.preview.active-key-id");
 
         String previousKeyId =
                 environment.getProperty("app.approval.it-budget.preview.previous-key-id");
@@ -161,10 +167,37 @@ public class EnvironmentValidator {
                             + "app.approval.it-budget.preview.previous-signing-key는 함께 설정해야 합니다.");
         }
         if (hasPreviousSigningKey) {
+            validateTokenKeyId("app.approval.it-budget.preview.previous-key-id");
+            if (previousKeyId.equals(
+                    environment.getProperty("app.approval.it-budget.preview.active-key-id"))) {
+                throw new IllegalStateException(
+                        "운영 보안 위반: app.approval.it-budget.preview.active-key-id와 "
+                                + "app.approval.it-budget.preview.previous-key-id는 서로 달라야 합니다.");
+            }
             checkMinimumUtf8Bytes(
                     "app.approval.it-budget.preview.previous-signing-key",
                     "IT_BUDGET_PREVIEW_PREVIOUS_SIGNING_KEY",
                     32);
+        }
+        validateItBudgetPreviewTtl();
+    }
+
+    private void validateTokenKeyId(String propertyKey) {
+        String keyId = environment.getProperty(propertyKey);
+        if (!hasText(keyId) || !TOKEN_KEY_ID.matcher(keyId).matches()) {
+            throw securityViolation(propertyKey);
+        }
+    }
+
+    private void validateItBudgetPreviewTtl() {
+        String propertyKey = "app.approval.it-budget.preview.ttl";
+        try {
+            if (!IT_BUDGET_PREVIEW_TTL.equals(
+                    Duration.parse(environment.getProperty(propertyKey)))) {
+                throw securityViolation(propertyKey);
+            }
+        } catch (RuntimeException exception) {
+            throw securityViolation(propertyKey);
         }
     }
 

@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
@@ -31,6 +32,8 @@ public class ItBudgetPreviewTokenService {
     private static final String EXPIRED_MESSAGE = "미리보기 유효 시간이 만료되었습니다.";
     private static final Pattern BASE64URL_SEGMENT = Pattern.compile("[A-Za-z0-9_-]+");
     private static final Pattern KEY_ID = Pattern.compile("[A-Za-z0-9_-]+");
+    private static final Duration PREVIEW_TTL = Duration.ofMinutes(30);
+    private static final int HMAC_SHA256_LENGTH = 32;
 
     private final ItBudgetPreviewProperties properties;
     private final ObjectMapper objectMapper;
@@ -39,6 +42,7 @@ public class ItBudgetPreviewTokenService {
     public ItBudgetPreviewTokenService(
             ItBudgetPreviewProperties properties, ObjectMapper objectMapper, Clock clock) {
         this.properties = properties;
+        validateProperties();
         this.objectMapper =
                 objectMapper
                         .copy()
@@ -75,6 +79,9 @@ public class ItBudgetPreviewTokenService {
         String[] parts = splitToken(token);
         String signingKey = signingKeyFor(parts[0]);
         byte[] actualSignature = decode(parts[2]);
+        if (actualSignature.length != HMAC_SHA256_LENGTH) {
+            throw invalid();
+        }
         String signingInput = parts[0] + "." + parts[1];
         verifySignature(sign(signingKey, signingInput), actualSignature);
 
@@ -107,8 +114,8 @@ public class ItBudgetPreviewTokenService {
         String[] parts = token.split("\\.", -1);
         if (parts.length != 3
                 || !KEY_ID.matcher(parts[0]).matches()
-                || !isBase64Url(parts[1])
-                || !isBase64Url(parts[2])) {
+                || !isCanonicalBase64Url(parts[1])
+                || !isCanonicalBase64Url(parts[2])) {
             throw invalid();
         }
         return parts;
@@ -168,20 +175,31 @@ public class ItBudgetPreviewTokenService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
     }
 
-    private boolean isBase64Url(String value) {
-        return BASE64URL_SEGMENT.matcher(value).matches();
+    private boolean isCanonicalBase64Url(String value) {
+        if (!BASE64URL_SEGMENT.matcher(value).matches()) {
+            return false;
+        }
+        try {
+            return value.equals(encode(Base64.getUrlDecoder().decode(value)));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 
     private String requireSigningKeyId(String keyId) {
+        return requireKeyId(keyId, "활성");
+    }
+
+    private String requireKeyId(String keyId, String keyName) {
         if (!hasText(keyId) || !KEY_ID.matcher(keyId).matches()) {
-            throw new IllegalStateException("미리보기 활성 키 ID 설정이 올바르지 않습니다.");
+            throw new IllegalStateException("미리보기 " + keyName + " 키 ID 설정이 올바르지 않습니다.");
         }
         return keyId;
     }
 
     private String requireSigningKey(String key) {
-        if (!hasText(key)) {
-            throw new IllegalStateException("미리보기 활성 서명 키 설정이 올바르지 않습니다.");
+        if (!hasText(key) || key.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("미리보기 서명 키는 UTF-8 기준 32바이트 이상이어야 합니다.");
         }
         return key;
     }
@@ -203,8 +221,31 @@ public class ItBudgetPreviewTokenService {
                 || !hasText(claims.previewDigest())
                 || claims.issuedAt() == null
                 || claims.expiresAt() == null
-                || !claims.expiresAt().isAfter(claims.issuedAt())) {
+                || !claims.expiresAt().isAfter(claims.issuedAt())
+                || !claims.expiresAt().equals(claims.issuedAt().plus(properties.ttl()))) {
             throw invalid();
+        }
+    }
+
+    /** 수동 생성 경로도 운영과 같은 키 회전 및 30분 수명 불변식을 지킨다. */
+    private void validateProperties() {
+        String activeKeyId = requireSigningKeyId(properties.activeKeyId());
+        requireSigningKey(properties.activeSigningKey());
+        boolean hasPreviousKeyId = hasText(properties.previousKeyId());
+        boolean hasPreviousSigningKey = hasText(properties.previousSigningKey());
+        if (hasPreviousKeyId != hasPreviousSigningKey) {
+            throw new IllegalStateException("미리보기 직전 키 ID와 서명 키는 함께 설정해야 합니다.");
+        }
+        if (hasPreviousKeyId) {
+            String previousKeyId = requireKeyId(properties.previousKeyId(), "직전");
+            requireSigningKey(properties.previousSigningKey());
+            if (activeKeyId.equals(previousKeyId)) {
+                throw new IllegalStateException("미리보기 활성 키 ID와 직전 키 ID는 서로 달라야 합니다.");
+            }
+        }
+        if (!PREVIEW_TTL.equals(properties.ttl())) {
+            throw new IllegalStateException(
+                    "app.approval.it-budget.preview.ttl은 정확히 PT30M이어야 합니다.");
         }
     }
 

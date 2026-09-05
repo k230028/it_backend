@@ -11,8 +11,11 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,6 +75,56 @@ class ItBudgetPreviewTokenServiceTest {
     }
 
     @Test
+    @DisplayName("발급 claims의 만료 시각은 구성된 정확히 30분 TTL과 일치해야 한다")
+    void issue_nonThirtyMinuteTtl_rejectsInvalidClaims() {
+        Claims thirtyOneMinuteClaims = claims(NOW, NOW.plus(Duration.ofMinutes(31)));
+
+        assertThatThrownBy(() -> service.issue(thirtyOneMinuteClaims))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("서명은 정상이어도 30분이 아닌 claims TTL은 검증 단계에서 거부한다")
+    void verify_nonThirtyMinuteTtl_rejectsAsInvalid() {
+        Claims thirtyOneMinuteClaims = claims(NOW, NOW.plus(Duration.ofMinutes(31)));
+        String token = signedToken("active-v2", key('a'), thirtyOneMinuteClaims);
+
+        assertInvalid(() -> service.verify(token, "E10001"));
+    }
+
+    @Test
+    @DisplayName("수동 구성도 정확히 30분이 아닌 토큰 TTL을 허용하지 않는다")
+    void constructor_nonThirtyMinuteConfiguredTtl_failsFast() {
+        assertThatThrownBy(
+                        () ->
+                                service(
+                                        new ItBudgetPreviewProperties(
+                                                "active-v2",
+                                                key('a'),
+                                                null,
+                                                null,
+                                                Duration.ofMinutes(31))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ttl");
+    }
+
+    @Test
+    @DisplayName("수동 구성도 32바이트보다 짧은 활성 서명 키를 허용하지 않는다")
+    void constructor_shortActiveSigningKey_failsFast() {
+        assertThatThrownBy(
+                        () ->
+                                service(
+                                        new ItBudgetPreviewProperties(
+                                                "active-v2",
+                                                "short-signing-key",
+                                                null,
+                                                null,
+                                                Duration.ofMinutes(30))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("32바이트");
+    }
+
+    @Test
     @DisplayName("다른 신청자가 제시한 정상 서명 토큰은 요청 결속 오류로 거부한다")
     void verify_differentRequester_rejectsAsInvalid() {
         String token = service.issue(claims);
@@ -121,25 +174,102 @@ class ItBudgetPreviewTokenServiceTest {
         assertInvalid(() -> service.verify(token, "E10001"));
     }
 
-    @Test
-    @DisplayName("직전 키의 ID만 남은 불완전한 회전 설정은 키를 추측하지 않고 거부한다")
-    void verify_incompletePreviousKeyPair_rejectsAsInvalid() {
-        ItBudgetPreviewTokenService incompleteRotation =
-                service(
-                        new ItBudgetPreviewProperties(
-                                "active-v2",
-                                key('a'),
-                                "previous-v1",
-                                null,
-                                Duration.ofMinutes(30)));
+    @ParameterizedTest
+    @ValueSource(strings = {"active.v2", "active/v2", "active v2"})
+    @DisplayName("수동 구성에서도 토큰 grammar 밖의 활성 키 ID는 즉시 거부한다")
+    void constructor_malformedActiveKeyId_failsFast(String activeKeyId) {
+        assertThatThrownBy(
+                        () ->
+                                service(
+                                        new ItBudgetPreviewProperties(
+                                                activeKeyId,
+                                                key('a'),
+                                                null,
+                                                null,
+                                                Duration.ofMinutes(30))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("키 ID");
+    }
 
-        assertInvalid(() -> incompleteRotation.verify("previous-v1.A.A", "E10001"));
+    @Test
+    @DisplayName("수동 구성에서도 활성·직전 키 ID가 같으면 회전을 시작하지 않는다")
+    void constructor_duplicateActiveAndPreviousKeyId_failsFast() {
+        assertThatThrownBy(
+                        () ->
+                                service(
+                                        new ItBudgetPreviewProperties(
+                                                "active-v2",
+                                                key('a'),
+                                                "active-v2",
+                                                key('b'),
+                                                Duration.ofMinutes(30))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("달라야");
+    }
+
+    @Test
+    @DisplayName("직전 키의 ID만 남은 불완전한 수동 회전 설정은 생성 시 거부한다")
+    void constructor_incompletePreviousKeyPair_failsFast() {
+        assertThatThrownBy(
+                        () ->
+                                service(
+                                        new ItBudgetPreviewProperties(
+                                                "active-v2",
+                                                key('a'),
+                                                "previous-v1",
+                                                null,
+                                                Duration.ofMinutes(30))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("함께 설정");
     }
 
     @Test
     @DisplayName("문법상 Base64URL이지만 디코딩할 수 없는 서명은 거부한다")
     void verify_nonDecodableBase64UrlSignature_rejectsAsInvalid() {
         assertInvalid(() -> service.verify("active-v2.A.A", "E10001"));
+    }
+
+    @Test
+    @DisplayName("HMAC-SHA-256 길이가 아닌 canonical 서명은 거부한다")
+    void verify_shortDecodedSignature_rejectsAsInvalid() {
+        String claimsSegment = service.issue(claims).split("\\.", -1)[1];
+
+        assertInvalid(() -> service.verify("active-v2." + claimsSegment + ".AA", "E10001"));
+    }
+
+    @Test
+    @DisplayName("동일 바이트로 디코딩되는 마지막 서명 글자 alias도 canonical token이 아니므로 거부한다")
+    void verify_signatureFinalCharacterAlias_rejectsAsInvalid() {
+        String token = service.issue(claims);
+        String[] parts = token.split("\\.", -1);
+        String aliasedSignature = aliasLastBase64UrlCharacter(parts[2]);
+
+        assertThat(Base64.getUrlDecoder().decode(aliasedSignature))
+                .isEqualTo(Base64.getUrlDecoder().decode(parts[2]));
+        assertInvalid(
+                () -> service.verify(parts[0] + "." + parts[1] + "." + aliasedSignature, "E10001"));
+    }
+
+    @Test
+    @DisplayName("claims segment를 같은 바이트 alias로 서명해도 canonical encoding이 아니면 거부한다")
+    void verify_claimsFinalCharacterAlias_rejectsAsInvalid() {
+        Claims aliasClaims =
+                new Claims(
+                        claims.requesterEno(),
+                        claims.requestDigest() + "x",
+                        claims.sourceSetDigest(),
+                        claims.payloadSetDigest(),
+                        claims.previewDigest(),
+                        claims.issuedAt(),
+                        claims.expiresAt());
+        String canonicalToken = service.issue(aliasClaims);
+        String[] parts = canonicalToken.split("\\.", -1);
+        String aliasedClaims = aliasLastBase64UrlCharacter(parts[1]);
+        String token = signedToken("active-v2", key('a'), aliasedClaims);
+
+        assertThat(Base64.getUrlDecoder().decode(aliasedClaims))
+                .isEqualTo(Base64.getUrlDecoder().decode(parts[1]));
+        assertInvalid(() -> service.verify(token, "E10001"));
     }
 
     @ParameterizedTest
@@ -199,6 +329,53 @@ class ItBudgetPreviewTokenServiceTest {
 
     private Claims claims(Instant issuedAt, Instant expiresAt) {
         return new Claims("E10001", hex('a'), hex('b'), hex('c'), hex('d'), issuedAt, expiresAt);
+    }
+
+    private String signedToken(String keyId, String signingKey, Claims tokenClaims) {
+        try {
+            String encodedClaims =
+                    Base64.getUrlEncoder()
+                            .withoutPadding()
+                            .encodeToString(
+                                    new ObjectMapper()
+                                            .findAndRegisterModules()
+                                            .writeValueAsBytes(tokenClaims));
+            return signedToken(keyId, signingKey, encodedClaims);
+        } catch (Exception exception) {
+            throw new AssertionError("테스트 토큰 서명에 실패했습니다.", exception);
+        }
+    }
+
+    private String signedToken(String keyId, String signingKey, String encodedClaims) {
+        try {
+            String signingInput = keyId + "." + encodedClaims;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(
+                    new SecretKeySpec(
+                            signingKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            "HmacSHA256"));
+            return signingInput
+                    + "."
+                    + Base64.getUrlEncoder()
+                            .withoutPadding()
+                            .encodeToString(
+                                    mac.doFinal(
+                                            signingInput.getBytes(
+                                                    java.nio.charset.StandardCharsets.US_ASCII)));
+        } catch (Exception exception) {
+            throw new AssertionError("테스트 토큰 서명에 실패했습니다.", exception);
+        }
+    }
+
+    private String aliasLastBase64UrlCharacter(String canonicalSegment) {
+        byte[] decoded = Base64.getUrlDecoder().decode(canonicalSegment);
+        if (decoded.length % 3 == 0) {
+            throw new AssertionError("alias regression fixture must use an unpadded final quantum");
+        }
+        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+        int lastIndex = alphabet.indexOf(canonicalSegment.charAt(canonicalSegment.length() - 1));
+        return canonicalSegment.substring(0, canonicalSegment.length() - 1)
+                + alphabet.charAt(lastIndex + 1);
     }
 
     private void assertInvalid(org.assertj.core.api.ThrowableAssert.ThrowingCallable action) {
