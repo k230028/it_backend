@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -54,17 +55,34 @@ public class ItBudgetPreviewTokenService {
     /**
      * 활성 키로 서버가 만든 미리보기 결속 정보를 서명한다.
      *
-     * @param claims 신청자·요청 해시 집합·발급 및 만료 시각
-     * @return {@code kid.base64url(claims).base64url(HMAC-SHA-256)} 형식의 불투명 토큰
+     * @param binding 신청자와 네 종류 요청 해시 집합
+     * @return 토큰과 서버가 Clock으로 정한 결속 claims
      * @throws IllegalStateException 활성 키 설정 또는 토큰 직렬화가 올바르지 않을 때
      */
-    public String issue(Claims claims) {
-        requireUsableClaims(claims);
+    public IssuedPreview issue(PreviewBinding binding) {
+        requireUsableBinding(binding);
+        Instant issuedAt = Instant.now(clock);
+        Instant expiresAt;
+        try {
+            expiresAt = issuedAt.plus(PREVIEW_TTL);
+        } catch (DateTimeException | ArithmeticException exception) {
+            throw new IllegalStateException("미리보기 발급 시각을 계산할 수 없습니다.", exception);
+        }
+        Claims claims =
+                new Claims(
+                        binding.requesterEno(),
+                        binding.requestDigest(),
+                        binding.sourceSetDigest(),
+                        binding.payloadSetDigest(),
+                        binding.previewDigest(),
+                        issuedAt,
+                        expiresAt);
         String keyId = requireSigningKeyId(properties.activeKeyId());
         String signingKey = requireSigningKey(properties.activeSigningKey());
         String encodedClaims = encodeClaims(claims);
         String signingInput = keyId + "." + encodedClaims;
-        return signingInput + "." + encode(sign(signingKey, signingInput));
+        return new IssuedPreview(
+                signingInput + "." + encode(sign(signingKey, signingInput)), claims);
     }
 
     /**
@@ -86,12 +104,13 @@ public class ItBudgetPreviewTokenService {
         verifySignature(sign(signingKey, signingInput), actualSignature);
 
         Claims claims = decodeClaims(parts[1]);
-        requireValidClaims(claims);
+        Instant now = Instant.now(clock);
+        requireValidClaims(claims, now);
         if (!MessageDigest.isEqual(
                 claims.requesterEno().getBytes(StandardCharsets.UTF_8), safeBytes(requesterEno))) {
             throw invalid();
         }
-        if (!Instant.now(clock).isBefore(claims.expiresAt())) {
+        if (!now.isBefore(claims.expiresAt())) {
             throw expired();
         }
         return claims;
@@ -106,6 +125,17 @@ public class ItBudgetPreviewTokenService {
             String previewDigest,
             Instant issuedAt,
             Instant expiresAt) {}
+
+    /** 서명 시 서버가 생성할 미리보기 요청 결속 입력이다. */
+    public record PreviewBinding(
+            String requesterEno,
+            String requestDigest,
+            String sourceSetDigest,
+            String payloadSetDigest,
+            String previewDigest) {}
+
+    /** 미리보기 발급 토큰과 상신 응답에 사용할 서버 생성 claims다. */
+    public record IssuedPreview(String token, Claims claims) {}
 
     private String[] splitToken(String token) {
         if (token == null) {
@@ -204,15 +234,18 @@ public class ItBudgetPreviewTokenService {
         return key;
     }
 
-    private void requireUsableClaims(Claims claims) {
-        try {
-            requireValidClaims(claims);
-        } catch (ItBudgetApprovalException exception) {
-            throw new IllegalStateException("미리보기 서명 claims가 올바르지 않습니다.", exception);
+    private void requireUsableBinding(PreviewBinding binding) {
+        if (binding == null
+                || !hasText(binding.requesterEno())
+                || !hasText(binding.requestDigest())
+                || !hasText(binding.sourceSetDigest())
+                || !hasText(binding.payloadSetDigest())
+                || !hasText(binding.previewDigest())) {
+            throw new IllegalStateException("미리보기 서명 binding이 올바르지 않습니다.");
         }
     }
 
-    private void requireValidClaims(Claims claims) {
+    private void requireValidClaims(Claims claims, Instant now) {
         if (claims == null
                 || !hasText(claims.requesterEno())
                 || !hasText(claims.requestDigest())
@@ -220,9 +253,15 @@ public class ItBudgetPreviewTokenService {
                 || !hasText(claims.payloadSetDigest())
                 || !hasText(claims.previewDigest())
                 || claims.issuedAt() == null
-                || claims.expiresAt() == null
-                || !claims.expiresAt().isAfter(claims.issuedAt())
-                || !claims.expiresAt().equals(claims.issuedAt().plus(properties.ttl()))) {
+                || claims.expiresAt() == null) {
+            throw invalid();
+        }
+        try {
+            if (!Duration.between(claims.issuedAt(), claims.expiresAt()).equals(PREVIEW_TTL)
+                    || claims.issuedAt().isAfter(now)) {
+                throw invalid();
+            }
+        } catch (DateTimeException | ArithmeticException exception) {
             throw invalid();
         }
     }

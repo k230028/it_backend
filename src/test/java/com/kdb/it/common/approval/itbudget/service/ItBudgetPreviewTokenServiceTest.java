@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.itbudget.config.ItBudgetPreviewProperties;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetPreviewTokenService.Claims;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetPreviewTokenService.IssuedPreview;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetPreviewTokenService.PreviewBinding;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,6 +31,7 @@ class ItBudgetPreviewTokenServiceTest {
 
     private MutableClock clock;
     private ItBudgetPreviewTokenService service;
+    private PreviewBinding binding;
     private Claims claims;
 
     @BeforeEach
@@ -42,22 +45,26 @@ class ItBudgetPreviewTokenServiceTest {
                                 "previous-v1",
                                 key('b'),
                                 Duration.ofMinutes(30)));
+        binding = binding();
         claims = claims(NOW, NOW.plus(Duration.ofMinutes(30)));
     }
 
     @Test
     @DisplayName("발급한 토큰은 요청자와 모든 digest 및 유효시각을 그대로 검증한다")
     void issueAndVerify_bindsAllClaims() {
-        String token = service.issue(claims);
+        IssuedPreview issued = service.issue(binding);
 
-        assertThat(token.split("\\.", -1)).hasSize(3).allMatch(segment -> !segment.isBlank());
-        assertThat(service.verify(token, "E10001")).isEqualTo(claims);
+        assertThat(issued.token().split("\\.", -1))
+                .hasSize(3)
+                .allMatch(segment -> !segment.isBlank());
+        assertThat(issued.claims()).isEqualTo(claims);
+        assertThat(service.verify(issued.token(), "E10001")).isEqualTo(claims);
     }
 
     @Test
     @DisplayName("서명 뒤에 문자를 덧붙인 토큰은 올바른 신청자여도 거부한다")
     void verify_alteredToken_rejectsAsInvalid() {
-        String token = service.issue(claims);
+        String token = service.issue(binding).token();
 
         assertInvalid(() -> service.verify(token + "x", "E10001"));
     }
@@ -65,7 +72,7 @@ class ItBudgetPreviewTokenServiceTest {
     @Test
     @DisplayName("만료 시각과 같거나 지난 서명 정상 토큰은 만료로 구분해 거부한다")
     void verify_expiredToken_rejectsAsExpired() {
-        String token = service.issue(claims);
+        String token = service.issue(binding).token();
         clock.advance(Duration.ofMinutes(30));
 
         assertThatThrownBy(() -> service.verify(token, "E10001"))
@@ -75,12 +82,29 @@ class ItBudgetPreviewTokenServiceTest {
     }
 
     @Test
-    @DisplayName("발급 claims의 만료 시각은 구성된 정확히 30분 TTL과 일치해야 한다")
-    void issue_nonThirtyMinuteTtl_rejectsInvalidClaims() {
-        Claims thirtyOneMinuteClaims = claims(NOW, NOW.plus(Duration.ofMinutes(31)));
+    @DisplayName("발급 시각과 만료 시각은 호출자 입력이 아닌 주입 Clock의 정확히 30분으로 정한다")
+    void issue_usesInjectedClockForExactThirtyMinuteClaims() {
+        IssuedPreview issued = service.issue(binding);
 
-        assertThatThrownBy(() -> service.issue(thirtyOneMinuteClaims))
-                .isInstanceOf(IllegalStateException.class);
+        assertThat(issued.claims())
+                .isEqualTo(
+                        new Claims(
+                                "E10001",
+                                hex('a'),
+                                hex('b'),
+                                hex('c'),
+                                hex('d'),
+                                NOW,
+                                NOW.plusSeconds(1800)));
+    }
+
+    @Test
+    @DisplayName("발급 직후 Clock 정밀도가 이동해도 자기 토큰은 유효하다")
+    void verify_immediatelyAfterIssue_acceptsTokenAcrossClockPrecision() {
+        IssuedPreview issued = service.issue(binding);
+        clock.advance(Duration.ofNanos(1));
+
+        assertThat(service.verify(issued.token(), "E10001")).isEqualTo(issued.claims());
     }
 
     @Test
@@ -88,6 +112,28 @@ class ItBudgetPreviewTokenServiceTest {
     void verify_nonThirtyMinuteTtl_rejectsAsInvalid() {
         Claims thirtyOneMinuteClaims = claims(NOW, NOW.plus(Duration.ofMinutes(31)));
         String token = signedToken("active-v2", key('a'), thirtyOneMinuteClaims);
+
+        assertInvalid(() -> service.verify(token, "E10001"));
+    }
+
+    @Test
+    @DisplayName("서명은 정상이어도 미래 발급 시각 토큰은 INVALID로 거부한다")
+    void verify_futureIssuedAt_rejectsAsInvalid() {
+        Instant futureIssuedAt = NOW.plus(Duration.ofMinutes(1));
+        String token =
+                signedToken(
+                        "active-v2",
+                        key('a'),
+                        claims(futureIssuedAt, futureIssuedAt.plus(Duration.ofMinutes(30))));
+
+        assertInvalid(() -> service.verify(token, "E10001"));
+    }
+
+    @Test
+    @DisplayName("Instant 최대값 경계의 위조 시간 claims는 DateTimeException 대신 INVALID로 닫힌다")
+    void verify_extremeTemporalClaims_rejectsAsInvalid() {
+        Instant issuedAt = Instant.MAX.minusSeconds(1);
+        String token = signedToken("active-v2", key('a'), claims(issuedAt, Instant.MAX));
 
         assertInvalid(() -> service.verify(token, "E10001"));
     }
@@ -127,7 +173,7 @@ class ItBudgetPreviewTokenServiceTest {
     @Test
     @DisplayName("다른 신청자가 제시한 정상 서명 토큰은 요청 결속 오류로 거부한다")
     void verify_differentRequester_rejectsAsInvalid() {
-        String token = service.issue(claims);
+        String token = service.issue(binding).token();
 
         assertInvalid(() -> service.verify(token, "E10002"));
     }
@@ -135,7 +181,7 @@ class ItBudgetPreviewTokenServiceTest {
     @Test
     @DisplayName("신청자 사번이 없는 검증 요청은 정상 토큰에도 결속 오류로 거부한다")
     void verify_missingRequester_rejectsAsInvalid() {
-        String token = service.issue(claims);
+        String token = service.issue(binding).token();
 
         assertInvalid(() -> service.verify(token, null));
     }
@@ -147,7 +193,7 @@ class ItBudgetPreviewTokenServiceTest {
                 service(
                         new ItBudgetPreviewProperties(
                                 "previous-v1", key('b'), null, null, Duration.ofMinutes(30)));
-        String token = previousSigner.issue(claims);
+        String token = previousSigner.issue(binding).token();
 
         assertThat(service.verify(token, "E10001")).isEqualTo(claims);
     }
@@ -169,7 +215,7 @@ class ItBudgetPreviewTokenServiceTest {
     @Test
     @DisplayName("알 수 없는 kid의 토큰은 서명 키를 추측하지 않고 거부한다")
     void verify_unknownKid_rejectsAsInvalid() {
-        String token = service.issue(claims).replaceFirst("^[^.]+", "unknown-v9");
+        String token = service.issue(binding).token().replaceFirst("^[^.]+", "unknown-v9");
 
         assertInvalid(() -> service.verify(token, "E10001"));
     }
@@ -232,7 +278,7 @@ class ItBudgetPreviewTokenServiceTest {
     @Test
     @DisplayName("HMAC-SHA-256 길이가 아닌 canonical 서명은 거부한다")
     void verify_shortDecodedSignature_rejectsAsInvalid() {
-        String claimsSegment = service.issue(claims).split("\\.", -1)[1];
+        String claimsSegment = service.issue(binding).token().split("\\.", -1)[1];
 
         assertInvalid(() -> service.verify("active-v2." + claimsSegment + ".AA", "E10001"));
     }
@@ -240,7 +286,7 @@ class ItBudgetPreviewTokenServiceTest {
     @Test
     @DisplayName("동일 바이트로 디코딩되는 마지막 서명 글자 alias도 canonical token이 아니므로 거부한다")
     void verify_signatureFinalCharacterAlias_rejectsAsInvalid() {
-        String token = service.issue(claims);
+        String token = service.issue(binding).token();
         String[] parts = token.split("\\.", -1);
         String aliasedSignature = aliasLastBase64UrlCharacter(parts[2]);
 
@@ -253,16 +299,14 @@ class ItBudgetPreviewTokenServiceTest {
     @Test
     @DisplayName("claims segment를 같은 바이트 alias로 서명해도 canonical encoding이 아니면 거부한다")
     void verify_claimsFinalCharacterAlias_rejectsAsInvalid() {
-        Claims aliasClaims =
-                new Claims(
+        PreviewBinding aliasBinding =
+                new PreviewBinding(
                         claims.requesterEno(),
                         claims.requestDigest() + "x",
                         claims.sourceSetDigest(),
                         claims.payloadSetDigest(),
-                        claims.previewDigest(),
-                        claims.issuedAt(),
-                        claims.expiresAt());
-        String canonicalToken = service.issue(aliasClaims);
+                        claims.previewDigest());
+        String canonicalToken = service.issue(aliasBinding).token();
         String[] parts = canonicalToken.split("\\.", -1);
         String aliasedClaims = aliasLastBase64UrlCharacter(parts[1]);
         String token = signedToken("active-v2", key('a'), aliasedClaims);
@@ -276,50 +320,42 @@ class ItBudgetPreviewTokenServiceTest {
     @ValueSource(strings = {"request", "source", "payload", "preview"})
     @DisplayName("필수 digest가 하나라도 빠진 claims는 발급하지 않는다")
     void issue_missingDigest_rejectsInvalidClaims(String missingDigest) {
-        Claims invalidClaims =
+        PreviewBinding invalidBinding =
                 switch (missingDigest) {
                     case "request" ->
-                            new Claims(
-                                    claims.requesterEno(),
+                            new PreviewBinding(
+                                    binding.requesterEno(),
                                     "",
-                                    claims.sourceSetDigest(),
-                                    claims.payloadSetDigest(),
-                                    claims.previewDigest(),
-                                    claims.issuedAt(),
-                                    claims.expiresAt());
+                                    binding.sourceSetDigest(),
+                                    binding.payloadSetDigest(),
+                                    binding.previewDigest());
                     case "source" ->
-                            new Claims(
-                                    claims.requesterEno(),
-                                    claims.requestDigest(),
+                            new PreviewBinding(
+                                    binding.requesterEno(),
+                                    binding.requestDigest(),
                                     "",
-                                    claims.payloadSetDigest(),
-                                    claims.previewDigest(),
-                                    claims.issuedAt(),
-                                    claims.expiresAt());
+                                    binding.payloadSetDigest(),
+                                    binding.previewDigest());
                     case "payload" ->
-                            new Claims(
-                                    claims.requesterEno(),
-                                    claims.requestDigest(),
-                                    claims.sourceSetDigest(),
+                            new PreviewBinding(
+                                    binding.requesterEno(),
+                                    binding.requestDigest(),
+                                    binding.sourceSetDigest(),
                                     "",
-                                    claims.previewDigest(),
-                                    claims.issuedAt(),
-                                    claims.expiresAt());
+                                    binding.previewDigest());
                     case "preview" ->
-                            new Claims(
-                                    claims.requesterEno(),
-                                    claims.requestDigest(),
-                                    claims.sourceSetDigest(),
-                                    claims.payloadSetDigest(),
-                                    "",
-                                    claims.issuedAt(),
-                                    claims.expiresAt());
+                            new PreviewBinding(
+                                    binding.requesterEno(),
+                                    binding.requestDigest(),
+                                    binding.sourceSetDigest(),
+                                    binding.payloadSetDigest(),
+                                    "");
                     default -> throw new IllegalArgumentException("알 수 없는 digest fixture");
                 };
 
-        assertThatThrownBy(() -> service.issue(invalidClaims))
+        assertThatThrownBy(() -> service.issue(invalidBinding))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("claims");
+                .hasMessageContaining("binding");
     }
 
     private ItBudgetPreviewTokenService service(ItBudgetPreviewProperties properties) {
@@ -329,6 +365,10 @@ class ItBudgetPreviewTokenServiceTest {
 
     private Claims claims(Instant issuedAt, Instant expiresAt) {
         return new Claims("E10001", hex('a'), hex('b'), hex('c'), hex('d'), issuedAt, expiresAt);
+    }
+
+    private PreviewBinding binding() {
+        return new PreviewBinding("E10001", hex('a'), hex('b'), hex('c'), hex('d'));
     }
 
     private String signedToken(String keyId, String signingKey, Claims tokenClaims) {
