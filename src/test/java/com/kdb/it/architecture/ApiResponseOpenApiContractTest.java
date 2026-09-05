@@ -68,6 +68,17 @@ class ApiResponseOpenApiContractTest {
                 Set.of());
         assertStringProperties(ItBudgetApprovalDto.Summary.class, "total", "asset", "cost");
         assertStringProperties(ItBudgetApprovalDto.ProjectItem.class, "quantity", "amount");
+        assertStringProperties(ItBudgetApprovalDto.ProjectItem.class, "id");
+        assertStringProperties(ItBudgetApprovalDto.Terminal.class, "id");
+        assertStringProperties(ItBudgetApprovalDto.Cost.class, "baseYear");
+        assertThat(resolve(ItBudgetApprovalDto.ProjectItem.class).getRequired()).contains("id");
+        assertThat(resolve(ItBudgetApprovalDto.Terminal.class).getRequired()).contains("id");
+        assertThat(property(resolve(ItBudgetApprovalDto.Project.class), "startDate").getNullable())
+                .isTrue();
+        assertThat(property(resolve(ItBudgetApprovalDto.CodeLabel.class), "code").getNullable())
+                .isTrue();
+        assertThat(property(resolve(ItBudgetApprovalDto.Cost.class), "baseYear").getNullable())
+                .isTrue();
         assertStringProperties(
                 ItBudgetApprovalDto.Project.class, "projectBudget", "assetBudget", "costBudget");
         assertStringProperties(

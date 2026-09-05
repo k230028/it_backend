@@ -199,9 +199,10 @@ class ItBudgetApprovalDtoTest {
     void snapshotAmountsExchangeRatesAndQuantities_serializeAsScaledStrings() {
         ProjectItem item =
                 new ProjectItem(
-                        1, 1, new CodeLabel("BT", "예산유형"), "서버", "3", "KRW", "4.000", "산정근거");
+                        "I1", 1, 1, new CodeLabel("BT", "예산유형"), "서버", "3", "KRW", "4.000", "산정근거");
         Terminal terminal =
                 new Terminal(
+                        "T1",
                         1,
                         1,
                         new CodeLabel("CL", "분류"),
@@ -215,6 +216,9 @@ class ItBudgetApprovalDtoTest {
 
         var itemJson = objectMapper.valueToTree(item);
         var terminalJson = objectMapper.valueToTree(terminal);
+
+        assertThat(itemJson.path("id").asText()).isEqualTo("I1");
+        assertThat(terminalJson.path("id").asText()).isEqualTo("T1");
 
         assertThat(itemJson.path("quantity").isTextual()).isTrue();
         assertThat(itemJson.path("quantity").asText()).isEqualTo("3");
@@ -232,9 +236,18 @@ class ItBudgetApprovalDtoTest {
         Summary invalidMoneyScale = new Summary("1.00", "0.000", "2.000");
         ProjectItem invalidQuantity =
                 new ProjectItem(
-                        1, 1, new CodeLabel("BT", "예산유형"), "서버", "1.0", "KRW", "1.000", "산정근거");
+                        "I1",
+                        1,
+                        1,
+                        new CodeLabel("BT", "예산유형"),
+                        "서버",
+                        "1.0",
+                        "KRW",
+                        "1.000",
+                        "산정근거");
         Terminal invalidExchangeRate =
                 new Terminal(
+                        "T1",
                         1,
                         1,
                         new CodeLabel("CL", "분류"),

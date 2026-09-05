@@ -131,13 +131,14 @@ class ItBudgetCanonicalJsonTest {
                 new ArrayList<>(
                         List.of(
                                 new ItBudgetSnapshot.ProjectItem(
-                                        1, 1, null, null, null, null, null, null)));
+                                        "I1", 1, 1, null, null, null, null, null, null)));
         List<ItBudgetSnapshot.Project> projects = new ArrayList<>(List.of(project(items)));
         List<ItBudgetSnapshot.Terminal> terminals =
                 new ArrayList<>(
                         List.of(
                                 new ItBudgetSnapshot.Terminal(
-                                        1, 1, null, null, null, null, null, null, null, null)));
+                                        "T1", 1, 1, null, null, null, null, null, null, null,
+                                        null)));
         List<ItBudgetSnapshot.Cost> costs = new ArrayList<>(List.of(cost(terminals)));
         List<ItBudgetSnapshot.Source> sources =
                 new ArrayList<>(
@@ -219,7 +220,7 @@ class ItBudgetCanonicalJsonTest {
     private static ItBudgetSnapshot.Cost cost(List<ItBudgetSnapshot.Terminal> terminals) {
         return new ItBudgetSnapshot.Cost(
                 "C-1", 1, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, terminals);
+                null, null, null, null, null, terminals);
     }
 
     private record ObjectFields(String b, String a) {}

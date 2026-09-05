@@ -19,10 +19,29 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>기본키: {@link BprojmId} (복합키: prjMngNo + prjSno)
  *
- * <p>Soft Delete 패턴 적용: 조회 시 항상 {@code delYn='N'} 조건을 사용합니다.
+ * <p>일반 업무 조회는 {@code delYn='N'} 조건을 적용한다. 스냅샷 변경 감지용 버전 조회·잠금은 삭제 상태까지 읽는다.
  */
 public interface ProjectRepository
         extends JpaRepository<Bprojm, BprojmId>, ProjectRepositoryCustom {
+
+    /** 삭제 상태까지 비교하는 예산 스냅샷용 후보 조회다. 호출자가 정확한 ID·개정 쌍을 필터한다. 빈 집합은 전달하지 않는다. */
+    @Query(
+            "SELECT p FROM Bprojm p WHERE p.abusMngNo IN :ids AND p.sno IN :revisions ORDER BY p.abusMngNo, p.sno")
+    List<Bprojm> findVersions(
+            @Param("ids") Collection<String> ids,
+            @Param("revisions") Collection<Integer> revisions);
+
+    /** 최대 500개 참조를 안정 순서로 잠근다. 삭제 행도 포함하며 5초 뒤 잠금 획득을 실패시킨다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
+    @Query(
+            "SELECT p FROM Bprojm p WHERE p.abusMngNo IN :ids AND p.sno IN :revisions ORDER BY p.abusMngNo, p.sno")
+    List<Bprojm> findVersionsForUpdate(
+            @Param("ids") Collection<String> ids,
+            @Param("revisions") Collection<Integer> revisions);
 
     /**
      * 같은 사업관리번호에서 다음 개정 순번을 계산합니다.

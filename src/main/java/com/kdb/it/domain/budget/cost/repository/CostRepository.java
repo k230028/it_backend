@@ -19,9 +19,28 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>복합키 타입: {@link BcostmId} (itMngcNo + itMngcSno)
  *
- * <p>Soft Delete 패턴 적용: 조회 시 항상 {@code delYn='N'} 조건을 사용합니다.
+ * <p>일반 업무 조회는 {@code delYn='N'} 조건을 적용한다. 스냅샷 변경 감지용 버전 조회·잠금은 삭제 상태까지 읽는다.
  */
 public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRepositoryCustom {
+
+    /** 삭제 상태까지 읽는 스냅샷용 후보 조회다. 빈 집합은 호출하지 않으며 정확한 ID·개정 쌍은 호출자가 필터한다. */
+    @Query(
+            "SELECT c FROM Bcostm c WHERE c.costBgNo IN :ids AND c.bgSno IN :revisions ORDER BY c.costBgNo, c.bgSno")
+    List<Bcostm> findVersions(
+            @Param("ids") Collection<String> ids,
+            @Param("revisions") Collection<Integer> revisions);
+
+    /** 최대 500개 참조의 삭제 상태까지 안정 순서로 잠그며 잠금 대기를 5초로 제한한다. */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
+    @Query(
+            "SELECT c FROM Bcostm c WHERE c.costBgNo IN :ids AND c.bgSno IN :revisions ORDER BY c.costBgNo, c.bgSno")
+    List<Bcostm> findVersionsForUpdate(
+            @Param("ids") Collection<String> ids,
+            @Param("revisions") Collection<Integer> revisions);
 
     /** 재상신 순번 채번 중 동일 예산의 현재 최종본을 잠급니다. */
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)

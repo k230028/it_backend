@@ -29,7 +29,9 @@ public record ItBudgetSnapshot(
         }
     }
 
+    /** id·sequence는 품목 PK이며 revision은 부모 사업의 개정 순번이다. */
     public record ProjectItem(
+            String id,
             int revision,
             int sequence,
             CodeLabel budgetType,
@@ -39,6 +41,10 @@ public record ItBudgetSnapshot(
             BigDecimal amount,
             String calculationBasis) {}
 
+    /**
+     * PDF 소비 필드의 최소 표현이다. 기존 공개 명칭과의 대응은 security=현황, purpose=문제점, workforcePlan=향후계획,
+     * costType=주요사용자, deploymentYn=중복여부다.
+     */
     public record Project(
             String id,
             int revision,
@@ -80,7 +86,9 @@ public record ItBudgetSnapshot(
         }
     }
 
+    /** id·sequence는 단말기 PK이며 revision은 부모 전산업무비의 개정 순번이다. */
     public record Terminal(
+            String id,
             int revision,
             int sequence,
             CodeLabel classification,
@@ -95,6 +103,7 @@ public record ItBudgetSnapshot(
     public record Cost(
             String id,
             int revision,
+            String baseYear,
             String name,
             String counterparty,
             CodeLabel business,

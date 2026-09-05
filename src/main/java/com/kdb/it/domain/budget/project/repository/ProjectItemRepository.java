@@ -19,6 +19,12 @@ import org.springframework.data.repository.query.Param;
  */
 public interface ProjectItemRepository extends JpaRepository<Bitemm, BitemmId> {
 
+    /** 삭제 행을 포함한 부모 버전 후보의 품목을 일괄 조회한다. 빈 집합은 호출하지 않으며 정확한 부모 쌍은 호출자가 필터한다. */
+    @Query("SELECT i FROM Bitemm i WHERE i.abusMngNo IN :ids AND i.fntTbCrySno IN :revisions")
+    List<Bitemm> findSourceVersions(
+            @Param("ids") java.util.Collection<String> ids,
+            @Param("revisions") java.util.Collection<Integer> revisions);
+
     /** 이전 개정본에 속한 현재 품목을 비최종 상태로 전환합니다. */
     @Modifying(flushAutomatically = true)
     @Query(

@@ -138,19 +138,19 @@ public final class ItBudgetApprovalDto {
 
     @Schema(name = "ItBudgetSnapshotCodeLabel", description = "코드와 미리보기 시점 표시명")
     public record CodeLabel(
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String code,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label) {}
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String code,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String label) {}
 
     @Schema(name = "ItBudgetSnapshotOrganization", description = "조직 식별자와 표시명")
     public record Organization(
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String code,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name) {}
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String code,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String name) {}
 
     @Schema(name = "ItBudgetSnapshotPerson", description = "사용자 식별자와 미리보기 시점 표시명")
     public record Person(
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String eno,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String rank) {}
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String eno,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String name,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String rank) {}
 
     @Schema(name = "ItBudgetSnapshotApprovalPerson", description = "결재선 사용자 표시 정보")
     public record ApprovalPerson(
@@ -173,73 +173,75 @@ public final class ItBudgetApprovalDto {
 
     @Schema(name = "ItBudgetSnapshotProjectItem", description = "사업 스냅샷 품목")
     public record ProjectItem(
+            @NotBlank @Size(max = 30) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String id,
             @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
             @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sequence,
             @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     CodeLabel budgetType,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String goodsName,
-            @NotBlank
-                    @Pattern(regexp = QUANTITY_PATTERN)
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String goodsName,
+            @Pattern(regexp = QUANTITY_PATTERN)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             type = "string",
                             pattern = QUANTITY_PATTERN,
-                            example = "1")
+                            example = "1",
+                            nullable = true)
                     String quantity,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String currency,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String currency,
+            @Pattern(regexp = MONEY_PATTERN)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             type = "string",
                             pattern = MONEY_PATTERN,
-                            example = "0.000")
+                            example = "0.000",
+                            nullable = true)
                     String amount,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
                     String calculationBasis) {}
 
     @Schema(name = "ItBudgetSnapshotProject", description = "사업 원장 기반 스냅샷")
     public record Project(
             @NotBlank String id,
             @Positive int revision,
-            @NotBlank String ordinaryYn,
-            @NotBlank String name,
-            @NotBlank String baseYear,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Schema(nullable = true) String ordinaryYn,
+            @Schema(nullable = true) String name,
+            @Schema(nullable = true) String baseYear,
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String projectBudget,
             @NotNull @Valid CodeLabel editType,
             @NotNull @Valid CodeLabel progressStatus,
-            @NotNull
-                    @JsonFormat(
+            @JsonFormat(
                             shape = JsonFormat.Shape.STRING,
                             pattern = "uuuu-MM-dd",
                             lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date")
+                    @Schema(type = "string", format = "date", nullable = true)
                     LocalDate startDate,
-            @NotNull
-                    @JsonFormat(
+            @JsonFormat(
                             shape = JsonFormat.Shape.STRING,
                             pattern = "uuuu-MM-dd",
                             lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date")
+                    @Schema(type = "string", format = "date", nullable = true)
                     LocalDate endDate,
-            @NotNull
-                    @JsonFormat(
+            @JsonFormat(
                             shape = JsonFormat.Shape.STRING,
                             pattern = "uuuu-MM-dd",
                             lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date")
+                    @Schema(type = "string", format = "date", nullable = true)
                     LocalDate feasibilityDate,
-            @NotBlank String outline,
-            @NotBlank String scope,
-            @NotBlank String security,
-            @NotBlank String purpose,
-            @NotBlank String necessity,
-            @NotBlank String expectedEffect,
-            @NotBlank String mainProgress,
-            @NotBlank String workforcePlan,
+            @Schema(nullable = true) String outline,
+            @Schema(nullable = true) String scope,
+            @Schema(nullable = true) String security,
+            @Schema(nullable = true) String purpose,
+            @Schema(nullable = true) String necessity,
+            @Schema(nullable = true) String expectedEffect,
+            @Schema(nullable = true) String mainProgress,
+            @Schema(nullable = true) String workforcePlan,
             @NotNull @Valid Organization supervisingOrganization,
             @NotNull @Valid Organization supervisingDepartment,
             @NotNull @Valid Person manager,
@@ -252,84 +254,112 @@ public final class ItBudgetApprovalDto {
             @NotNull @Valid CodeLabel costType,
             @NotNull @Valid CodeLabel skillType,
             @NotNull @Valid CodeLabel executionPattern,
-            @NotBlank String deploymentYn,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Schema(nullable = true) String deploymentYn,
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String assetBudget,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String costBudget,
-            @NotEmpty List<@NotNull @Valid ProjectItem> items) {}
+            @NotNull List<@NotNull @Valid ProjectItem> items) {}
 
     @Schema(name = "ItBudgetSnapshotTerminal", description = "전산업무비 스냅샷 단말기")
     public record Terminal(
+            @NotBlank @Size(max = 30) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String id,
             @Positive int revision,
             @Positive int sequence,
             @NotNull @Valid CodeLabel classification,
             @NotNull @Valid CodeLabel kind,
-            @NotBlank String usage,
-            @NotBlank String specification,
-            @NotBlank String currency,
-            @NotBlank
-                    @Pattern(regexp = EXCHANGE_RATE_PATTERN)
-                    @Schema(type = "string", pattern = EXCHANGE_RATE_PATTERN, example = "1.0000")
+            @Schema(nullable = true) String usage,
+            @Schema(nullable = true) String specification,
+            @Schema(nullable = true) String currency,
+            @Pattern(regexp = EXCHANGE_RATE_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = EXCHANGE_RATE_PATTERN,
+                            example = "1.0000",
+                            nullable = true)
                     String exchangeRate,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String foreignAmount,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String budgetAmount) {}
 
     @Schema(name = "ItBudgetSnapshotCost", description = "전산업무비 원장 기반 스냅샷")
     public record Cost(
             @NotBlank String id,
             @Positive int revision,
-            @NotBlank String name,
-            @NotBlank String counterparty,
+            @Schema(nullable = true) String baseYear,
+            @Schema(nullable = true) String name,
+            @Schema(nullable = true) String counterparty,
             @NotNull @Valid CodeLabel business,
             @NotNull @Valid CodeLabel budgetType,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String totalAmount,
-            @NotBlank String currency,
-            @NotBlank
-                    @Pattern(regexp = EXCHANGE_RATE_PATTERN)
-                    @Schema(type = "string", pattern = EXCHANGE_RATE_PATTERN, example = "1.0000")
+            @Schema(nullable = true) String currency,
+            @Pattern(regexp = EXCHANGE_RATE_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = EXCHANGE_RATE_PATTERN,
+                            example = "1.0000",
+                            nullable = true)
                     String exchangeRate,
-            @NotNull
-                    @JsonFormat(
+            @JsonFormat(
                             shape = JsonFormat.Shape.STRING,
                             pattern = "uuuu-MM-dd",
                             lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date")
+                    @Schema(type = "string", format = "date", nullable = true)
                     LocalDate exchangeRateBaseDate,
             @NotNull @Valid CodeLabel deferralType,
-            @NotNull
-                    @JsonFormat(
+            @JsonFormat(
                             shape = JsonFormat.Shape.STRING,
                             pattern = "uuuu-MM-dd",
                             lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date")
+                    @Schema(type = "string", format = "date", nullable = true)
                     LocalDate firstDeferralDate,
-            @NotBlank String reason,
+            @Schema(nullable = true) String reason,
             @NotNull @Valid Organization supervisingDepartment,
             @NotNull @Valid Person manager,
-            @NotBlank String securitySystemUseYn,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Schema(nullable = true) String securitySystemUseYn,
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String assetBudget,
-            @NotBlank
-                    @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+            @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String costBudget,
-            @NotEmpty List<@NotNull @Valid Terminal> terminals) {}
+            @NotNull List<@NotNull @Valid Terminal> terminals) {}
 
     @Schema(name = "ItBudgetSnapshotSummary", description = "스냅샷 금액 요약")
     public record Summary(
