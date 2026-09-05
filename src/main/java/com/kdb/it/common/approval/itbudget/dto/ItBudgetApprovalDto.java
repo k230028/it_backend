@@ -8,7 +8,6 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -96,7 +95,7 @@ public final class ItBudgetApprovalDto {
             @NotBlank @Size(min = 64, max = 64) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String payloadDigest,
             @NotEmpty @Size(max = 500) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-                    List<@NotNull @Valid SourceDigest> sourceRefs) {}
+                    List<@NotNull @Valid SourceDigest> sources) {}
 
     @Schema(name = "ItBudgetSubmissionRequest", description = "전산예산 결재 상신 요청")
     public record SubmissionRequest(
@@ -165,9 +164,19 @@ public final class ItBudgetApprovalDto {
             @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     CodeLabel budgetType,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String goodsName,
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BigDecimal quantity,
+            @NotBlank
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            example = "1")
+                    String quantity,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String currency,
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BigDecimal amount,
+            @NotBlank
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            example = "0.000")
+                    String amount,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String calculationBasis) {}
 
@@ -178,7 +187,7 @@ public final class ItBudgetApprovalDto {
             @NotBlank String ordinaryYn,
             @NotBlank String name,
             @NotBlank String baseYear,
-            @NotNull BigDecimal projectBudget,
+            @NotBlank @Schema(type = "string", example = "0.000") String projectBudget,
             @NotNull @Valid CodeLabel editType,
             @NotNull @Valid CodeLabel progressStatus,
             @NotBlank String startDate,
@@ -205,8 +214,8 @@ public final class ItBudgetApprovalDto {
             @NotNull @Valid CodeLabel skillType,
             @NotNull @Valid CodeLabel executionPattern,
             @NotBlank String deploymentYn,
-            @NotNull BigDecimal assetBudget,
-            @NotNull BigDecimal costBudget,
+            @NotBlank @Schema(type = "string", example = "0.000") String assetBudget,
+            @NotBlank @Schema(type = "string", example = "0.000") String costBudget,
             @NotEmpty List<@NotNull @Valid ProjectItem> items) {}
 
     @Schema(name = "ItBudgetSnapshotTerminal", description = "전산업무비 스냅샷 단말기")
@@ -218,9 +227,9 @@ public final class ItBudgetApprovalDto {
             @NotBlank String usage,
             @NotBlank String specification,
             @NotBlank String currency,
-            @NotNull BigDecimal exchangeRate,
-            @NotNull BigDecimal foreignAmount,
-            @NotNull BigDecimal budgetAmount) {}
+            @NotBlank @Schema(type = "string", example = "1.0000") String exchangeRate,
+            @NotBlank @Schema(type = "string", example = "0.000") String foreignAmount,
+            @NotBlank @Schema(type = "string", example = "0.000") String budgetAmount) {}
 
     @Schema(name = "ItBudgetSnapshotCost", description = "전산업무비 원장 기반 스냅샷")
     public record Cost(
@@ -230,9 +239,9 @@ public final class ItBudgetApprovalDto {
             @NotBlank String counterparty,
             @NotNull @Valid CodeLabel business,
             @NotNull @Valid CodeLabel budgetType,
-            @NotNull BigDecimal totalAmount,
+            @NotBlank @Schema(type = "string", example = "0.000") String totalAmount,
             @NotBlank String currency,
-            @NotNull BigDecimal exchangeRate,
+            @NotBlank @Schema(type = "string", example = "1.0000") String exchangeRate,
             @NotBlank String exchangeRateBaseDate,
             @NotNull @Valid CodeLabel deferralType,
             @NotBlank String firstDeferralDate,
@@ -240,15 +249,30 @@ public final class ItBudgetApprovalDto {
             @NotNull @Valid Organization supervisingDepartment,
             @NotNull @Valid Person manager,
             @NotBlank String securitySystemUseYn,
-            @NotNull BigDecimal assetBudget,
-            @NotNull BigDecimal costBudget,
+            @NotBlank @Schema(type = "string", example = "0.000") String assetBudget,
+            @NotBlank @Schema(type = "string", example = "0.000") String costBudget,
             @NotEmpty List<@NotNull @Valid Terminal> terminals) {}
 
     @Schema(name = "ItBudgetSnapshotSummary", description = "스냅샷 금액 요약")
     public record Summary(
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BigDecimal total,
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BigDecimal asset,
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BigDecimal cost) {}
+            @NotBlank
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            example = "0.000")
+                    String total,
+            @NotBlank
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            example = "0.000")
+                    String asset,
+            @NotBlank
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            example = "0.000")
+                    String cost) {}
 
     @Schema(name = "ItBudgetSnapshotPayload", description = "사업·전산업무비와 금액 요약")
     public record Payload(

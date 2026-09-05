@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRef;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRole;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ChangedSource;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.CodeLabel;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.DocumentRequest;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ErrorResponse;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Form;
@@ -16,6 +17,7 @@ import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Person;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewDocument;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewRequest;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewResponse;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ProjectItem;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SnapshotApprovalLine;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SnapshotSource;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SourceKind;
@@ -23,11 +25,11 @@ import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SourceRef;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SubmissionDocument;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SubmissionRequest;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Summary;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Terminal;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.exception.GlobalExceptionHandler;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -119,7 +121,27 @@ class ItBudgetApprovalDtoTest {
                 .containsExactly("documents[0].<list element>");
         assertThat(validator.validate(requestWithNullSource))
                 .extracting(violation -> violation.getPropertyPath().toString())
-                .containsExactly("sourceRefs[0].<list element>");
+                .containsExactly("sources[0].<list element>");
+    }
+
+    @Test
+    void submissionDocument_serializesDigestReferencesAsSources() throws Exception {
+        SubmissionDocument document =
+                new SubmissionDocument(
+                        "doc-1",
+                        DIGEST,
+                        List.of(
+                                new ItBudgetApprovalDto.SourceDigest(
+                                        SourceKind.PROJECT, "P-001", 1, 1, DIGEST)));
+
+        assertThat(objectMapper.writeValueAsString(document))
+                .isEqualTo(
+                        "{\"clientDocumentKey\":\"doc-1\",\"payloadDigest\":\""
+                                + DIGEST
+                                + "\",\"sources\":[{\"kind\":\"PROJECT\",\"id\":\"P-001\",\"revision\":1,"
+                                + "\"order\":1,\"sourceDigest\":\""
+                                + DIGEST
+                                + "\"}]}");
     }
 
     @Test
@@ -127,13 +149,7 @@ class ItBudgetApprovalDtoTest {
         ItBudgetSnapshot snapshot =
                 new ItBudgetSnapshot(
                         new Form("it-budget", 2),
-                        new Payload(
-                                List.of(),
-                                List.of(),
-                                new Summary(
-                                        new BigDecimal("0.000"),
-                                        new BigDecimal("0.000"),
-                                        new BigDecimal("0.000"))),
+                        new Payload(List.of(), List.of(), new Summary("1.000", "2.000", "3.000")),
                         new SnapshotApprovalLine(new Person("E10001", "신청자", "과장"), List.of()),
                         new Integrity(
                                 "SHA-256",
@@ -166,6 +182,40 @@ class ItBudgetApprovalDtoTest {
         assertThat(json.path("previewDigest").asText()).isEqualTo(DIGEST);
         assertThat(json.at("/documents/0/snapshot/form/id").asText()).isEqualTo("it-budget");
         assertThat(json.at("/documents/0/sources/0/sourceDigest").asText()).isEqualTo(DIGEST);
+        assertThat(json.at("/documents/0/snapshot/payload/summary/total").isTextual()).isTrue();
+        assertThat(json.at("/documents/0/snapshot/payload/summary/total").asText())
+                .isEqualTo("1.000");
+    }
+
+    @Test
+    void snapshotAmountsExchangeRatesAndQuantities_serializeAsScaledStrings() {
+        ProjectItem item =
+                new ProjectItem(
+                        1, 1, new CodeLabel("BT", "예산유형"), "서버", "3", "KRW", "4.000", "산정근거");
+        Terminal terminal =
+                new Terminal(
+                        1,
+                        1,
+                        new CodeLabel("CL", "분류"),
+                        new CodeLabel("KD", "종류"),
+                        "업무용",
+                        "사양",
+                        "USD",
+                        "1.2345",
+                        "5.000",
+                        "6.000");
+
+        var itemJson = objectMapper.valueToTree(item);
+        var terminalJson = objectMapper.valueToTree(terminal);
+
+        assertThat(itemJson.path("quantity").isTextual()).isTrue();
+        assertThat(itemJson.path("quantity").asText()).isEqualTo("3");
+        assertThat(itemJson.path("amount").isTextual()).isTrue();
+        assertThat(itemJson.path("amount").asText()).isEqualTo("4.000");
+        assertThat(terminalJson.path("exchangeRate").isTextual()).isTrue();
+        assertThat(terminalJson.path("exchangeRate").asText()).isEqualTo("1.2345");
+        assertThat(terminalJson.path("foreignAmount").asText()).isEqualTo("5.000");
+        assertThat(terminalJson.path("budgetAmount").asText()).isEqualTo("6.000");
     }
 
     @Test
@@ -224,5 +274,19 @@ class ItBudgetApprovalDtoTest {
         assertThat(json.at("/changedSources/0/displayName").asText()).isEqualTo("차세대 시스템 구축");
         assertThat(json.at("/changedSources/0/modifiedBy").asText()).isEqualTo("E20001");
         assertThat(json.at("/changedSources/0/no").isMissingNode()).isTrue();
+    }
+
+    @Test
+    void itBudgetApprovalException_handlerOmitsEmptyChangedSources() {
+        ItBudgetApprovalException exception =
+                new ItBudgetApprovalException(
+                        HttpStatus.CONFLICT,
+                        "IT_BUDGET_PREVIEW_STALE",
+                        "미리보기가 오래되었습니다.",
+                        List.of());
+
+        var body = new GlobalExceptionHandler().handleItBudgetApproval(exception).getBody();
+
+        assertThat(objectMapper.valueToTree(body).has("changedSources")).isFalse();
     }
 }

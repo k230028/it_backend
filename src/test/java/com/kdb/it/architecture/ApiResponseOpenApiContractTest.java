@@ -64,8 +64,23 @@ class ApiResponseOpenApiContractTest {
                 Set.of());
         assertContract(
                 ItBudgetApprovalDto.SubmissionDocument.class,
-                fields("clientDocumentKey", "payloadDigest", "sourceRefs"),
+                fields("clientDocumentKey", "payloadDigest", "sources"),
                 Set.of());
+        assertStringProperties(ItBudgetApprovalDto.Summary.class, "total", "asset", "cost");
+        assertStringProperties(ItBudgetApprovalDto.ProjectItem.class, "quantity", "amount");
+        assertStringProperties(
+                ItBudgetApprovalDto.Project.class, "projectBudget", "assetBudget", "costBudget");
+        assertStringProperties(
+                ItBudgetApprovalDto.Terminal.class,
+                "exchangeRate",
+                "foreignAmount",
+                "budgetAmount");
+        assertStringProperties(
+                ItBudgetApprovalDto.Cost.class,
+                "totalAmount",
+                "exchangeRate",
+                "assetBudget",
+                "costBudget");
         assertPropertiesRequiredExcept(
                 ItBudgetApprovalDto.ErrorResponse.class, fields("changedSources"));
         assertThat(
@@ -728,6 +743,15 @@ class ApiResponseOpenApiContractTest {
                                 .map(String::valueOf)
                                 .toList())
                 .containsExactly(values);
+    }
+
+    private static void assertStringProperties(Class<?> type, String... properties) {
+        Schema<?> schema = resolve(type);
+        for (String property : properties) {
+            assertThat(property(schema, property).getType())
+                    .as("%s.%s type", type.getSimpleName(), property)
+                    .isEqualTo("string");
+        }
     }
 
     private static Schema<?> resolve(Class<?> type) {
