@@ -1,19 +1,27 @@
 package com.kdb.it.common.approval.itbudget.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 /** 전산예산 미리보기·상신 경계에서 사용하는 고정 HTTP 계약이다. */
 public final class ItBudgetApprovalDto {
+
+    private static final String MONEY_PATTERN = "^-?\\d+\\.\\d{3}$";
+    private static final String EXCHANGE_RATE_PATTERN = "^-?\\d+\\.\\d{4}$";
+    private static final String QUANTITY_PATTERN = "^-?\\d+$";
 
     private ItBudgetApprovalDto() {}
 
@@ -149,7 +157,13 @@ public final class ItBudgetApprovalDto {
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String eno,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String rank,
-            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String date) {}
+            @NotNull
+                    @JsonFormat(
+                            shape = JsonFormat.Shape.STRING,
+                            pattern = "uuuu-MM-dd",
+                            lenient = OptBoolean.FALSE)
+                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, format = "date")
+                    LocalDate date) {}
 
     @Schema(name = "ItBudgetSnapshotApprovalLine", description = "서버가 해석한 신청자와 결재선")
     public record SnapshotApprovalLine(
@@ -165,16 +179,20 @@ public final class ItBudgetApprovalDto {
                     CodeLabel budgetType,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String goodsName,
             @NotBlank
+                    @Pattern(regexp = QUANTITY_PATTERN)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             type = "string",
+                            pattern = QUANTITY_PATTERN,
                             example = "1")
                     String quantity,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String currency,
             @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             type = "string",
+                            pattern = MONEY_PATTERN,
                             example = "0.000")
                     String amount,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
@@ -187,12 +205,33 @@ public final class ItBudgetApprovalDto {
             @NotBlank String ordinaryYn,
             @NotBlank String name,
             @NotBlank String baseYear,
-            @NotBlank @Schema(type = "string", example = "0.000") String projectBudget,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String projectBudget,
             @NotNull @Valid CodeLabel editType,
             @NotNull @Valid CodeLabel progressStatus,
-            @NotBlank String startDate,
-            @NotBlank String endDate,
-            @NotBlank String feasibilityDate,
+            @NotNull
+                    @JsonFormat(
+                            shape = JsonFormat.Shape.STRING,
+                            pattern = "uuuu-MM-dd",
+                            lenient = OptBoolean.FALSE)
+                    @Schema(type = "string", format = "date")
+                    LocalDate startDate,
+            @NotNull
+                    @JsonFormat(
+                            shape = JsonFormat.Shape.STRING,
+                            pattern = "uuuu-MM-dd",
+                            lenient = OptBoolean.FALSE)
+                    @Schema(type = "string", format = "date")
+                    LocalDate endDate,
+            @NotNull
+                    @JsonFormat(
+                            shape = JsonFormat.Shape.STRING,
+                            pattern = "uuuu-MM-dd",
+                            lenient = OptBoolean.FALSE)
+                    @Schema(type = "string", format = "date")
+                    LocalDate feasibilityDate,
             @NotBlank String outline,
             @NotBlank String scope,
             @NotBlank String security,
@@ -214,8 +253,14 @@ public final class ItBudgetApprovalDto {
             @NotNull @Valid CodeLabel skillType,
             @NotNull @Valid CodeLabel executionPattern,
             @NotBlank String deploymentYn,
-            @NotBlank @Schema(type = "string", example = "0.000") String assetBudget,
-            @NotBlank @Schema(type = "string", example = "0.000") String costBudget,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String assetBudget,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String costBudget,
             @NotEmpty List<@NotNull @Valid ProjectItem> items) {}
 
     @Schema(name = "ItBudgetSnapshotTerminal", description = "전산업무비 스냅샷 단말기")
@@ -227,9 +272,18 @@ public final class ItBudgetApprovalDto {
             @NotBlank String usage,
             @NotBlank String specification,
             @NotBlank String currency,
-            @NotBlank @Schema(type = "string", example = "1.0000") String exchangeRate,
-            @NotBlank @Schema(type = "string", example = "0.000") String foreignAmount,
-            @NotBlank @Schema(type = "string", example = "0.000") String budgetAmount) {}
+            @NotBlank
+                    @Pattern(regexp = EXCHANGE_RATE_PATTERN)
+                    @Schema(type = "string", pattern = EXCHANGE_RATE_PATTERN, example = "1.0000")
+                    String exchangeRate,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String foreignAmount,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String budgetAmount) {}
 
     @Schema(name = "ItBudgetSnapshotCost", description = "전산업무비 원장 기반 스냅샷")
     public record Cost(
@@ -239,38 +293,68 @@ public final class ItBudgetApprovalDto {
             @NotBlank String counterparty,
             @NotNull @Valid CodeLabel business,
             @NotNull @Valid CodeLabel budgetType,
-            @NotBlank @Schema(type = "string", example = "0.000") String totalAmount,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String totalAmount,
             @NotBlank String currency,
-            @NotBlank @Schema(type = "string", example = "1.0000") String exchangeRate,
-            @NotBlank String exchangeRateBaseDate,
+            @NotBlank
+                    @Pattern(regexp = EXCHANGE_RATE_PATTERN)
+                    @Schema(type = "string", pattern = EXCHANGE_RATE_PATTERN, example = "1.0000")
+                    String exchangeRate,
+            @NotNull
+                    @JsonFormat(
+                            shape = JsonFormat.Shape.STRING,
+                            pattern = "uuuu-MM-dd",
+                            lenient = OptBoolean.FALSE)
+                    @Schema(type = "string", format = "date")
+                    LocalDate exchangeRateBaseDate,
             @NotNull @Valid CodeLabel deferralType,
-            @NotBlank String firstDeferralDate,
+            @NotNull
+                    @JsonFormat(
+                            shape = JsonFormat.Shape.STRING,
+                            pattern = "uuuu-MM-dd",
+                            lenient = OptBoolean.FALSE)
+                    @Schema(type = "string", format = "date")
+                    LocalDate firstDeferralDate,
             @NotBlank String reason,
             @NotNull @Valid Organization supervisingDepartment,
             @NotNull @Valid Person manager,
             @NotBlank String securitySystemUseYn,
-            @NotBlank @Schema(type = "string", example = "0.000") String assetBudget,
-            @NotBlank @Schema(type = "string", example = "0.000") String costBudget,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String assetBudget,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(type = "string", pattern = MONEY_PATTERN, example = "0.000")
+                    String costBudget,
             @NotEmpty List<@NotNull @Valid Terminal> terminals) {}
 
     @Schema(name = "ItBudgetSnapshotSummary", description = "스냅샷 금액 요약")
     public record Summary(
             @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             type = "string",
+                            pattern = MONEY_PATTERN,
                             example = "0.000")
                     String total,
             @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             type = "string",
+                            pattern = MONEY_PATTERN,
                             example = "0.000")
                     String asset,
             @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
                             type = "string",
+                            pattern = MONEY_PATTERN,
                             example = "0.000")
                     String cost) {}
 
@@ -298,7 +382,10 @@ public final class ItBudgetApprovalDto {
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String canonicalization,
             @NotBlank @Size(min = 64, max = 64) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String payloadDigest,
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant capturedAt,
+            @NotNull
+                    @JsonFormat(shape = JsonFormat.Shape.STRING)
+                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, format = "date-time")
+                    Instant capturedAt,
             @NotEmpty @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid SnapshotSource> sources) {}
 

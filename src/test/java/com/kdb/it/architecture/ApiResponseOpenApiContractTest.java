@@ -81,6 +81,38 @@ class ApiResponseOpenApiContractTest {
                 "exchangeRate",
                 "assetBudget",
                 "costBudget");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Summary.class, "^-?\\d+\\.\\d{3}$", "total", "asset", "cost");
+        assertPatternProperties(ItBudgetApprovalDto.ProjectItem.class, "^-?\\d+$", "quantity");
+        assertPatternProperties(
+                ItBudgetApprovalDto.ProjectItem.class, "^-?\\d+\\.\\d{3}$", "amount");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Project.class,
+                "^-?\\d+\\.\\d{3}$",
+                "projectBudget",
+                "assetBudget",
+                "costBudget");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Terminal.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Terminal.class,
+                "^-?\\d+\\.\\d{3}$",
+                "foreignAmount",
+                "budgetAmount");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Cost.class,
+                "^-?\\d+\\.\\d{3}$",
+                "totalAmount",
+                "assetBudget",
+                "costBudget");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Cost.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");
+        assertDateProperties(ItBudgetApprovalDto.ApprovalPerson.class, "date");
+        assertDateProperties(
+                ItBudgetApprovalDto.Project.class, "startDate", "endDate", "feasibilityDate");
+        assertDateProperties(
+                ItBudgetApprovalDto.Cost.class, "exchangeRateBaseDate", "firstDeferralDate");
+        assertFormat(ItBudgetApprovalDto.Integrity.class, "capturedAt", "date-time");
         assertPropertiesRequiredExcept(
                 ItBudgetApprovalDto.ErrorResponse.class, fields("changedSources"));
         assertThat(
@@ -752,6 +784,31 @@ class ApiResponseOpenApiContractTest {
                     .as("%s.%s type", type.getSimpleName(), property)
                     .isEqualTo("string");
         }
+    }
+
+    private static void assertPatternProperties(
+            Class<?> type, String expectedPattern, String... properties) {
+        Schema<?> schema = resolve(type);
+        for (String property : properties) {
+            assertThat(property(schema, property).getPattern())
+                    .as("%s.%s pattern", type.getSimpleName(), property)
+                    .isEqualTo(expectedPattern);
+        }
+    }
+
+    private static void assertDateProperties(Class<?> type, String... properties) {
+        Schema<?> schema = resolve(type);
+        for (String property : properties) {
+            assertThat(property(schema, property).getFormat())
+                    .as("%s.%s format", type.getSimpleName(), property)
+                    .isEqualTo("date");
+        }
+    }
+
+    private static void assertFormat(Class<?> type, String propertyName, String expectedFormat) {
+        assertThat(property(resolve(type), propertyName).getFormat())
+                .as("%s.%s format", type.getSimpleName(), propertyName)
+                .isEqualTo(expectedFormat);
     }
 
     private static Schema<?> resolve(Class<?> type) {

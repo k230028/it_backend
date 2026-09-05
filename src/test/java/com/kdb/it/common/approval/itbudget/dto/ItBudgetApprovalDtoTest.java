@@ -1,8 +1,10 @@
 package com.kdb.it.common.approval.itbudget.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApprovalPerson;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRef;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRole;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ChangedSource;
@@ -30,8 +32,11 @@ import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.exception.GlobalExceptionHandler;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
+import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -185,6 +190,9 @@ class ItBudgetApprovalDtoTest {
         assertThat(json.at("/documents/0/snapshot/payload/summary/total").isTextual()).isTrue();
         assertThat(json.at("/documents/0/snapshot/payload/summary/total").asText())
                 .isEqualTo("1.000");
+        assertThat(json.at("/documents/0/snapshot/integrity/capturedAt").isTextual()).isTrue();
+        assertThat(json.at("/documents/0/snapshot/integrity/capturedAt").asText())
+                .isEqualTo("2026-09-06T05:00:00Z");
     }
 
     @Test
@@ -216,6 +224,89 @@ class ItBudgetApprovalDtoTest {
         assertThat(terminalJson.path("exchangeRate").asText()).isEqualTo("1.2345");
         assertThat(terminalJson.path("foreignAmount").asText()).isEqualTo("5.000");
         assertThat(terminalJson.path("budgetAmount").asText()).isEqualTo("6.000");
+    }
+
+    @Test
+    void snapshotNumericStrings_requireExactScaleAndAllowNegativeValues() {
+        Summary validSummary = new Summary("-1.000", "0.000", "2.000");
+        Summary invalidMoneyScale = new Summary("1.00", "0.000", "2.000");
+        ProjectItem invalidQuantity =
+                new ProjectItem(
+                        1, 1, new CodeLabel("BT", "예산유형"), "서버", "1.0", "KRW", "1.000", "산정근거");
+        Terminal invalidExchangeRate =
+                new Terminal(
+                        1,
+                        1,
+                        new CodeLabel("CL", "분류"),
+                        new CodeLabel("KD", "종류"),
+                        "업무용",
+                        "사양",
+                        "USD",
+                        "1.234",
+                        "-5.000",
+                        "6.000");
+
+        assertThat(validator.validate(validSummary)).isEmpty();
+        assertThat(validator.validate(invalidMoneyScale))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .containsExactly("total");
+        assertThat(validator.validate(invalidQuantity))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .containsExactly("quantity");
+        assertThat(validator.validate(invalidExchangeRate))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .containsExactly("exchangeRate");
+    }
+
+    @Test
+    void everySnapshotNumericStringField_usesTheSharedWireFormatPatterns() {
+        assertPattern(Summary.class, "^-?\\d+\\.\\d{3}$", "total", "asset", "cost");
+        assertPattern(ProjectItem.class, "^-?\\d+$", "quantity");
+        assertPattern(ProjectItem.class, "^-?\\d+\\.\\d{3}$", "amount");
+        assertPattern(
+                ItBudgetApprovalDto.Project.class,
+                "^-?\\d+\\.\\d{3}$",
+                "projectBudget",
+                "assetBudget",
+                "costBudget");
+        assertPattern(ItBudgetApprovalDto.Terminal.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");
+        assertPattern(
+                ItBudgetApprovalDto.Terminal.class,
+                "^-?\\d+\\.\\d{3}$",
+                "foreignAmount",
+                "budgetAmount");
+        assertPattern(
+                ItBudgetApprovalDto.Cost.class,
+                "^-?\\d+\\.\\d{3}$",
+                "totalAmount",
+                "assetBudget",
+                "costBudget");
+        assertPattern(ItBudgetApprovalDto.Cost.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");
+    }
+
+    @Test
+    void snapshotDates_deserializeAsIsoDatesAndRejectInvalidValues() throws Exception {
+        ApprovalPerson person =
+                objectMapper.readValue(
+                        "{\"eno\":\"E20001\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}",
+                        ApprovalPerson.class);
+
+        assertThat(person.date()).isEqualTo(LocalDate.of(2026, 9, 6));
+        assertThat(objectMapper.writeValueAsString(person)).contains("\"date\":\"2026-09-06\"");
+        assertThatThrownBy(
+                        () ->
+                                objectMapper.readValue(
+                                        "{\"eno\":\"E20001\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-31\"}",
+                                        ApprovalPerson.class))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void everySnapshotDateField_usesLocalDateRuntimeType() {
+        assertDateType(ApprovalPerson.class, "date");
+        assertDateType(
+                ItBudgetApprovalDto.Project.class, "startDate", "endDate", "feasibilityDate");
+        assertDateType(ItBudgetApprovalDto.Cost.class, "exchangeRateBaseDate", "firstDeferralDate");
     }
 
     @Test
@@ -288,5 +379,38 @@ class ItBudgetApprovalDtoTest {
         var body = new GlobalExceptionHandler().handleItBudgetApproval(exception).getBody();
 
         assertThat(objectMapper.valueToTree(body).has("changedSources")).isFalse();
+    }
+
+    private static void assertPattern(
+            Class<?> type, String expectedPattern, String... componentNames) {
+        for (String componentName : componentNames) {
+            Pattern pattern =
+                    Arrays.stream(type.getRecordComponents())
+                            .filter(component -> component.getName().equals(componentName))
+                            .findFirst()
+                            .orElseThrow()
+                            .getAccessor()
+                            .getAnnotation(Pattern.class);
+
+            assertThat(pattern)
+                    .as("%s.%s validation pattern", type.getSimpleName(), componentName)
+                    .isNotNull();
+            assertThat(pattern.regexp()).isEqualTo(expectedPattern);
+        }
+    }
+
+    private static void assertDateType(Class<?> type, String... componentNames) {
+        for (String componentName : componentNames) {
+            Class<?> componentType =
+                    Arrays.stream(type.getRecordComponents())
+                            .filter(component -> component.getName().equals(componentName))
+                            .findFirst()
+                            .orElseThrow()
+                            .getType();
+
+            assertThat(componentType)
+                    .as("%s.%s runtime type", type.getSimpleName(), componentName)
+                    .isEqualTo(LocalDate.class);
+        }
     }
 }
