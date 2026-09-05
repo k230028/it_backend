@@ -24,6 +24,15 @@ import org.springframework.data.repository.query.Param;
 public interface ProjectRepository
         extends JpaRepository<Bprojm, BprojmId>, ProjectRepositoryCustom {
 
+    /** 문서 전체 삭제·승격 전에 활성 개정본을 순번순으로 모두 잠그며 대기를 5초로 제한한다. */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
+    @Query("SELECT p FROM Bprojm p WHERE p.abusMngNo = :id AND p.delYn = 'N' ORDER BY p.sno")
+    List<Bprojm> findAllVersionsForUpdate(@Param("id") String id);
+
     /** 삭제 상태까지 비교하는 예산 스냅샷용 후보 조회다. 호출자가 정확한 ID·개정 쌍을 필터한다. 빈 집합은 전달하지 않는다. */
     @Query(
             "SELECT p FROM Bprojm p WHERE p.abusMngNo IN :ids AND p.sno IN :revisions ORDER BY p.abusMngNo, p.sno")
@@ -56,6 +65,10 @@ public interface ProjectRepository
 
     /** 재신청 채번 전에 현재 최종본을 잠가 같은 부모의 개정 순번 경쟁을 직렬화합니다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
     @Query(
             """
             SELECT p
@@ -68,6 +81,10 @@ public interface ProjectRepository
 
     /** 최종본 전환 전에 승인 대상의 실제 개정본을 잠급니다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
     @Query(
             """
             SELECT p

@@ -88,6 +88,8 @@ public class MigrationImportService {
     private final BudgetRateApplicationService budgetRateApplicationService;
     private final PlanService planService;
     private final PlanAdjustmentProgressRecorder progressRecorder;
+    private final com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
+    private final jakarta.persistence.EntityManager entityManager;
 
     /**
      * 어댑터를 시트 종류별로 색인해 둡니다.
@@ -109,7 +111,9 @@ public class MigrationImportService {
             ProjectRepository projectRepository,
             BudgetRateApplicationService budgetRateApplicationService,
             PlanService planService,
-            PlanAdjustmentProgressRecorder progressRecorder) {
+            PlanAdjustmentProgressRecorder progressRecorder,
+            com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard,
+            jakarta.persistence.EntityManager entityManager) {
         for (SheetAdapter adapter : sheetAdapters) {
             adapters.put(adapter.supports(), adapter);
         }
@@ -127,6 +131,8 @@ public class MigrationImportService {
         this.budgetRateApplicationService = budgetRateApplicationService;
         this.planService = planService;
         this.progressRecorder = progressRecorder;
+        this.approvalWriteGuard = approvalWriteGuard;
+        this.entityManager = entityManager;
     }
 
     /**
@@ -594,6 +600,7 @@ public class MigrationImportService {
             MigrationYearSnapshot.Data snapshot,
             MigrationLookupIndex index,
             Map<String, String> overrides) {
+        Map<String, String> requestedCodes = new java.util.TreeMap<>();
         Map<Integer, String> matched = plan.matchedPkByRow().getOrDefault(SheetKind.COST, Map.of());
         if (matched.isEmpty()) {
             return;
@@ -620,9 +627,18 @@ public class MigrationImportService {
                             abusCode);
                     continue;
                 }
-                CostRepresentativeSelector.pick(costRepository.findByCostBgNoAndDelYn(costNo, "N"))
-                        .fillBudgetUnitCodeIfAbsent(abusCode);
+                requestedCodes.putIfAbsent(costNo, abusCode);
             }
+        }
+        for (var entry : requestedCodes.entrySet()) {
+            Bcostm target =
+                    CostRepresentativeSelector.pick(
+                            costRepository.findCurrentVersionsForUpdate(entry.getKey()));
+            // 연도 스냅샷이 먼저 읽은 영속 엔티티도 잠금 뒤 최신 DB 값으로 다시 읽는다.
+            entityManager.refresh(target);
+            approvalWriteGuard.verifyWritable(
+                    "BCOSTM", target.getCostBgNo(), target.getBgSno(), "수정");
+            target.fillBudgetUnitCodeIfAbsent(entry.getValue());
         }
     }
 

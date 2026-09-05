@@ -58,6 +58,35 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CostServiceTest {
 
+    @Test
+    void importedCostNameCannotBypassApprovalGuard() {
+        Bcostm cost = Bcostm.builder().costBgNo("COST-LOCK").bgSno(3).build();
+        given(costRepository.findCurrentVersionForUpdate("COST-LOCK"))
+                .willReturn(Optional.of(cost));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BCOSTM"), eq("COST-LOCK"), eq(3), anyList()))
+                .willReturn(true);
+        assertThatThrownBy(() -> costService.assignImportedPersonName("COST-LOCK", "담당자"))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(cost.getCgprNm()).isNull();
+        var ordered = org.mockito.Mockito.inOrder(costRepository, capplaRepository);
+        ordered.verify(costRepository).findCurrentVersionForUpdate("COST-LOCK");
+        ordered.verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        eq("BCOSTM"), eq("COST-LOCK"), eq(3), anyList());
+    }
+
+    @Test
+    void existingLogicalCostLocksBeforeNextRevisionIsAllocated() {
+        given(costRepository.getNextSnoValue("COST-LOCK")).willReturn(4);
+        costService.createCost(CostDto.CreateRequest.builder().costBgNo("COST-LOCK").build());
+        var ordered = org.mockito.Mockito.inOrder(costRepository);
+        ordered.verify(costRepository).findAllVersionsForUpdate("COST-LOCK");
+        ordered.verify(costRepository).getNextSnoValue("COST-LOCK");
+        ordered.verify(costRepository).save(any(Bcostm.class));
+    }
+
     private record NameView(String eno, String usrNm, String ptCNm)
             implements UserRepository.UserNameView {
         /** 직위명이 검증 대상이 아닌 기존 케이스용 축약 생성자. */
@@ -348,7 +377,7 @@ class CostServiceTest {
     @Test
     @DisplayName("updateCost: 존재하지 않는 관리번호이면 IllegalArgumentException을 던진다")
     void updateCost_존재하지않는관리번호_IllegalArgumentException발생() {
-        given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of());
+        given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO)).willReturn(List.of());
 
         assertThatThrownBy(() -> costService.updateCost(IT_MNGC_NO, new CostDto.UpdateRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -362,8 +391,7 @@ class CostServiceTest {
     @Test
     @DisplayName("deleteCost: 존재하지 않는 관리번호이면 IllegalArgumentException을 던진다")
     void deleteCost_존재하지않는관리번호_IllegalArgumentException발생() {
-        given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
-                .willReturn(List.of());
+        given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO)).willReturn(List.of());
 
         assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -723,7 +751,8 @@ class CostServiceTest {
             given(cost.getFstEnrUsid()).willReturn("10001");
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
 
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
+                    .willReturn(List.of(cost));
             // 기존 단말기 없음
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
@@ -769,7 +798,7 @@ class CostServiceTest {
             given(target.getCttNm()).willReturn("수정 대상 계약");
             given(target.getBseYy()).willReturn("2026");
 
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(target));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 5, "N"))
                     .willReturn(List.of());
@@ -809,7 +838,7 @@ class CostServiceTest {
             given(target.getFstEnrUsid()).willReturn("10001");
             given(target.getCostSvnDpmC()).willReturn("BBR001");
 
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(target));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 5, "N"))
                     .willReturn(List.of());
@@ -856,8 +885,7 @@ class CostServiceTest {
             given(cost.getFstEnrUsid()).willReturn("10001");
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
 
-            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
-                    .willReturn(List.of(cost));
+            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO)).willReturn(List.of(cost));
             // 연관 단말기 없음
             given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1)).willReturn(List.of());
 
@@ -1306,7 +1334,7 @@ class CostServiceTest {
             given(first.getFstEnrUsid()).willReturn("10001");
             given(first.getCostSvnDpmC()).willReturn("BBR001");
             given(second.getLstYn()).willReturn("N");
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(first, second));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of(oldTerminal));
@@ -1363,7 +1391,8 @@ class CostServiceTest {
             CostDto.UpdateRequest request =
                     CostDto.UpdateRequest.builder().cttNm("수정 계약").terminals(List.of(tDto)).build();
 
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
+                    .willReturn(List.of(cost));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of(existing));
 
@@ -1445,8 +1474,7 @@ class CostServiceTest {
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
             given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
             given(terminal.getTermBgSno()).willReturn(1);
-            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
-                    .willReturn(List.of(cost));
+            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO)).willReturn(List.of(cost));
             given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
                     .willReturn(List.of(terminal));
 
@@ -1847,7 +1875,8 @@ class CostServiceTest {
         org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
         try {
             Bcostm cost = Bcostm.builder().costBgNo(IT_MNGC_NO).bgSno(1).delYn("N").build();
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
+                    .willReturn(List.of(cost));
 
             assertThatThrownBy(
                             () ->
@@ -1880,7 +1909,8 @@ class CostServiceTest {
                             .costSvnDpmC("101")
                             .delYn("N")
                             .build();
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
+                    .willReturn(List.of(cost));
             given(costRepository.getNextSnoValue(IT_MNGC_NO)).willReturn(2);
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
@@ -1916,7 +1946,8 @@ class CostServiceTest {
                             .costSvnDpmC("101")
                             .delYn("N")
                             .build();
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
+                    .willReturn(List.of(cost));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
 
@@ -1949,7 +1980,8 @@ class CostServiceTest {
                             .costSvnDpmC("101")
                             .delYn("N")
                             .build();
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
+                    .willReturn(List.of(cost));
 
             assertThatThrownBy(
                             () ->
@@ -1985,7 +2017,8 @@ class CostServiceTest {
                             .costSvnDpmC("101")
                             .delYn("N")
                             .build();
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N")).willReturn(List.of(cost));
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
+                    .willReturn(List.of(cost));
 
             assertThatThrownBy(
                             () ->
@@ -2412,7 +2445,7 @@ class CostServiceTest {
             given(target.getLstYn()).willReturn("Y");
             given(target.getFstEnrUsid()).willReturn("10001");
             given(target.getCostSvnDpmC()).willReturn("BBR001");
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(target));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
@@ -2513,7 +2546,7 @@ class CostServiceTest {
                             .dfrCleC("0")
                             .delYn("N")
                             .build();
-            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 2))
                     .willReturn(Optional.of(draft));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
                     .willReturn(List.of(terminal));
@@ -2567,7 +2600,7 @@ class CostServiceTest {
             given(target.getFstEnrUsid()).willReturn("10001");
             given(target.getCostSvnDpmC()).willReturn("BBR001");
 
-            given(costRepository.findByCostBgNoAndDelYn(IT_MNGC_NO, "N"))
+            given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(target));
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
@@ -2664,7 +2697,7 @@ class CostServiceTest {
             given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
             given(terminal.getTermBgSno()).willReturn(1);
 
-            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
+            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(cost1, cost2));
             given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
                     .willReturn(List.of(terminal));
@@ -2760,6 +2793,42 @@ class CostServiceTest {
             return cost;
         }
 
+        @Test
+        void exactRevisionUpdateLocksBeforeGuardAndChildWrite() {
+            Bcostm draft = revision(3, "N");
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 3))
+                    .willReturn(Optional.of(draft));
+            asUser(true, () -> costService.updateCost(IT_MNGC_NO, 3, new CostDto.UpdateRequest()));
+            var ordered =
+                    org.mockito.Mockito.inOrder(
+                            costRepository, capplaRepository, draft, btermmRepository);
+            ordered.verify(costRepository).findVersionForUpdate(IT_MNGC_NO, 3);
+            ordered.verify(capplaRepository)
+                    .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                            eq("BCOSTM"), eq(IT_MNGC_NO), eq(3), anyList());
+            ordered.verify(draft).update(any());
+            ordered.verify(btermmRepository).findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 3, "N");
+            verify(costRepository, never()).findByCostBgNoAndBgSnoAndDelYn(any(), any(), any());
+        }
+
+        @Test
+        void exactRevisionDeleteLocksBeforeGuardAndChildDelete() {
+            Bcostm draft = revision(3, "N");
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 3))
+                    .willReturn(Optional.of(draft));
+            asUser(true, () -> costService.deleteCost(IT_MNGC_NO, 3));
+            var ordered =
+                    org.mockito.Mockito.inOrder(
+                            costRepository, capplaRepository, draft, btermmRepository);
+            ordered.verify(costRepository).findVersionForUpdate(IT_MNGC_NO, 3);
+            ordered.verify(capplaRepository)
+                    .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                            eq("BCOSTM"), eq(IT_MNGC_NO), eq(3), anyList());
+            ordered.verify(draft).delete();
+            ordered.verify(btermmRepository).findByTermBgNoAndTermBgSno(IT_MNGC_NO, 3);
+            verify(costRepository, never()).findByCostBgNoAndBgSnoAndDelYn(any(), any(), any());
+        }
+
         /** 해당 순번에 지정한 결재상태의 신청서가 걸려 있다고 설정한다. */
         private void approvalOn(int bgSno, String... statuses) {
             given(
@@ -2779,7 +2848,7 @@ class CostServiceTest {
         @DisplayName("결재중인 재상신 초안은 삭제할 수 없다 — 승인 시점 리스너 예외로 승인 트랜잭션이 롤백되는 것을 막는다")
         void deleteVersion_결재중이면_차단된다() {
             Bcostm draft = revision(2, "N");
-            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 2))
                     .willReturn(java.util.Optional.of(draft));
             approvalOn(2, IN_PROGRESS);
 
@@ -2797,7 +2866,7 @@ class CostServiceTest {
         @DisplayName("결재중인 개정본은 수정할 수 없다")
         void updateVersion_결재중이면_차단된다() {
             Bcostm draft = revision(2, "N");
-            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 2, "N"))
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 2))
                     .willReturn(java.util.Optional.of(draft));
             approvalOn(2, IN_PROGRESS);
 
@@ -2819,7 +2888,7 @@ class CostServiceTest {
         @DisplayName("결재완료된 최종본은 일반 사용자가 수정할 수 없다 — 승인 스냅샷과 불일치를 막는다")
         void updateVersion_결재완료본은_일반사용자에게_차단된다() {
             Bcostm approved = revision(1, "Y");
-            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 1))
                     .willReturn(java.util.Optional.of(approved));
             approvalOn(1, COMPLETED);
 
@@ -2842,7 +2911,7 @@ class CostServiceTest {
         void deleteDocument_초안까지_함께_삭제한다() {
             Bcostm current = revision(1, "Y");
             Bcostm draft = revision(2, "N");
-            given(costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(IT_MNGC_NO, "N"))
+            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(current, draft));
             given(btermmRepository.findByTermBgNoInAndDelYn(List.of(IT_MNGC_NO), "N"))
                     .willReturn(List.of());

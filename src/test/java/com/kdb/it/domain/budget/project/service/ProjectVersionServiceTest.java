@@ -126,6 +126,11 @@ class ProjectVersionServiceTest {
 
         service.promoteApprovedVersion("PRJ-2026-0001", 2);
 
+        var locks = org.mockito.Mockito.inOrder(projectRepository);
+        locks.verify(projectRepository).findAllVersionsForUpdate("PRJ-2026-0001");
+        locks.verify(projectRepository).findVersionForUpdate("PRJ-2026-0001", 2);
+        locks.verify(projectRepository).clearCurrentVersion("PRJ-2026-0001", 2);
+
         verify(projectRepository).clearCurrentVersion("PRJ-2026-0001", 2);
         verify(projectRepository).markVersionCurrent("PRJ-2026-0001", 2);
         verify(projectItemRepository).clearCurrentVersionItems("PRJ-2026-0001", 2);

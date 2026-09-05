@@ -16,6 +16,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class CostVersionApprovalListenerTest {
+
+    @Test
+    void promotesInStableIdAndRevisionOrder() {
+        given(applicationMapRepository.findByApfDcmNoAndFntTbNm("ORDER", "BCOSTM"))
+                .willReturn(
+                        List.of(
+                                Cappla.builder().pkColNm("B").fntTbCrySno(2).build(),
+                                Cappla.builder().pkColNm("A").fntTbCrySno(3).build(),
+                                Cappla.builder().pkColNm("A").fntTbCrySno(1).build()));
+        listener.handleApprovalCompleted(new ApprovalCompletedEvent("ORDER", "결재완료"));
+        var ordered = org.mockito.Mockito.inOrder(costVersionService);
+        ordered.verify(costVersionService).promoteApprovedVersion("A", 1);
+        ordered.verify(costVersionService).promoteApprovedVersion("A", 3);
+        ordered.verify(costVersionService).promoteApprovedVersion("B", 2);
+    }
+
     @Mock ApplicationMapRepository applicationMapRepository;
     @Mock CostVersionService costVersionService;
     @InjectMocks CostVersionApprovalListener listener;

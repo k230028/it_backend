@@ -139,7 +139,7 @@ class ProjectServiceCacheEvictTest {
         Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
         given(project.getSno()).willReturn(1);
         given(project.getAbusMngNo()).willReturn("PRJ-2026-0001");
-        given(projectRepository.findByAbusMngNoAndDelYn(anyString(), anyString()))
+        given(projectRepository.findCurrentVersionForUpdate(anyString()))
                 .willReturn(java.util.Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -157,7 +157,7 @@ class ProjectServiceCacheEvictTest {
     void deleteProject_evictsTiptapMetadata() {
         Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
         given(project.getSno()).willReturn(1);
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(anyString(), anyString()))
+        given(projectRepository.findAllVersionsForUpdate(anyString()))
                 .willReturn(java.util.List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(

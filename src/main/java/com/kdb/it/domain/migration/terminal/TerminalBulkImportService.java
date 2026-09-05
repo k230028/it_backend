@@ -34,7 +34,7 @@ public class TerminalBulkImportService {
     /** 저장 없이 행·코드·조직·관리번호를 검증하고 반영 예정 내역을 반환합니다. */
     @Transactional(readOnly = true)
     public TerminalBulkImportDto.Response dryRun(TerminalBulkImportDto.Request request) {
-        Prepared prepared = prepare(request);
+        Prepared prepared = prepare(request, false);
         return response(prepared, request.rows().size());
     }
 
@@ -42,7 +42,7 @@ public class TerminalBulkImportService {
     @Transactional
     public TerminalBulkImportDto.Response commit(
             TerminalBulkImportDto.Request request, String actorEno) {
-        Prepared prepared = prepare(request);
+        Prepared prepared = prepare(request, true);
         List<TerminalBulkImportDto.Group> groups = new ArrayList<>();
         for (PreparedGroup group : prepared.groups()) {
             String costId;
@@ -66,7 +66,7 @@ public class TerminalBulkImportService {
                 groups);
     }
 
-    private Prepared prepare(TerminalBulkImportDto.Request request) {
+    private Prepared prepare(TerminalBulkImportDto.Request request, boolean lock) {
         if (request == null || request.rows() == null || request.rows().isEmpty()) {
             throw new IllegalArgumentException("업로드할 금융정보단말기 행이 없습니다.");
         }
@@ -77,10 +77,29 @@ public class TerminalBulkImportService {
             validateRow(row);
         }
 
+        List<TerminalBulkImportPlanner.PlannedGroup> plans = planner.plan(request.baseYear(), rows);
+        Map<String, List<com.kdb.it.domain.budget.cost.entity.Bcostm>> locked = new HashMap<>();
+        if (lock) {
+            // 모든 기존 부모를 ID·개정 순서로 먼저 잠근 뒤 검증과 자식 쓰기를 시작한다.
+            plans.stream()
+                    .filter(plan -> !plan.createNew())
+                    .map(TerminalBulkImportPlanner.PlannedGroup::costId)
+                    .distinct()
+                    .sorted()
+                    .forEach(id -> locked.put(id, costRepository.findCurrentVersionsForUpdate(id)));
+        }
         List<PreparedGroup> groups = new ArrayList<>();
-        for (TerminalBulkImportPlanner.PlannedGroup plan : planner.plan(request.baseYear(), rows)) {
+        for (TerminalBulkImportPlanner.PlannedGroup plan : plans) {
             if (!plan.createNew()) {
-                validateExistingCost(plan.costId(), plan.bseYy());
+                if (lock) {
+                    if (locked.get(plan.costId()).stream()
+                            .noneMatch(cost -> plan.bseYy().equals(cost.getBseYy()))) {
+                        throw new IllegalArgumentException(
+                                "엑셀 " + plan.bseYy() + "년 전산업무비 ID를 찾을 수 없습니다: " + plan.costId());
+                    }
+                } else {
+                    validateExistingCost(plan.costId(), plan.bseYy());
+                }
             }
             List<PreparedRow> preparedRows =
                     plan.rows().stream().map(row -> prepareRow(row, plan, org, codes)).toList();

@@ -68,6 +68,75 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ProjectServiceTest {
 
+    @Test
+    void importedNamesAndAmountsCannotBypassApprovalGuard() {
+        Bprojm project = Bprojm.builder().abusMngNo("LOCK-P").sno(3).build();
+        given(projectRepository.findCurrentVersionForUpdate("LOCK-P"))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq("LOCK-P"), eq(3), anyList()))
+                .willReturn(true);
+        assertThatThrownBy(() -> projectService.assignImportedPersonNames("LOCK-P", "팀장", "담당자"))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(
+                        () ->
+                                projectService.assignDeclaredAmounts(
+                                        "LOCK-P", BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.ZERO))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(project.getUsrNm()).isNull();
+        assertThat(project.getTotRqmAmt()).isNull();
+        var ordered = org.mockito.Mockito.inOrder(projectRepository, capplaRepository);
+        ordered.verify(projectRepository).findCurrentVersionForUpdate("LOCK-P");
+        ordered.verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        eq("BPROJM"), eq("LOCK-P"), eq(3), anyList());
+        ordered.verify(projectRepository).findCurrentVersionForUpdate("LOCK-P");
+        ordered.verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        eq("BPROJM"), eq("LOCK-P"), eq(3), anyList());
+    }
+
+    @Test
+    void exactRevisionUpdateLocksBeforeApprovalAndChildRead() {
+        Bprojm project = Bprojm.builder().abusMngNo("LOCK-P").sno(3).build();
+        Bitemm child =
+                org.mockito.Mockito.spy(
+                        Bitemm.builder().gclMngNo("LOCK-I").sno(1).delYn("N").build());
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("LOCK-P", 3, "N"))
+                .willReturn(List.of(child));
+        given(projectRepository.findVersionForUpdate("LOCK-P", 3)).willReturn(Optional.of(project));
+        projectService.updateProject(
+                "LOCK-P", 3, ProjectDto.UpdateRequest.builder().items(List.of()).build());
+        var ordered =
+                org.mockito.Mockito.inOrder(
+                        projectRepository, capplaRepository, bitemmRepository, child);
+        ordered.verify(projectRepository).findVersionForUpdate("LOCK-P", 3);
+        ordered.verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        eq("BPROJM"), eq("LOCK-P"), eq(3), anyList());
+        ordered.verify(bitemmRepository).findByAbusMngNoAndFntTbCrySnoAndDelYn("LOCK-P", 3, "N");
+        ordered.verify(child).delete();
+        assertThat(child.getDelYn()).isEqualTo("Y");
+        verify(projectRepository, never()).findByAbusMngNoAndSnoAndDelYn(any(), any(), any());
+    }
+
+    @Test
+    void exactRevisionDeleteLocksBeforeApprovalAndChildDelete() {
+        Bprojm project = Bprojm.builder().abusMngNo("LOCK-P").sno(3).build();
+        given(projectRepository.findVersionForUpdate("LOCK-P", 3)).willReturn(Optional.of(project));
+        projectService.deleteProject("LOCK-P", 3);
+        var ordered =
+                org.mockito.Mockito.inOrder(projectRepository, capplaRepository, bitemmRepository);
+        ordered.verify(projectRepository).findVersionForUpdate("LOCK-P", 3);
+        ordered.verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        eq("BPROJM"), eq("LOCK-P"), eq(3), anyList());
+        ordered.verify(bitemmRepository).findByAbusMngNoAndFntTbCrySno("LOCK-P", 3);
+        assertThat(project.getDelYn()).isEqualTo("Y");
+        verify(projectRepository, never()).findByAbusMngNoAndSnoAndDelYn(any(), any(), any());
+    }
+
     private record NameView(String eno, String usrNm, String ptCNm)
             implements UserRepository.UserNameView {
         /** 직위명이 검증 대상이 아닌 기존 케이스용 축약 생성자. */
@@ -452,8 +521,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
-                .willReturn(List.of(project));
+        given(projectRepository.findAllVersionsForUpdate(prjMngNo)).willReturn(List.of(project));
         // 결재중 신청서 존재
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -473,8 +541,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
-                .willReturn(List.of(project));
+        given(projectRepository.findAllVersionsForUpdate(prjMngNo)).willReturn(List.of(project));
         // 결재중 신청서 없음
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -503,7 +570,7 @@ class ProjectServiceTest {
         given(draft.getSno()).willReturn(2);
         given(draft.getFstEnrUsid()).willReturn("10001");
         given(draft.getSvnDpmC()).willReturn("BBR001");
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
+        given(projectRepository.findAllVersionsForUpdate(prjMngNo))
                 .willReturn(List.of(current, draft));
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 1)).willReturn(List.of());
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 2)).willReturn(List.of());
@@ -518,8 +585,7 @@ class ProjectServiceTest {
     @DisplayName("deleteProject - 미존재 프로젝트 삭제 시 IllegalArgumentException 발생")
     void deleteProject_미존재프로젝트_예외발생() {
         // given
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("INVALID", "N"))
-                .willReturn(List.of());
+        given(projectRepository.findAllVersionsForUpdate("INVALID")).willReturn(List.of());
 
         // when & then
         assertThatThrownBy(() -> projectService.deleteProject("INVALID"))
@@ -811,7 +877,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         // 결재중/결재완료 신청서 없음 → 수정 허용
         given(
@@ -851,7 +917,7 @@ class ProjectServiceTest {
                         .bseYy("2026")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -884,7 +950,7 @@ class ProjectServiceTest {
                         .bseYy("2026")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -913,7 +979,7 @@ class ProjectServiceTest {
         // given: 기존 프로젝트, 결재 없음, 품목 없음 + 담당자 팀코드 스텁
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -976,7 +1042,7 @@ class ProjectServiceTest {
         // given
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1262,7 +1328,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1284,7 +1350,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1318,7 +1384,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1349,8 +1415,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N"))
-                .willReturn(List.of(project));
+        given(projectRepository.findAllVersionsForUpdate(prjMngNo)).willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
@@ -1488,7 +1553,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1539,7 +1604,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1628,7 +1693,7 @@ class ProjectServiceTest {
                         .itrInfrYn(null)
                         .amt(java.math.BigDecimal.valueOf(1000))
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1685,7 +1750,7 @@ class ProjectServiceTest {
                         .itrInfrYn(null)
                         .amt(java.math.BigDecimal.valueOf(1000))
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1879,7 +1944,7 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
 
         assertThatThrownBy(
@@ -1904,7 +1969,7 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
 
         assertThatThrownBy(
@@ -1920,7 +1985,7 @@ class ProjectServiceTest {
     void deleteProject_품목포함_함께논리삭제() {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
         Bitemm item = Bitemm.builder().gclMngNo("GCL-0001").sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
                 .willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1960,8 +2025,7 @@ class ProjectServiceTest {
                         .lstYn("Y")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndSnoAndDelYn(projectNo, 2, "N"))
-                .willReturn(Optional.of(draft));
+        given(projectRepository.findVersionForUpdate(projectNo, 2)).willReturn(Optional.of(draft));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(projectNo), eq(2), anyList()))
@@ -1975,7 +2039,7 @@ class ProjectServiceTest {
         assertThat(draftItem.getDelYn()).isEqualTo("Y");
         assertThat(original.getDelYn()).isEqualTo("N");
         assertThat(originalItem.getDelYn()).isEqualTo("N");
-        verify(projectRepository, never()).findByAbusMngNoAndDelYn(projectNo, "N");
+        verify(projectRepository, never()).findCurrentVersionForUpdate(projectNo);
         verify(bitemmRepository, never()).findByAbusMngNoAndFntTbCrySno(projectNo, 1);
     }
 
@@ -2052,7 +2116,7 @@ class ProjectServiceTest {
     void updateProject_인증주체비정상_거부() {
         given(authentication.getPrincipal()).willReturn("anonymous");
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
 
         assertThatThrownBy(
@@ -2077,7 +2141,7 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -2107,7 +2171,7 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -2358,7 +2422,7 @@ class ProjectServiceTest {
                         .itrInfrYn("Y")
                         .amt(BigDecimal.valueOf(200))
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -2486,7 +2550,7 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
                 .willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -2517,7 +2581,7 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
                 .willReturn(List.of(project));
 
         // when & then
@@ -2540,7 +2604,7 @@ class ProjectServiceTest {
                         .svnDpmC("101") // 같은 부서
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
                 .willReturn(List.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -2571,7 +2635,7 @@ class ProjectServiceTest {
                         .svnDpmC("101") // 다른 부서
                         .delYn("N")
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
                 .willReturn(List.of(project));
 
         // when & then
@@ -2585,7 +2649,7 @@ class ProjectServiceTest {
         // given
         given(authentication.getPrincipal()).willReturn("anonymous");
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc("PRJ-2026-0001", "N"))
+        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
                 .willReturn(List.of(project));
 
         // when & then
@@ -2742,7 +2806,7 @@ class ProjectServiceTest {
         // given
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -2773,8 +2837,7 @@ class ProjectServiceTest {
         // given
         String prjMngNo = "PRJ-2026-0001";
         Bprojm draft = Bprojm.builder().abusMngNo(prjMngNo).sno(2).delYn("N").lstYn("N").build();
-        given(projectRepository.findByAbusMngNoAndSnoAndDelYn(prjMngNo, 2, "N"))
-                .willReturn(Optional.of(draft));
+        given(projectRepository.findVersionForUpdate(prjMngNo, 2)).willReturn(Optional.of(draft));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq(prjMngNo), eq(2), anyList()))
@@ -2811,8 +2874,8 @@ class ProjectServiceTest {
         projectService.updateProject(prjMngNo, 2, request);
 
         // then
-        verify(projectRepository).findByAbusMngNoAndSnoAndDelYn(prjMngNo, 2, "N");
-        verify(projectRepository, never()).findByAbusMngNoAndDelYn(prjMngNo, "N");
+        verify(projectRepository).findVersionForUpdate(prjMngNo, 2);
+        verify(projectRepository, never()).findCurrentVersionForUpdate(prjMngNo);
         verify(bitemmRepository, times(2))
                 .findAllByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 2, "N");
         verify(bitemmRepository, never()).findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N");
@@ -2841,7 +2904,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -2907,7 +2970,7 @@ class ProjectServiceTest {
         // given
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3126,7 +3189,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3182,7 +3245,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3242,7 +3305,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3299,7 +3362,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3470,7 +3533,7 @@ class ProjectServiceTest {
                         .lstYn("Y")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3682,7 +3745,7 @@ class ProjectServiceTest {
                         .delYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3724,7 +3787,7 @@ class ProjectServiceTest {
     void updateProject_includesPaidAmountWithoutLegacyCeiling() {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -3767,7 +3830,7 @@ class ProjectServiceTest {
                         .amt(new BigDecimal("100"))
                         .mplAmt(new BigDecimal("300"))
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-2026-0001", 1, "N"))
                 .willReturn(List.of(item));
@@ -3794,7 +3857,7 @@ class ProjectServiceTest {
                         .mplAmt(new BigDecimal("300.000"))
                         .dfrAmt(new BigDecimal("20.000"))
                         .build();
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
 
         assertThatThrownBy(
@@ -3814,7 +3877,7 @@ class ProjectServiceTest {
     @Test
     @DisplayName("이관 경로가 사업을 못 찾으면 실패한다")
     void assignDeclaredAmounts_failsWhenProjectMissing() {
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-9999", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-9999"))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(
@@ -3881,7 +3944,7 @@ class ProjectServiceTest {
     private Bprojm existingProjectWithDfrAmt(BigDecimal dfrAmt) {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").build();
         project.assignAmountSnapshot(dfrAmt, BigDecimal.ZERO, dfrAmt);
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-2026-0001", "N"))
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-2026-0001"))
                 .willReturn(Optional.of(project));
         return project;
     }

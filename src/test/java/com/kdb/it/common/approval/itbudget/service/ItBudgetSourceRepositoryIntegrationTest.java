@@ -71,6 +71,9 @@ class ItBudgetSourceRepositoryIntegrationTest extends AbstractOracleRepositoryTe
         assertThat(projects.findVersionsForUpdate(List.of(id), List.of(2, 1)))
                 .extracting(Bprojm::getSno)
                 .containsExactly(1, 2);
+        assertThat(projects.findAllVersionsForUpdate(id))
+                .extracting(Bprojm::getSno)
+                .containsExactly(1);
         assertThat(items.findSourceVersions(List.of(id), List.of(2)))
                 .extracting(Bitemm::getDelYn)
                 .containsExactly("Y");
@@ -78,6 +81,9 @@ class ItBudgetSourceRepositoryIntegrationTest extends AbstractOracleRepositoryTe
 
     @Test
     void costQueriesCompileAndExecuteWithScalarInParameters() {
+        assertThat(costs.findAllVersionsForUpdate("ZZ-NONEXIST")).isEmpty();
+        assertThat(costs.findCurrentVersionsForUpdate("ZZ-NONEXIST")).isEmpty();
+        assertThat(costs.findCurrentVersionForUpdate("ZZ-NONEXIST")).isEmpty();
         assertThat(costs.findVersions(List.of("ZZ-NONEXIST"), List.of(1))).isEmpty();
         assertThat(costs.findVersionsForUpdate(List.of("ZZ-NONEXIST"), List.of(1))).isEmpty();
         assertThat(terminals.findSourceVersions(List.of("ZZ-NONEXIST"), List.of(1))).isEmpty();

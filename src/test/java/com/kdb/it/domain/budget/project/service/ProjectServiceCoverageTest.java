@@ -303,7 +303,7 @@ class ProjectServiceCoverageTest {
                         .itrInfrYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -357,7 +357,7 @@ class ProjectServiceCoverageTest {
                         .itrInfrYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -410,7 +410,7 @@ class ProjectServiceCoverageTest {
                         .itrInfrYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -465,7 +465,7 @@ class ProjectServiceCoverageTest {
                         .itrInfrYn("N")
                         .build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -658,7 +658,7 @@ class ProjectServiceCoverageTest {
 
     /** updateProject 공통 mock 설정 헬퍼 */
     private void setupUpdateMocks(String prjMngNo, Bprojm project, List<Bitemm> existing) {
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1359,7 +1359,7 @@ class ProjectServiceCoverageTest {
         String prjMngNo = "PRJ-ORPHAN-001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N"))
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
                 .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
