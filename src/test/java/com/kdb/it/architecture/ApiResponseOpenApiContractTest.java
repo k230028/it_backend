@@ -44,9 +44,39 @@ class ApiResponseOpenApiContractTest {
                 Set.of());
         assertContract(
                 ItBudgetApprovalDto.ChangedSource.class,
-                fields("no", "kind", "id", "revision", "businessName", "modifier", "modifiedAt"),
+                fields("kind", "id", "revision", "displayName", "modifiedBy", "modifiedAt"),
                 Set.of());
+        assertContract(
+                ItBudgetApprovalDto.PreviewResponse.class,
+                fields("previewDigest", "previewToken", "expiresAt", "documents"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.PreviewDocument.class,
+                fields("clientDocumentKey", "snapshot", "payloadDigest", "sources"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.ItBudgetSnapshot.class,
+                fields("form", "payload", "approvalLine", "integrity"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.SourceDigest.class,
+                fields("kind", "id", "revision", "order", "sourceDigest"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.SubmissionDocument.class,
+                fields("clientDocumentKey", "payloadDigest", "sourceRefs"),
+                Set.of());
+        assertPropertiesRequiredExcept(
+                ItBudgetApprovalDto.ErrorResponse.class, fields("changedSources"));
+        assertThat(
+                        Boolean.TRUE.equals(
+                                property(
+                                                resolve(ItBudgetApprovalDto.ErrorResponse.class),
+                                                "changedSources")
+                                        .getNullable()))
+                .isFalse();
         assertEnum(ItBudgetApprovalDto.SourceRef.class, "kind", "PROJECT", "COST");
+        assertEnum(ItBudgetApprovalDto.SourceDigest.class, "kind", "PROJECT", "COST");
         assertEnum(
                 ItBudgetApprovalDto.ApproverRef.class,
                 "role",
