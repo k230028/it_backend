@@ -1,5 +1,6 @@
 package com.kdb.it.exception;
 
+import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.common.mfa.exception.MfaException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -50,6 +51,21 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /** 전산예산 미리보기·상신 오류를 코드와 변경 원장 목록으로 반환한다. */
+    @ExceptionHandler(ItBudgetApprovalException.class)
+    public ResponseEntity<Map<String, Object>> handleItBudgetApproval(ItBudgetApprovalException e) {
+        log.warn("전산예산 결재 오류: code={}, status={}", e.code(), e.status().value());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", e.status().value());
+        body.put("code", e.code());
+        body.put("message", e.getMessage());
+        if (!e.changedSources().isEmpty()) {
+            body.put("changedSources", e.changedSources());
+        }
+        return ResponseEntity.status(e.status()).body(body);
+    }
 
     /**
      * 비즈니스 로직 예외 처리 (400 Bad Request)

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto;
 import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.dto.BoardPostDto;
@@ -30,6 +31,29 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ApiResponseOpenApiContractTest {
+
+    @Test
+    void itBudgetApprovalSchemasExposeRequiredFieldsAndStableEnums() {
+        assertContract(
+                ItBudgetApprovalDto.PreviewRequest.class,
+                fields("approvers", "documents"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.SubmissionRequest.class,
+                fields("previewDigest", "previewToken", "approvers", "documents"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.ChangedSource.class,
+                fields("no", "kind", "id", "revision", "businessName", "modifier", "modifiedAt"),
+                Set.of());
+        assertEnum(ItBudgetApprovalDto.SourceRef.class, "kind", "PROJECT", "COST");
+        assertEnum(
+                ItBudgetApprovalDto.ApproverRef.class,
+                "role",
+                "TEAM_LEAD",
+                "DEPT_HEAD",
+                "ADDITIONAL");
+    }
 
     @Test
     void councilResponsesExposeRequiredNullableAndEnumContracts() {
