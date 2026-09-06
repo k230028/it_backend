@@ -17,7 +17,6 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -36,7 +35,25 @@ class CostServiceMigrationOverloadTest {
     @Mock private XcrLookupService xcrLookupService;
     @Mock private CostQueryService queryService;
 
-    @InjectMocks private CostService costService;
+    @Mock private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
+    @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+    private CostService costService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        costService =
+                new CostService(
+                        costRepository,
+                        new CostWriteTargetLoader(costRepository),
+                        btermmRepository,
+                        cuserIRepository,
+                        orgNameResolver,
+                        codeService,
+                        xcrLookupService,
+                        queryService,
+                        approvalWriteGuard,
+                        approvalStamper);
+    }
 
     /**
      * 생략 플래그가 true면 기간 검증을 아예 호출하지 않는다.

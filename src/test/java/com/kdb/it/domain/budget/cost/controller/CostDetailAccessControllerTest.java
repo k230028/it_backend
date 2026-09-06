@@ -20,6 +20,7 @@ import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostQueryService;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
+import com.kdb.it.domain.budget.cost.service.CostWriteTargetLoader;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +36,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(CostController.class)
-@Import({TestSecurityConfig.class, JacksonConfig.class, CostService.class})
+@Import({
+    TestSecurityConfig.class,
+    JacksonConfig.class,
+    CostService.class,
+    CostWriteTargetLoader.class
+})
 class CostDetailAccessControllerTest {
 
     @Autowired private MockMvc mockMvc;

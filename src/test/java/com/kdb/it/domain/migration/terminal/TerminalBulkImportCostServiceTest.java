@@ -21,7 +21,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -57,7 +56,25 @@ class TerminalBulkImportCostServiceTest {
     @Mock private XcrLookupService xcrLookupService;
     @Mock private CostQueryService costQueryService;
     @Mock private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
-    @InjectMocks private CostService costService;
+    @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+    private CostService costService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        costService =
+                new CostService(
+                        costRepository,
+                        new com.kdb.it.domain.budget.cost.service.CostWriteTargetLoader(
+                                costRepository),
+                        btermmRepository,
+                        userRepository,
+                        orgNameResolver,
+                        codeService,
+                        xcrLookupService,
+                        costQueryService,
+                        approvalWriteGuard,
+                        approvalStamper);
+    }
 
     @Test
     void 이관전용생성은_대상연도로채번하고_제출금액과외화를보존한다() {

@@ -39,6 +39,7 @@ public class CostService {
     private static final String COST_TABLE = "BCOSTM";
 
     private final CostRepository costRepository;
+    private final CostWriteTargetLoader writeTargetLoader;
     private final BtermmRepository btermmRepository;
     private final UserRepository cuserIRepository;
     private final OrgNameResolver orgNameResolver;
@@ -421,18 +422,7 @@ public class CostService {
         if (!preserveSubmittedAmounts) {
             codeService.validateBudgetPeriod();
         }
-        Bcostm target =
-                (bgSno == null
-                                ? lockCurrentCost(itMngcNo)
-                                : costRepository.findVersionForUpdate(itMngcNo, bgSno))
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "Cost not found with id: "
-                                                        + itMngcNo
-                                                        + (bgSno == null
-                                                                ? ""
-                                                                : ", sno: " + bgSno)));
+        Bcostm target = writeTargetLoader.loadForUpdate(itMngcNo, bgSno);
         if (!preserveSubmittedAmounts) {
             OwnershipVerifier.verifyModifiable(target.getFstEnrUsid(), target.getCostSvnDpmC());
         }
@@ -544,13 +534,6 @@ public class CostService {
             stampDraftedIfCompleted(request.getComplete(), target);
         }
         return target.getCostBgNo();
-    }
-
-    private java.util.Optional<Bcostm> lockCurrentCost(String id) {
-        List<Bcostm> candidates = costRepository.findCurrentVersionsForUpdate(id);
-        return candidates.isEmpty()
-                ? java.util.Optional.empty()
-                : java.util.Optional.of(CostRepresentativeSelector.pick(candidates));
     }
 
     private static boolean matchesMigrationTerminal(

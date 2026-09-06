@@ -276,6 +276,7 @@ class CostServiceTest {
         costService =
                 new CostService(
                         costRepository,
+                        new CostWriteTargetLoader(costRepository),
                         btermmRepository,
                         cuserIRepository,
                         orgNameResolver,

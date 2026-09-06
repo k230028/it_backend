@@ -1301,8 +1301,8 @@ class MigrationImportServiceTest {
                 planService,
                 // 매핑 판정은 실물로 돌리고 기록만 목으로 관측한다
                 new PlanAdjustmentProgressRecorder(bprojaSyncService),
-                approvalWriteGuard,
-                entityManager);
+                new MigrationCostBudgetUnitWriter(
+                        costRepository, approvalWriteGuard, entityManager));
     }
 
     private void stubLookupIndex() {
