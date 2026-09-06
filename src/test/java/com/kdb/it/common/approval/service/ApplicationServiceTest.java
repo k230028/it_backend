@@ -207,6 +207,7 @@ class ApplicationServiceTest {
     @Mock private OrganizationRepository organizationRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
+    @Mock private ApprovalDetailPolicy detailPolicy;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
     @Mock private ApprovalRequestNotifier approvalRequestNotifier;
 
@@ -331,7 +332,8 @@ class ApplicationServiceTest {
                         costRepository,
                         userRepository,
                         bprojaSyncService,
-                        approvalRequestNotifier));
+                        approvalRequestNotifier),
+                new ApprovalDetailPolicy(applicationMapRepository));
     }
 
     // ───────────────────────────────────────────────────────

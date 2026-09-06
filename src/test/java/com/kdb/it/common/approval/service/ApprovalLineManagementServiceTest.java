@@ -40,6 +40,7 @@ class ApprovalLineManagementServiceTest {
     @Mock private ApproverRepository approverRepository;
     @Mock private UserRepository userRepository;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
+    @Mock private ApprovalDetailPolicy detailPolicy;
 
     @InjectMocks private ApprovalLineManagementService service;
 

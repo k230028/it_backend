@@ -10,6 +10,7 @@ import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader.ParsedSnapshot;
+import com.kdb.it.common.approval.service.ApprovalDetailPolicy.DetailMode;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.exception.DataCorruptionException;
 import java.time.LocalDate;
@@ -78,10 +79,12 @@ public class ApprovalLineDelegate {
 
     /** 회수 정보를 기록한다. v2 payload 무결성 실패는 상태 변경을 차단한다. */
     @Transactional
-    public void applyRecallInfo(Capplm capplm, String recallerEno, String recallOpnn) {
+    public void applyRecallInfo(
+            Capplm capplm, String recallerEno, String recallOpnn, DetailMode detailMode) {
         String raw = capplm.getDcdReqInf();
         ParsedSnapshot parsed = snapshotReader.read(raw == null || raw.isBlank() ? "{}" : raw);
-        if (inProgress(capplm)) line(parsed, true);
+        if (inProgress(capplm) && !(raw == null && detailMode == DetailMode.JSONLESS_COUNCIL))
+            line(parsed, true);
         parsed.recall(recallerEno, recallOpnn);
         capplm.updateDetailContent(parsed.write());
     }
@@ -219,6 +222,11 @@ public class ApprovalLineDelegate {
                         logicalNodes.get(index), replacementUsers.get(index - completedCount));
             retainSelectedAdditionalApprovers(
                     additionalApprovers, additionalApproverNodes, logicalNodes);
+            // order에 따라 선택된 노드만 남긴다. 완료 additional 앞/뒤 정적 노드도 객체 정체성으로 구별한다.
+            Set<ObjectNode> selected = Collections.newSetFromMap(new IdentityHashMap<>());
+            selected.addAll(logicalNodes);
+            for (ObjectNode fixed : fixedApproverNodes)
+                if (!selected.contains(fixed)) removeLegacyNode(lineObject, fixed);
             if (lineObject.has("order"))
                 setLegacyOrder(
                         lineObject, orderedApprovers.stream().map(Cdecim::getDcrEno).toList());

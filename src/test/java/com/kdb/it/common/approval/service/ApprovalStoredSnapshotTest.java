@@ -19,6 +19,74 @@ class ApprovalStoredSnapshotTest {
     private final ApprovalLineDelegate delegate =
             com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.delegate(MAPPER);
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void legacyReplacementRemovesUnselectedStaticPendingNodes(boolean withOrder) throws Exception {
+        ObjectNode root = MAPPER.createObjectNode();
+        ObjectNode line = root.putObject("approvalLine");
+        line.putObject("teamLead").put("id", "E1").put("date", "");
+        line.putObject("deptHead").put("id", "E2").put("date", "");
+        if (withOrder) line.putArray("order").add("E1").add("E2");
+        Capplm application =
+                Capplm.builder().itPtlApfPrgStsC("1").dcdReqInf(root.toString()).build();
+        List<Cdecim> order =
+                List.of(Cdecim.builder().dcrEno("E3").dcrSqnSno(1).itPtlDcdStsC("1").build());
+        var user =
+                com.kdb.it.common.iam.entity.CuserI.builder()
+                        .eno("E3")
+                        .usrNm("교체")
+                        .ptCNm("팀장")
+                        .build();
+
+        delegate.replacePendingApproversInDetail(application, order, List.of(user));
+
+        assertThat(reader().read(application.getDcdReqInf()).version()).isEqualTo(1);
+        assertThat(
+                        MAPPER.readTree(application.getDcdReqInf())
+                                .at("/approvalLine/deptHead")
+                                .isMissingNode())
+                .isTrue();
+        delegate.updateApprovalOrder(application, order);
+        delegate.doUpdate(application, order, order);
+        assertThat(MAPPER.readTree(application.getDcdReqInf()).at("/approvalLine/order").toString())
+                .isEqualTo("[\"E3\"]");
+    }
+
+    @Test
+    void legacyReplacementPreservesCompletedAdditionalBeforePendingStaticNodes() throws Exception {
+        Capplm application =
+                Capplm.builder()
+                        .itPtlApfPrgStsC("1")
+                        .dcdReqInf(
+                                """
+            {"approvalLine":{"teamLead":{"id":"E1","date":""},"deptHead":{"id":"E2","date":""},
+            "additionalApprovers":[{"id":"E0","name":"완료","date":"2026-09-01"}],"order":["E0","E1","E2"]}}
+            """)
+                        .build();
+        var completed =
+                MAPPER.readTree(application.getDcdReqInf())
+                        .at("/approvalLine/additionalApprovers/0");
+        List<Cdecim> order =
+                List.of(
+                        Cdecim.builder().dcrEno("E0").dcrSqnSno(1).itPtlDcdStsC("2").build(),
+                        Cdecim.builder().dcrEno("E3").dcrSqnSno(2).itPtlDcdStsC("1").build());
+        var user =
+                com.kdb.it.common.iam.entity.CuserI.builder()
+                        .eno("E3")
+                        .usrNm("교체")
+                        .ptCNm("팀장")
+                        .build();
+
+        delegate.replacePendingApproversInDetail(application, order, List.of(user));
+
+        assertThat(reader().read(application.getDcdReqInf()).version()).isEqualTo(1);
+        delegate.updateApprovalOrder(application, order);
+        var updated = MAPPER.readTree(application.getDcdReqInf());
+        assertThat(updated.at("/approvalLine/additionalApprovers/0")).isEqualTo(completed);
+        assertThat(updated.at("/approvalLine/deptHead").isMissingNode()).isTrue();
+        assertThat(updated.at("/approvalLine/order").toString()).isEqualTo("[\"E0\",\"E3\"]");
+    }
+
     static Stream<Consumer<ObjectNode>> corruptions() {
         return Stream.of(
                 r -> object(r, "/form").put("id", "another-form"),
@@ -117,7 +185,12 @@ class ApprovalStoredSnapshotTest {
         object(root, "/payload/projects/0").put("name", "오염");
         List<Consumer<Capplm>> mutations =
                 List.of(
-                        c -> delegate.applyRecallInfo(c, "U1", "회수"),
+                        c ->
+                                delegate.applyRecallInfo(
+                                        c,
+                                        "U1",
+                                        "회수",
+                                        ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED),
                         c -> delegate.addApproverToDetail(c, "E3", "새 결재자", "직급"),
                         c -> delegate.removeApproverFromDetail(c, 0),
                         c -> delegate.updateApprovalOrder(c, List.of(approver())),
@@ -164,7 +237,8 @@ class ApprovalStoredSnapshotTest {
         assertThat(line.at("/approvers/1/name").textValue()).isEqualTo("교체 사용자");
         assertThat(line.at("/approvers/1/rank").textValue()).isEqualTo("부장");
         assertThat(line.at("/approvers/1/date").isNull()).isTrue();
-        delegate.applyRecallInfo(application, "U1", "회수");
+        delegate.applyRecallInfo(
+                application, "U1", "회수", ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED);
         var finalRoot = MAPPER.readTree(application.getDcdReqInf());
         assertThat(finalRoot.get("payload")).isEqualTo(original.get("payload"));
         assertThat(finalRoot.get("integrity")).isEqualTo(original.get("integrity"));

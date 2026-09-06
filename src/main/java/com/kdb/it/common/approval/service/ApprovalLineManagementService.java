@@ -30,6 +30,7 @@ public class ApprovalLineManagementService {
     private final ApproverRepository approverRepository;
     private final UserRepository userRepository;
     private final ApprovalLineDelegate approvalLineDelegate;
+    private final ApprovalDetailPolicy detailPolicy;
 
     /** 결재선 참여자 또는 관리자가 현재 결재선 뒤에 미결재 결재자를 추가합니다. */
     @Transactional
@@ -57,11 +58,13 @@ public class ApprovalLineManagementService {
                         .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
                         .build();
         approverRepository.save(added);
-        approvalLineDelegate.addApproverToDetail(
-                application, newApproverEno, user.getUsrNm(), user.getPtCNm());
         List<Cdecim> updatedOrder = new ArrayList<>(approvers);
         updatedOrder.add(added);
-        approvalLineDelegate.updateApprovalOrder(application, updatedOrder);
+        if (detailPolicy.resolve(application) != ApprovalDetailPolicy.DetailMode.JSONLESS_COUNCIL) {
+            approvalLineDelegate.addApproverToDetail(
+                    application, newApproverEno, user.getUsrNm(), user.getPtCNm());
+            approvalLineDelegate.updateApprovalOrder(application, updatedOrder);
+        }
     }
 
     /** 결재선 참여자 또는 관리자가 미결재 상태인 결재자를 삭제합니다. */
@@ -88,8 +91,10 @@ public class ApprovalLineManagementService {
             remaining.get(i).markLast(i == remaining.size() - 1);
         }
         if (!remaining.isEmpty()) approverRepository.save(remaining.get(remaining.size() - 1));
-        approvalLineDelegate.removeApproverFromDetail(application, targetIndex);
-        approvalLineDelegate.updateApprovalOrder(application, remaining);
+        if (detailPolicy.resolve(application) != ApprovalDetailPolicy.DetailMode.JSONLESS_COUNCIL) {
+            approvalLineDelegate.removeApproverFromDetail(application, targetIndex);
+            approvalLineDelegate.updateApprovalOrder(application, remaining);
+        }
     }
 
     /** 승인 완료 결재자는 고정하고 미결재 결재자만 요청 순서로 재배치합니다. */
@@ -132,7 +137,8 @@ public class ApprovalLineManagementService {
                 reordered.add(approver);
             }
         }
-        approvalLineDelegate.updateApprovalOrder(application, reordered);
+        if (detailPolicy.resolve(application) != ApprovalDetailPolicy.DetailMode.JSONLESS_COUNCIL)
+            approvalLineDelegate.updateApprovalOrder(application, reordered);
     }
 
     /**
@@ -216,9 +222,11 @@ public class ApprovalLineManagementService {
         approverRepository.flush();
         approverRepository.saveAll(replacements);
 
-        approvalLineDelegate.replacePendingApproversInDetail(
-                application, completeOrder, replacementUsers);
-        approvalLineDelegate.updateApprovalOrder(application, completeOrder);
+        if (detailPolicy.resolve(application) != ApprovalDetailPolicy.DetailMode.JSONLESS_COUNCIL) {
+            approvalLineDelegate.replacePendingApproversInDetail(
+                    application, completeOrder, replacementUsers);
+            approvalLineDelegate.updateApprovalOrder(application, completeOrder);
+        }
     }
 
     private boolean isPending(Cdecim approver) {

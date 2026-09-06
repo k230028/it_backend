@@ -105,6 +105,7 @@ public class ApplicationService {
     private final ApprovalRequestNotifier approvalRequestNotifier;
 
     private final ApplicationPersistenceService persistence;
+    private final ApprovalDetailPolicy detailPolicy;
 
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
@@ -161,6 +162,14 @@ public class ApplicationService {
      */
     @Transactional
     public void approve(String apfMngNo, ApplicationDto.ApproveRequest request) {
+        approve(apfMngNo, request, null);
+    }
+
+    /** 일괄 결재에서는 원본 양식 분류 결과를 재사용한다. 마스터 잠금은 각 명령에서 유지한다. */
+    private void approve(
+            String apfMngNo,
+            ApplicationDto.ApproveRequest request,
+            java.util.Set<String> jsonlessCouncilIds) {
         // 신청서 마스터 조회 (없으면 예외)
         Capplm capplm =
                 applicationRepository
@@ -244,7 +253,12 @@ public class ApplicationService {
         }
 
         // 신청서 상세 내용(JSON) 내 결재선 정보 업데이트 (결재 일자 기록)
-        approvalLineDelegate.doUpdate(capplm, approvers, approvedList);
+        var detailMode =
+                jsonlessCouncilIds == null
+                        ? detailPolicy.resolve(capplm)
+                        : detailPolicy.resolve(capplm, jsonlessCouncilIds);
+        if (detailMode != ApprovalDetailPolicy.DetailMode.JSONLESS_COUNCIL)
+            approvalLineDelegate.doUpdate(capplm, approvers, approvedList);
 
         // 신청서 전체 상태 업데이트
         String newApfSts = null;
@@ -295,6 +309,11 @@ public class ApplicationService {
         List<ApplicationDto.ApprovalResult> results = new java.util.ArrayList<>(); // 개별 결과 목록
         int successCount = 0; // 성공 건수
         int failureCount = 0; // 실패 건수
+        var jsonlessCouncilIds =
+                detailPolicy.findJsonlessCouncilIds(
+                        request.getApprovals().stream()
+                                .map(ApplicationDto.ApprovalItem::getApfMngNo)
+                                .toList());
 
         // 모든 신청서를 순회하며 승인 처리
         for (ApplicationDto.ApprovalItem item : request.getApprovals()) {
@@ -306,7 +325,7 @@ public class ApplicationService {
                 approveRequest.setDcdSts(item.getDcdSts()); // 승인 상태 (승인, 반려)
 
                 // 개별 승인 처리
-                approve(item.getApfMngNo(), approveRequest);
+                approve(item.getApfMngNo(), approveRequest, jsonlessCouncilIds);
 
                 // 성공 결과 추가
                 results.add(
@@ -609,7 +628,8 @@ public class ApplicationService {
             throw new AccessDeniedException("회수 권한이 없습니다.");
         }
 
-        approvalLineDelegate.applyRecallInfo(capplm, currentEno, request.getRecallOpnn());
+        approvalLineDelegate.applyRecallInfo(
+                capplm, currentEno, request.getRecallOpnn(), detailPolicy.resolve(capplm));
         capplm.updateStatus(ApprovalStatus.RECALLED);
 
         for (Cdecim a : approvers) {

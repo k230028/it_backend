@@ -179,7 +179,8 @@ class ApprovalLineDelegateTest {
         Capplm capplm = mock(Capplm.class);
         given(capplm.getDcdReqInf()).willReturn("");
 
-        delegate.applyRecallInfo(capplm, "E001", "재작성 필요");
+        delegate.applyRecallInfo(
+                capplm, "E001", "재작성 필요", ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED);
 
         verify(capplm)
                 .updateDetailContent(
@@ -196,7 +197,13 @@ class ApprovalLineDelegateTest {
         Capplm capplm = mock(Capplm.class);
         given(capplm.getDcdReqInf()).willReturn("{");
 
-        assertThatThrownBy(() -> delegate.applyRecallInfo(capplm, "E001", "회수"))
+        assertThatThrownBy(
+                        () ->
+                                delegate.applyRecallInfo(
+                                        capplm,
+                                        "E001",
+                                        "회수",
+                                        ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED))
                 .isInstanceOf(DataCorruptionException.class);
     }
 
@@ -377,7 +384,8 @@ class ApprovalLineDelegateTest {
         given(capplm.getDcdReqInf()).willReturn(null);
 
         // Act
-        delegate.applyRecallInfo(capplm, "E001", "회수 사유");
+        delegate.applyRecallInfo(
+                capplm, "E001", "회수 사유", ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED);
 
         // Assert
         verify(capplm)
@@ -397,7 +405,8 @@ class ApprovalLineDelegateTest {
         given(capplm.getDcdReqInf()).willReturn("{\"title\":\"기존제목\"}");
 
         // Act
-        delegate.applyRecallInfo(capplm, "E002", "재검토");
+        delegate.applyRecallInfo(
+                capplm, "E002", "재검토", ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED);
 
         // Assert: 기존 필드 유지 + recallInfo 추가
         verify(capplm)
@@ -417,7 +426,13 @@ class ApprovalLineDelegateTest {
         given(capplm.getDcdReqInf()).willReturn("[1,2]");
 
         // Act & Assert
-        assertThatThrownBy(() -> delegate.applyRecallInfo(capplm, "E001", "회수"))
+        assertThatThrownBy(
+                        () ->
+                                delegate.applyRecallInfo(
+                                        capplm,
+                                        "E001",
+                                        "회수",
+                                        ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED))
                 .isInstanceOf(DataCorruptionException.class);
     }
 
