@@ -208,6 +208,7 @@ class ItBudgetApprovalDtoTest {
 
         var json = objectMapper.readTree(objectMapper.writeValueAsString(response));
 
+        assertThat(validator.validate(response)).isEmpty();
         assertThat(json.path("previewDigest").asText()).isEqualTo(DIGEST);
         assertThat(json.at("/documents/0/snapshot/form/id").asText()).isEqualTo("it-budget");
         assertThat(json.at("/documents/0/sources/0/sourceDigest").asText()).isEqualTo(DIGEST);
@@ -364,12 +365,29 @@ class ItBudgetApprovalDtoTest {
     }
 
     @Test
-    void previewRequest_rejectsMissingApproversAndDocuments() {
+    void previewRequest_allowsEmptyApproversButRejectsMissingDocuments() {
         PreviewRequest request = new PreviewRequest(List.of(), List.of());
 
         assertThat(validator.validate(request))
                 .extracting(violation -> violation.getPropertyPath().toString())
-                .containsExactlyInAnyOrder("approvers", "documents");
+                .containsExactly("documents");
+    }
+
+    @Test
+    void submissionRequest_stillRequiresAtLeastOneApprover() {
+        SubmissionDocument document =
+                new SubmissionDocument(
+                        "doc-1",
+                        DIGEST,
+                        List.of(
+                                new ItBudgetApprovalDto.SourceDigest(
+                                        SourceKind.PROJECT, "P-001", 1, 1, DIGEST, "사업")));
+        SubmissionRequest request =
+                new SubmissionRequest(DIGEST, "preview-token", List.of(), List.of(document));
+
+        assertThat(validator.validate(request))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .containsExactly("approvers");
     }
 
     @Test

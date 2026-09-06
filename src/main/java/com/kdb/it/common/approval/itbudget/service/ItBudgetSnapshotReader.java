@@ -130,6 +130,7 @@ public final class ItBudgetSnapshotReader {
     }
 
     private void validateRoles(ItBudgetApprovalDto.SnapshotApprovalLine line) {
+        if (line.approvers().isEmpty()) throw corrupt("v2", "저장된 신청서의 결재선이 비어 있습니다.");
         Set<ItBudgetApprovalDto.ApproverRole> fixedRoles = new HashSet<>();
         int previousRole = -1;
         for (var person : line.approvers()) {

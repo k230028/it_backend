@@ -61,7 +61,7 @@ public final class ItBudgetApprovalDto {
 
     @Schema(name = "ItBudgetPreviewRequest", description = "전산예산 결재 미리보기 요청")
     public record PreviewRequest(
-            @NotEmpty @Size(max = 102) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotNull @Size(max = 102) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid ApproverRef> approvers,
             @NotEmpty @Size(max = 100) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid DocumentRequest> documents) {}
@@ -185,7 +185,7 @@ public final class ItBudgetApprovalDto {
     public record SnapshotApprovalLine(
             @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     Requester requester,
-            @NotEmpty @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotNull @Size(max = 102) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid ApprovalPerson> approvers) {}
 
     @Schema(name = "ItBudgetSnapshotProjectItem", description = "사업 스냅샷 품목")

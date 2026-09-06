@@ -129,6 +129,13 @@ class ItBudgetApprovalFacadeTest {
     }
 
     @Test
+    void previewWithoutApproversKeepsAnEmptyApprovalLine() {
+        var response = facade.preview(actor, new PreviewRequest(List.of(), request().documents()));
+
+        assertThat(response.documents().getFirst().snapshot().approvalLine().approvers()).isEmpty();
+    }
+
+    @Test
     void digestViewsBindOrderedBoundariesAndIgnoreCaptureTime() {
         var response = facade.preview(actor, request());
         var claims = tokens.verify(response.previewToken(), "U1");

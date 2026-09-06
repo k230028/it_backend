@@ -43,6 +43,15 @@ class ItBudgetSnapshotReaderTest {
     }
 
     @Test
+    void rejectsStoredSnapshotWithEmptyApprovalLine() throws Exception {
+        var root = v2();
+        ((ArrayNode) root.at("/approvalLine/approvers")).removeAll();
+
+        assertThatThrownBy(() -> reader.read(root.toString()))
+                .isInstanceOf(DataCorruptionException.class);
+    }
+
+    @Test
     void dispatchesLegacyAndV2WithoutRewritingLegacy() throws Exception {
         String legacy =
                 "{\"form\":{\"id\":\"it-budget\",\"version\":1},\"projects\":[],\"extension\":true}";

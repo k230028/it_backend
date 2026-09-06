@@ -210,7 +210,7 @@ public class ItBudgetApprovalFacade {
 
     private PreviewResponse doPreview(CustomUserDetails actor, PreviewRequest request) {
         requireActor(actor);
-        var normalized = normalize(request);
+        var normalized = normalize(request, false);
         var refs = normalized.documents().stream().flatMap(d -> d.sourceRefs().stream()).toList();
         var aggregates = loader.load(refs);
         // 부모 데이터는 인가 판단에 필요하다. 모든 대상의 인가를 끝내기 전 표시정보·문서는 생성하지 않는다.
@@ -251,14 +251,15 @@ public class ItBudgetApprovalFacade {
             ItBudgetSnapshot.ApprovalLine approvalLine,
             List<ItBudgetSnapshot.Payload> payloads) {}
 
-    private PreviewRequest normalize(PreviewRequest request) {
+    private PreviewRequest normalize(PreviewRequest request, boolean requireApprovers) {
         if (request == null
                 || request.documents() == null
                 || request.documents().isEmpty()
                 || request.documents().size() > 100) throw invalid("문서는 1~100개여야 합니다.");
         var approvers = request.approvers();
-        if (approvers == null || approvers.isEmpty() || approvers.size() > 102)
-            throw invalid("결재자는 1~102명이어야 합니다.");
+        if (approvers == null
+                || (requireApprovers && approvers.isEmpty())
+                || approvers.size() > 102) throw invalid("결재자는 1~102명이어야 합니다.");
         Set<String> enos = new HashSet<>();
         Set<ApproverRole> fixedRoles = new HashSet<>();
         int previousRole = -1;
@@ -471,7 +472,7 @@ public class ItBudgetApprovalFacade {
                                                             s.order()))
                                     .toList()));
         }
-        var normalized = normalize(new PreviewRequest(request.approvers(), documents));
+        var normalized = normalize(new PreviewRequest(request.approvers(), documents), true);
         if (!claims.requestDigest().equals(canonical.digest(normalized))
                 || !claims.sourceSetDigest().equals(canonical.digest(sourceSets))
                 || !claims.payloadSetDigest()
