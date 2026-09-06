@@ -49,6 +49,9 @@ class ItBudgetPreviewOpenApiContractTest {
                 .isTrue();
         var submission = json.at("/paths/~1api~1applications~1it-budget~1submissions/post");
         assertThat(submission.isMissingNode()).isFalse();
+        assertThat(submission.at("/responses/401/description").asText())
+                .isEqualTo("미인증 또는 결재용 MFA 필요");
+        assertThat(submission.at("/responses/403/description").asText()).isEqualTo("권한 없음");
         assertThat(submission.at("/requestBody/content/application~1json/schema/$ref").asText())
                 .isEqualTo("#/components/schemas/ItBudgetSubmissionRequest");
         assertThat(submission.at("/responses/200/content/application~1json/schema/$ref").asText())

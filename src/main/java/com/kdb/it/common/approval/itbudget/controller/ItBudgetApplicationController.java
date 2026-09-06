@@ -72,11 +72,11 @@ public class ItBudgetApplicationController {
                         responseCode = "400",
                         description = "미리보기 입력 변조 또는 결속 오류",
                         content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-                @ApiResponse(responseCode = "401", description = "미인증", content = @Content),
                 @ApiResponse(
-                        responseCode = "403",
-                        description = "권한 없음 또는 결재용 MFA 필요",
+                        responseCode = "401",
+                        description = "미인증 또는 결재용 MFA 필요",
                         content = @Content),
+                @ApiResponse(responseCode = "403", description = "권한 없음", content = @Content),
                 @ApiResponse(
                         responseCode = "409",
                         description = "원장 변경·미리보기 만료·표시 정보 변경·잠금 경합",
