@@ -22,7 +22,10 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ItBudgetApprovalFacade {
+    private static final Logger log = LoggerFactory.getLogger(ItBudgetApprovalFacade.class);
+
     private final ItBudgetSourceLoader loader;
     private final ItBudgetSnapshotBuilder builder;
     private final ItBudgetCanonicalJson canonical;
@@ -55,7 +60,7 @@ public class ItBudgetApprovalFacade {
      */
     @Transactional
     public SubmissionResponse submit(CustomUserDetails actor, SubmissionRequest request) {
-        Timer.Sample sample = Timer.start(meterRegistry);
+        Timer.Sample sample = startTimer("submission");
         try {
             var response = doSubmit(actor, request);
             completeSubmission(sample, "success", true);
@@ -181,7 +186,7 @@ public class ItBudgetApprovalFacade {
      * @throws ItBudgetApprovalException 입력·원장 값 오류(400), 원장 미존재·삭제(404)
      */
     public PreviewResponse preview(CustomUserDetails actor, PreviewRequest request) {
-        Timer.Sample sample = Timer.start(meterRegistry);
+        Timer.Sample sample = startTimer("preview");
         try {
             var response = doPreview(actor, request);
             recordPreview("success");
@@ -193,7 +198,7 @@ public class ItBudgetApprovalFacade {
             recordPreview("error");
             throw exception;
         } finally {
-            sample.stop(meterRegistry.timer("approval.it_budget.preview"));
+            stopTimer(sample, "approval.it_budget.preview", "preview");
         }
     }
 
@@ -573,28 +578,71 @@ public class ItBudgetApprovalFacade {
     }
 
     private void recordPreview(String outcome) {
-        meterRegistry.counter("approval.it_budget.preview.outcome", "outcome", outcome).increment();
+        recordCounter("approval.it_budget.preview.outcome", "preview", outcome);
     }
 
     private void recordSubmission(String outcome) {
-        meterRegistry.counter("approval.it_budget.submission", "outcome", outcome).increment();
+        recordCounter("approval.it_budget.submission", "submission", outcome);
     }
 
     private void completeSubmission(Timer.Sample sample, String outcome, boolean successful) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            recordSubmission(outcome);
-            sample.stop(meterRegistry.timer("approval.it_budget.submission.duration"));
+            completeSubmissionMetrics(sample, outcome);
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCompletion(int status) {
-                        recordSubmission(
-                                successful && status != STATUS_COMMITTED ? "error" : outcome);
-                        sample.stop(meterRegistry.timer("approval.it_budget.submission.duration"));
-                    }
-                });
+        var completed = new AtomicBoolean();
+        try {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (!completed.compareAndSet(false, true)) return;
+                            completeSubmissionMetrics(
+                                    sample,
+                                    successful && status != STATUS_COMMITTED ? "error" : outcome);
+                        }
+                    });
+        } catch (RuntimeException exception) {
+            metricFailure("submission", "synchronization_registration");
+        }
+    }
+
+    private void completeSubmissionMetrics(Timer.Sample sample, String outcome) {
+        try {
+            recordSubmission(outcome);
+        } finally {
+            stopTimer(sample, "approval.it_budget.submission.duration", "submission");
+        }
+    }
+
+    private Timer.Sample startTimer(String operation) {
+        try {
+            return Timer.start(meterRegistry);
+        } catch (RuntimeException exception) {
+            metricFailure(operation, "timer_start");
+            return null;
+        }
+    }
+
+    private void recordCounter(String metric, String operation, String outcome) {
+        try {
+            meterRegistry.counter(metric, "outcome", outcome).increment();
+        } catch (RuntimeException exception) {
+            metricFailure(operation, "counter");
+        }
+    }
+
+    private void stopTimer(Timer.Sample sample, String metric, String operation) {
+        if (sample == null) return;
+        try {
+            sample.stop(meterRegistry.timer(metric));
+        } catch (RuntimeException exception) {
+            metricFailure(operation, "timer_stop");
+        }
+    }
+
+    private static void metricFailure(String operation, String stage) {
+        log.warn("전산예산 메트릭 기록 실패: operation={}, stage={}", operation, stage);
     }
 
     private static String outcome(String code) {

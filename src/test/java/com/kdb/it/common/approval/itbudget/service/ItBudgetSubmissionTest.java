@@ -14,14 +14,21 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
 import com.kdb.it.domain.budget.project.entity.*;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 class ItBudgetSubmissionTest {
     final ItBudgetApprovalFacadeTest f = new ItBudgetApprovalFacadeTest();
@@ -184,6 +191,97 @@ class ItBudgetSubmissionTest {
                                 .counter()
                                 .count())
                 .isEqualTo(1);
+    }
+
+    @Test
+    void timerStartFailureDoesNotChangePreviewOrDirectSubmissionBusinessResults() {
+        MeterRegistry failingRegistry = spy(new SimpleMeterRegistry());
+        doThrow(new IllegalStateException("metrics unavailable")).when(failingRegistry).config();
+
+        assertBusinessResultsSurviveMetricFailure(failingRegistry);
+    }
+
+    @Test
+    void counterIncrementFailureDoesNotChangePreviewOrDirectSubmissionBusinessResults() {
+        MeterRegistry failingRegistry = spy(new SimpleMeterRegistry());
+        Counter failingCounter = mock(Counter.class);
+        doThrow(new IllegalStateException("metrics unavailable")).when(failingCounter).increment();
+        doReturn(failingCounter).when(failingRegistry).counter(anyString(), any(String[].class));
+
+        assertBusinessResultsSurviveMetricFailure(failingRegistry);
+    }
+
+    @Test
+    void meterRegistrationFailureDoesNotChangePreviewOrDirectSubmissionBusinessResults() {
+        MeterRegistry failingRegistry = spy(new SimpleMeterRegistry());
+        doThrow(new IllegalStateException("metrics unavailable"))
+                .when(failingRegistry)
+                .counter(anyString(), any(String[].class));
+
+        assertBusinessResultsSurviveMetricFailure(failingRegistry);
+    }
+
+    @Test
+    void timerStopFailureDoesNotChangePreviewOrDirectSubmissionBusinessResults() {
+        MeterRegistry failingRegistry = spy(new SimpleMeterRegistry());
+        Timer failingTimer = mock(Timer.class);
+        doThrow(new IllegalStateException("metrics unavailable"))
+                .when(failingTimer)
+                .record(anyLong(), any(TimeUnit.class));
+        doReturn(failingTimer).when(failingRegistry).timer(anyString(), any(String[].class));
+
+        assertBusinessResultsSurviveMetricFailure(failingRegistry);
+    }
+
+    @Test
+    void synchronizationRegistrationFailureDoesNotChangeSubmissionResponse() {
+        var measured = facadeWith(new SimpleMeterRegistry());
+        var request = submission();
+
+        try (MockedStatic<TransactionSynchronizationManager> synchronizations =
+                mockStatic(TransactionSynchronizationManager.class)) {
+            synchronizations
+                    .when(TransactionSynchronizationManager::isSynchronizationActive)
+                    .thenReturn(true);
+            synchronizations
+                    .when(
+                            () ->
+                                    TransactionSynchronizationManager.registerSynchronization(
+                                            any(TransactionSynchronization.class)))
+                    .thenThrow(new IllegalStateException("synchronization unavailable"));
+
+            assertThat(measured.submit(f.actor, request).applicationNumbers()).isNotEmpty();
+        }
+    }
+
+    @Test
+    void afterCompletionCounterFailureStillAttemptsTimerExactlyOnce() {
+        MeterRegistry failingRegistry = spy(new SimpleMeterRegistry());
+        Counter failingCounter = mock(Counter.class);
+        Timer timer = mock(Timer.class);
+        doThrow(new IllegalStateException("metrics unavailable")).when(failingCounter).increment();
+        doReturn(failingCounter).when(failingRegistry).counter(anyString(), any(String[].class));
+        doReturn(timer).when(failingRegistry).timer(anyString(), any(String[].class));
+        var measured = facadeWith(failingRegistry);
+        var request = submission();
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThat(measured.submit(f.actor, request).applicationNumbers()).isNotEmpty();
+            var synchronization =
+                    TransactionSynchronizationManager.getSynchronizations().getFirst();
+
+            assertThatCode(
+                            () ->
+                                    synchronization.afterCompletion(
+                                            TransactionSynchronization.STATUS_COMMITTED))
+                    .doesNotThrowAnyException();
+
+            verify(failingRegistry, times(1))
+                    .timer(eq("approval.it_budget.submission.duration"), any(String[].class));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @ParameterizedTest
@@ -495,6 +593,40 @@ class ItBudgetSubmissionTest {
                                                 d.payloadDigest(),
                                                 d.sources()))
                         .toList());
+    }
+
+    private void assertBusinessResultsSurviveMetricFailure(MeterRegistry failingRegistry) {
+        var measured = facadeWith(failingRegistry);
+        var successfulRequest = submission();
+        var typedFailureRequest = submission();
+        var unexpectedFailureRequest = submission();
+
+        assertThat(measured.preview(f.actor, previewRequest()).documents()).isNotEmpty();
+        error("IT_BUDGET_PREVIEW_INVALID", 400, () -> measured.preview(f.actor, null));
+
+        assertThat(TransactionSynchronizationManager.isSynchronizationActive()).isFalse();
+        assertThat(measured.submit(f.actor, successfulRequest).applicationNumbers()).isNotEmpty();
+
+        project.delete();
+        error("IT_BUDGET_SOURCE_CHANGED", 409, () -> measured.submit(f.actor, typedFailureRequest));
+
+        var original = new IllegalStateException("original business failure");
+        doThrow(original).when(f.projects).findVersionsForUpdate(anyCollection(), anyCollection());
+        assertThatThrownBy(() -> measured.submit(f.actor, unexpectedFailureRequest))
+                .isSameAs(original);
+    }
+
+    private ItBudgetApprovalFacade facadeWith(MeterRegistry metricRegistry) {
+        return new ItBudgetApprovalFacade(
+                f.loader,
+                f.builder,
+                f.canonical,
+                f.tokens,
+                f.users,
+                f.mapper,
+                persistence,
+                guard,
+                metricRegistry);
     }
 
     void renameUser(String eno) {
