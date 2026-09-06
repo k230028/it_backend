@@ -13,3 +13,12 @@ SSO 완료 흐름은 사내 인증 결과를 검증한 뒤 애플리케이션 JW
 - 실제 HTTP 메시지 컨버터와 폼 디코딩을 지나는 통합 테스트를 유지합니다.
 
 운영에서는 `app.sso.allow-direct-eno`와 개발 사용자 전환 기능이 비활성화되어야 하며 `EnvironmentValidator`가 이를 검사합니다.
+
+## 다중 인스턴스 배포 전제
+
+애플리케이션에서 서버 세션을 쓰는 곳은 이 SSO 핸드셰이크뿐입니다. Spring Security는 `STATELESS`이고 인증은 JWT httpOnly 쿠키이므로, 세션이 필요한 구간은 `checkauth` → `loginProc`/`agentProc` → `complete` 왕복 몇 초가 전부입니다.
+
+- **다중 인스턴스로 배포할 때 로드밸런서의 세션 어피니티(sticky session)가 필수입니다.** 이 구간이 서로 다른 인스턴스로 분산되면 `SsoController`가 세션 결과를 찾지 못해 `SSO 인증 세션이 없습니다.`로 수동 로그인에 떨어집니다. L4 source IP 고정으로 충분합니다 — `checkauth`는 ESSO 서버가 아니라 사용자 브라우저가 리다이렉트로 들어오는 경로라 왕복 전체가 같은 클라이언트 IP입니다.
+- 인프라에서 어피니티를 제거하거나 장비 구성을 바꾸면 이 흐름이 조용히 깨지므로, 로드밸런서 변경 시 검토 대상입니다.
+- 어피니티에 의존하지 않으려면 세션 상태를 MFA와 같은 공유 저장소(`MfaTransactionStore` 패턴)로 옮겨야 합니다. 현재는 채택하지 않았습니다.
+- `sso-next`/`sso-origin` 쿠키는 어피니티와 무관한 별개 방어입니다. ESSO 교차 출처 POST 콜백에는 `SameSite=Lax` 세션 쿠키가 실리지 않아 `checkauth`가 새 세션을 만들며, 이때 복귀 경로를 살리는 유일한 수단입니다. 제거하면 안 됩니다.
