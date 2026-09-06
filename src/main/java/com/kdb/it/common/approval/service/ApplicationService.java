@@ -20,6 +20,7 @@ import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -227,8 +228,9 @@ public class ApplicationService {
             throw new IllegalArgumentException("결재 상태(승인/반려)는 필수입니다.");
         }
 
-        // 현재 결재자의 결재 처리 및 저장
-        currentApprover.approve(request.getDcdOpnn(), decision);
+        // 현재 명령의 결재 시각을 한 번만 확정해 연속 동일 결재자와 스냅샷에 재사용한다.
+        LocalDateTime decisionAt = LocalDateTime.now();
+        currentApprover.approve(request.getDcdOpnn(), decision, decisionAt.toLocalDate());
         approverRepository.save(currentApprover);
 
         // ===== 연속된 동일 결재자 일괄 승인 처리 =====
@@ -243,7 +245,7 @@ public class ApplicationService {
                 Cdecim nextApprover = approvers.get(i);
                 if (nextApprover.getDcrEno().equals(currentApprover.getDcrEno())) {
                     // 같은 결재자가 연속으로 등장하면 자동 승인
-                    nextApprover.approve(request.getDcdOpnn(), decision);
+                    nextApprover.approve(request.getDcdOpnn(), decision, decisionAt.toLocalDate());
                     approverRepository.save(nextApprover);
                     lastApproved = nextApprover;
                     approvedList.add(nextApprover);
@@ -259,7 +261,7 @@ public class ApplicationService {
                         ? detailPolicy.resolve(capplm)
                         : detailPolicy.resolve(capplm, jsonlessCouncilIds);
         if (detailMode != ApprovalDetailPolicy.DetailMode.JSONLESS_COUNCIL)
-            approvalLineDelegate.doUpdate(capplm, approvers, approvedList);
+            approvalLineDelegate.doUpdate(capplm, approvers, approvedList, decisionAt);
 
         // 신청서 전체 상태 업데이트
         String newApfSts = null;

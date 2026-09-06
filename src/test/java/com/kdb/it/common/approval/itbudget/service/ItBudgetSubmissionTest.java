@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.*;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.*;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
@@ -27,6 +28,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -37,6 +39,7 @@ class ItBudgetSubmissionTest {
     final ApproverRepository approvers = mock(ApproverRepository.class);
     final BprojaSyncService sync = mock(BprojaSyncService.class);
     final ApprovalRequestNotifier notifier = mock(ApprovalRequestNotifier.class);
+    final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     final ApprovalWriteGuard guard = spy(new ApprovalWriteGuard(mappings));
     final SimpleMeterRegistry registry = new SimpleMeterRegistry();
     final ApplicationPersistenceService persistence =
@@ -49,7 +52,8 @@ class ItBudgetSubmissionTest {
                             f.costs,
                             f.users,
                             sync,
-                            notifier));
+                            notifier,
+                            events));
     final ItBudgetApprovalFacade facade =
             new ItBudgetApprovalFacade(
                     f.loader,
@@ -149,6 +153,63 @@ class ItBudgetSubmissionTest {
         order.verify(guard).verifyWritable("BCOSTM", "C1", 2, "상신");
         order.verify(guard).verifyWritable("BPROJM", "P1", 1, "상신");
         order.verify(applications).getNextVal();
+    }
+
+    @Test
+    void requesterInFirstApprovalSlotIsApprovedOnSubmissionAndStampedInSnapshot() throws Exception {
+        var input =
+                new PreviewRequest(
+                        List.of(
+                                new ApproverRef(ApproverRole.TEAM_LEAD, "U1"),
+                                new ApproverRef(ApproverRole.DEPT_HEAD, "A2")),
+                        List.of(
+                                new DocumentRequest(
+                                        "project",
+                                        List.of(ItBudgetApprovalFacadeTest.projectRef()))));
+        var preview = facade.preview(f.actor, input);
+        var request = submission(input, preview);
+
+        facade.submit(f.actor, request);
+
+        var savedApplication = ArgumentCaptor.forClass(Capplm.class);
+        verify(applications).save(savedApplication.capture());
+        var stored = savedApplication.getValue();
+        var decisions = ArgumentCaptor.forClass(Cdecim.class);
+        verify(approvers, times(3)).save(decisions.capture());
+        assertThat(decisions.getAllValues())
+                .extracting(Cdecim::getItPtlDcdStsC)
+                .containsExactly(
+                        DecisionStatus.APPROVED.code(),
+                        DecisionStatus.APPROVED.code(),
+                        DecisionStatus.PENDING.code());
+        assertThat(decisions.getAllValues().subList(0, 2))
+                .allSatisfy(
+                        decision -> assertThat(decision.getDcdDtm()).isEqualTo(LocalDate.now()));
+        assertThat(decisions.getAllValues().get(2).getDcdDtm()).isNull();
+        var snapshot = f.mapper.readTree(stored.getDcdReqInf());
+        assertThat(snapshot.at("/approvalLine/approvers/0/date").asText())
+                .isEqualTo(LocalDate.now().toString());
+        assertThat(snapshot.at("/approvalLine/approvers/1/date").isNull()).isTrue();
+    }
+
+    @Test
+    void submissionRequiresTeamLeadAndDepartmentHeadRoles() {
+        var input =
+                new PreviewRequest(
+                        List.of(
+                                new ApproverRef(ApproverRole.ADDITIONAL, "U1"),
+                                new ApproverRef(ApproverRole.ADDITIONAL, "U1")),
+                        List.of(
+                                new DocumentRequest(
+                                        "project",
+                                        List.of(ItBudgetApprovalFacadeTest.projectRef()))));
+        var preview = facade.preview(f.actor, input);
+
+        error(
+                "IT_BUDGET_PREVIEW_INVALID",
+                400,
+                () -> facade.submit(f.actor, submission(input, preview)));
+        verify(applications, never()).save(any());
     }
 
     @Test
@@ -777,10 +838,14 @@ class ItBudgetSubmissionTest {
 
     SubmissionRequest submission() {
         var preview = facade.preview(f.actor, previewRequest());
+        return submission(previewRequest(), preview);
+    }
+
+    SubmissionRequest submission(PreviewRequest input, PreviewResponse preview) {
         return new SubmissionRequest(
                 preview.previewDigest(),
                 preview.previewToken(),
-                previewRequest().approvers(),
+                input.approvers(),
                 preview.documents().stream()
                         .map(
                                 d ->

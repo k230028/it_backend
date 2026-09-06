@@ -4,6 +4,7 @@ import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.entity.*;
+import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.notification.ApprovalRequestNotifier;
 import com.kdb.it.common.approval.repository.*;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -13,6 +14,7 @@ import com.kdb.it.domain.budget.project.service.BprojaSyncService;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class ApplicationPersistenceService {
     private final UserRepository userRepository;
     private final BprojaSyncService bprojaSyncService;
     private final ApprovalRequestNotifier approvalRequestNotifier;
+    private final ApplicationEventPublisher eventPublisher;
     private static final String FNT_TB_BPROJM = "BPROJM";
     private static final String FNT_TB_BCOSTM = "BCOSTM";
 
@@ -49,7 +52,8 @@ public class ApplicationPersistenceService {
             String requesterDecisionOpinion,
             List<SourceLink> sources,
             List<String> approverEnos,
-            DecisionLinePolicy decisionLinePolicy) {
+            DecisionLinePolicy decisionLinePolicy,
+            LocalDate requestDate) {
         /** 기존 호출부의 저장 규칙을 유지한다. */
         public ApplicationDraft(
                 String applicationName,
@@ -66,7 +70,8 @@ public class ApplicationPersistenceService {
                     null,
                     sources,
                     approverEnos,
-                    DecisionLinePolicy.LEGACY);
+                    DecisionLinePolicy.LEGACY,
+                    null);
         }
 
         /** 전산예산 v2의 기안자 요청 행과 실제 결재자 행을 구분해 저장하는 입력을 만든다. */
@@ -77,7 +82,8 @@ public class ApplicationPersistenceService {
                 String requesterSummary,
                 String requesterDecisionOpinion,
                 List<SourceLink> sources,
-                List<String> approverEnos) {
+                List<String> approverEnos,
+                LocalDate requestDate) {
             return new ApplicationDraft(
                     applicationName,
                     detailJson,
@@ -86,7 +92,8 @@ public class ApplicationPersistenceService {
                     requesterDecisionOpinion,
                     sources,
                     approverEnos,
-                    DecisionLinePolicy.IT_BUDGET_V2);
+                    DecisionLinePolicy.IT_BUDGET_V2,
+                    requestDate);
         }
 
         /** 기존 범용 요청의 원문 JSON·결재선·원장 순서를 그대로 전달한다. */
@@ -121,19 +128,31 @@ public class ApplicationPersistenceService {
     @Transactional(propagation = Propagation.MANDATORY)
     public String persist(ApplicationDraft draft) {
 
-        LocalDate requestDate = LocalDate.now();
+        LocalDate requestDate = draft.requestDate() == null ? LocalDate.now() : draft.requestDate();
+        List<String> approverEnos = draft.approverEnos();
+        boolean itBudgetV2 = draft.decisionLinePolicy() == DecisionLinePolicy.IT_BUDGET_V2;
+        int requesterApprovedPrefix =
+                itBudgetV2 ? leadingRequesterApproverCount(approverEnos, draft.requesterEno()) : 0;
+        boolean completedOnSubmission =
+                itBudgetV2
+                        && !approverEnos.isEmpty()
+                        && requesterApprovedPrefix == approverEnos.size();
 
         // Oracle 시퀀스로 채번하여 신청관리번호 생성 (APF-{yyyy}-{seq:08d})
         Long capplmSeq = applicationRepository.getNextVal();
         String apfMngNo = String.format("APF-%s-%08d", requestDate.getYear(), capplmSeq);
 
-        // 1. 신청서 마스터 생성 (초기 상태: "결재중")
+        // 1. 신청서 마스터 생성. 기안자가 모든 결재 역할을 겸하면 상신과 동시에 결재 완료한다.
         Capplm capplm =
                 Capplm.builder()
                         .apfMngNo(apfMngNo) // 신청관리번호 (PK)
                         .dcdReqTtl(draft.applicationName()) // 결재요청제목
                         .dcdReqInf(draft.detailJson()) // 결재요청정보 (JSON)
-                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                        .itPtlApfPrgStsC(
+                                (completedOnSubmission
+                                                ? ApprovalStatus.COMPLETED
+                                                : ApprovalStatus.IN_PROGRESS)
+                                        .code())
                         .dcdReqUsid(draft.requesterEno()) // 결재요청사용자ID
                         .dcdReqBbrC(resolveRequesterBbrC(draft.requesterEno())) // 결재요청부점코드
                         .dcdReqDtm(requestDate) // 결재요청일시 = 오늘
@@ -159,15 +178,13 @@ public class ApplicationPersistenceService {
                 // 단계 key(CNCD_RFR_NO)는 작성('01') 시와 동일하게 프로젝트관리번호(pkColNm) 자신을 사용해
                 // 동일 행을 멱등 upsert 한다. 전산업무비(BCOSTM) 등 비-프로젝트 원천은 적재 대상이 아니다.
                 if (FNT_TB_BPROJM.equals(item.table())) {
-                    bprojaSyncService.upsert(item.id(), item.id(), "05");
+                    bprojaSyncService.upsert(
+                            item.id(), item.id(), completedOnSubmission ? "09" : "05");
                 }
             }
         }
 
         // 2. 결재선 생성: 전산예산 v2는 기안자를 0번 요청 행으로 남기고 실제 결재자는 1번부터 저장한다.
-        List<String> approverEnos = draft.approverEnos();
-        boolean itBudgetV2 = draft.decisionLinePolicy() == DecisionLinePolicy.IT_BUDGET_V2;
-
         if (itBudgetV2) {
             approverRepository.save(
                     Cdecim.builder()
@@ -183,13 +200,19 @@ public class ApplicationPersistenceService {
         }
 
         for (int i = 0; i < approverEnos.size(); i++) {
+            boolean autoApproved = i < requesterApprovedPrefix;
             Cdecim cdecim =
                     Cdecim.builder()
                             .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
                             .dcrSqnSno(i + 1) // 결재순번 (1부터 시작)
                             .dcrEno(approverEnos.get(i)) // 결재자 사원번호
                             .itPtlDcdStsC(
-                                    DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
+                                    (autoApproved
+                                                    ? DecisionStatus.APPROVED
+                                                    : DecisionStatus.PENDING)
+                                            .code())
+                            .dcdDtm(autoApproved ? requestDate : null)
+                            .dcrOpnnCone(autoApproved ? draft.requesterDecisionOpinion() : null)
                             .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
                             .dcdTpC(
                                     itBudgetV2
@@ -201,9 +224,24 @@ public class ApplicationPersistenceService {
 
         // 현재 트랜잭션에서 다음 결재자 조회·메일 페이로드 준비·이벤트 발행을 수행한다.
         // 실제 알림 전달은 기존 AFTER_COMMIT 리스너가 처리하므로 전체 롤백 때 발송하지 않는다.
-        approvalRequestNotifier.notifyApprovalRequest(capplm);
+        if (completedOnSubmission) {
+            eventPublisher.publishEvent(
+                    new ApprovalCompletedEvent(apfMngNo, ApprovalStatus.COMPLETED.label()));
+        } else {
+            approvalRequestNotifier.notifyApprovalRequest(capplm);
+        }
 
         return apfMngNo; // 생성된 신청관리번호 반환
+    }
+
+    /** 기안자와 동일한 결재자가 결재선 선두에 연속된 개수를 반환한다. */
+    private int leadingRequesterApproverCount(List<String> approverEnos, String requesterEno) {
+        int count = 0;
+        for (String approverEno : approverEnos) {
+            if (!requesterEno.equals(approverEno)) break;
+            count++;
+        }
+        return count;
     }
 
     /**

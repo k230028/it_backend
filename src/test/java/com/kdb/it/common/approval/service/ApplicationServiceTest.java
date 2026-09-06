@@ -7,8 +7,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,6 +38,7 @@ import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -46,6 +49,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -236,7 +240,8 @@ class ApplicationServiceTest {
                         costRepository,
                         userRepository,
                         bprojaSyncService,
-                        approvalRequestNotifier));
+                        approvalRequestNotifier,
+                        eventPublisher));
         given(applicationRepository.findByIdForUpdate(anyString()))
                 .willAnswer(
                         invocation -> applicationRepository.findById(invocation.getArgument(0)));
@@ -339,7 +344,8 @@ class ApplicationServiceTest {
                         costRepository,
                         userRepository,
                         bprojaSyncService,
-                        approvalRequestNotifier),
+                        approvalRequestNotifier,
+                        eventPublisher),
                 new ApprovalDetailPolicy(applicationMapRepository),
                 com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.reader());
     }
@@ -529,13 +535,22 @@ class ApplicationServiceTest {
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(first, second, last));
 
-        realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+        LocalDateTime decisionAt = LocalDateTime.of(2030, 1, 2, 23, 59, 59);
+        try (MockedStatic<LocalDateTime> dates =
+                mockStatic(LocalDateTime.class, CALLS_REAL_METHODS)) {
+            dates.when(LocalDateTime::now).thenReturn(decisionAt);
+            realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+        }
 
         assertThat(first.getItPtlDcdStsC())
                 .isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
         assertThat(second.getItPtlDcdStsC())
                 .isEqualTo(com.kdb.it.common.approval.domain.DecisionStatus.APPROVED.code());
-        assertThat(capplm.getDcdReqInf()).contains("\"date\"");
+        assertThat(first.getDcdDtm()).isEqualTo(decisionAt.toLocalDate());
+        assertThat(second.getDcdDtm()).isEqualTo(decisionAt.toLocalDate());
+        var storedLine = new ObjectMapper().readTree(capplm.getDcdReqInf()).get("approvalLine");
+        assertThat(storedLine.at("/team/date").asText()).isEqualTo("2030-01-02T23:59:59");
+        assertThat(storedLine.at("/dept/date").asText()).isEqualTo("2030-01-02T23:59:59");
         verify(approverRepository, times(2)).save(any(Cdecim.class));
         verify(eventPublisher, never()).publishEvent(any());
     }

@@ -21,6 +21,7 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
@@ -148,13 +149,16 @@ public class ItBudgetApprovalFacade {
                                 normalized.documents().stream()
                                         .map(DocumentRequest::clientDocumentKey)
                                         .toList())) throw stale();
+        LocalDate requestDate = LocalDate.now();
+        var submittedLine = approveLeadingRequesterRoles(line, actor.getEno(), requestDate);
         var numbers = new ArrayList<String>();
         for (var document : built) {
             String json;
             try {
                 json =
                         mapper.writeValueAsString(
-                                publicDocument(document, line, claims.issuedAt()).snapshot());
+                                publicDocument(document, submittedLine, claims.issuedAt())
+                                        .snapshot());
             } catch (JsonProcessingException exception) {
                 throw new IllegalStateException("신청서 스냅샷을 저장할 수 없습니다.", exception);
             }
@@ -176,11 +180,32 @@ public class ItBudgetApprovalFacade {
                                                                     s.id(),
                                                                     Integer.toString(s.revision())))
                                             .toList(),
-                                    normalized.approvers().stream()
-                                            .map(ApproverRef::eno)
-                                            .toList())));
+                                    normalized.approvers().stream().map(ApproverRef::eno).toList(),
+                                    requestDate)));
         }
         return new SubmissionResponse(List.copyOf(numbers));
+    }
+
+    /** 기안자가 선두 결재 역할을 겸하면 상신일로 해당 연속 구간을 자동 승인한다. */
+    private ItBudgetSnapshot.ApprovalLine approveLeadingRequesterRoles(
+            ItBudgetSnapshot.ApprovalLine line, String requesterEno, LocalDate requestDate) {
+        var approvers = new ArrayList<ItBudgetSnapshot.ApprovalPerson>();
+        boolean leadingRequester = true;
+        for (var approver : line.approvers()) {
+            if (leadingRequester && requesterEno.equals(approver.eno())) {
+                approvers.add(
+                        new ItBudgetSnapshot.ApprovalPerson(
+                                approver.role(),
+                                approver.eno(),
+                                approver.name(),
+                                approver.rank(),
+                                requestDate));
+            } else {
+                leadingRequester = false;
+                approvers.add(approver);
+            }
+        }
+        return new ItBudgetSnapshot.ApprovalLine(line.requester(), approvers);
     }
 
     /**
@@ -274,6 +299,10 @@ public class ItBudgetApprovalFacade {
                 throw invalid("결재 역할 또는 순서가 올바르지 않습니다.");
             previousRole = a.role().ordinal();
         }
+        if (requireApprovers
+                && (!fixedRoles.contains(ApproverRole.TEAM_LEAD)
+                        || !fixedRoles.contains(ApproverRole.DEPT_HEAD)))
+            throw invalid("팀장과 부점장 결재자는 필수입니다.");
         Set<String> keys = new HashSet<>();
         List<SourceRef> allRefs = new ArrayList<>();
         List<DocumentRequest> documents = new ArrayList<>();

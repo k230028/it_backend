@@ -14,7 +14,6 @@ import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader.Parsed
 import com.kdb.it.common.approval.service.ApprovalDetailPolicy.DetailMode;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.exception.DataCorruptionException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
@@ -48,6 +47,16 @@ public class ApprovalLineDelegate {
      */
     @Transactional
     public void doUpdate(Capplm capplm, List<Cdecim> allApprovers, List<Cdecim> approvedItems) {
+        doUpdate(capplm, allApprovers, approvedItems, LocalDateTime.now());
+    }
+
+    /** 승인 명령에서 확정한 시각으로 DB 결재일과 스냅샷 결재일을 함께 갱신한다. */
+    @Transactional
+    public void doUpdate(
+            Capplm capplm,
+            List<Cdecim> allApprovers,
+            List<Cdecim> approvedItems,
+            LocalDateTime decisionAt) {
         boolean required =
                 inProgress(capplm) || !allApprovers.isEmpty() || !approvedItems.isEmpty();
         ParsedSnapshot parsed = read(capplm, required);
@@ -64,7 +73,7 @@ public class ApprovalLineDelegate {
                 String eno = node.get("eno").textValue();
                 int occurrence = occurrences.merge(eno, 1, Integer::sum);
                 if (targets.getOrDefault(eno, Set.of()).contains(occurrence))
-                    ((ObjectNode) node).put("date", LocalDate.now().toString());
+                    ((ObjectNode) node).put("date", decisionAt.toLocalDate().toString());
             }
             capplm.updateDetailContent(parsed.write());
         } else {
@@ -74,7 +83,8 @@ public class ApprovalLineDelegate {
                     nodes.addAll(additionalApproverNodes(additions));
                 validateTargets(new ArrayList<>(nodes), targets, "id");
             }
-            if (applyDateToMatchingNodes(line, targets)) capplm.updateDetailContent(parsed.write());
+            if (applyDateToMatchingNodes(line, targets, decisionAt))
+                capplm.updateDetailContent(parsed.write());
         }
     }
 
@@ -479,10 +489,13 @@ public class ApprovalLineDelegate {
      * @return 하나 이상의 노드가 실제로 수정되었으면 true
      */
     private boolean applyDateToMatchingNodes(
-            JsonNode approvalLineNode, Map<String, Set<Integer>> targetOccurrences) {
+            JsonNode approvalLineNode,
+            Map<String, Set<Integer>> targetOccurrences,
+            LocalDateTime decisionAt) {
         JsonNode orderNode = approvalLineNode.get("order");
         if (orderNode instanceof ArrayNode) {
-            return applyDateInStoredOrder(approvalLineNode, orderNode, targetOccurrences);
+            return applyDateInStoredOrder(
+                    approvalLineNode, orderNode, targetOccurrences, decisionAt);
         }
         Map<String, Integer> jsonCounters = new HashMap<>();
         boolean updated = false;
@@ -501,10 +514,14 @@ public class ApprovalLineDelegate {
             }
             if (approverNode.isArray()) {
                 for (JsonNode additional : approverNode) {
-                    updated |= applyDateToApproverNode(additional, jsonCounters, targetOccurrences);
+                    updated |=
+                            applyDateToApproverNode(
+                                    additional, jsonCounters, targetOccurrences, decisionAt);
                 }
             } else if (approverNode.isObject() && approverNode.has("id")) {
-                updated |= applyDateToApproverNode(approverNode, jsonCounters, targetOccurrences);
+                updated |=
+                        applyDateToApproverNode(
+                                approverNode, jsonCounters, targetOccurrences, decisionAt);
             }
         }
         return updated;
@@ -514,7 +531,8 @@ public class ApprovalLineDelegate {
     private boolean applyDateInStoredOrder(
             JsonNode approvalLineNode,
             JsonNode orderNode,
-            Map<String, Set<Integer>> targetOccurrences) {
+            Map<String, Set<Integer>> targetOccurrences,
+            LocalDateTime decisionAt) {
         Map<String, List<JsonNode>> nodesById = new HashMap<>();
         Iterator<String> fieldNames = approvalLineNode.fieldNames();
         while (fieldNames.hasNext()) {
@@ -536,7 +554,8 @@ public class ApprovalLineDelegate {
             List<JsonNode> candidates = nodesById.get(id);
             if (candidates == null || candidates.isEmpty()) continue;
             updated |=
-                    applyDateToApproverNode(candidates.remove(0), jsonCounters, targetOccurrences);
+                    applyDateToApproverNode(
+                            candidates.remove(0), jsonCounters, targetOccurrences, decisionAt);
         }
         return updated;
     }
@@ -554,7 +573,8 @@ public class ApprovalLineDelegate {
     private boolean applyDateToApproverNode(
             JsonNode approverNode,
             Map<String, Integer> jsonCounters,
-            Map<String, Set<Integer>> targetOccurrences) {
+            Map<String, Set<Integer>> targetOccurrences,
+            LocalDateTime decisionAt) {
         if (!approverNode.isObject() || !approverNode.has("id")) return false;
         String id = approverNode.get("id").asText();
         int jsonOccurrence = jsonCounters.getOrDefault(id, 0) + 1;
@@ -563,7 +583,7 @@ public class ApprovalLineDelegate {
         if (targets != null
                 && targets.contains(jsonOccurrence)
                 && approverNode instanceof ObjectNode on) {
-            on.put("date", LocalDateTime.now().format(DATE_FMT));
+            on.put("date", decisionAt.format(DATE_FMT));
             return true;
         }
         return false;

@@ -145,7 +145,15 @@ class CouncilJsonlessApprovalWorkflowTest {
         var delegate = delegate(MAPPER);
         var persistence =
                 new ApplicationPersistenceService(
-                        applications, decisions, maps, projects, costs, users, sync, notifier);
+                        applications,
+                        decisions,
+                        maps,
+                        projects,
+                        costs,
+                        users,
+                        sync,
+                        notifier,
+                        events);
         service =
                 new ApplicationService(
                         applications,

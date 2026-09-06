@@ -91,8 +91,13 @@ public class Cdecim extends BaseEntity {
      * @param status 결재 상태 ({@link DecisionStatus#APPROVED} 또는 {@link DecisionStatus#REJECTED})
      */
     public void approve(String opinion, DecisionStatus status) {
+        approve(opinion, status, LocalDate.now());
+    }
+
+    /** 결재 처리 시점에 한 번 확정한 일자를 사용해 연속 결재자의 날짜를 일치시킨다. */
+    public void approve(String opinion, DecisionStatus status, LocalDate decisionDate) {
         this.itPtlDcdStsC = status.code();
-        this.dcdDtm = LocalDate.now();
+        this.dcdDtm = decisionDate;
         this.dcrOpnnCone = opinion;
     }
 
