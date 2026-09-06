@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.domain.DecisionStatus;
+import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.itbudget.config.ItBudgetPreviewProperties;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.*;
 import com.kdb.it.common.approval.mail.ApprovalMailPayloadProvider;
@@ -63,6 +65,7 @@ import org.springframework.transaction.support.*;
 class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
     @Autowired ItBudgetApprovalFacade facade;
     @MockitoSpyBean ApplicationPersistenceService persistence;
+    @Autowired ApproverRepository approverRepository;
     @Autowired EntityManager em;
     @Autowired PlatformTransactionManager manager;
     @Autowired MeterRegistry meterRegistry;
@@ -178,7 +181,7 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                                                     assertRows(
                                                             written.size(),
                                                             written.size(),
-                                                            written.size() * 2);
+                                                            written.size() * 3);
                                                     assertThat(events.committed).isEmpty();
                                                     if (written.size() == 2)
                                                         throw new DataIntegrityViolationException(
@@ -226,7 +229,7 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
         assertThat(response.applicationNumbers()).hasSize(2).doesNotHaveDuplicates();
         tx().executeWithoutResult(
                         s -> {
-                            assertRows(2, 2, 4);
+                            assertRows(2, 2, 6);
                             var links =
                                     em.createQuery(
                                                     "select c.fntTbNm from Cappla c where c.apfDcmNo = :number",
@@ -236,11 +239,14 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                                                     response.applicationNumbers().getFirst())
                                             .getResultList();
                             assertThat(links).containsExactly("BCOSTM");
-                            for (String number : response.applicationNumbers()) {
+                            for (int i = 0; i < response.applicationNumbers().size(); i++) {
+                                String number = response.applicationNumbers().get(i);
                                 var stored =
                                         em.find(
                                                 com.kdb.it.common.approval.entity.Capplm.class,
                                                 number);
+                                assertThat(stored.getRgprDcdReqCone())
+                                        .isEqualTo(i == 0 ? "원자성 계약" : "원자성 사업");
                                 var parsed =
                                         StoredSnapshotFixture.reader().read(stored.getDcdReqInf());
                                 assertThat(
@@ -253,6 +259,47 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                                                         .at("/approvers/1/role")
                                                         .asText())
                                         .isEqualTo("DEPT_HEAD");
+                                var decisions =
+                                        em.createQuery(
+                                                        "select c from Cdecim c where c.dcdMngNo = :number order by c.dcrSqnSno",
+                                                        Cdecim.class)
+                                                .setParameter("number", number)
+                                                .getResultList();
+                                assertThat(decisions)
+                                        .extracting(Cdecim::getDcrSqnSno)
+                                        .containsExactly(0, 1, 2);
+                                assertThat(decisions.getFirst().getDcrEno()).isEqualTo(id);
+                                assertThat(decisions.getFirst().getDcdTpC())
+                                        .isEqualTo(Cdecim.DECISION_TYPE_REQUEST);
+                                assertThat(decisions.getFirst().getItPtlDcdStsC())
+                                        .isEqualTo(DecisionStatus.APPROVED.code());
+                                assertThat(decisions.getFirst().getDcdDtm())
+                                        .isEqualTo(LocalDate.now());
+                                assertThat(decisions.getFirst().getDcrOpnnCone())
+                                        .isEqualTo("전산예산 결재를 요청합니다.");
+                                assertThat(decisions.subList(1, 3))
+                                        .allSatisfy(
+                                                decision -> {
+                                                    assertThat(decision.getDcrEno())
+                                                            .isEqualTo("ITSA1");
+                                                    assertThat(decision.getDcdTpC())
+                                                            .isEqualTo("50");
+                                                    assertThat(decision.getItPtlDcdStsC())
+                                                            .isEqualTo(
+                                                                    DecisionStatus.PENDING.code());
+                                                });
+                                assertThat(
+                                                approverRepository
+                                                        .findByDcdMngNoOrderByDcrSqnSnoAsc(number))
+                                        .extracting(Cdecim::getDcrSqnSno)
+                                        .containsExactly(1, 2);
+                                assertThat(
+                                                approverRepository
+                                                        .findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(
+                                                                number))
+                                        .extracting(
+                                                ApproverRepository.ApproverReadView::getDcrSqnSno)
+                                        .containsExactly(1, 2);
                             }
                         });
         assertThat(events.committed).hasSize(2);
@@ -297,6 +344,46 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
         assertThat(submissionTimerCount()).isEqualTo(timerBefore + 1);
         tx().executeWithoutResult(s -> assertRows(0, 0, 0));
         assertThat(events.committed).isEmpty();
+    }
+
+    @Test
+    void multiSourceDocumentStoresTheExistingApplicationSummary() {
+        var input =
+                new PreviewRequest(
+                        List.of(
+                                new ApproverRef(ApproverRole.TEAM_LEAD, "ITSA1"),
+                                new ApproverRef(ApproverRole.DEPT_HEAD, "ITSA1")),
+                        List.of(
+                                new DocumentRequest(
+                                        "combined",
+                                        List.of(
+                                                new SourceRef(SourceKind.COST, id, 2, 1),
+                                                new SourceRef(SourceKind.PROJECT, id, 3, 2)))));
+        var preview = facade.preview(actor, input);
+        var request =
+                new SubmissionRequest(
+                        preview.previewDigest(),
+                        preview.previewToken(),
+                        input.approvers(),
+                        preview.documents().stream()
+                                .map(
+                                        document ->
+                                                new SubmissionDocument(
+                                                        document.clientDocumentKey(),
+                                                        document.payloadDigest(),
+                                                        document.sources()))
+                                .toList());
+
+        var response = facade.submit(actor, request);
+
+        tx().executeWithoutResult(
+                        ignored -> {
+                            var stored =
+                                    em.find(
+                                            com.kdb.it.common.approval.entity.Capplm.class,
+                                            response.applicationNumbers().getFirst());
+                            assertThat(stored.getRgprDcdReqCone()).isEqualTo("원자성 계약 외 1건");
+                        });
     }
 
     @Test
@@ -384,7 +471,7 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                 new PreviewRequest(
                         List.of(
                                 new ApproverRef(ApproverRole.TEAM_LEAD, "ITSA1"),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, "ITSA2")),
+                                new ApproverRef(ApproverRole.DEPT_HEAD, "ITSA1")),
                         List.of(
                                 new DocumentRequest(
                                         "cost", List.of(new SourceRef(SourceKind.COST, id, 2, 1))),

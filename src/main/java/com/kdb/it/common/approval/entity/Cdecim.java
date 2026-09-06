@@ -54,7 +54,10 @@ public class Cdecim extends BaseEntity {
     /** 결재유형 기본값 — 요청. 운영 스키마의 DCD_TP_C DEFAULT와 같은 값이다. */
     public static final String DECISION_TYPE_REQUEST = "10";
 
-    /** 결재유형코드: Ccodem DCD_TP_C 참조. 운영 스키마가 NOT NULL이므로 결재선 생성 시 '10'(요청)으로 시작한다. */
+    /** 전산예산 v2 실제 결재자에게 사용하는 결재유형 — 결재. */
+    public static final String DECISION_TYPE_APPROVAL = "50";
+
+    /** 결재유형코드: Ccodem DCD_TP_C 참조. 요청은 '10', 전산예산 v2 실제 결재자는 '50'을 사용한다. */
     @Column(name = "DCD_TP_C", length = 2, nullable = false, comment = "결재유형코드")
     private String dcdTpC;
 

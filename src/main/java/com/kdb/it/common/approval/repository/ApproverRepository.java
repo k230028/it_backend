@@ -50,7 +50,10 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
      * @param dcdMngNo 신청서 관리번호
      * @return 결재 순번 오름차순 read view 목록
      */
-    List<ApproverReadView> findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(String dcdMngNo);
+    @Query(
+            "select c from Cdecim c where c.dcdMngNo = :dcdMngNo and c.dcrSqnSno > 0 order by c.dcrSqnSno")
+    List<ApproverReadView> findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(
+            @Param("dcdMngNo") String dcdMngNo);
 
     /**
      * 여러 신청서의 결재선을 결재 순번 오름차순으로 일괄 조회합니다.
@@ -58,8 +61,10 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
      * @param dcdMngNos 신청서 관리번호 목록
      * @return 결재 순번 오름차순 read view 목록
      */
+    @Query(
+            "select c from Cdecim c where c.dcdMngNo in :dcdMngNos and c.dcrSqnSno > 0 order by c.dcdMngNo, c.dcrSqnSno")
     List<ApproverReadView> findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(
-            Collection<String> dcdMngNos);
+            @Param("dcdMngNos") Collection<String> dcdMngNos);
 
     /**
      * 결재관리번호로 결재선 목록 조회 (결재자순서 오름차순)
@@ -69,7 +74,9 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
      * @param dcdMngNo 신청서식별번호 (예: APF-2026-00000001)
      * @return 결재자순서(DCR_SQN_SNO) 오름차순으로 정렬된 결재선 목록
      */
-    List<Cdecim> findByDcdMngNoOrderByDcrSqnSnoAsc(String dcdMngNo);
+    @Query(
+            "select c from Cdecim c where c.dcdMngNo = :dcdMngNo and c.dcrSqnSno > 0 order by c.dcrSqnSno")
+    List<Cdecim> findByDcdMngNoOrderByDcrSqnSnoAsc(@Param("dcdMngNo") String dcdMngNo);
 
     /**
      * 결재관리번호와 결재자순서로 결재 정보 단건 조회
@@ -90,7 +97,10 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
      * @param dcdMngNos 신청서식별번호 목록
      * @return 전체 결재선 목록
      */
-    List<Cdecim> findByDcdMngNoInOrderByDcrSqnSnoAsc(Collection<String> dcdMngNos);
+    @Query(
+            "select c from Cdecim c where c.dcdMngNo in :dcdMngNos and c.dcrSqnSno > 0 order by c.dcdMngNo, c.dcrSqnSno")
+    List<Cdecim> findByDcdMngNoInOrderByDcrSqnSnoAsc(
+            @Param("dcdMngNos") Collection<String> dcdMngNos);
 
     /** 복합키 충돌 없이 미결재 결재선의 순번을 임시 위치로 이동합니다. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)

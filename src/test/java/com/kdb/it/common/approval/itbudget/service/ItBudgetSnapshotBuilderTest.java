@@ -17,6 +17,8 @@ import com.kdb.it.domain.budget.project.entity.*;
 import com.kdb.it.domain.budget.project.service.ProjectAmountCalculator;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -235,6 +237,40 @@ class ItBudgetSnapshotBuilderTest {
                                         new DocumentRequest(
                                                 "one", List.of(a.ref(), ref("P2", 1, 1)))),
                                 List.of(a)));
+    }
+
+    @Test
+    void rejectsEveryInvalidDocumentIdentityBoundary() {
+        var validRef = ref("P1", 1, 1);
+        var tooMany = new ArrayList<DocumentRequest>();
+        for (int i = 0; i < 101; i++) {
+            tooMany.add(new DocumentRequest("document-" + i, List.of(validRef)));
+        }
+
+        invalid(() -> builder.buildDocuments(null, List.of()));
+        invalid(() -> builder.buildDocuments(List.of(), List.of()));
+        invalid(() -> builder.buildDocuments(tooMany, List.of()));
+        invalid(() -> builder.buildDocuments(Collections.singletonList(null), List.of()));
+        invalid(
+                () ->
+                        builder.buildDocuments(
+                                List.of(new DocumentRequest(null, List.of(validRef))), List.of()));
+        invalid(
+                () ->
+                        builder.buildDocuments(
+                                List.of(new DocumentRequest(" ", List.of(validRef))), List.of()));
+        invalid(
+                () ->
+                        builder.buildDocuments(
+                                List.of(new DocumentRequest("x".repeat(65), List.of(validRef))),
+                                List.of()));
+        invalid(
+                () ->
+                        builder.buildDocuments(
+                                List.of(
+                                        new DocumentRequest("same", List.of(validRef)),
+                                        new DocumentRequest("same", List.of(validRef))),
+                                List.of()));
     }
 
     @Test

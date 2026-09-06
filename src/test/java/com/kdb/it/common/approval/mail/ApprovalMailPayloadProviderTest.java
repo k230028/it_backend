@@ -8,6 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.entity.Capplm;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader;
+import com.kdb.it.exception.DataCorruptionException;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +28,63 @@ import org.springframework.test.util.ReflectionTestUtils;
  */
 @ExtendWith(MockitoExtension.class)
 class ApprovalMailPayloadProviderTest {
+
+    @Test
+    void blankSnapshotSkipsParsingAndRendersWithoutBusinessSummary() {
+        var reader = mock(ItBudgetSnapshotReader.class);
+        var actualProvider =
+                new ApprovalMailPayloadProvider(
+                        approvalMailDataLoader, approvalMailRenderer, reader, meterRegistry());
+        ReflectionTestUtils.setField(actualProvider, "frontendUrl", "https://it.kdb.co.kr");
+        given(approvalMailDataLoader.loadParties(any()))
+                .willReturn(new ApprovalMailParties("신청자", "부서"));
+        given(approvalMailRenderer.renderPayloadJson(any(), any())).willReturn("payload");
+
+        String result =
+                actualProvider.render(
+                        Capplm.builder()
+                                .apfMngNo("APF-1")
+                                .dcdReqTtl("결재 신청")
+                                .dcdReqInf("   ")
+                                .build());
+
+        assertThat(result).isEqualTo("payload");
+        verify(reader, never()).read(any());
+    }
+
+    @Test
+    void genericDataCorruptionUsesUnknownVersionAndStillRenders() {
+        var reader = mock(ItBudgetSnapshotReader.class);
+        var meters = meterRegistry();
+        var actualProvider =
+                new ApprovalMailPayloadProvider(
+                        approvalMailDataLoader, approvalMailRenderer, reader, meters);
+        ReflectionTestUtils.setField(actualProvider, "frontendUrl", "https://it.kdb.co.kr");
+        given(approvalMailDataLoader.loadParties(any()))
+                .willReturn(new ApprovalMailParties("신청자", "부서"));
+        given(reader.read("{}")).willThrow(new DataCorruptionException("저장 스냅샷 형식 오류"));
+        given(approvalMailRenderer.renderPayloadJson(any(), any())).willReturn("payload");
+
+        String result =
+                actualProvider.render(
+                        Capplm.builder()
+                                .apfMngNo("APF-1")
+                                .dcdReqTtl("결재 신청")
+                                .dcdReqInf("{}")
+                                .build());
+
+        assertThat(result).isEqualTo("payload");
+        assertThat(
+                        meters.get("approval.snapshot.mail.degraded")
+                                .tag("version", "unknown")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
+    }
+
+    private static io.micrometer.core.instrument.simple.SimpleMeterRegistry meterRegistry() {
+        return new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+    }
 
     @Test
     void corruptSnapshotOmitsOnlyBusinessSummaryAndCountsExactlyOnceWithoutPrivateLogs()

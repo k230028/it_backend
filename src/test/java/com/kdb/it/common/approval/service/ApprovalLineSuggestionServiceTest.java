@@ -121,8 +121,8 @@ class ApprovalLineSuggestionServiceTest {
     }
 
     @Test
-    @DisplayName("1차와 2차가 같은 사람이면 2차를 DUPLICATE로 비운다")
-    void reportsDuplicateWhenSamePerson() {
+    @DisplayName("1차와 2차 후보가 같은 사람이면 두 차수에 모두 지정한다")
+    void suggestsSamePersonForBothSteps() {
         given(
                         userRepository.findByBbrCAndTemCAndPtCInAndDelYn(
                                 eq("120"), eq("T01"), any(), eq("N")))
@@ -133,8 +133,8 @@ class ApprovalLineSuggestionServiceTest {
         ApplicationDto.ApprovalLineSuggestion result = service.suggest("K10001");
 
         assertThat(result.getTeamLead().getEno()).isEqualTo("K20001");
-        assertThat(result.getDeptHead()).isNull();
-        assertThat(result.getDeptHeadReason()).isEqualTo(SuggestionReason.DUPLICATE);
+        assertThat(result.getDeptHead().getEno()).isEqualTo("K20001");
+        assertThat(result.getDeptHeadReason()).isNull();
     }
 
     @Test

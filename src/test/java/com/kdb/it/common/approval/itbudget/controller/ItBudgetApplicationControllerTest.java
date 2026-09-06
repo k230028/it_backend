@@ -50,7 +50,7 @@ class ItBudgetApplicationControllerTest {
     static final String SUBMIT_URL = "/api/applications/it-budget/submissions";
     static final String SUBMIT_BODY =
             """
-        {"previewDigest":"%s","previewToken":"signed","approvers":[{"role":"TEAM_LEAD","eno":"A1"}],"documents":[{"clientDocumentKey":"one","payloadDigest":"%s","sources":[{"kind":"PROJECT","id":"P1","revision":1,"order":1,"sourceDigest":"%s","displayName":"사업"}]}]}
+        {"previewDigest":"%s","previewToken":"signed","approvers":[{"role":"TEAM_LEAD","eno":"A1"},{"role":"DEPT_HEAD","eno":"A1"}],"documents":[{"clientDocumentKey":"one","payloadDigest":"%s","sources":[{"kind":"PROJECT","id":"P1","revision":1,"order":1,"sourceDigest":"%s","displayName":"사업"}]}]}
         """
                     .formatted("a".repeat(64), "b".repeat(64), "c".repeat(64));
 

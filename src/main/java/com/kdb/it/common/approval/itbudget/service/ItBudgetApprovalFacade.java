@@ -160,10 +160,11 @@ public class ItBudgetApprovalFacade {
             }
             numbers.add(
                     persistence.persist(
-                            new ApplicationDraft(
+                            ApplicationDraft.itBudgetV2(
                                     "전산예산 결재 신청",
                                     json,
                                     actor.getEno(),
+                                    applicationSummary(publicSources(document)),
                                     "전산예산 결재를 요청합니다.",
                                     document.sources().stream()
                                             .map(
@@ -258,9 +259,8 @@ public class ItBudgetApprovalFacade {
                 || request.documents().size() > 100) throw invalid("문서는 1~100개여야 합니다.");
         var approvers = request.approvers();
         if (approvers == null
-                || (requireApprovers && approvers.isEmpty())
-                || approvers.size() > 102) throw invalid("결재자는 1~102명이어야 합니다.");
-        Set<String> enos = new HashSet<>();
+                || (requireApprovers && approvers.size() < 2)
+                || approvers.size() > 102) throw invalid("결재자는 2~102명이어야 합니다.");
         Set<ApproverRole> fixedRoles = new HashSet<>();
         int previousRole = -1;
         for (var a : approvers) {
@@ -268,8 +268,7 @@ public class ItBudgetApprovalFacade {
                     || a.role() == null
                     || a.eno() == null
                     || a.eno().isBlank()
-                    || a.eno().length() > 14
-                    || !enos.add(a.eno())) throw invalid("결재자 입력이 올바르지 않습니다.");
+                    || a.eno().length() > 14) throw invalid("결재자 입력이 올바르지 않습니다.");
             if (a.role().ordinal() < previousRole
                     || a.role() != ApproverRole.ADDITIONAL && !fixedRoles.add(a.role()))
                 throw invalid("결재 역할 또는 순서가 올바르지 않습니다.");
@@ -408,6 +407,12 @@ public class ItBudgetApprovalFacade {
                                         s.digest(),
                                         snapshotName(document, s)))
                 .toList();
+    }
+
+    /** 기존 전산예산 신청내용 표기 규칙(첫 항목명 + 나머지 건수)을 저장용 요약으로 만든다. */
+    private String applicationSummary(List<SourceDigest> sources) {
+        String firstName = sources.getFirst().displayName();
+        return sources.size() == 1 ? firstName : firstName + " 외 " + (sources.size() - 1) + "건";
     }
 
     private String snapshotName(BuiltDocument document, ItBudgetSnapshot.Source source) {

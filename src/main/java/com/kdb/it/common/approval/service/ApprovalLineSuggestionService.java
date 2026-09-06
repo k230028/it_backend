@@ -11,7 +11,6 @@ import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -82,12 +81,6 @@ public class ApprovalLineSuggestionService {
                                 : userRepository.findByBbrCAndPtCInAndDelYn(
                                         drafter.getBbrC(), deptHeadCodes, "N"),
                         drafterEno);
-        if (teamLead.user() != null
-                && deptHead.user() != null
-                && Objects.equals(teamLead.user().getEno(), deptHead.user().getEno())) {
-            deptHead = new Pick(null, SuggestionReason.DUPLICATE);
-        }
-
         return ApplicationDto.ApprovalLineSuggestion.builder()
                 .foreignBranch(false)
                 .teamLead(toResponse(teamLead.user()))

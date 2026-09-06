@@ -116,7 +116,7 @@ public final class ItBudgetApprovalDto {
                     String previewDigest,
             @NotBlank @Size(max = 8192) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String previewToken,
-            @NotEmpty @Size(max = 102) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotNull @Size(min = 2, max = 102) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid ApproverRef> approvers,
             @NotEmpty @Size(max = 100) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid SubmissionDocument> documents) {}

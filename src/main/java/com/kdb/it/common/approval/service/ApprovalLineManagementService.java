@@ -55,7 +55,7 @@ public class ApprovalLineManagementService {
                         .dcrEno(newApproverEno)
                         .itPtlDcdStsC(DecisionStatus.PENDING.code())
                         .lstDcdYn("Y")
-                        .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
+                        .dcdTpC(last.getDcdTpC())
                         .build();
         approverRepository.save(added);
         List<Cdecim> updatedOrder = new ArrayList<>(approvers);
@@ -177,6 +177,7 @@ public class ApprovalLineManagementService {
         if (pendingApprovers.isEmpty()) {
             throw new IllegalStateException("교체할 미결재 결재자가 없습니다.");
         }
+        String replacementDecisionType = pendingApprovers.getFirst().getDcdTpC();
 
         List<CuserI> foundUsers = userRepository.findByEnoIn(approverEnos);
         Map<String, CuserI> usersByEno = new HashMap<>();
@@ -208,7 +209,7 @@ public class ApprovalLineManagementService {
                             .dcrEno(approverEnos.get(index))
                             .itPtlDcdStsC(DecisionStatus.PENDING.code())
                             .lstDcdYn(index == approverEnos.size() - 1 ? "Y" : "N")
-                            .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
+                            .dcdTpC(replacementDecisionType)
                             .build());
         }
 

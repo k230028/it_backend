@@ -122,6 +122,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
             FROM TPRMPP_CDECIM d
             WHERE d.APF_DCM_NO = a.APF_DCM_NO
               AND d.DCR_ENO = :eno
+              AND d.DCR_SQN_SNO > 0
               AND d.IT_PTL_DCD_STS_C = '1'
           )
         ORDER BY a.APF_DCM_NO DESC
@@ -169,6 +170,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                             SELECT 1 FROM TPRMPP_CDECIM d
                             WHERE d.APF_DCM_NO = a.APF_DCM_NO
                               AND d.DCR_ENO = :eno
+                              AND d.DCR_SQN_SNO > 0
                               AND d.IT_PTL_DCD_STS_C = '1'
                           ) THEN 1 ELSE 0 END AS "approvalPending",
                CASE WHEN a.IT_PTL_APF_PRG_STS_C = '2'
@@ -176,6 +178,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                             SELECT 1 FROM TPRMPP_CDECIM d
                             WHERE d.APF_DCM_NO = a.APF_DCM_NO
                               AND d.DCR_ENO = :eno
+                              AND d.DCR_SQN_SNO > 0
                               AND d.IT_PTL_DCD_STS_C = '2'
                           ) THEN 1 ELSE 0 END AS "approvalCompleted",
                CASE WHEN a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C = '1' THEN 'IN_PROGRESS'
@@ -187,11 +190,13 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                             SELECT 1 FROM TPRMPP_CDECIM d
                             WHERE d.APF_DCM_NO = a.APF_DCM_NO
                               AND d.DCR_ENO = :eno
+                              AND d.DCR_SQN_SNO > 0
                               AND d.IT_PTL_DCD_STS_C = '1'
                               AND d.DCR_SQN_SNO = (
                                 SELECT MIN(d2.DCR_SQN_SNO)
                                 FROM TPRMPP_CDECIM d2
                                 WHERE d2.APF_DCM_NO = a.APF_DCM_NO
+                                  AND d2.DCR_SQN_SNO > 0
                                   AND d2.IT_PTL_DCD_STS_C = '1'
                               )
                           ) THEN 1 ELSE 0 END AS "actionable"
@@ -201,12 +206,14 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                  SELECT 1 FROM TPRMPP_CDECIM d
                  WHERE d.APF_DCM_NO = a.APF_DCM_NO
                    AND d.DCR_ENO = :eno
+                   AND d.DCR_SQN_SNO > 0
                    AND d.IT_PTL_DCD_STS_C = '1'
                ))
            OR (a.IT_PTL_APF_PRG_STS_C = '2' AND EXISTS (
                  SELECT 1 FROM TPRMPP_CDECIM d
                  WHERE d.APF_DCM_NO = a.APF_DCM_NO
                    AND d.DCR_ENO = :eno
+                   AND d.DCR_SQN_SNO > 0
                    AND d.IT_PTL_DCD_STS_C = '2'
                ))
            OR (a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C IN ('1', '2', '3'))
@@ -253,6 +260,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
         WHERE a.IT_PTL_APF_PRG_STS_C = '1'
           AND d.DCR_ENO = :eno
+          AND d.DCR_SQN_SNO > 0
           AND d.IT_PTL_DCD_STS_C = '1'
         """,
             nativeQuery = true)
@@ -323,11 +331,16 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                TO_CHAR(a.DCD_REQ_DTM, 'YYYY-MM-DD') AS RQS_DT_STR
         FROM TPRMPP_CAPPLM a
         JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
-        JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
         WHERE a.IT_PTL_APF_PRG_STS_C = '1'
-          AND d.DCR_ENO = :eno
-          AND d.IT_PTL_DCD_STS_C = '1'
-        ORDER BY a.DCD_REQ_DTM DESC
+          AND EXISTS (
+            SELECT 1
+            FROM TPRMPP_CDECIM d
+            WHERE d.APF_DCM_NO = a.APF_DCM_NO
+              AND d.DCR_ENO = :eno
+              AND d.DCR_SQN_SNO > 0
+              AND d.IT_PTL_DCD_STS_C = '1'
+          )
+        ORDER BY a.DCD_REQ_DTM DESC, a.APF_DCM_NO DESC
         FETCH FIRST 3 ROWS ONLY
         """,
             nativeQuery = true)

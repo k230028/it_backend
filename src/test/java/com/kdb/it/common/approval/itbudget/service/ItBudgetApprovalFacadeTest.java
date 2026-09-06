@@ -136,6 +136,26 @@ class ItBudgetApprovalFacadeTest {
     }
 
     @Test
+    void previewAllowsTheSameEmployeeInBothApprovalSteps() {
+        var input =
+                new PreviewRequest(
+                        List.of(
+                                new ApproverRef(ApproverRole.TEAM_LEAD, "A1"),
+                                new ApproverRef(ApproverRole.DEPT_HEAD, "A1")),
+                        request().documents());
+
+        var approvers =
+                facade.preview(actor, input)
+                        .documents()
+                        .getFirst()
+                        .snapshot()
+                        .approvalLine()
+                        .approvers();
+
+        assertThat(approvers).extracting(person -> person.eno()).containsExactly("A1", "A1");
+    }
+
+    @Test
     void digestViewsBindOrderedBoundariesAndIgnoreCaptureTime() {
         var response = facade.preview(actor, request());
         var claims = tokens.verify(response.previewToken(), "U1");
@@ -454,12 +474,6 @@ class ItBudgetApprovalFacadeTest {
                         List.of(
                                 new ApproverRef(ApproverRole.TEAM_LEAD, "A1"),
                                 new ApproverRef(ApproverRole.TEAM_LEAD, "A2")),
-                        request().documents()));
-        bad.add(
-                new PreviewRequest(
-                        List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "A1"),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, "A1")),
                         request().documents()));
         bad.add(
                 new PreviewRequest(

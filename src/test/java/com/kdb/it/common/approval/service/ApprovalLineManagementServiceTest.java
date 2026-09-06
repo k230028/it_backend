@@ -57,8 +57,8 @@ class ApprovalLineManagementServiceTest {
     @DisplayName("동일한 결재자를 여러 차례 지정하면 각 순번을 보존해 저장한다")
     void replacePendingApprovers_중복사번_순번별저장() {
         Capplm application = application("1", "E001");
-        Cdecim completed = approver(1, "E001", "2");
-        Cdecim pending = approver(2, "E002", "1");
+        Cdecim completed = approver(1, "E001", "2", Cdecim.DECISION_TYPE_APPROVAL);
+        Cdecim pending = approver(2, "E002", "1", Cdecim.DECISION_TYPE_APPROVAL);
         CuserI repeatedUser =
                 CuserI.builder().eno("E100").usrNm("반복결재자").ptCNm("과장").delYn("N").build();
         given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
@@ -74,6 +74,11 @@ class ApprovalLineManagementServiceTest {
         assertThat(replacements.getValue())
                 .extracting(value -> value.getDcrSqnSno() + ":" + value.getDcrEno())
                 .containsExactly("2:E100", "3:E100");
+        assertThat(replacements.getValue())
+                .allSatisfy(
+                        value ->
+                                assertThat(value.getDcdTpC())
+                                        .isEqualTo(Cdecim.DECISION_TYPE_APPROVAL));
         verify(approvalLineDelegate)
                 .replacePendingApproversInDetail(
                         eq(application), any(), eq(List.of(repeatedUser, repeatedUser)));
@@ -240,11 +245,11 @@ class ApprovalLineManagementServiceTest {
     }
 
     @Test
-    @DisplayName("결재중 결재선 참여자는 현재 결재선 뒤에 추가할 수 있다")
+    @DisplayName("전산예산 v2 결재선 참여자는 50 유형을 유지해 결재자를 추가한다")
     void addApprover_appendsAfterCurrentLine() {
         Capplm application = application("1", "E001");
-        Cdecim first = approver(1, "E002", "1");
-        Cdecim second = approver(2, "E003", "1");
+        Cdecim first = approver(1, "E002", "1", Cdecim.DECISION_TYPE_APPROVAL);
+        Cdecim second = approver(2, "E003", "1", Cdecim.DECISION_TYPE_APPROVAL);
         given(applicationRepository.findById(APF)).willReturn(Optional.of(application));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF))
                 .willReturn(List.of(first, second));
@@ -263,6 +268,8 @@ class ApprovalLineManagementServiceTest {
                                         value.getDcrSqnSno() == 3
                                                 && "E004".equals(value.getDcrEno())
                                                 && "Y".equals(value.getLstDcdYn())
+                                                && Cdecim.DECISION_TYPE_APPROVAL.equals(
+                                                        value.getDcdTpC())
                                                 && DecisionStatus.isPendingCode(
                                                         value.getItPtlDcdStsC())));
     }
@@ -545,13 +552,17 @@ class ApprovalLineManagementServiceTest {
     }
 
     private Cdecim approver(int sequence, String eno, String status) {
+        return approver(sequence, eno, status, Cdecim.DECISION_TYPE_REQUEST);
+    }
+
+    private Cdecim approver(int sequence, String eno, String status, String decisionType) {
         return Cdecim.builder()
                 .dcdMngNo(APF)
                 .dcrSqnSno(sequence)
                 .dcrEno(eno)
                 .lstDcdYn("Y")
                 .itPtlDcdStsC(status)
-                .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
+                .dcdTpC(decisionType)
                 .build();
     }
 }

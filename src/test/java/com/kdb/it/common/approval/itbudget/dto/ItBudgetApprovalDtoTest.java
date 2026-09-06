@@ -130,13 +130,15 @@ class ItBudgetApprovalDtoTest {
                 new SubmissionRequest(
                         DIGEST,
                         "preview-token",
-                        Collections.singletonList(null),
+                        Arrays.asList(null, new ApproverRef(ApproverRole.DEPT_HEAD, "E20002")),
                         List.of(validDocument));
         SubmissionRequest requestWithNullDocument =
                 new SubmissionRequest(
                         DIGEST,
                         "preview-token",
-                        List.of(new ApproverRef(ApproverRole.TEAM_LEAD, "E20001")),
+                        List.of(
+                                new ApproverRef(ApproverRole.TEAM_LEAD, "E20001"),
+                                new ApproverRef(ApproverRole.DEPT_HEAD, "E20002")),
                         Collections.singletonList(null));
         SubmissionDocument requestWithNullSource =
                 new SubmissionDocument("doc-1", DIGEST, Collections.singletonList(null));
@@ -374,7 +376,7 @@ class ItBudgetApprovalDtoTest {
     }
 
     @Test
-    void submissionRequest_stillRequiresAtLeastOneApprover() {
+    void submissionRequest_requiresAtLeastTwoApprovers() {
         SubmissionDocument document =
                 new SubmissionDocument(
                         "doc-1",
@@ -382,12 +384,17 @@ class ItBudgetApprovalDtoTest {
                         List.of(
                                 new ItBudgetApprovalDto.SourceDigest(
                                         SourceKind.PROJECT, "P-001", 1, 1, DIGEST, "사업")));
-        SubmissionRequest request =
-                new SubmissionRequest(DIGEST, "preview-token", List.of(), List.of(document));
+        for (List<ApproverRef> approvers :
+                List.of(
+                        List.<ApproverRef>of(),
+                        List.of(new ApproverRef(ApproverRole.TEAM_LEAD, "E20001")))) {
+            SubmissionRequest request =
+                    new SubmissionRequest(DIGEST, "preview-token", approvers, List.of(document));
 
-        assertThat(validator.validate(request))
-                .extracting(violation -> violation.getPropertyPath().toString())
-                .containsExactly("approvers");
+            assertThat(validator.validate(request))
+                    .extracting(violation -> violation.getPropertyPath().toString())
+                    .contains("approvers");
+        }
     }
 
     @Test

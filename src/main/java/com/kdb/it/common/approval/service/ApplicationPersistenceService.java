@@ -35,13 +35,60 @@ public class ApplicationPersistenceService {
     /** 범용 제출의 개정 순번 파싱 규칙을 보존하는 원장 연결 입력이다. */
     public record SourceLink(String table, String id, String revision) {}
 
+    /** 결재선 저장 규칙. 기존 범용 신청과 전산예산 v2를 명시적으로 분리한다. */
+    public enum DecisionLinePolicy {
+        LEGACY,
+        IT_BUDGET_V2
+    }
+
     public record ApplicationDraft(
             String applicationName,
             String detailJson,
             String requesterEno,
             String requesterOpinion,
+            String requesterDecisionOpinion,
             List<SourceLink> sources,
-            List<String> approverEnos) {
+            List<String> approverEnos,
+            DecisionLinePolicy decisionLinePolicy) {
+        /** 기존 호출부의 저장 규칙을 유지한다. */
+        public ApplicationDraft(
+                String applicationName,
+                String detailJson,
+                String requesterEno,
+                String requesterOpinion,
+                List<SourceLink> sources,
+                List<String> approverEnos) {
+            this(
+                    applicationName,
+                    detailJson,
+                    requesterEno,
+                    requesterOpinion,
+                    null,
+                    sources,
+                    approverEnos,
+                    DecisionLinePolicy.LEGACY);
+        }
+
+        /** 전산예산 v2의 기안자 요청 행과 실제 결재자 행을 구분해 저장하는 입력을 만든다. */
+        public static ApplicationDraft itBudgetV2(
+                String applicationName,
+                String detailJson,
+                String requesterEno,
+                String requesterSummary,
+                String requesterDecisionOpinion,
+                List<SourceLink> sources,
+                List<String> approverEnos) {
+            return new ApplicationDraft(
+                    applicationName,
+                    detailJson,
+                    requesterEno,
+                    requesterSummary,
+                    requesterDecisionOpinion,
+                    sources,
+                    approverEnos,
+                    DecisionLinePolicy.IT_BUDGET_V2);
+        }
+
         /** 기존 범용 요청의 원문 JSON·결재선·원장 순서를 그대로 전달한다. */
         public static ApplicationDraft from(ApplicationDto.CreateRequest request) {
             return new ApplicationDraft(
@@ -74,10 +121,11 @@ public class ApplicationPersistenceService {
     @Transactional(propagation = Propagation.MANDATORY)
     public String persist(ApplicationDraft draft) {
 
+        LocalDate requestDate = LocalDate.now();
+
         // Oracle 시퀀스로 채번하여 신청관리번호 생성 (APF-{yyyy}-{seq:08d})
         Long capplmSeq = applicationRepository.getNextVal();
-        String apfMngNo =
-                String.format("APF-%s-%08d", java.time.LocalDate.now().getYear(), capplmSeq);
+        String apfMngNo = String.format("APF-%s-%08d", requestDate.getYear(), capplmSeq);
 
         // 1. 신청서 마스터 생성 (초기 상태: "결재중")
         Capplm capplm =
@@ -88,7 +136,7 @@ public class ApplicationPersistenceService {
                         .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
                         .dcdReqUsid(draft.requesterEno()) // 결재요청사용자ID
                         .dcdReqBbrC(resolveRequesterBbrC(draft.requesterEno())) // 결재요청부점코드
-                        .dcdReqDtm(LocalDate.now()) // 결재요청일시 = 오늘
+                        .dcdReqDtm(requestDate) // 결재요청일시 = 오늘
                         .rgprDcdReqCone(draft.requesterOpinion()) // 등록자결재요청내용
                         .build();
         applicationRepository.save(capplm);
@@ -116,8 +164,23 @@ public class ApplicationPersistenceService {
             }
         }
 
-        // 2. 결재선 생성: 요청받은 결재자 사번 목록을 순번(dcdSqn)대로 저장
+        // 2. 결재선 생성: 전산예산 v2는 기안자를 0번 요청 행으로 남기고 실제 결재자는 1번부터 저장한다.
         List<String> approverEnos = draft.approverEnos();
+        boolean itBudgetV2 = draft.decisionLinePolicy() == DecisionLinePolicy.IT_BUDGET_V2;
+
+        if (itBudgetV2) {
+            approverRepository.save(
+                    Cdecim.builder()
+                            .dcdMngNo(apfMngNo)
+                            .dcrSqnSno(0)
+                            .dcrEno(draft.requesterEno())
+                            .itPtlDcdStsC(DecisionStatus.APPROVED.code())
+                            .dcdDtm(requestDate)
+                            .dcrOpnnCone(draft.requesterDecisionOpinion())
+                            .lstDcdYn("N")
+                            .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
+                            .build());
+        }
 
         for (int i = 0; i < approverEnos.size(); i++) {
             Cdecim cdecim =
@@ -128,7 +191,10 @@ public class ApplicationPersistenceService {
                             .itPtlDcdStsC(
                                     DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
                             .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
-                            .dcdTpC(Cdecim.DECISION_TYPE_REQUEST) // 결재유형: 요청(10) — NOT NULL
+                            .dcdTpC(
+                                    itBudgetV2
+                                            ? Cdecim.DECISION_TYPE_APPROVAL
+                                            : Cdecim.DECISION_TYPE_REQUEST)
                             .build();
             approverRepository.save(cdecim);
         }

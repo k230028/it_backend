@@ -117,6 +117,9 @@ class ItBudgetSubmissionTest {
         assertThat(first.at("/approvalLine/approvers/1/role").asText()).isEqualTo("DEPT_HEAD");
         assertThat(saved.getAllValues())
                 .allSatisfy(a -> assertThat(a.getDcdReqUsid()).isEqualTo("U1"));
+        assertThat(saved.getAllValues())
+                .extracting(Capplm::getRgprDcdReqCone)
+                .containsExactly(" 계약 ", "사업 하나");
         var links = ArgumentCaptor.forClass(Cappla.class);
         verify(mappings, times(2)).save(links.capture());
         assertThat(links.getAllValues())
@@ -124,16 +127,22 @@ class ItBudgetSubmissionTest {
                 .containsExactly("BCOSTM", "BPROJM");
         assertThat(links.getAllValues()).extracting(Cappla::getFntTbCrySno).containsExactly(2, 1);
         var line = ArgumentCaptor.forClass(Cdecim.class);
-        verify(approvers, times(4)).save(line.capture());
+        verify(approvers, times(6)).save(line.capture());
         assertThat(line.getAllValues())
                 .extracting(Cdecim::getDcrEno)
-                .containsExactly("A1", "A2", "A1", "A2");
+                .containsExactly("U1", "A1", "A2", "U1", "A1", "A2");
         assertThat(line.getAllValues())
                 .extracting(Cdecim::getDcrSqnSno)
-                .containsExactly(1, 2, 1, 2);
+                .containsExactly(0, 1, 2, 0, 1, 2);
         assertThat(line.getAllValues())
                 .extracting(Cdecim::getLstDcdYn)
-                .containsExactly("N", "Y", "N", "Y");
+                .containsExactly("N", "N", "Y", "N", "N", "Y");
+        assertThat(line.getAllValues())
+                .extracting(Cdecim::getDcdTpC)
+                .containsExactly("10", "50", "50", "10", "50", "50");
+        assertThat(line.getAllValues())
+                .extracting(Cdecim::getItPtlDcdStsC)
+                .containsExactly("2", "1", "1", "2", "1", "1");
         var order = inOrder(f.projects, f.costs, guard, applications);
         order.verify(f.projects).findVersionsForUpdate(anyCollection(), anyCollection());
         order.verify(f.costs).findVersionsForUpdate(anyCollection(), anyCollection());

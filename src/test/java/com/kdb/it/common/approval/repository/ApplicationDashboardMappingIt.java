@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.kdb.it.common.approval.dto.PendingApprovalRow;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
@@ -54,6 +55,49 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
             assertThat(d.usrNm()).isEqualTo(r[2] == null ? null : r[2].toString());
             assertThat(d.rqsDt()).isEqualTo(r[3] == null ? null : r[3].toString());
         }
+    }
+
+    @Test
+    @DisplayName("같은 결재자가 두 차수에 있어도 최근 결재 목록은 신청서 한 건만 반환한다")
+    void pendingList_deduplicatesRepeatedApprover() {
+        String apfMngNo = "APF-PENDING-DUP-IT";
+        String requesterEno = "EPENDREQ001";
+        String approverEno = "EPENDAPP001";
+        LocalDateTime auditAt = LocalDateTime.of(2026, 9, 6, 9, 0);
+        entityManager.persist(
+                CuserI.builder()
+                        .eno(requesterEno)
+                        .usrNm("중복 결재 테스트 기안자")
+                        .fstEnrDtm(auditAt)
+                        .fstEnrUsid("PENDING-IT")
+                        .lstChgDtm(auditAt)
+                        .lstChgUsid("PENDING-IT")
+                        .delYn("N")
+                        .build());
+        entityManager.persist(
+                Capplm.builder()
+                        .apfMngNo(apfMngNo)
+                        .itPtlApfPrgStsC("1")
+                        .dcdReqTtl("동일 결재자 최근 목록 검증")
+                        .dcdReqUsid(requesterEno)
+                        .dcdReqDtm(LocalDate.of(2026, 9, 6))
+                        .fstEnrDtm(auditAt)
+                        .fstEnrUsid("PENDING-IT")
+                        .lstChgDtm(auditAt)
+                        .lstChgUsid("PENDING-IT")
+                        .delYn("N")
+                        .build());
+        entityManager.persist(decision(apfMngNo, 1, approverEno, auditAt));
+        entityManager.persist(decision(apfMngNo, 2, approverEno, auditAt));
+        entityManager.flush();
+        entityManager.clear();
+
+        List<Object[]> rows = applicationRepository.findPendingListByEno(approverEno);
+
+        assertThat(rows).extracting(row -> row[0]).containsExactly(apfMngNo);
+        assertThat(applicationRepository.findPendingRowsByEno(approverEno))
+                .extracting(PendingApprovalRow::apfDcmNo)
+                .containsExactly(apfMngNo);
     }
 
     @Test
