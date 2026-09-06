@@ -40,7 +40,7 @@ class NotificationDispatchServiceTest {
     @DisplayName("dispatch 실패는 FAILED 상태를 남기고 예외를 전파하지 않는다")
     void dispatch_failure_marksFailed() {
         Cinfmm row = pending();
-        given(repository.findById(row.getInfmMsgNo())).willReturn(Optional.of(row));
+        given(repository.findByIdForUpdate(row.getInfmMsgNo())).willReturn(Optional.of(row));
         given(dispatcher.dispatch(row, row.getSdDocCone()))
                 .willReturn(NotificationDispatchResult.failure("timeout"));
 
@@ -54,7 +54,7 @@ class NotificationDispatchServiceTest {
     @DisplayName("dispatch 성공은 SENT 상태를 남긴다")
     void dispatch_success_marksSent() {
         Cinfmm row = pending();
-        given(repository.findById(row.getInfmMsgNo())).willReturn(Optional.of(row));
+        given(repository.findByIdForUpdate(row.getInfmMsgNo())).willReturn(Optional.of(row));
         given(dispatcher.dispatch(row, row.getSdDocCone()))
                 .willReturn(NotificationDispatchResult.sent());
 
@@ -68,7 +68,7 @@ class NotificationDispatchServiceTest {
     void dispatch_alreadySent_skips() {
         Cinfmm row = pending();
         row.markDispatchSent("04", "payload");
-        given(repository.findById(row.getInfmMsgNo())).willReturn(Optional.of(row));
+        given(repository.findByIdForUpdate(row.getInfmMsgNo())).willReturn(Optional.of(row));
 
         service.dispatch(row.getInfmMsgNo());
 
@@ -86,7 +86,7 @@ class NotificationDispatchServiceTest {
                         .infmSdStsC(Cinfmm.DISPATCH_PENDING)
                         .reTryNot(4)
                         .build();
-        given(repository.findById(row.getInfmMsgNo())).willReturn(Optional.of(row));
+        given(repository.findByIdForUpdate(row.getInfmMsgNo())).willReturn(Optional.of(row));
         given(dispatcher.dispatch(row, row.getSdDocCone()))
                 .willReturn(NotificationDispatchResult.failure("장애"));
 
@@ -115,7 +115,7 @@ class NotificationDispatchServiceTest {
                         .infmSdStsC(Cinfmm.DISPATCH_PENDING)
                         .reTryNot(0)
                         .build();
-        given(repository.findById(row.getInfmMsgNo())).willReturn(Optional.of(row));
+        given(repository.findByIdForUpdate(row.getInfmMsgNo())).willReturn(Optional.of(row));
         given(dispatcher.dispatch(row, null)).willReturn(NotificationDispatchResult.failure(null));
 
         service.dispatch(row.getInfmMsgNo());
@@ -131,13 +131,32 @@ class NotificationDispatchServiceTest {
     @Test
     @DisplayName("dispatch 대상 알림이 없으면 예외를 반환한다")
     void dispatch_missingNotification_throws() {
-        given(repository.findById("UNKNOWN")).willReturn(Optional.empty());
+        given(repository.findByIdForUpdate("UNKNOWN")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.dispatch("UNKNOWN"))
                 .isInstanceOf(java.util.NoSuchElementException.class);
 
         verify(dispatcher, never())
                 .dispatch(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("재시도 상한에 도달한 행은 잠금 조회 후 발송하지 않는다")
+    void dispatch_retryExhausted_skips() {
+        Cinfmm row =
+                Cinfmm.builder()
+                        .infmMsgNo("INF-2026-00000004")
+                        .itPtlSdTc("04")
+                        .sdDocCone("payload")
+                        .infmSdStsC(Cinfmm.DISPATCH_FAILED)
+                        .reTryNot(5)
+                        .build();
+        given(repository.findByIdForUpdate(row.getInfmMsgNo())).willReturn(Optional.of(row));
+
+        service.dispatch(row.getInfmMsgNo());
+
+        verify(dispatcher, never()).dispatch(row, row.getSdDocCone());
+        assertThat(row.getReTryNot()).isEqualTo(5);
     }
 
     private Cinfmm pending() {

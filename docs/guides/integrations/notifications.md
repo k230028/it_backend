@@ -29,6 +29,8 @@
 - 스케줄러는 기본 60초마다 `FAILED`와 60초 이상 정체된 `PENDING`을 조회합니다.
 - 한 번에 최대 50건을 처리하며 건별 최대 5회까지만 시도합니다.
 - 설정 키는 `notification.retry.enabled`, `fixed-delay-ms`, `batch-size`, `max-attempts`입니다.
+- `NotificationDispatchService.dispatch`는 대상 행을 `findByIdForUpdate`(`PESSIMISTIC_WRITE`)로 잠근 뒤 상태를 검사하고 외부 발송까지 같은 잠금 구간에서 수행합니다. 재시도 스케줄러는 모든 인스턴스에서 함께 도므로, 잠금 없이 조회하면 두 인스턴스가 모두 미발송 상태를 보고 통과해 같은 알림이 두 번 나갑니다.
+- 재시도 상한(`max-attempts`)은 스케줄러 조회 조건뿐 아니라 잠금 구간의 `Cinfmm.canRetry`로도 확인합니다. 조회 조건에만 두면 동시 실행과 이벤트 경로가 상한을 넘겨 발송합니다.
 
 ## 종류
 
