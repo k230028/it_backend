@@ -276,8 +276,8 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                                         .isEqualTo(DecisionStatus.APPROVED.code());
                                 assertThat(decisions.getFirst().getDcdDtm())
                                         .isEqualTo(LocalDate.now());
-                                assertThat(decisions.getFirst().getDcrOpnnCone())
-                                        .isEqualTo("전산예산 결재를 요청합니다.");
+                                // 기안자 요청 행의 결재자의견은 직접 입력이 없으면 자동 문구 없이 비운다.
+                                assertThat(decisions.getFirst().getDcrOpnnCone()).isNull();
                                 assertThat(decisions.subList(1, 3))
                                         .allSatisfy(
                                                 decision -> {

@@ -94,11 +94,15 @@ public class Cdecim extends BaseEntity {
         approve(opinion, status, LocalDate.now());
     }
 
-    /** 결재 처리 시점에 한 번 확정한 일자를 사용해 연속 결재자의 날짜를 일치시킨다. */
+    /**
+     * 결재 처리 시점에 한 번 확정한 일자를 사용해 연속 결재자의 날짜를 일치시킨다.
+     *
+     * <p>의견은 결재자가 실제로 입력한 경우에만 기록하며, 공백만 있는 입력은 null로 저장한다.
+     */
     public void approve(String opinion, DecisionStatus status, LocalDate decisionDate) {
         this.itPtlDcdStsC = status.code();
         this.dcdDtm = decisionDate;
-        this.dcrOpnnCone = opinion;
+        this.dcrOpnnCone = opinion == null || opinion.isBlank() ? null : opinion;
     }
 
     /** 회수로 인한 미결재 항목 무효화 */

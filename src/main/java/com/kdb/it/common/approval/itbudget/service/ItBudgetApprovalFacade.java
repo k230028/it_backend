@@ -169,7 +169,10 @@ public class ItBudgetApprovalFacade {
                                     json,
                                     actor.getEno(),
                                     applicationSummary(publicSources(document)),
-                                    "전산예산 결재를 요청합니다.",
+                                    // 결재자의견(DCR_OPNN_CONE)은 기안자·결재자가 직접 입력한 경우에만
+                                    // 기록한다. v2 상신 입력에는 기안자 의견 항목이 없으므로 자동 문구를
+                                    // 채우지 않는다. 신청내용(RGPR_DCD_REQ_CONE)은 위 요약을 그대로 쓴다.
+                                    null,
                                     document.sources().stream()
                                             .map(
                                                     s ->
