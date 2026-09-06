@@ -24,9 +24,14 @@ import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.service.*;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -60,6 +65,7 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
     @MockitoSpyBean ApplicationPersistenceService persistence;
     @Autowired EntityManager em;
     @Autowired PlatformTransactionManager manager;
+    @Autowired MeterRegistry meterRegistry;
     @Autowired CommitEvents events;
     @MockitoBean UserRepository users;
     @MockitoBean OrganizationRepository organizations;
@@ -235,6 +241,47 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
     }
 
     @Test
+    void commitTimeFailureRecordsOnlyErrorAfterTheTransactionCompletes() {
+        var request = request();
+        double successBefore = submissionCount("success");
+        double errorBefore = submissionCount("error");
+        long timerBefore = submissionTimerCount();
+        var registered = new AtomicBoolean();
+        tx().executeWithoutResult(
+                        ignored ->
+                                doAnswer(
+                                                invocation -> {
+                                                    String number =
+                                                            (String) invocation.callRealMethod();
+                                                    if (registered.compareAndSet(false, true))
+                                                        TransactionSynchronizationManager
+                                                                .registerSynchronization(
+                                                                        new TransactionSynchronization() {
+                                                                            @Override
+                                                                            public void
+                                                                                    beforeCommit(
+                                                                                            boolean
+                                                                                                    readOnly) {
+                                                                                throw new DataIntegrityViolationException(
+                                                                                        "커밋 시점 실패 재현");
+                                                                            }
+                                                                        });
+                                                    return number;
+                                                })
+                                        .when(persistence)
+                                        .persist(any()));
+
+        assertThatThrownBy(() -> facade.submit(actor, request))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        assertThat(submissionCount("success")).isEqualTo(successBefore);
+        assertThat(submissionCount("error")).isEqualTo(errorBefore + 1);
+        assertThat(submissionTimerCount()).isEqualTo(timerBefore + 1);
+        tx().executeWithoutResult(s -> assertRows(0, 0, 0));
+        assertThat(events.committed).isEmpty();
+    }
+
+    @Test
     void persistenceRequiresCallerTransaction() {
         assertThatThrownBy(
                         () ->
@@ -393,6 +440,22 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
         return new TransactionTemplate(manager);
     }
 
+    private double submissionCount(String outcome) {
+        return meterRegistry
+                .find("approval.it_budget.submission")
+                .tag("outcome", outcome)
+                .counters()
+                .stream()
+                .mapToDouble(Counter::count)
+                .sum();
+    }
+
+    private long submissionTimerCount() {
+        return meterRegistry.find("approval.it_budget.submission.duration").timers().stream()
+                .mapToLong(Timer::count)
+                .sum();
+    }
+
     static class CommitEvents {
         final List<NotificationEvent> committed = new ArrayList<>();
 
@@ -425,6 +488,11 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
         @Bean
         CommitEvents commitEvents() {
             return new CommitEvents();
+        }
+
+        @Bean
+        SimpleMeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
         }
     }
 }

@@ -26,6 +26,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** 인증 주체와 원장을 검증해 전산예산 v2 미리보기를 발급하고 잠금 아래 원자적으로 상신한다. */
 @Service
@@ -56,16 +58,14 @@ public class ItBudgetApprovalFacade {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             var response = doSubmit(actor, request);
-            recordSubmission("success");
+            completeSubmission(sample, "success", true);
             return response;
         } catch (ItBudgetApprovalException exception) {
-            recordSubmission(outcome(exception.code()));
+            completeSubmission(sample, outcome(exception.code()), false);
             throw exception;
         } catch (RuntimeException exception) {
-            recordSubmission("error");
+            completeSubmission(sample, "error", false);
             throw exception;
-        } finally {
-            sample.stop(meterRegistry.timer("approval.it_budget.submission.duration"));
         }
     }
 
@@ -578,6 +578,23 @@ public class ItBudgetApprovalFacade {
 
     private void recordSubmission(String outcome) {
         meterRegistry.counter("approval.it_budget.submission", "outcome", outcome).increment();
+    }
+
+    private void completeSubmission(Timer.Sample sample, String outcome, boolean successful) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            recordSubmission(outcome);
+            sample.stop(meterRegistry.timer("approval.it_budget.submission.duration"));
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCompletion(int status) {
+                        recordSubmission(
+                                successful && status != STATUS_COMMITTED ? "error" : outcome);
+                        sample.stop(meterRegistry.timer("approval.it_budget.submission.duration"));
+                    }
+                });
     }
 
     private static String outcome(String code) {

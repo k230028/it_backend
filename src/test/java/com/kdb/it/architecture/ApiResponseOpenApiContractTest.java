@@ -34,6 +34,8 @@ import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
 import io.swagger.v3.oas.models.media.Schema;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,13 +87,49 @@ class ApiResponseOpenApiContractTest {
         assertThat(submission.at("/responses/401/description").asText())
                 .isEqualTo("미인증 또는 결재용 MFA 필요");
         assertThat(submission.at("/responses/403/description").asText()).isEqualTo("권한 없음");
-        assertThat(document.at("/components/schemas/ItBudgetChangedSource/required").toString())
-                .contains("kind", "id", "revision", "displayName", "modifiedBy", "modifiedAt");
-        assertThat(
-                        document.at(
-                                        "/components/schemas/ItBudgetChangedSource/properties/modifiedAt/type")
-                                .toString())
-                .contains("string", "null");
+        assertRequired(document, "ItBudgetPreviewRequest", "approvers", "documents");
+        assertRequired(
+                document,
+                "ItBudgetPreviewResponse",
+                "previewDigest",
+                "previewToken",
+                "expiresAt",
+                "documents");
+        assertRequired(
+                document,
+                "ItBudgetSubmissionRequest",
+                "previewDigest",
+                "previewToken",
+                "approvers",
+                "documents");
+        assertRequired(document, "ItBudgetSubmissionResponse", "applicationNumbers");
+        assertRequired(
+                document,
+                "ItBudgetApprovalErrorResponse",
+                "timestamp",
+                "status",
+                "code",
+                "message");
+        assertRequired(
+                document,
+                "ItBudgetChangedSource",
+                "kind",
+                "id",
+                "revision",
+                "displayName",
+                "modifiedBy",
+                "modifiedAt");
+        JsonNode changedSources =
+                document.at(
+                        "/components/schemas/ItBudgetApprovalErrorResponse/properties/changedSources");
+        assertThat(changedSources.path("type").asText()).isEqualTo("array");
+        assertThat(changedSources.at("/items/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetChangedSource");
+        JsonNode modifiedAt =
+                document.at("/components/schemas/ItBudgetChangedSource/properties/modifiedAt");
+        assertThat(jsonStrings(modifiedAt.path("type")))
+                .containsExactlyInAnyOrder("string", "null");
+        assertThat(modifiedAt.path("format").asText()).isEqualTo("date-time");
     }
 
     private static void assertErrorResponse(JsonNode operation, String... statuses) {
@@ -104,6 +142,18 @@ class ApiResponseOpenApiContractTest {
                                                     + "/content/application~1json/schema/$ref")
                                     .asText())
                     .isEqualTo("#/components/schemas/ItBudgetApprovalErrorResponse");
+    }
+
+    private static void assertRequired(JsonNode document, String schema, String... fields) {
+        assertThat(jsonStrings(document.at("/components/schemas/" + schema + "/required")))
+                .containsExactlyInAnyOrder(fields);
+    }
+
+    private static List<String> jsonStrings(JsonNode node) {
+        assertThat(node.isArray()).isTrue();
+        var values = new ArrayList<String>();
+        node.forEach(value -> values.add(value.asText()));
+        return values;
     }
 
     @Test
