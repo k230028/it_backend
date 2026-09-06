@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.admin.metrics.dto.ServerMetricsDto;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.File;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 class JvmServerMetricsProbeTest {
 
@@ -104,6 +106,60 @@ class JvmServerMetricsProbeTest {
         assertThat(sample.dbMax()).isNull();
         assertThat(sample.toPoint().memUsedPct()).isNull();
         assertThat(sample.toPoint().heapUsedPct()).isNull();
+    }
+
+    @Test
+    @DisplayName("MXBean이 NaN을 주면 0으로 위장하지 않고 null이다")
+    void sample_NaN은null() {
+        // 음수(미계산·미지원)와 달리 NaN은 산술 비교가 항상 false라, 음수 검사만으로는 걸러지지 않는다.
+        given(os.getCpuLoad()).willReturn(Double.NaN);
+        given(os.getProcessCpuLoad()).willReturn(Double.NaN);
+        given(os.getSystemLoadAverage()).willReturn(Double.NaN);
+        given(os.getAvailableProcessors()).willReturn(2);
+        given(os.getTotalMemorySize()).willReturn(16_000L);
+        given(os.getFreeMemorySize()).willReturn(-1L);
+        given(memory.getHeapMemoryUsage()).willReturn(new MemoryUsage(0, 300L, 300L, 1_000L));
+
+        ServerMetricsDto.Sample sample = probe(null).sample(AT);
+
+        assertThat(sample.systemCpuPct()).isNull();
+        assertThat(sample.processCpuPct()).isNull();
+        assertThat(sample.load1m()).isNull();
+        // 총량은 읽혔지만 여유량이 음수라 사용량을 계산할 수 없다. 총량만 남기고 사용량은 null이다.
+        assertThat(sample.memTotalBytes()).isEqualTo(16_000L);
+        assertThat(sample.memUsedBytes()).isNull();
+    }
+
+    @Test
+    @DisplayName("HikariCP 게이지가 없거나 NaN·음수면 0으로 위장하지 않고 null이다")
+    void sample_게이지값이상은null() {
+        given(os.getAvailableProcessors()).willReturn(2);
+        given(memory.getHeapMemoryUsage()).willReturn(new MemoryUsage(0, 300L, 300L, 1_000L));
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        Gauge.builder("hikaricp.connections.active", () -> Double.NaN).register(registry);
+        Gauge.builder("hikaricp.connections.idle", () -> -1.0).register(registry);
+        // pending·max는 등록하지 않아 게이지 자체가 없는 경우를 함께 검증한다.
+
+        ServerMetricsDto.Sample sample = probe(registry).sample(AT);
+
+        assertThat(sample.dbActive()).isNull();
+        assertThat(sample.dbIdle()).isNull();
+        assertThat(sample.dbPending()).isNull();
+        assertThat(sample.dbMax()).isNull();
+    }
+
+    @Test
+    @DisplayName("스프링 생성자는 MeterRegistry 빈이 없어도 실제 MXBean으로 샘플링한다")
+    void sample_스프링생성자_레지스트리없음() {
+        @SuppressWarnings("unchecked")
+        ObjectProvider<MeterRegistry> registryProvider = mock(ObjectProvider.class);
+        given(registryProvider.getIfAvailable()).willReturn(null);
+
+        ServerMetricsDto.Sample sample = new JvmServerMetricsProbe(registryProvider).sample(AT);
+
+        assertThat(sample.cpuCount()).isPositive();
+        assertThat(sample.liveThreads()).isPositive();
+        assertThat(sample.dbActive()).isNull();
     }
 
     @Test
