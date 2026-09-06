@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.exception.DataCorruptionException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -150,6 +151,7 @@ class ApprovalStoredSnapshotTest {
                 r -> object(r, "/integrity/sources/0").put("id", "unknown-source"),
                 r -> object(r, "/approvalLine/requester").putNull("eno"),
                 r -> object(r, "/approvalLine/approvers/0").put("date", "2026-02-30"),
+                r -> object(r, "/approvalLine/approvers/0").put("date", "2026-02-30T14:25:59"),
                 r -> object(r, "/approvalLine/approvers/0").remove("date"),
                 r -> object(r, "/approvalLine/approvers/0").putNull("name"),
                 r -> r.putNull("approvalLine"));
@@ -186,12 +188,13 @@ class ApprovalStoredSnapshotTest {
     void validV2UpdatesPendingDateWithoutChangingPayloadOrIntegrity() throws Exception {
         ObjectNode original = v2();
         Capplm application = application(original.toString());
-        delegate.doUpdate(application, List.of(approver()), List.of(approver()));
+        LocalDateTime decisionAt = LocalDateTime.of(2030, 1, 2, 23, 59, 59);
+        delegate.doUpdate(application, List.of(approver()), List.of(approver()), decisionAt);
         var captor = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(application).updateDetailContent(captor.capture());
         var updated = MAPPER.readTree(captor.getValue());
         assertThat(updated.at("/approvalLine/approvers/0/date").asText())
-                .matches("\\d{4}-\\d{2}-\\d{2}");
+                .isEqualTo("2030-01-02T23:59:59");
         assertThat(updated.get("payload")).isEqualTo(original.get("payload"));
         assertThat(updated.at("/approvalLine/approvers/0/role").asText()).isEqualTo("TEAM_LEAD");
         assertThat(updated.at("/approvalLine/approvers/1/role").asText()).isEqualTo("DEPT_HEAD");

@@ -41,8 +41,11 @@ class ProjectDirectoryControllerTest {
                                 new ProjectDirectoryDto.Response(
                                         "PRJ-OTHER",
                                         "타 부서 디지털 사업",
+                                        "Y",
                                         "79",
                                         "사업 추진",
+                                        "결재중",
+                                        "1",
                                         "리스크관리부",
                                         "10002",
                                         "김팀장",
@@ -52,6 +55,9 @@ class ProjectDirectoryControllerTest {
         mockMvc.perform(get("/api/project-directory"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].abusMngNo").value("PRJ-OTHER"))
+                .andExpect(jsonPath("$[0].odnYn").value("Y"))
+                .andExpect(jsonPath("$[0].apfSts").value("결재중"))
+                .andExpect(jsonPath("$[0].apfStsC").value("1"))
                 .andExpect(jsonPath("$[0].stsTcNm").value("사업 추진"))
                 .andExpect(jsonPath("$[0].svnDpmCNm").value("리스크관리부"))
                 .andExpect(jsonPath("$[0].tyyBgAmt").doesNotExist())
@@ -67,8 +73,11 @@ class ProjectDirectoryControllerTest {
                         new ProjectDirectoryDto.Response(
                                 "PRJ-OTHER",
                                 "타 부서 디지털 사업",
+                                "Y",
                                 "79",
                                 "사업 추진",
+                                "결재중",
+                                "1",
                                 "리스크관리부",
                                 "10002",
                                 "김팀장",

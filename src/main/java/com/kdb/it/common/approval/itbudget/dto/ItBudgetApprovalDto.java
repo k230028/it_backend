@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.itbudget.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.OptBoolean;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -36,6 +37,11 @@ public final class ItBudgetApprovalDto {
         ADDITIONAL
     }
 
+    public enum RequestApproverRole {
+        TEAM_LEAD,
+        DEPT_HEAD
+    }
+
     @Schema(name = "ItBudgetSourceRef", description = "전산예산 원장 정확한 개정본 참조")
     public record SourceRef(
             @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) SourceKind kind,
@@ -48,7 +54,7 @@ public final class ItBudgetApprovalDto {
 
     @Schema(name = "ItBudgetApproverRef", description = "역할이 부여된 결재자 사번")
     public record ApproverRef(
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ApproverRole role,
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) RequestApproverRole role,
             @NotBlank @Size(max = 14) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String eno) {}
 
@@ -61,7 +67,7 @@ public final class ItBudgetApprovalDto {
 
     @Schema(name = "ItBudgetPreviewRequest", description = "전산예산 결재 미리보기 요청")
     public record PreviewRequest(
-            @NotNull @Size(max = 102) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotNull @Size(max = 2) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid ApproverRef> approvers,
             @NotEmpty @Size(max = 100) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid DocumentRequest> documents) {}
@@ -116,7 +122,7 @@ public final class ItBudgetApprovalDto {
                     String previewDigest,
             @NotBlank @Size(max = 8192) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String previewToken,
-            @NotNull @Size(min = 2, max = 102) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotNull @Size(min = 2, max = 2) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid ApproverRef> approvers,
             @NotEmpty @Size(max = 100) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     List<@NotNull @Valid SubmissionDocument> documents) {}
@@ -162,7 +168,22 @@ public final class ItBudgetApprovalDto {
     public record Requester(
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String eno,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String rank) {}
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String rank,
+            @JsonFormat(
+                            shape = JsonFormat.Shape.STRING,
+                            pattern = "uuuu-MM-dd'T'HH:mm:ss",
+                            lenient = OptBoolean.FALSE)
+                    @JsonDeserialize(using = ApprovalDateTimeDeserializer.class)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+                            format = "date-time",
+                            nullable = true,
+                            description = "기안 결재일시(초 단위), 미리보기와 과거 문서는 null")
+                    LocalDateTime date) {
+        public Requester(String eno, String name, String rank) {
+            this(eno, name, rank, null);
+        }
+    }
 
     @Schema(name = "ItBudgetSnapshotApprovalPerson", description = "결재선 사용자 표시 정보")
     public record ApprovalPerson(
@@ -172,14 +193,15 @@ public final class ItBudgetApprovalDto {
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String rank,
             @JsonFormat(
                             shape = JsonFormat.Shape.STRING,
-                            pattern = "uuuu-MM-dd",
+                            pattern = "uuuu-MM-dd'T'HH:mm:ss",
                             lenient = OptBoolean.FALSE)
+                    @JsonDeserialize(using = ApprovalDateTimeDeserializer.class)
                     @Schema(
                             requiredMode = Schema.RequiredMode.REQUIRED,
-                            format = "date",
+                            format = "date-time",
                             nullable = true,
-                            description = "실제 결재일, 미결재 상태는 null")
-                    LocalDate date) {}
+                            description = "실제 결재일시(초 단위), 미결재 상태는 null")
+                    LocalDateTime date) {}
 
     @Schema(name = "ItBudgetSnapshotApprovalLine", description = "서버가 해석한 신청자와 결재선")
     public record SnapshotApprovalLine(

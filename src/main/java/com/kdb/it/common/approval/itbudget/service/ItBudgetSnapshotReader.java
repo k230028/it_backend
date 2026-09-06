@@ -9,8 +9,10 @@ import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto;
 import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot;
 import com.kdb.it.exception.DataCorruptionException;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Validator;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -142,7 +144,7 @@ public final class ItBudgetSnapshotReader {
         }
     }
 
-    /** 모든 record 필드를 요구하되 null 허용 여부는 DTO의 Bean Validation을 따른다. */
+    /** 선언되지 않은 필드는 거부하고, OpenAPI에서 선택값으로 표시한 record 필드만 누락을 허용한다. */
     private void shape(JsonNode node, Type type) {
         if (node.isNull()) return;
         if (type instanceof ParameterizedType parameterized) {
@@ -154,10 +156,17 @@ public final class ItBudgetSnapshotReader {
         if (target.isRecord()) {
             if (!node.isObject()) throw corrupt("v2", "스냅샷 객체 형식이 올바르지 않습니다.");
             var components = target.getRecordComponents();
-            if (node.size() != components.length) throw corrupt("v2", "스냅샷 필드가 누락되었거나 추가되었습니다.");
+            Set<String> declared = new HashSet<>();
+            for (var component : components) declared.add(component.getName());
+            if (!node.propertyStream().allMatch(entry -> declared.contains(entry.getKey())))
+                throw corrupt("v2", "스냅샷 필드가 누락되었거나 추가되었습니다.");
             for (var component : components) {
                 JsonNode child = node.get(component.getName());
-                if (child == null || component.getType().isPrimitive() && child.isNull())
+                if (child == null) {
+                    if (isOptional(component)) continue;
+                    throw corrupt("v2", "스냅샷 필수 필드가 없습니다.");
+                }
+                if (component.getType().isPrimitive() && child.isNull())
                     throw corrupt("v2", "스냅샷 필수 필드가 없습니다.");
                 shape(child, component.getGenericType());
             }
@@ -170,6 +179,11 @@ public final class ItBudgetSnapshotReader {
                 throw corrupt("v2", "스냅샷 날짜 형식이 올바르지 않습니다.");
             if (target == Instant.class) OffsetDateTime.parse(node.textValue());
         }
+    }
+
+    private static boolean isOptional(RecordComponent component) {
+        Schema schema = component.getAccessor().getAnnotation(Schema.class);
+        return schema != null && schema.requiredMode() == Schema.RequiredMode.NOT_REQUIRED;
     }
 
     private void verifyIdentities(ItBudgetApprovalDto.ItBudgetSnapshot snapshot) {

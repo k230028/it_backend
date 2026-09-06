@@ -4,6 +4,7 @@ import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRole;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -22,12 +23,16 @@ public record ItBudgetSnapshot(
 
     public record Person(String eno, String name, String rank) {}
 
-    /** 결재 신청자는 선택 담당자와 구분하며 HTTP 경계에서 사번·성명을 필수 검증한다. */
-    public record Requester(String eno, String name, String rank) {}
+    /** 결재 신청자는 선택 담당자와 구분하며 date에는 상신 시각을 초 단위로 기록한다. */
+    public record Requester(String eno, String name, String rank, LocalDateTime date) {
+        public Requester(String eno, String name, String rank) {
+            this(eno, name, rank, null);
+        }
+    }
 
-    /** date는 실제 결재일이며 미리보기의 미결재 사용자는 null이다. */
+    /** date는 초 단위 실제 결재일시이며 미리보기의 미결재 사용자는 null이다. */
     public record ApprovalPerson(
-            ApproverRole role, String eno, String name, String rank, LocalDate date) {}
+            ApproverRole role, String eno, String name, String rank, LocalDateTime date) {}
 
     public record ApprovalLine(Requester requester, List<ApprovalPerson> approvers) {
         public ApprovalLine {

@@ -1,5 +1,8 @@
 package com.kdb.it.domain.budget.project.service;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
@@ -29,9 +32,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProjectDirectoryService {
 
     private static final String PROJECT_STATUS_CODE = "IT_PTL_STS_TC";
+    private static final String PROJECT_TABLE_NAME = "BPROJM";
 
     private final ProjectRepository projectRepository;
     private final BprojaRepository bprojaRepository;
+    private final ApplicationMapRepository applicationMapRepository;
+    private final ApplicationRepository applicationRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final CodeService codeService;
@@ -59,6 +65,36 @@ public class ProjectDirectoryService {
         Map<String, List<Bproja>> stepsByProject =
                 bprojaRepository.findByAbusMngNoInAndDelYn(projectIds, "N").stream()
                         .collect(Collectors.groupingBy(Bproja::getAbusMngNo));
+        Set<String> currentRevisionKeys =
+                projects.stream()
+                        .map(project -> revisionKey(project.getAbusMngNo(), project.getSno()))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<String, ApplicationMapRepository.ApplicationMapView> latestApplications =
+                new LinkedHashMap<>();
+        for (ApplicationMapRepository.ApplicationMapView view :
+                applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                        PROJECT_TABLE_NAME, projectIds)) {
+            String revisionKey = revisionKey(view.getPkColNm(), view.getFntTbCrySno());
+            if (currentRevisionKeys.contains(revisionKey)) {
+                latestApplications.putIfAbsent(revisionKey, view);
+            }
+        }
+        List<String> applicationIds =
+                latestApplications.values().stream()
+                        .map(ApplicationMapRepository.ApplicationMapView::getApfDcmNo)
+                        .distinct()
+                        .toList();
+        Map<String, ApplicationRepository.ApplicationSummaryView> applications =
+                applicationIds.isEmpty()
+                        ? Map.of()
+                        : applicationRepository
+                                .findSummaryViewsByApfMngNoIn(applicationIds)
+                                .stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                ApplicationRepository.ApplicationSummaryView
+                                                        ::getApfMngNo,
+                                                java.util.function.Function.identity()));
 
         Set<String> organizationCodes = new LinkedHashSet<>();
         Set<String> userIds = new LinkedHashSet<>();
@@ -90,6 +126,15 @@ public class ProjectDirectoryService {
                                             stepsByProject.getOrDefault(
                                                     project.getAbusMngNo(), List.of()),
                                             project.getAbusMngNo());
+                            ApplicationMapRepository.ApplicationMapView applicationMap =
+                                    latestApplications.get(
+                                            revisionKey(project.getAbusMngNo(), project.getSno()));
+                            ApplicationRepository.ApplicationSummaryView application =
+                                    applicationMap == null
+                                            ? null
+                                            : applications.get(applicationMap.getApfDcmNo());
+                            String applicationStatusCode =
+                                    application == null ? null : application.getItPtlApfPrgStsC();
                             Person leader =
                                     person(
                                             project.getTlrUsid(),
@@ -103,8 +148,13 @@ public class ProjectDirectoryService {
                             return new ProjectDirectoryDto.Response(
                                     project.getAbusMngNo(),
                                     project.getAbusNm(),
+                                    project.getOdnYn(),
                                     status,
                                     statusNames.get(status),
+                                    applicationStatusCode == null
+                                            ? null
+                                            : ApprovalStatus.ofCode(applicationStatusCode).label(),
+                                    applicationStatusCode,
                                     firstNonBlank(
                                             organizationNames.get(project.getSvnDpmC()),
                                             project.getSvnDpmNm()),
@@ -114,6 +164,10 @@ public class ProjectDirectoryService {
                                     manager.name());
                         })
                 .toList();
+    }
+
+    private static String revisionKey(String projectId, Integer sequence) {
+        return projectId + "|" + sequence;
     }
 
     private static Person person(String storedId, String snapshotName, String resolvedName) {

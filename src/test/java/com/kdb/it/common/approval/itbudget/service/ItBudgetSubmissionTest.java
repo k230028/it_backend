@@ -160,16 +160,21 @@ class ItBudgetSubmissionTest {
         var input =
                 new PreviewRequest(
                         List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "U1"),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, "A2")),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "U1"),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "A2")),
                         List.of(
                                 new DocumentRequest(
                                         "project",
                                         List.of(ItBudgetApprovalFacadeTest.projectRef()))));
         var preview = facade.preview(f.actor, input);
         var request = submission(input, preview);
+        LocalDateTime submittedAt = LocalDateTime.of(2030, 1, 2, 23, 59, 59);
 
-        facade.submit(f.actor, request);
+        try (MockedStatic<LocalDateTime> dates =
+                mockStatic(LocalDateTime.class, CALLS_REAL_METHODS)) {
+            dates.when(LocalDateTime::now).thenReturn(submittedAt);
+            facade.submit(f.actor, request);
+        }
 
         var savedApplication = ArgumentCaptor.forClass(Capplm.class);
         verify(applications).save(savedApplication.capture());
@@ -184,21 +189,23 @@ class ItBudgetSubmissionTest {
                         DecisionStatus.PENDING.code());
         assertThat(decisions.getAllValues().subList(0, 2))
                 .allSatisfy(
-                        decision -> assertThat(decision.getDcdDtm()).isEqualTo(LocalDate.now()));
+                        decision ->
+                                assertThat(decision.getDcdDtm())
+                                        .isEqualTo(submittedAt.toLocalDate()));
         assertThat(decisions.getAllValues().get(2).getDcdDtm()).isNull();
         var snapshot = f.mapper.readTree(stored.getDcdReqInf());
         assertThat(snapshot.at("/approvalLine/approvers/0/date").asText())
-                .isEqualTo(LocalDate.now().toString());
+                .isEqualTo("2030-01-02T23:59:59");
         assertThat(snapshot.at("/approvalLine/approvers/1/date").isNull()).isTrue();
+        assertThat(snapshot.at("/approvalLine/requester/date").asText())
+                .isEqualTo("2030-01-02T23:59:59");
     }
 
     @Test
     void submissionRequiresTeamLeadAndDepartmentHeadRoles() {
         var input =
                 new PreviewRequest(
-                        List.of(
-                                new ApproverRef(ApproverRole.ADDITIONAL, "U1"),
-                                new ApproverRef(ApproverRole.ADDITIONAL, "U1")),
+                        List.of(new ApproverRef(RequestApproverRole.TEAM_LEAD, "U1")),
                         List.of(
                                 new DocumentRequest(
                                         "project",
@@ -936,8 +943,10 @@ class ItBudgetSubmissionTest {
                                                     : s.sourceDigest(),
                                             kind.equals("name") ? "변조 명칭" : s.displayName()))));
         }
-        if (kind.equals("role")) people.set(1, new ApproverRef(ApproverRole.ADDITIONAL, "A2"));
-        if (kind.equals("approver")) people.set(0, new ApproverRef(ApproverRole.TEAM_LEAD, "A3"));
+        if (kind.equals("role"))
+            people.set(1, new ApproverRef(RequestApproverRole.TEAM_LEAD, "A2"));
+        if (kind.equals("approver"))
+            people.set(0, new ApproverRef(RequestApproverRole.TEAM_LEAD, "A3"));
         return new SubmissionRequest(
                 kind.equals("preview") ? "f".repeat(64) : r.previewDigest(),
                 kind.equals("token") ? r.previewToken() + "x" : r.previewToken(),

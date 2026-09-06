@@ -140,8 +140,8 @@ class ItBudgetApprovalFacadeTest {
         var input =
                 new PreviewRequest(
                         List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "A1"),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, "A1")),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "A1"),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "A1")),
                         request().documents());
 
         var approvers =
@@ -153,6 +153,25 @@ class ItBudgetApprovalFacadeTest {
                         .approvers();
 
         assertThat(approvers).extracting(person -> person.eno()).containsExactly("A1", "A1");
+    }
+
+    @Test
+    void previewRejectsThirdApproverBeforeReadingLedgers() {
+        var input =
+                new PreviewRequest(
+                        List.of(
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "A1"),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "A2"),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "A1")),
+                        request().documents());
+
+        assertThatThrownBy(() -> facade.preview(actor, input))
+                .isInstanceOfSatisfying(
+                        ItBudgetApprovalException.class,
+                        exception ->
+                                assertThat(exception.code())
+                                        .isEqualTo("IT_BUDGET_PREVIEW_INVALID"));
+        verifyNoInteractions(loader, builder, tokens);
     }
 
     @Test
@@ -218,24 +237,9 @@ class ItBudgetApprovalFacadeTest {
     }
 
     @Test
-    void approverRoleIdentityAndDisplayOnlyChangeTheirBoundDigestViews() {
+    void approverDisplayOnlyChangesPreviewDigest() {
         var before = facade.preview(actor, request());
         var first = tokens.verify(before.previewToken(), "U1");
-        var roleChange =
-                new PreviewRequest(
-                        List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "A1"),
-                                new ApproverRef(ApproverRole.ADDITIONAL, "A2")),
-                        request().documents());
-        var roleResponse = facade.preview(actor, roleChange);
-        assertThat(roleResponse.documents().getFirst().snapshot().approvalLine().approvers())
-                .extracting(ApprovalPerson::role)
-                .containsExactly(ApproverRole.TEAM_LEAD, ApproverRole.ADDITIONAL);
-        var roleClaims = tokens.verify(roleResponse.previewToken(), "U1");
-        assertThat(roleClaims.requestDigest()).isNotEqualTo(first.requestDigest());
-        assertThat(roleClaims.previewDigest()).isNotEqualTo(first.previewDigest());
-        assertThat(roleClaims.sourceSetDigest()).isEqualTo(first.sourceSetDigest());
-        assertThat(roleClaims.payloadSetDigest()).isEqualTo(first.payloadSetDigest());
         when(users.findByEnoIn(anyCollection()))
                 .thenAnswer(
                         invocation -> {
@@ -253,7 +257,7 @@ class ItBudgetApprovalFacadeTest {
     }
 
     @Test
-    void acceptsMaximumDocumentsSourcesAndApproversWithBoundedQueries() {
+    void acceptsMaximumDocumentsAndSourcesWithFixedApproversAndBoundedQueries() {
         var selected = IntStream.range(0, 500).mapToObj(i -> project("P" + i, "D1", "U1")).toList();
         when(projects.findVersions(anyCollection(), anyCollection())).thenReturn(selected);
         var documents =
@@ -273,14 +277,11 @@ class ItBudgetApprovalFacadeTest {
                                                         .toList()))
                         .toList();
         var approvers = new ArrayList<ApproverRef>();
-        approvers.add(new ApproverRef(ApproverRole.TEAM_LEAD, "A1"));
-        approvers.add(new ApproverRef(ApproverRole.DEPT_HEAD, "A2"));
-        IntStream.range(0, 100)
-                .forEach(i -> approvers.add(new ApproverRef(ApproverRole.ADDITIONAL, "extra" + i)));
+        approvers.add(new ApproverRef(RequestApproverRole.TEAM_LEAD, "A1"));
+        approvers.add(new ApproverRef(RequestApproverRole.DEPT_HEAD, "A2"));
         var result = facade.preview(actor, new PreviewRequest(approvers, documents));
         assertThat(result.documents()).hasSize(100);
-        assertThat(result.documents().getFirst().snapshot().approvalLine().approvers())
-                .hasSize(102);
+        assertThat(result.documents().getFirst().snapshot().approvalLine().approvers()).hasSize(2);
         verify(projects).findVersions(anyCollection(), anyCollection());
         verify(items).findSourceVersions(anyCollection(), anyCollection());
         verify(codes).findAllByCIdIn(anyCollection());
@@ -472,12 +473,13 @@ class ItBudgetApprovalFacadeTest {
         bad.add(
                 new PreviewRequest(
                         List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "A1"),
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "A2")),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "A1"),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "A2")),
                         request().documents()));
         bad.add(
                 new PreviewRequest(
-                        Collections.nCopies(103, new ApproverRef(ApproverRole.ADDITIONAL, "A1")),
+                        Collections.nCopies(
+                                3, new ApproverRef(RequestApproverRole.TEAM_LEAD, "A1")),
                         request().documents()));
         bad.add(
                 new PreviewRequest(
@@ -565,8 +567,8 @@ class ItBudgetApprovalFacadeTest {
     static PreviewRequest request() {
         return new PreviewRequest(
                 List.of(
-                        new ApproverRef(ApproverRole.TEAM_LEAD, "A1"),
-                        new ApproverRef(ApproverRole.DEPT_HEAD, "A2")),
+                        new ApproverRef(RequestApproverRole.TEAM_LEAD, "A1"),
+                        new ApproverRef(RequestApproverRole.DEPT_HEAD, "A2")),
                 List.of(new DocumentRequest(" combined ", List.of(projectRef(), costRef()))));
     }
 

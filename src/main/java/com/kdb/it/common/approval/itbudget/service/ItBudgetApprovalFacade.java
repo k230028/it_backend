@@ -22,6 +22,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
@@ -149,8 +150,9 @@ public class ItBudgetApprovalFacade {
                                 normalized.documents().stream()
                                         .map(DocumentRequest::clientDocumentKey)
                                         .toList())) throw stale();
-        LocalDate requestDate = LocalDate.now();
-        var submittedLine = approveLeadingRequesterRoles(line, actor.getEno(), requestDate);
+        LocalDateTime requestAt = LocalDateTime.now().withNano(0);
+        LocalDate requestDate = requestAt.toLocalDate();
+        var submittedLine = approveLeadingRequesterRoles(line, actor.getEno(), requestAt);
         var numbers = new ArrayList<String>();
         for (var document : built) {
             String json;
@@ -189,9 +191,9 @@ public class ItBudgetApprovalFacade {
         return new SubmissionResponse(List.copyOf(numbers));
     }
 
-    /** 기안자가 선두 결재 역할을 겸하면 상신일로 해당 연속 구간을 자동 승인한다. */
+    /** 기안자가 선두 결재 역할을 겸하면 상신일시로 해당 연속 구간을 자동 승인한다. */
     private ItBudgetSnapshot.ApprovalLine approveLeadingRequesterRoles(
-            ItBudgetSnapshot.ApprovalLine line, String requesterEno, LocalDate requestDate) {
+            ItBudgetSnapshot.ApprovalLine line, String requesterEno, LocalDateTime requestAt) {
         var approvers = new ArrayList<ItBudgetSnapshot.ApprovalPerson>();
         boolean leadingRequester = true;
         for (var approver : line.approvers()) {
@@ -202,13 +204,17 @@ public class ItBudgetApprovalFacade {
                                 approver.eno(),
                                 approver.name(),
                                 approver.rank(),
-                                requestDate));
+                                requestAt));
             } else {
                 leadingRequester = false;
                 approvers.add(approver);
             }
         }
-        return new ItBudgetSnapshot.ApprovalLine(line.requester(), approvers);
+        var requester = line.requester();
+        return new ItBudgetSnapshot.ApprovalLine(
+                new ItBudgetSnapshot.Requester(
+                        requester.eno(), requester.name(), requester.rank(), requestAt),
+                approvers);
     }
 
     /**
@@ -287,9 +293,9 @@ public class ItBudgetApprovalFacade {
                 || request.documents().size() > 100) throw invalid("문서는 1~100개여야 합니다.");
         var approvers = request.approvers();
         if (approvers == null
-                || (requireApprovers && approvers.size() < 2)
-                || approvers.size() > 102) throw invalid("결재자는 2~102명이어야 합니다.");
-        Set<ApproverRole> fixedRoles = new HashSet<>();
+                || (requireApprovers && approvers.size() != 2)
+                || approvers.size() > 2) throw invalid("결재자는 팀장과 부점장 2명이어야 합니다.");
+        Set<RequestApproverRole> fixedRoles = new HashSet<>();
         int previousRole = -1;
         for (var a : approvers) {
             if (a == null
@@ -297,14 +303,13 @@ public class ItBudgetApprovalFacade {
                     || a.eno() == null
                     || a.eno().isBlank()
                     || a.eno().length() > 14) throw invalid("결재자 입력이 올바르지 않습니다.");
-            if (a.role().ordinal() < previousRole
-                    || a.role() != ApproverRole.ADDITIONAL && !fixedRoles.add(a.role()))
+            if (a.role().ordinal() < previousRole || !fixedRoles.add(a.role()))
                 throw invalid("결재 역할 또는 순서가 올바르지 않습니다.");
             previousRole = a.role().ordinal();
         }
         if (requireApprovers
-                && (!fixedRoles.contains(ApproverRole.TEAM_LEAD)
-                        || !fixedRoles.contains(ApproverRole.DEPT_HEAD)))
+                && (!fixedRoles.contains(RequestApproverRole.TEAM_LEAD)
+                        || !fixedRoles.contains(RequestApproverRole.DEPT_HEAD)))
             throw invalid("팀장과 부점장 결재자는 필수입니다.");
         Set<String> keys = new HashSet<>();
         List<SourceRef> allRefs = new ArrayList<>();
@@ -364,7 +369,11 @@ public class ItBudgetApprovalFacade {
                                 a -> {
                                     var p = requiredPerson(people, a.eno(), true);
                                     return new ItBudgetSnapshot.ApprovalPerson(
-                                            a.role(), p.getEno(), p.getUsrNm(), p.getPtCNm(), null);
+                                            ApproverRole.valueOf(a.role().name()),
+                                            p.getEno(),
+                                            p.getUsrNm(),
+                                            p.getPtCNm(),
+                                            null);
                                 })
                         .toList();
         return new ItBudgetSnapshot.ApprovalLine(
@@ -401,7 +410,8 @@ public class ItBudgetApprovalFacade {
                         new Requester(
                                 line.requester().eno(),
                                 line.requester().name(),
-                                line.requester().rank()),
+                                line.requester().rank(),
+                                line.requester().date()),
                         line.approvers().stream()
                                 .map(
                                         p ->

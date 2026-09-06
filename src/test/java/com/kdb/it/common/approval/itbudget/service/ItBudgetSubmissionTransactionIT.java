@@ -367,8 +367,8 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
         var input =
                 new PreviewRequest(
                         List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "ITSA1"),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, "ITSA1")),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "ITSA1"),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "ITSA1")),
                         List.of(
                                 new DocumentRequest(
                                         "combined",
@@ -407,8 +407,8 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
         var input =
                 new PreviewRequest(
                         List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, id),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, id)),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, id),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, id)),
                         List.of(
                                 new DocumentRequest(
                                         "project",
@@ -553,8 +553,8 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
         var input =
                 new PreviewRequest(
                         List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "ITSA1"),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, "ITSA1")),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "ITSA1"),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "ITSA1")),
                         List.of(
                                 new DocumentRequest(
                                         "cost", List.of(new SourceRef(SourceKind.COST, id, 2, 1))),

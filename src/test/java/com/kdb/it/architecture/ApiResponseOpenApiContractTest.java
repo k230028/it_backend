@@ -103,6 +103,21 @@ class ApiResponseOpenApiContractTest {
                 "approvers",
                 "documents");
         assertRequired(document, "ItBudgetSubmissionResponse", "applicationNumbers");
+        assertThat(
+                        document.at(
+                                        "/components/schemas/ItBudgetPreviewRequest/properties/approvers/maxItems")
+                                .asInt())
+                .isEqualTo(2);
+        assertThat(
+                        document.at(
+                                        "/components/schemas/ItBudgetSubmissionRequest/properties/approvers/minItems")
+                                .asInt())
+                .isEqualTo(2);
+        assertThat(
+                        document.at(
+                                        "/components/schemas/ItBudgetSubmissionRequest/properties/approvers/maxItems")
+                                .asInt())
+                .isEqualTo(2);
         assertRequired(
                 document,
                 "ItBudgetApprovalErrorResponse",
@@ -166,7 +181,12 @@ class ApiResponseOpenApiContractTest {
                         .findFirst()
                         .orElseThrow()
                         .getType();
-        assertContract(requester, fields("eno", "name", "rank"), fields("rank"));
+        Schema<?> requesterSchema = resolve(requester);
+        assertThat(requesterSchema.getProperties().keySet())
+                .containsExactlyInAnyOrder("eno", "name", "rank", "date");
+        assertThat(requesterSchema.getRequired()).containsExactlyInAnyOrder("eno", "name", "rank");
+        assertThat(Boolean.TRUE.equals(property(requesterSchema, "rank").getNullable())).isTrue();
+        assertThat(Boolean.TRUE.equals(property(requesterSchema, "date").getNullable())).isTrue();
         assertContract(
                 ItBudgetApprovalDto.Person.class,
                 fields("eno", "name", "rank"),
@@ -268,7 +288,8 @@ class ApiResponseOpenApiContractTest {
                 "costBudget");
         assertPatternProperties(
                 ItBudgetApprovalDto.Cost.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");
-        assertDateProperties(ItBudgetApprovalDto.ApprovalPerson.class, "date");
+        assertFormat(ItBudgetApprovalDto.ApprovalPerson.class, "date", "date-time");
+        assertFormat(ItBudgetApprovalDto.Requester.class, "date", "date-time");
         assertDateProperties(
                 ItBudgetApprovalDto.Project.class, "startDate", "endDate", "feasibilityDate");
         assertDateProperties(
@@ -285,8 +306,9 @@ class ApiResponseOpenApiContractTest {
                 .isFalse();
         assertEnum(ItBudgetApprovalDto.SourceRef.class, "kind", "PROJECT", "COST");
         assertEnum(ItBudgetApprovalDto.SourceDigest.class, "kind", "PROJECT", "COST");
+        assertEnum(ItBudgetApprovalDto.ApproverRef.class, "role", "TEAM_LEAD", "DEPT_HEAD");
         assertEnum(
-                ItBudgetApprovalDto.ApproverRef.class,
+                ItBudgetApprovalDto.ApprovalPerson.class,
                 "role",
                 "TEAM_LEAD",
                 "DEPT_HEAD",

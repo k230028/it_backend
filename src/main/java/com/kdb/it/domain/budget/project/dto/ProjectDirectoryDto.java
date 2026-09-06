@@ -12,8 +12,11 @@ public final class ProjectDirectoryDto {
     public record Response(
             @Schema(description = "사업관리번호") String abusMngNo,
             @Schema(description = "사업명") String abusNm,
+            @Schema(description = "경상사업 여부") String odnYn,
             @Schema(description = "사업현황 코드") String stsTc,
             @Schema(description = "사업현황 코드명") String stsTcNm,
+            @Schema(description = "신청서 상태") String apfSts,
+            @Schema(description = "신청서 상태 코드") String apfStsC,
             @Schema(description = "주관부서명") String svnDpmCNm,
             @Schema(description = "주관부서 담당팀장 사번") String tlrUsid,
             @Schema(description = "주관부서 담당팀장명") String tlrUsidNm,

@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApprovalPerson;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRef;
-import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRole;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ChangedSource;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.CodeLabel;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.DocumentRequest;
@@ -20,6 +20,7 @@ import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewDocume
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewRequest;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.PreviewResponse;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ProjectItem;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.RequestApproverRole;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Requester;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SnapshotApprovalLine;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SnapshotSource;
@@ -76,7 +77,7 @@ class ItBudgetApprovalDtoTest {
             throws Exception {
         PreviewRequest request =
                 new PreviewRequest(
-                        List.of(new ApproverRef(ApproverRole.TEAM_LEAD, "E20001")),
+                        List.of(new ApproverRef(RequestApproverRole.TEAM_LEAD, "E20001")),
                         List.of(
                                 new DocumentRequest(
                                         "doc-1",
@@ -93,6 +94,24 @@ class ItBudgetApprovalDtoTest {
     }
 
     @Test
+    void previewRequestRejectsLegacyAdditionalApproverRoleDuringJsonBinding() {
+        var json =
+                """
+                {
+                  "approvers": [{"role": "ADDITIONAL", "eno": "E20001"}],
+                  "documents": [{
+                    "clientDocumentKey": "doc-1",
+                    "sourceRefs": [{"kind": "PROJECT", "id": "P-001", "revision": 1, "order": 1}]
+                  }]
+                }
+                """;
+
+        assertThatThrownBy(() -> objectMapper.readValue(json, PreviewRequest.class))
+                .isInstanceOf(InvalidFormatException.class)
+                .hasMessageContaining("ADDITIONAL");
+    }
+
+    @Test
     void requestCollections_rejectNullElements() {
         DocumentRequest validDocument =
                 new DocumentRequest(
@@ -101,7 +120,7 @@ class ItBudgetApprovalDtoTest {
                 new PreviewRequest(Collections.singletonList(null), List.of(validDocument));
         PreviewRequest requestWithNullDocument =
                 new PreviewRequest(
-                        List.of(new ApproverRef(ApproverRole.TEAM_LEAD, "E20001")),
+                        List.of(new ApproverRef(RequestApproverRole.TEAM_LEAD, "E20001")),
                         Collections.singletonList(null));
         DocumentRequest requestWithNullSource =
                 new DocumentRequest("doc-1", Collections.singletonList(null));
@@ -130,15 +149,16 @@ class ItBudgetApprovalDtoTest {
                 new SubmissionRequest(
                         DIGEST,
                         "preview-token",
-                        Arrays.asList(null, new ApproverRef(ApproverRole.DEPT_HEAD, "E20002")),
+                        Arrays.asList(
+                                null, new ApproverRef(RequestApproverRole.DEPT_HEAD, "E20002")),
                         List.of(validDocument));
         SubmissionRequest requestWithNullDocument =
                 new SubmissionRequest(
                         DIGEST,
                         "preview-token",
                         List.of(
-                                new ApproverRef(ApproverRole.TEAM_LEAD, "E20001"),
-                                new ApproverRef(ApproverRole.DEPT_HEAD, "E20002")),
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "E20001"),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "E20002")),
                         Collections.singletonList(null));
         SubmissionDocument requestWithNullSource =
                 new SubmissionDocument("doc-1", DIGEST, Collections.singletonList(null));
@@ -342,25 +362,43 @@ class ItBudgetApprovalDtoTest {
     }
 
     @Test
-    void snapshotDates_deserializeAsIsoDatesAndRejectInvalidValues() throws Exception {
-        ApprovalPerson person =
+    void approvalDateTimeAcceptsLegacyDateAndPreservesNewSecondPrecision() throws Exception {
+        ApprovalPerson legacy =
                 objectMapper.readValue(
                         "{\"eno\":\"E20001\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}",
                         ApprovalPerson.class);
+        ApprovalPerson current =
+                objectMapper.readValue(
+                        "{\"eno\":\"E20001\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06T14:25:59\"}",
+                        ApprovalPerson.class);
 
-        assertThat(person.date()).isEqualTo(LocalDate.of(2026, 9, 6));
-        assertThat(objectMapper.writeValueAsString(person)).contains("\"date\":\"2026-09-06\"");
+        assertThat(legacy.date()).isEqualTo(LocalDateTime.of(2026, 9, 6, 0, 0));
+        assertThat(current.date()).isEqualTo(LocalDateTime.of(2026, 9, 6, 14, 25, 59));
+        assertThat(objectMapper.writeValueAsString(current))
+                .contains("\"date\":\"2026-09-06T14:25:59\"");
         assertThatThrownBy(
                         () ->
                                 objectMapper.readValue(
                                         "{\"eno\":\"E20001\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-31\"}",
                                         ApprovalPerson.class))
                 .isInstanceOf(Exception.class);
+        for (String invalidDateTime : List.of("2026-02-30T14:25:59", "2026-09-06T24:00:00")) {
+            assertThatThrownBy(
+                            () ->
+                                    objectMapper.readValue(
+                                            "{\"eno\":\"E20001\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\""
+                                                    + invalidDateTime
+                                                    + "\"}",
+                                            ApprovalPerson.class))
+                    .isInstanceOf(Exception.class);
+        }
     }
 
     @Test
-    void everySnapshotDateField_usesLocalDateRuntimeType() {
-        assertDateType(ApprovalPerson.class, "date");
+    void approvalDecisionUsesDateTimeWhileCalendarFieldsRemainLocalDate() {
+        assertThat(recordComponentType(ApprovalPerson.class, "date"))
+                .isEqualTo(LocalDateTime.class);
+        assertThat(recordComponentType(Requester.class, "date")).isEqualTo(LocalDateTime.class);
         assertDateType(
                 ItBudgetApprovalDto.Project.class, "startDate", "endDate", "feasibilityDate");
         assertDateType(ItBudgetApprovalDto.Cost.class, "exchangeRateBaseDate", "firstDeferralDate");
@@ -387,7 +425,7 @@ class ItBudgetApprovalDtoTest {
         for (List<ApproverRef> approvers :
                 List.of(
                         List.<ApproverRef>of(),
-                        List.of(new ApproverRef(ApproverRole.TEAM_LEAD, "E20001")))) {
+                        List.of(new ApproverRef(RequestApproverRole.TEAM_LEAD, "E20001")))) {
             SubmissionRequest request =
                     new SubmissionRequest(DIGEST, "preview-token", approvers, List.of(document));
 
@@ -404,7 +442,7 @@ class ItBudgetApprovalDtoTest {
                         "doc-1", List.of(new SourceRef(SourceKind.PROJECT, "P-001", 1, 1)));
         PreviewRequest request =
                 new PreviewRequest(
-                        List.of(new ApproverRef(ApproverRole.TEAM_LEAD, "E20001")),
+                        List.of(new ApproverRef(RequestApproverRole.TEAM_LEAD, "E20001")),
                         Collections.nCopies(101, document));
 
         assertThat(validator.validate(request))
@@ -491,5 +529,13 @@ class ItBudgetApprovalDtoTest {
                     .as("%s.%s runtime type", type.getSimpleName(), componentName)
                     .isEqualTo(LocalDate.class);
         }
+    }
+
+    private static Class<?> recordComponentType(Class<?> type, String componentName) {
+        return Arrays.stream(type.getRecordComponents())
+                .filter(component -> component.getName().equals(componentName))
+                .findFirst()
+                .orElseThrow()
+                .getType();
     }
 }

@@ -73,7 +73,7 @@ public class ApprovalLineDelegate {
                 String eno = node.get("eno").textValue();
                 int occurrence = occurrences.merge(eno, 1, Integer::sum);
                 if (targets.getOrDefault(eno, Set.of()).contains(occurrence))
-                    ((ObjectNode) node).put("date", decisionAt.toLocalDate().toString());
+                    ((ObjectNode) node).put("date", decisionAt.format(DATE_FMT));
             }
             capplm.updateDetailContent(parsed.write());
         } else {

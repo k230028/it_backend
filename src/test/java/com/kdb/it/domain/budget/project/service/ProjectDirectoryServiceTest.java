@@ -8,6 +8,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.kdb.it.common.approval.repository.ApplicationMapRepository;
+import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
@@ -30,6 +32,8 @@ class ProjectDirectoryServiceTest {
 
     private ProjectRepository projectRepository;
     private BprojaRepository bprojaRepository;
+    private ApplicationMapRepository applicationMapRepository;
+    private ApplicationRepository applicationRepository;
     private OrganizationRepository organizationRepository;
     private UserRepository userRepository;
     private CodeService codeService;
@@ -39,6 +43,8 @@ class ProjectDirectoryServiceTest {
     void setUp() {
         projectRepository = mock(ProjectRepository.class);
         bprojaRepository = mock(BprojaRepository.class);
+        applicationMapRepository = mock(ApplicationMapRepository.class);
+        applicationRepository = mock(ApplicationRepository.class);
         organizationRepository = mock(OrganizationRepository.class);
         userRepository = mock(UserRepository.class);
         codeService = mock(CodeService.class);
@@ -46,9 +52,44 @@ class ProjectDirectoryServiceTest {
                 new ProjectDirectoryService(
                         projectRepository,
                         bprojaRepository,
+                        applicationMapRepository,
+                        applicationRepository,
                         organizationRepository,
                         userRepository,
                         codeService);
+    }
+
+    @Test
+    @DisplayName("사업 검색 디렉터리는 현재 개정본의 최신 신청서 상태와 경상사업 여부를 반환한다")
+    void findAll_최신신청서_신청서상태와경상사업여부반환() {
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-ORDINARY")
+                        .sno(2)
+                        .lstYn("Y")
+                        .delYn("N")
+                        .odnYn("Y")
+                        .abusNm("경상 유지보수")
+                        .build();
+        ApplicationMapRepository.ApplicationMapView currentApplication =
+                applicationMapView("APF-2026-00000002", "PRJ-ORDINARY", 2);
+        ApplicationMapRepository.ApplicationMapView previousApplication =
+                applicationMapView("APF-2026-00000001", "PRJ-ORDINARY", 1);
+        ApplicationRepository.ApplicationSummaryView summary =
+                applicationSummaryView("APF-2026-00000002", "1");
+        given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+        given(
+                        applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
+                                "BPROJM", List.of("PRJ-ORDINARY")))
+                .willReturn(List.of(currentApplication, previousApplication));
+        given(applicationRepository.findSummaryViewsByApfMngNoIn(List.of("APF-2026-00000002")))
+                .willReturn(List.of(summary));
+
+        ProjectDirectoryDto.Response result = service.findAll().getFirst();
+
+        assertThat(result.odnYn()).isEqualTo("Y");
+        assertThat(result.apfStsC()).isEqualTo("1");
+        assertThat(result.apfSts()).isEqualTo("결재중");
     }
 
     @Test
@@ -81,12 +122,15 @@ class ProjectDirectoryServiceTest {
                             assertThat(entry.abusNm()).isEqualTo("타 부서 디지털 사업");
                             assertThat(entry.stsTc()).isEqualTo("79");
                             assertThat(entry.stsTcNm()).isEqualTo("사업 추진");
+                            assertThat(entry.apfSts()).isNull();
+                            assertThat(entry.apfStsC()).isNull();
                             assertThat(entry.svnDpmCNm()).isEqualTo("리스크관리부");
                             assertThat(entry.tlrUsid()).isEqualTo("10002");
                             assertThat(entry.tlrUsidNm()).isEqualTo("김팀장");
                             assertThat(entry.usid()).isEqualTo("10003");
                             assertThat(entry.usidNm()).isEqualTo("이담당");
                         });
+        verifyNoInteractions(applicationRepository);
     }
 
     @Test
@@ -117,7 +161,13 @@ class ProjectDirectoryServiceTest {
 
         assertThat(service.findAll()).isEmpty();
 
-        verifyNoInteractions(bprojaRepository, organizationRepository, userRepository, codeService);
+        verifyNoInteractions(
+                bprojaRepository,
+                applicationMapRepository,
+                applicationRepository,
+                organizationRepository,
+                userRepository,
+                codeService);
     }
 
     @Test
@@ -249,6 +299,25 @@ class ProjectDirectoryServiceTest {
         UserRepository.UserNameView view = mock(UserRepository.UserNameView.class);
         given(view.getEno()).willReturn(eno);
         given(view.getUsrNm()).willReturn(name);
+        return view;
+    }
+
+    private static ApplicationMapRepository.ApplicationMapView applicationMapView(
+            String applicationId, String projectId, int sequence) {
+        ApplicationMapRepository.ApplicationMapView view =
+                mock(ApplicationMapRepository.ApplicationMapView.class);
+        given(view.getApfDcmNo()).willReturn(applicationId);
+        given(view.getPkColNm()).willReturn(projectId);
+        given(view.getFntTbCrySno()).willReturn(sequence);
+        return view;
+    }
+
+    private static ApplicationRepository.ApplicationSummaryView applicationSummaryView(
+            String applicationId, String statusCode) {
+        ApplicationRepository.ApplicationSummaryView view =
+                mock(ApplicationRepository.ApplicationSummaryView.class);
+        given(view.getApfMngNo()).willReturn(applicationId);
+        given(view.getItPtlApfPrgStsC()).willReturn(statusCode);
         return view;
     }
 
