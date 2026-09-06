@@ -85,6 +85,8 @@ class ApprovalStamperTest {
         assertThat(saved.getFntTbNm()).isEqualTo("BPROJM");
         assertThat(saved.getPkColNm()).isEqualTo("PRJ-2026-0001");
         assertThat(saved.getFntTbCrySno()).isEqualTo(1);
+        // 원천 한 건만 연결하는 스탬프 신청서의 신청서일련번호는 1이다
+        assertThat(saved.getApfSno()).isEqualTo(1L);
     }
 
     @Test

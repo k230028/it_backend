@@ -162,11 +162,14 @@ public class ApplicationPersistenceService {
 
         // 1-1. 원천 데이터 연결 저장 (orcItems 각각에 대해 Cappla 생성)
         // 하나의 신청서가 복수의 원천 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
+        // 신청서일련번호(APF_SNO)는 신청서 안에서 1부터 매긴다 — 원천 연결 건수를 이 순번으로 파악한다.
         if (draft.sources() != null && !draft.sources().isEmpty()) {
+            long apfSno = 1L;
             for (SourceLink item : draft.sources()) {
                 Integer crySno = resolveSourceVersionSno(item);
                 Cappla cappla =
                         Cappla.builder()
+                                .apfSno(apfSno++)
                                 .apfDcmNo(apfMngNo)
                                 .fntTbNm(item.table())
                                 .pkColNm(item.id())

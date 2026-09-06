@@ -240,6 +240,21 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                                                     response.applicationNumbers().getFirst())
                                             .getResultList();
                             assertThat(links).containsExactly("BCOSTM");
+                            // 신청서일련번호(APF_SNO)는 전역 시퀀스가 아니라 신청서마다 1부터 매긴 연번이다
+                            for (String number : response.applicationNumbers()) {
+                                var snos =
+                                        em.createQuery(
+                                                        "select c.apfSno from Cappla c where c.apfDcmNo = :number order by c.apfSno",
+                                                        Long.class)
+                                                .setParameter("number", number)
+                                                .getResultList();
+                                assertThat(snos)
+                                        .isEqualTo(
+                                                java.util.stream.LongStream.rangeClosed(
+                                                                1, snos.size())
+                                                        .boxed()
+                                                        .toList());
+                            }
                             for (int i = 0; i < response.applicationNumbers().size(); i++) {
                                 String number = response.applicationNumbers().get(i);
                                 var stored =

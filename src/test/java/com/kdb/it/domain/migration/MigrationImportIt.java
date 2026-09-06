@@ -628,6 +628,7 @@ class MigrationImportIt {
                                             .build());
                             entityManager.persist(
                                     Cappla.builder()
+                                            .apfSno(1L)
                                             .apfDcmNo(applicationId)
                                             .fntTbNm("BCOSTM")
                                             .pkColNm(costNo)

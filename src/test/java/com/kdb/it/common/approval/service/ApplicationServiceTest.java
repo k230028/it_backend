@@ -1234,6 +1234,8 @@ class ApplicationServiceTest {
         assertThat(captor.getAllValues())
                 .extracting(value -> value.getPkColNm())
                 .containsExactly("PRJ-2026-0001", "PRJ-2026-0002", "PRJ-2026-0003");
+        // 신청서일련번호는 시퀀스가 아니라 신청서 안에서 1부터 매긴다
+        assertThat(captor.getAllValues()).extracting(Cappla::getApfSno).containsExactly(1L, 2L, 3L);
     }
 
     @Test

@@ -171,8 +171,10 @@ public class ApprovalStamper {
                         .build();
         applicationRepository.save(application);
 
+        // 스탬프 신청서는 원천 한 건만 연결하므로 신청서일련번호는 1이다.
         Cappla applicationMap =
                 Cappla.builder()
+                        .apfSno(1L)
                         .apfDcmNo(apfDcmNo)
                         .fntTbNm(fntTbNm)
                         .pkColNm(pkColNm)

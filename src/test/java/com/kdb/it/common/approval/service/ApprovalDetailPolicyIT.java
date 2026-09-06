@@ -103,9 +103,13 @@ class ApprovalDetailPolicyIT {
         return id;
     }
 
+    /** 신청서일련번호(APF_SNO)는 신청서 안에서 1부터 매기는 순번이라 신청서별로 센다. */
+    private final java.util.Map<String, Long> nextApfSno = new java.util.HashMap<>();
+
     private void source(String id, String table, String key, Integer revision, String deleted) {
         maps.save(
                 Cappla.builder()
+                        .apfSno(nextApfSno.merge(id, 1L, Long::sum))
                         .apfDcmNo(id)
                         .fntTbNm(table)
                         .pkColNm(key)

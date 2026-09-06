@@ -271,6 +271,7 @@ class ItBudgetLedgerLockingIT extends AbstractOracleRepositoryTest {
                         .build());
         em.persist(
                 Cappla.builder()
+                        .apfSno(1L)
                         .apfDcmNo(id)
                         .fntTbNm(table(project))
                         .pkColNm(id)

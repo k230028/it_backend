@@ -211,9 +211,13 @@ class ApplicationReadProjectionIt extends AbstractOracleRepositoryTest {
                         .build());
     }
 
+    /** 신청서일련번호(APF_SNO)는 신청서 안에서 1부터 매기는 순번이라 신청서별로 센다. */
+    private final java.util.Map<String, Long> nextApfSno = new java.util.HashMap<>();
+
     private void persistMap(String apfMngNo, String table, String pk, int sno) {
         entityManager.persist(
                 Cappla.builder()
+                        .apfSno(nextApfSno.merge(apfMngNo, 1L, Long::sum))
                         .apfDcmNo(apfMngNo)
                         .fntTbNm(table)
                         .pkColNm(pk)

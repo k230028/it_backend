@@ -30,13 +30,14 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class Cappla extends BaseEntity {
 
-    /** 신청서일련번호: Oracle 시퀀스(SQ_TPRMPP_CAPPLA_1) 자동 채번. APF_DCM_NO와 함께 물리 복합 PK를 구성합니다. */
+    /**
+     * 신청서일련번호: 신청서(APF_DCM_NO) 안에서 원천 연결 행에 1부터 매기는 순번입니다. APF_DCM_NO와 함께 물리 복합 PK를 구성하며, 한 신청서에 몇
+     * 건의 원천(사업·전산업무비)이 묶였는지 이 값으로 파악합니다.
+     *
+     * <p>시퀀스로 채번하지 않고 생성 지점({@code ApplicationPersistenceService}, {@code ApprovalStamper})이 같은
+     * 트랜잭션 안에서 직접 할당합니다. 과거 시퀀스 채번 행(전역 일련번호)은 그대로 두며 PK 유일성에는 영향이 없습니다.
+     */
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_TPRMPP_CAPPLA_1")
-    @SequenceGenerator(
-            name = "SQ_TPRMPP_CAPPLA_1",
-            sequenceName = "SQ_TPRMPP_CAPPLA_1",
-            allocationSize = 1)
     @Column(name = "APF_SNO", nullable = false, comment = "신청서일련번호")
     private Long apfSno;
 
