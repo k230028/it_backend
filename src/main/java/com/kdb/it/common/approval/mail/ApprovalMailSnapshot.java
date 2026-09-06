@@ -1,14 +1,15 @@
 package com.kdb.it.common.approval.mail;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader.ParsedSnapshot;
 import java.math.BigDecimal;
 import java.util.List;
 
 /**
  * 결재요청 메일이 읽는 신청서 상세 스냅샷.
  *
- * <p>{@code Capplm.dcdReqInf}에 저장된 신청서 JSON({@code form}/{@code projects}/{@code costs}/{@code
- * approvalLine}) 중 총괄표에 필요한 두 배열만 받는다. 프론트가 필드를 추가해도 메일 발송이 깨지지 않도록 모르는 필드는 무시한다.
+ * <p>공통 reader가 검증한 v2 payload 또는 기존 v1 배열을 총괄표 모델로 변환한다. 모르는 필드를 무시하는 규칙은 v1 변환에만 적용하며, v2는
+ * reader의 깊은 구조·무결성 검증을 먼저 통과해야 한다.
  *
  * @param projects 정보화사업·경상사업 목록 (경상 구분은 {@code odnYn})
  * @param costs 전산업무비 목록
@@ -25,6 +26,31 @@ public record ApprovalMailSnapshot(List<ProjectItem> projects, List<CostItem> co
     /** 스냅샷이 없거나 읽지 못했을 때 쓰는 빈 값. */
     public static ApprovalMailSnapshot empty() {
         return new ApprovalMailSnapshot(List.of(), List.of());
+    }
+
+    /** 공통 reader가 한 번 읽고 검증한 문서만 메일 요약으로 변환한다. v1의 얕은 변환 계약은 유지한다. */
+    public static ApprovalMailSnapshot from(ParsedSnapshot parsed) {
+        if (parsed.version() == 1) return parsed.legacyValue(ApprovalMailSnapshot.class);
+        var payload = parsed.payload();
+        return new ApprovalMailSnapshot(
+                payload.projects().stream()
+                        .map(
+                                project ->
+                                        new ProjectItem(
+                                                project.name(),
+                                                project.ordinaryYn(),
+                                                project.currentRequestAmount(),
+                                                project.assetBudget(),
+                                                project.costBudget()))
+                        .toList(),
+                payload.costs().stream()
+                        .map(
+                                cost ->
+                                        new CostItem(
+                                                cost.name(),
+                                                cost.totalAmount(),
+                                                cost.assetBudget()))
+                        .toList());
     }
 
     /** null 금액을 0으로 접는다. 스냅샷은 미입력 금액을 null로 남긴다. */

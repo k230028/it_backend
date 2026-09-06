@@ -17,6 +17,24 @@ class ApprovalMailRendererTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ApprovalMailRenderer renderer = new ApprovalMailRenderer(objectMapper);
 
+    @Test
+    void validV2UsesVerifiedPayloadSummary() throws Exception {
+        String raw =
+                com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.v2().toString();
+        assertThat(render(raw).html()).contains("사업 요약", "계약 요약", "125 원");
+    }
+
+    private String renderContext(ApprovalMailContext context) {
+        ApprovalMailSnapshot summary =
+                context == null || context.detailJson() == null || context.detailJson().isBlank()
+                        ? ApprovalMailSnapshot.empty()
+                        : ApprovalMailSnapshot.from(
+                                com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture
+                                        .reader()
+                                        .read(context.detailJson()));
+        return renderer.renderPayloadJson(context, summary);
+    }
+
     private static final String SNAPSHOT =
             """
             {
@@ -54,7 +72,7 @@ class ApprovalMailRendererTest {
     }
 
     private MailPayload render(String title, String detailJson) throws Exception {
-        String json = renderer.renderPayloadJson(context(title, detailJson));
+        String json = renderContext(context(title, detailJson));
         assertThat(json).isNotNull();
         return objectMapper.readValue(json, MailPayload.class);
     }
@@ -186,8 +204,7 @@ class ApprovalMailRendererTest {
                         .collect(Collectors.joining(","));
 
         String json =
-                renderer.renderPayloadJson(
-                        context("{\"projects\": [" + manyProjects + "], \"costs\": []}"));
+                renderContext(context("{\"projects\": [" + manyProjects + "], \"costs\": []}"));
 
         assertThat(json).isNotNull();
         assertThat(json.getBytes(StandardCharsets.UTF_8).length)
@@ -221,7 +238,7 @@ class ApprovalMailRendererTest {
                         longDetailUrl,
                         SNAPSHOT);
 
-        String json = renderer.renderPayloadJson(context);
+        String json = renderContext(context);
         assertThat(json).isNotNull();
         String html = objectMapper.readValue(json, MailPayload.class).html();
 
@@ -250,7 +267,7 @@ class ApprovalMailRendererTest {
                         "https://it.kdb.co.kr/approval/APF-2026-0001",
                         SNAPSHOT);
 
-        assertThat(renderer.renderPayloadJson(context)).isNull();
+        assertThat(renderContext(context)).isNull();
     }
 
     @Test
@@ -269,7 +286,7 @@ class ApprovalMailRendererTest {
     @Test
     @DisplayName("스냅샷이 없거나 깨졌으면 개요만 렌더링한다")
     void html_missingOrBrokenSnapshot_rendersOverviewOnly() throws Exception {
-        for (String broken : new String[] {null, "", "  ", "{broken JSON"}) {
+        for (String broken : new String[] {null, "", "  "}) {
             String html = render(broken).html();
 
             assertThat(html).contains("APF-2026-0001").contains("전산예산 신청서");
@@ -284,7 +301,7 @@ class ApprovalMailRendererTest {
                 new ApprovalMailContext(
                         "APF-1", "제목", null, null, null, "https://x/approval/APF-1", SNAPSHOT);
 
-        String json = renderer.renderPayloadJson(context);
+        String json = renderContext(context);
 
         assertThat(json).isNotNull();
         assertThat(objectMapper.readValue(json, MailPayload.class).html()).contains("APF-1");
@@ -293,7 +310,7 @@ class ApprovalMailRendererTest {
     @Test
     @DisplayName("context가 null이면 예외 없이 null을 반환한다")
     void renderPayloadJson_nullContext_returnsNull() {
-        assertThat(renderer.renderPayloadJson(null)).isNull();
+        assertThat(renderContext(null)).isNull();
     }
 
     @Test
@@ -314,7 +331,7 @@ class ApprovalMailRendererTest {
                         hugeDetailUrl,
                         SNAPSHOT);
 
-        assertThat(renderer.renderPayloadJson(context)).isNull();
+        assertThat(renderContext(context)).isNull();
     }
 
     @Test

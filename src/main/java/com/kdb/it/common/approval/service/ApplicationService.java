@@ -609,8 +609,8 @@ public class ApplicationService {
             throw new AccessDeniedException("회수 권한이 없습니다.");
         }
 
-        capplm.updateStatus(ApprovalStatus.RECALLED);
         approvalLineDelegate.applyRecallInfo(capplm, currentEno, request.getRecallOpnn());
+        capplm.updateStatus(ApprovalStatus.RECALLED);
 
         for (Cdecim a : approvers) {
             if (DecisionStatus.isPendingCode(a.getItPtlDcdStsC())) {

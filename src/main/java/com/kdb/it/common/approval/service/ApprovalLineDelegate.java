@@ -1,17 +1,21 @@
 package com.kdb.it.common.approval.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader.ParsedSnapshot;
 import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.exception.DataCorruptionException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,189 +26,187 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 결재선 JSON 업데이트 위임 서비스
- *
- * <p>{@code ApplicationService.updateApprovalLineInDetail}이 private @Transactional로 선언되어 Spring AOP
- * 프록시를 우회하던 문제를 해결하기 위해 별도 빈으로 분리합니다. 실패 시 예외를 재발생시켜 트랜잭션 롤백을 보장합니다.
- */
+/** 저장 문서를 검증한 뒤 결재선 상태만 변경한다. 손상 문서는 예외로 호출 트랜잭션을 롤백한다. */
 @Service
 @RequiredArgsConstructor
 public class ApprovalLineDelegate {
-
-    private static final Logger log = LoggerFactory.getLogger(ApprovalLineDelegate.class);
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     private final ObjectMapper objectMapper;
+    private final ItBudgetSnapshotReader snapshotReader;
 
     /**
-     * 신청서 상세 JSON 내 결재선 정보를 업데이트합니다.
+     * 승인된 CDECIM 순번에 해당하는 결재일을 기록한다.
      *
-     * <p>JSON 파싱 실패 등 예외 발생 시 {@code CustomGeneralException}으로 재발생시켜 호출 트랜잭션이 롤백되도록 합니다.
-     *
-     * @param capplm 결재 처리 중인 신청서 마스터 엔티티
-     * @param allApprovers 해당 신청서의 전체 결재자 목록
-     * @param approvedItems 이번에 승인된 결재 항목 목록
-     * @throws CustomGeneralException JSON 파싱·직렬화 실패 시
+     * @throws DataCorruptionException 문서 무결성 또는 필요한 결재선·대상자가 손상된 경우
      */
     @Transactional
     public void doUpdate(Capplm capplm, List<Cdecim> allApprovers, List<Cdecim> approvedItems) {
-        String detailJson = capplm.getDcdReqInf();
-        if (detailJson == null || detailJson.isEmpty()) {
-            return;
-        }
-
-        try {
-            JsonNode rootNode = objectMapper.readTree(detailJson);
-            JsonNode approvalLineNode = rootNode.path("approvalLine");
-
-            if (approvalLineNode.isMissingNode() || !approvalLineNode.isObject()) {
-                return;
+        boolean required =
+                inProgress(capplm) || !allApprovers.isEmpty() || !approvedItems.isEmpty();
+        ParsedSnapshot parsed = read(capplm, required);
+        if (parsed == null) return;
+        ObjectNode line = line(parsed, required);
+        if (line == null) return;
+        Map<String, Set<Integer>> targets = buildTargetOccurrences(allApprovers, approvedItems);
+        if (parsed.version() == 2) {
+            List<JsonNode> nodes = new ArrayList<>();
+            line.get("approvers").forEach(nodes::add);
+            validateTargets(nodes, targets, "eno");
+            Map<String, Integer> occurrences = new HashMap<>();
+            for (JsonNode node : nodes) {
+                String eno = node.get("eno").textValue();
+                int occurrence = occurrences.merge(eno, 1, Integer::sum);
+                if (targets.getOrDefault(eno, Set.of()).contains(occurrence))
+                    ((ObjectNode) node).put("date", LocalDate.now().toString());
             }
-
-            Map<String, Set<Integer>> targetOccurrences =
-                    buildTargetOccurrences(allApprovers, approvedItems);
-
-            boolean updated = applyDateToMatchingNodes(approvalLineNode, targetOccurrences);
-
-            if (updated) {
-                capplm.updateDetailContent(objectMapper.writeValueAsString(rootNode));
+            capplm.updateDetailContent(parsed.write());
+        } else {
+            if (required) {
+                List<ObjectNode> nodes = fixedApproverNodes(line);
+                if (line.get("additionalApprovers") instanceof ArrayNode additions)
+                    nodes.addAll(additionalApproverNodes(additions));
+                validateTargets(new ArrayList<>(nodes), targets, "id");
             }
-
-        } catch (JsonProcessingException e) {
-            log.error("결재선 JSON 업데이트 실패 - 신청관리번호: {}", capplm.getApfMngNo(), e);
-            throw new CustomGeneralException("결재선 JSON 업데이트 실패: " + capplm.getApfMngNo(), e);
+            if (applyDateToMatchingNodes(line, targets)) capplm.updateDetailContent(parsed.write());
         }
     }
 
-    /**
-     * 신청서 상세 JSON에 회수 정보를 기록한다.
-     *
-     * <p>JSON 루트에 {@code recallInfo} 노드를 추가/갱신합니다. 기존 JSON이 없거나 빈 문자열이면 새 ObjectNode로 시작합니다.
-     *
-     * @param capplm 회수 대상 신청서
-     * @param recallerEno 회수자 사번
-     * @param recallOpnn 회수 사유
-     * @throws IllegalStateException JSON 직렬화/역직렬화 실패 시
-     */
+    /** 회수 정보를 기록한다. v2 payload 무결성 실패는 상태 변경을 차단한다. */
     @Transactional
     public void applyRecallInfo(Capplm capplm, String recallerEno, String recallOpnn) {
-        String json = capplm.getDcdReqInf();
-        try {
-            ObjectNode root =
-                    (json == null || json.isBlank())
-                            ? objectMapper.createObjectNode()
-                            : (ObjectNode) objectMapper.readTree(json);
-            ObjectNode recallNode = objectMapper.createObjectNode();
-            recallNode.put("recallerEno", recallerEno);
-            recallNode.put("recallDtm", LocalDateTime.now().toString());
-            recallNode.put("recallOpnn", recallOpnn);
-            root.set("recallInfo", recallNode);
-            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
-        } catch (JsonProcessingException | ClassCastException e) {
-            // ClassCastException: 저장된 JSON이 객체가 아닌 배열·스칼라면 ObjectNode 캐스팅이 실패한다.
-            throw new IllegalStateException("회수 정보 JSON 갱신 실패", e);
-        }
+        String raw = capplm.getDcdReqInf();
+        ParsedSnapshot parsed = snapshotReader.read(raw == null || raw.isBlank() ? "{}" : raw);
+        if (inProgress(capplm)) line(parsed, true);
+        parsed.recall(recallerEno, recallOpnn);
+        capplm.updateDetailContent(parsed.write());
     }
 
-    /** 추가 결재자 정보를 신청서 상세 JSON의 결재선 뒤에 추가합니다. */
+    /** IAM에서 해석한 결재자 정보를 뒤에 추가한다. v2의 필수 표시 값 누락은 데이터 오류다. */
     @Transactional
     public void addApproverToDetail(Capplm capplm, String eno, String name, String rank) {
-        String json = capplm.getDcdReqInf();
-        if (json == null || json.isBlank()) return;
-        try {
-            JsonNode root = objectMapper.readTree(json);
-            JsonNode line = root.path("approvalLine");
-            if (!(line instanceof ObjectNode lineObject)) return;
-            ArrayNode additions = lineObject.withArray("additionalApprovers");
+        ParsedSnapshot parsed = read(capplm, inProgress(capplm));
+        if (parsed == null) return;
+        ObjectNode line = line(parsed, inProgress(capplm));
+        if (line == null) return;
+        if (parsed.version() == 2) {
+            ((ArrayNode) line.get("approvers")).add(v2Approver(eno, name, rank));
+        } else {
             ObjectNode approver = objectMapper.createObjectNode();
             approver.put("name", name == null ? "" : name);
             approver.put("rank", rank == null ? "" : rank);
             approver.put("date", "");
             approver.put("id", eno);
-            additions.add(approver);
-            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
-        } catch (JsonProcessingException e) {
-            throw new CustomGeneralException("추가 결재선 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
+            line.withArray("additionalApprovers").add(approver);
+            if (line.get("order") instanceof ArrayNode order) order.add(eno);
         }
+        capplm.updateDetailContent(parsed.write());
     }
 
-    /** 신청서 상세 JSON에서 추가 결재자 배열의 지정 항목을 삭제합니다. */
+    /** CDECIM 전체 결재선의 인덱스로 v1 정적·추가 노드 또는 v2 결재자를 삭제한다. */
     @Transactional
-    public void removeApproverFromDetail(Capplm capplm, int addedIndex) {
-        String json = capplm.getDcdReqInf();
-        if (json == null || json.isBlank()) return;
-        try {
-            JsonNode root = objectMapper.readTree(json);
-            JsonNode line = root.path("approvalLine");
-            if (!(line instanceof ObjectNode lineObject)) return;
-            JsonNode additions = lineObject.get("additionalApprovers");
-            if (additions instanceof ArrayNode array
-                    && addedIndex >= 0
-                    && addedIndex < array.size()) {
-                array.remove(addedIndex);
-                capplm.updateDetailContent(objectMapper.writeValueAsString(root));
+    public void removeApproverFromDetail(Capplm capplm, int orderedIndex) {
+        ParsedSnapshot parsed = read(capplm, inProgress(capplm));
+        if (parsed == null) return;
+        ObjectNode line = line(parsed, inProgress(capplm));
+        if (line == null) return;
+        if (parsed.version() == 1) {
+            List<ObjectNode> nodes = legacyNodesInStoredOrder(line);
+            if (orderedIndex < 0 || orderedIndex >= nodes.size()) {
+                if (inProgress(capplm)) throw new DataCorruptionException("삭제할 결재선 항목이 없습니다.");
+                return;
             }
-        } catch (JsonProcessingException e) {
-            throw new CustomGeneralException("추가 결재선 JSON 삭제 실패: " + capplm.getApfMngNo(), e);
+            ObjectNode removed = nodes.remove(orderedIndex);
+            removeLegacyNode(line, removed);
+            if (line.has("order"))
+                setLegacyOrder(line, nodes.stream().map(this::approverId).toList());
+            capplm.updateDetailContent(parsed.write());
+            return;
+        }
+        JsonNode additions = line.get("approvers");
+        if (additions instanceof ArrayNode array
+                && orderedIndex >= 0
+                && orderedIndex < array.size()) {
+            array.remove(orderedIndex);
+            capplm.updateDetailContent(parsed.write());
+        } else {
+            throw new DataCorruptionException("삭제할 결재선 항목이 없습니다.");
         }
     }
 
-    /** 신청서 상세 JSON에 현재 결재선 순서를 기록합니다. */
+    /** v2는 표시 정보·승인일을 포함한 노드를 재배치하며 v1은 기존 order 배열을 갱신한다. */
     @Transactional
     public void updateApprovalOrder(Capplm capplm, List<Cdecim> orderedApprovers) {
-        String json = capplm.getDcdReqInf();
-        if (json == null || json.isBlank()) return;
-        try {
-            JsonNode root = objectMapper.readTree(json);
-            JsonNode line = root.path("approvalLine");
-            if (!(line instanceof ObjectNode lineObject)) return;
-            ArrayNode order = objectMapper.createArrayNode();
-            orderedApprovers.forEach(approver -> order.add(approver.getDcrEno()));
-            lineObject.set("order", order);
-            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
-        } catch (JsonProcessingException e) {
-            throw new CustomGeneralException("결재선 순서 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
+        ParsedSnapshot parsed = read(capplm, inProgress(capplm));
+        if (parsed == null) return;
+        ObjectNode line = line(parsed, inProgress(capplm));
+        if (line == null) return;
+        if (parsed.version() == 2) {
+            Map<String, ArrayDeque<JsonNode>> byEno = new HashMap<>();
+            for (JsonNode person : line.get("approvers"))
+                byEno.computeIfAbsent(person.get("eno").textValue(), ignored -> new ArrayDeque<>())
+                        .add(person);
+            ArrayNode ordered = objectMapper.createArrayNode();
+            for (Cdecim approver : orderedApprovers) {
+                var candidates = byEno.get(approver.getDcrEno());
+                if (candidates == null || candidates.isEmpty())
+                    throw new DataCorruptionException("결재선 순서와 저장 사용자가 일치하지 않습니다.");
+                ordered.add(candidates.removeFirst());
+            }
+            if (byEno.values().stream().anyMatch(values -> !values.isEmpty()))
+                throw new DataCorruptionException("결재선 순서에서 사용자가 누락되었습니다.");
+            line.set("approvers", ordered);
+        } else {
+            setLegacyOrder(line, orderedApprovers.stream().map(Cdecim::getDcrEno).toList());
         }
+        capplm.updateDetailContent(parsed.write());
     }
 
     /**
-     * 상세 JSON의 완료 결재자 노드는 유지하고 미결재 결재자 노드만 교체한다.
+     * 완료 결재자는 보존하고 미결재 구간은 IAM 사용자 정보로 교체한다.
      *
-     * <p>정적 결재자 노드 뒤의 {@code additionalApprovers} 배열은 전체 결재선 길이에 맞춰 조정한다. 결재선 정보가 없는 기존 신청서식은 저장
-     * 내용을 바꾸지 않는다.
-     *
-     * @param capplm 상세 JSON을 갱신할 신청서
-     * @param orderedApprovers 완료 결재자를 포함한 최종 결재선 순서
-     * @param replacementUsers 미결재 구간에 배치할 사용자 정보
-     * @throws CustomGeneralException 상세 JSON을 파싱하거나 직렬화하지 못하면 발생
+     * @throws DataCorruptionException 문서·완료 결재선·새 사용자 표시정보가 잘못된 경우
      */
     @Transactional
     public void replacePendingApproversInDetail(
             Capplm capplm, List<Cdecim> orderedApprovers, List<CuserI> replacementUsers) {
-        String json = capplm.getDcdReqInf();
-        if (json == null || json.isBlank()) return;
-        try {
-            JsonNode root = objectMapper.readTree(json);
-            JsonNode line = root.path("approvalLine");
-            if (!(line instanceof ObjectNode lineObject)) return;
-
-            int completedCount = completedPrefixCount(orderedApprovers);
+        ParsedSnapshot parsed = read(capplm, inProgress(capplm));
+        if (parsed == null) return;
+        ObjectNode lineObject = line(parsed, inProgress(capplm));
+        if (lineObject == null) return;
+        int completedCount = completedPrefixCount(orderedApprovers);
+        if (parsed.version() == 2) {
+            JsonNode current = lineObject.get("approvers");
+            if (current.size() < completedCount
+                    || replacementUsers.size() != orderedApprovers.size() - completedCount)
+                throw new DataCorruptionException("교체할 결재선 구간이 올바르지 않습니다.");
+            ArrayNode replaced = objectMapper.createArrayNode();
+            for (int index = 0; index < completedCount; index++) {
+                JsonNode node = current.get(index);
+                if (!orderedApprovers.get(index).getDcrEno().equals(node.get("eno").textValue()))
+                    throw new DataCorruptionException("완료 결재선 사용자가 일치하지 않습니다.");
+                replaced.add(node);
+            }
+            for (int index = 0; index < replacementUsers.size(); index++) {
+                CuserI user = replacementUsers.get(index);
+                if (!user.getEno().equals(orderedApprovers.get(completedCount + index).getDcrEno()))
+                    throw new DataCorruptionException("교체 결재자 정보가 일치하지 않습니다.");
+                replaced.add(v2Approver(user.getEno(), user.getUsrNm(), user.getPtCNm()));
+            }
+            lineObject.set("approvers", replaced);
+        } else {
             List<ObjectNode> fixedApproverNodes = fixedApproverNodes(lineObject);
             ArrayNode additionalApprovers = lineObject.withArray("additionalApprovers");
             List<ObjectNode> additionalApproverNodes = additionalApproverNodes(additionalApprovers);
             List<ObjectNode> canonicalNodes = new ArrayList<>(fixedApproverNodes);
             canonicalNodes.addAll(additionalApproverNodes);
             List<ObjectNode> logicalNodes = nodesInStoredOrder(lineObject, canonicalNodes);
-            if (logicalNodes.size() > orderedApprovers.size()) {
+            if (logicalNodes.size() > orderedApprovers.size())
                 logicalNodes = new ArrayList<>(logicalNodes.subList(0, orderedApprovers.size()));
-            }
             while (logicalNodes.size() < orderedApprovers.size()) {
                 ObjectNode addedNode = objectMapper.createObjectNode();
                 addedNode.put("date", "");
@@ -212,19 +214,118 @@ public class ApprovalLineDelegate {
                 additionalApproverNodes.add(addedNode);
                 logicalNodes.add(addedNode);
             }
-
-            for (int orderIndex = completedCount;
-                    orderIndex < orderedApprovers.size();
-                    orderIndex++) {
-                CuserI replacementUser = replacementUsers.get(orderIndex - completedCount);
-                updateApproverNode(logicalNodes.get(orderIndex), replacementUser);
-            }
+            for (int index = completedCount; index < orderedApprovers.size(); index++)
+                updateApproverNode(
+                        logicalNodes.get(index), replacementUsers.get(index - completedCount));
             retainSelectedAdditionalApprovers(
                     additionalApprovers, additionalApproverNodes, logicalNodes);
-            capplm.updateDetailContent(objectMapper.writeValueAsString(root));
-        } catch (JsonProcessingException e) {
-            throw new CustomGeneralException("미결재 결재선 JSON 갱신 실패: " + capplm.getApfMngNo(), e);
+            if (lineObject.has("order"))
+                setLegacyOrder(
+                        lineObject, orderedApprovers.stream().map(Cdecim::getDcrEno).toList());
         }
+        capplm.updateDetailContent(parsed.write());
+    }
+
+    private ObjectNode v2Approver(String eno, String name, String rank) {
+        ObjectNode approver = objectMapper.createObjectNode();
+        approver.put("eno", eno);
+        approver.put("name", name);
+        approver.put("rank", rank);
+        approver.putNull("date");
+        return approver;
+    }
+
+    private List<ObjectNode> legacyNodesInStoredOrder(ObjectNode line) {
+        List<ObjectNode> nodes = fixedApproverNodes(line);
+        if (line.get("additionalApprovers") instanceof ArrayNode additional)
+            nodes.addAll(additionalApproverNodes(additional));
+        return nodesInStoredOrder(line, nodes);
+    }
+
+    private void setLegacyOrder(ObjectNode line, List<String> enos) {
+        ArrayNode order = objectMapper.createArrayNode();
+        enos.forEach(order::add);
+        line.set("order", order);
+    }
+
+    private void removeLegacyNode(ObjectNode line, ObjectNode target) {
+        Iterator<String> names = line.fieldNames();
+        while (names.hasNext()) {
+            String name = names.next();
+            JsonNode value = line.get(name);
+            if (value == target) {
+                line.remove(name);
+                return;
+            }
+            if (value instanceof ArrayNode array) {
+                for (int index = 0; index < array.size(); index++) {
+                    if (array.get(index) == target) {
+                        array.remove(index);
+                        return;
+                    }
+                }
+            }
+        }
+        throw new DataCorruptionException("삭제할 결재선 노드가 없습니다.");
+    }
+
+    private ParsedSnapshot read(Capplm capplm, boolean required) {
+        String raw = capplm.getDcdReqInf();
+        if (!required && (raw == null || raw.isBlank())) return null;
+        return snapshotReader.read(raw);
+    }
+
+    private static boolean inProgress(Capplm capplm) {
+        return ApprovalStatus.IN_PROGRESS.code().equals(capplm.getItPtlApfPrgStsC());
+    }
+
+    private ObjectNode line(ParsedSnapshot parsed, boolean required) {
+        ObjectNode line = parsed.approvalLine(required);
+        if (line != null && required && parsed.version() == 1) validateLegacyLine(line);
+        return line;
+    }
+
+    private void validateLegacyLine(ObjectNode line) {
+        List<String> ids = new ArrayList<>();
+        Iterator<String> fields = line.fieldNames();
+        while (fields.hasNext()) {
+            String name = fields.next();
+            if ("drafter".equals(name) || "order".equals(name) || "caption".equals(name)) continue;
+            JsonNode node = line.get(name);
+            if (node.isArray()) {
+                for (JsonNode person : node) ids.add(requiredLegacyId(person));
+            } else {
+                ids.add(requiredLegacyId(node));
+            }
+        }
+        if (ids.isEmpty()) throw new DataCorruptionException("필수 결재선 사용자가 없습니다.");
+        if (line.has("order")) {
+            JsonNode order = line.get("order");
+            List<String> remaining = new ArrayList<>(ids);
+            if (!order.isArray()) throw new DataCorruptionException("결재 순서 형식이 올바르지 않습니다.");
+            for (JsonNode id : order)
+                if (!id.isTextual() || !remaining.remove(id.textValue()))
+                    throw new DataCorruptionException("결재 순서 사용자가 일치하지 않습니다.");
+            if (!remaining.isEmpty()) throw new DataCorruptionException("결재 순서에서 사용자가 누락되었습니다.");
+        }
+    }
+
+    private String requiredLegacyId(JsonNode person) {
+        if (!person.isObject()
+                || !person.path("id").isTextual()
+                || person.path("id").textValue().isBlank())
+            throw new DataCorruptionException("필수 결재선 사용자 정보가 손상되었습니다.");
+        return person.get("id").textValue();
+    }
+
+    private void validateTargets(
+            List<JsonNode> nodes, Map<String, Set<Integer>> targets, String idField) {
+        Map<String, Integer> counts = new HashMap<>();
+        for (JsonNode node : nodes) counts.merge(node.path(idField).asText(), 1, Integer::sum);
+        for (var target : targets.entrySet())
+            for (int occurrence : target.getValue())
+                if (counts.getOrDefault(target.getKey(), 0) < occurrence)
+                    throw new DataCorruptionException("승인 대상 결재선 사용자가 없습니다.");
     }
 
     private int completedPrefixCount(List<Cdecim> orderedApprovers) {

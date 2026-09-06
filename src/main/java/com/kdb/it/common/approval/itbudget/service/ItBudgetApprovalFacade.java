@@ -537,9 +537,7 @@ public class ItBudgetApprovalFacade {
 
     private Payload publicPayload(ItBudgetSnapshot.Payload payload) {
         try {
-            // canonical writer가 3/4/0 scale의 plain 숫자를 출력하고 고정 DTO가 그 토큰을 String으로 읽는다.
-            // 해시는 변환 이전 typed payload만 사용한다. 공개 문자열 JSON의 해시와 혼용하지 않는다.
-            return mapper.readValue(canonical.write(payload), Payload.class);
+            return ItBudgetSnapshotCodec.toPublic(mapper, canonical, payload);
         } catch (JsonProcessingException exception) {
             throw invalid("스냅샷 공개 값 변환에 실패했습니다.");
         }

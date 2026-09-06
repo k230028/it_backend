@@ -13,7 +13,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 /**
  * 결재요청 메일의 제목과 본문 HTML을 만든다.
@@ -54,16 +53,17 @@ public class ApprovalMailRenderer {
      * 극단값(예: 매우 긴 제목)에 대비한 안전망이며 WARN은 그 경우를 진단하기 위한 것이다.
      *
      * @param context 렌더링 입력. {@code null}이면 렌더링을 시도하지 않는다.
+     * @param snapshot 공통 reader로 검증·변환한 업무 요약. 손상 문서는 provider가 빈 요약으로 전달한다.
      * @return {@code {"subject":...,"html":...}} JSON. {@code context}가 null이거나, 렌더링이 실패하거나, 직렬화된
      *     JSON이 {@link #CONTENTS_BUDGET_BYTES}를 넘으면 {@code null}(호출자는 기존 기본 본문으로 폴백)
      */
-    public String renderPayloadJson(ApprovalMailContext context) {
+    public String renderPayloadJson(ApprovalMailContext context, ApprovalMailSnapshot snapshot) {
         if (context == null) {
             return null;
         }
         try {
             String subject = subject(context);
-            String html = html(context, subject);
+            String html = html(context, subject, snapshot);
             MailPayload payload = new MailPayload(subject, html);
             String json = objectMapper.writeValueAsString(payload);
             int jsonBytes = MailHtml.utf8Length(json);
@@ -76,7 +76,7 @@ public class ApprovalMailRenderer {
             }
             return json;
         } catch (JsonProcessingException | RuntimeException e) {
-            log.warn("결재요청 메일 렌더링 실패: apfMngNo={}, 사유={}", context.apfMngNo(), e.toString());
+            log.warn("결재요청 메일 렌더링 실패: apfMngNo={}", context.apfMngNo());
             return null;
         }
     }
@@ -107,9 +107,8 @@ public class ApprovalMailRenderer {
      * @param subject 이미 조립된 메일 제목. 목록 packer가 후보 크기를 잴 때 {@link MailPayload} envelope에 그대로 실어
      *     재직렬화하므로 여기서 다시 계산하지 않고 전달받는다.
      */
-    private String html(ApprovalMailContext context, String subject)
+    private String html(ApprovalMailContext context, String subject, ApprovalMailSnapshot snapshot)
             throws JsonProcessingException {
-        ApprovalMailSnapshot snapshot = parseSnapshot(context);
         List<ProjectItem> regular =
                 sortedProjects(snapshot.projects().stream().filter(p -> !p.ordinary()).toList());
         List<ProjectItem> ordinary =
@@ -131,22 +130,6 @@ public class ApprovalMailRenderer {
         body.append(itemList(context, subject, entries, body.toString()));
 
         return wrap(body.toString());
-    }
-
-    /** 스냅샷 파싱 — 없거나 깨졌으면 빈 스냅샷으로 접고 총괄표를 생략한다. */
-    private ApprovalMailSnapshot parseSnapshot(ApprovalMailContext context) {
-        if (!StringUtils.hasText(context.detailJson())) {
-            return ApprovalMailSnapshot.empty();
-        }
-        try {
-            return objectMapper.readValue(context.detailJson(), ApprovalMailSnapshot.class);
-        } catch (JsonProcessingException e) {
-            log.warn(
-                    "신청서 스냅샷 파싱 실패 — 총괄표를 생략합니다: apfMngNo={}, 사유={}",
-                    context.apfMngNo(),
-                    e.getOriginalMessage());
-            return ApprovalMailSnapshot.empty();
-        }
     }
 
     /** 총 예산 내림차순 정렬. PDF 총괄표와 같은 순서다. */

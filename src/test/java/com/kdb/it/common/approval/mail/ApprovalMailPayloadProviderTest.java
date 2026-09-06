@@ -27,6 +27,103 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class ApprovalMailPayloadProviderTest {
 
+    @Test
+    void corruptSnapshotOmitsOnlyBusinessSummaryAndCountsExactlyOnceWithoutPrivateLogs()
+            throws Exception {
+        var mapper = com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.MAPPER;
+        var reader =
+                org.mockito.Mockito.spy(
+                        com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.reader());
+        var meters = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        var actualProvider =
+                new ApprovalMailPayloadProvider(
+                        approvalMailDataLoader, new ApprovalMailRenderer(mapper), reader, meters);
+        ReflectionTestUtils.setField(actualProvider, "frontendUrl", "https://it.kdb.co.kr");
+        given(approvalMailDataLoader.loadParties(any()))
+                .willReturn(new ApprovalMailParties("신청자", "부서"));
+        var root = com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.v2();
+        root.set(
+                "projects",
+                mapper.readTree("[{\"abusNm\":\"PRIVATE_JSON_VALUE\",\"totRqmAmt\":987654}]"));
+        Capplm application =
+                Capplm.builder()
+                        .apfMngNo("APF-2026-0001")
+                        .dcdReqTtl("결재 신청")
+                        .dcdReqDtm(LocalDate.of(2026, 9, 6))
+                        .dcdReqInf(root.toString())
+                        .build();
+        var logger =
+                (ch.qos.logback.classic.Logger)
+                        org.slf4j.LoggerFactory.getLogger(ApprovalMailPayloadProvider.class);
+        var appender =
+                new ch.qos.logback.core.read.ListAppender<
+                        ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            String result = actualProvider.render(application);
+            var payload =
+                    mapper.readValue(
+                            result, com.kdb.it.common.notification.dispatcher.MailPayload.class);
+            assertThat(payload.html())
+                    .contains("APF-2026-0001", "결재하러 가기")
+                    .doesNotContain("PRIVATE_JSON_VALUE", "987,654", "사업 요약", "계약 요약");
+            assertThat(
+                            meters.get("approval.snapshot.mail.degraded")
+                                    .tag("version", "v2")
+                                    .counter()
+                                    .count())
+                    .isEqualTo(1);
+            assertThat(meters.getMeters()).hasSize(1);
+            verify(reader).read(root.toString());
+            assertThat(appender.list).hasSize(1);
+            assertThat(appender.list.getFirst().getFormattedMessage())
+                    .contains("APF-2026-0001")
+                    .doesNotContain("PRIVATE_JSON_VALUE", "신청자", "부서");
+            assertThat(appender.list.getFirst().getThrowableProxy()).isNull();
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void malformedJsonDegradesWithUnknownVersionAndNormalVersionsDoNotIncrement() throws Exception {
+        var fixture = com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.MAPPER;
+        var meters = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        var actualProvider =
+                new ApprovalMailPayloadProvider(
+                        approvalMailDataLoader,
+                        new ApprovalMailRenderer(fixture),
+                        com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.reader(),
+                        meters);
+        ReflectionTestUtils.setField(actualProvider, "frontendUrl", "https://it.kdb.co.kr");
+        given(approvalMailDataLoader.loadParties(any()))
+                .willReturn(new ApprovalMailParties("신청자", "부서"));
+        Capplm application =
+                Capplm.builder()
+                        .apfMngNo("APF-1")
+                        .dcdReqTtl("결재 신청")
+                        .dcdReqInf("{broken PRIVATE_JSON_VALUE")
+                        .build();
+        assertThat(actualProvider.render(application))
+                .contains("APF-1")
+                .doesNotContain("PRIVATE_JSON_VALUE");
+        assertThat(
+                        meters.get("approval.snapshot.mail.degraded")
+                                .tag("version", "unknown")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
+        application.updateDetailContent(
+                com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.v2().toString());
+        assertThat(actualProvider.render(application)).contains("사업 요약", "계약 요약");
+        application.updateDetailContent("{\"projects\":[{\"abusNm\":\"기존사업\",\"totRqmAmt\":300}]}");
+        assertThat(actualProvider.render(application)).contains("기존사업", "300 원");
+        assertThat(meters.getMeters()).hasSize(1);
+        assertThat(meters.get("approval.snapshot.mail.degraded").counter().count()).isEqualTo(1);
+    }
+
     @Mock private ApprovalMailDataLoader approvalMailDataLoader;
     @Mock private ApprovalMailRenderer approvalMailRenderer;
 
@@ -47,7 +144,12 @@ class ApprovalMailPayloadProviderTest {
 
     @BeforeEach
     void setUp() {
-        provider = new ApprovalMailPayloadProvider(approvalMailDataLoader, approvalMailRenderer);
+        provider =
+                new ApprovalMailPayloadProvider(
+                        approvalMailDataLoader,
+                        approvalMailRenderer,
+                        com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.reader(),
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
         ReflectionTestUtils.setField(provider, "frontendUrl", "https://it.kdb.co.kr");
     }
 
@@ -56,7 +158,7 @@ class ApprovalMailPayloadProviderTest {
     void render_정상흐름_렌더러결과반환() {
         given(approvalMailDataLoader.loadParties(any()))
                 .willReturn(new ApprovalMailParties("홍길동", "IT기획부"));
-        given(approvalMailRenderer.renderPayloadJson(any()))
+        given(approvalMailRenderer.renderPayloadJson(any(), any()))
                 .willReturn("{\"subject\":\"제목\",\"html\":\"본문\"}");
 
         String result = provider.render(capplm());
@@ -69,7 +171,7 @@ class ApprovalMailPayloadProviderTest {
     void render_렌더러가null반환_null그대로전달() {
         given(approvalMailDataLoader.loadParties(any()))
                 .willReturn(new ApprovalMailParties("홍길동", "IT기획부"));
-        given(approvalMailRenderer.renderPayloadJson(any())).willReturn(null);
+        given(approvalMailRenderer.renderPayloadJson(any(), any())).willReturn(null);
 
         String result = provider.render(capplm());
 
@@ -87,6 +189,6 @@ class ApprovalMailPayloadProviderTest {
         String result = provider.render(capplm);
 
         assertThat(result).isNull();
-        verify(approvalMailRenderer, never()).renderPayloadJson(any());
+        verify(approvalMailRenderer, never()).renderPayloadJson(any(), any());
     }
 }

@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.service;
 
+import static com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.delegate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -284,6 +285,30 @@ class ApplicationServiceTest {
         verify(applicationRepository).findByIdForUpdate(APF_MNG_NO);
     }
 
+    @Test
+    void recallValidatesInProgressLegacyBeforeChangingMasterStatus() {
+        Capplm application =
+                Capplm.builder()
+                        .apfMngNo(APF_MNG_NO)
+                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
+                        .dcdReqUsid("E10001")
+                        .dcdReqInf("{}")
+                        .build();
+        ApplicationDto.RecallRequest request = new ApplicationDto.RecallRequest();
+        request.setRecallOpnn("회수");
+        given(applicationRepository.findByIdForUpdate(APF_MNG_NO))
+                .willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+        assertThatThrownBy(
+                        () ->
+                                serviceWithRealObjectMapper()
+                                        .recall(APF_MNG_NO, request, "E10001", false))
+                .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
+        assertThat(application.getItPtlApfPrgStsC()).isEqualTo(ApprovalStatus.IN_PROGRESS.code());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
     /** JSON 결재선 갱신까지 검증하기 위한 실제 ObjectMapper 서비스 */
     private ApplicationService serviceWithRealObjectMapper() {
         return new ApplicationService(
@@ -295,7 +320,7 @@ class ApplicationServiceTest {
                 userRepository,
                 organizationRepository,
                 eventPublisher,
-                new ApprovalLineDelegate(new ObjectMapper()),
+                delegate(new ObjectMapper()),
                 bprojaSyncService,
                 approvalRequestNotifier,
                 new ApplicationPersistenceService(
@@ -506,24 +531,23 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("approve: 결재선 JSON이 없는 경우 결재 처리는 정상 완료된다")
-    void approve_결재선Json없음_결재처리완료() {
+    @DisplayName("approve: 결재선 JSON이 없으면 데이터 손상으로 상태 변경을 차단한다")
+    void approve_결재선Json없음_상태변경차단() {
         ApplicationService realMapperService = serviceWithRealObjectMapper();
         Capplm capplm = Capplm.builder().apfMngNo(APF_MNG_NO).dcdReqInf(null).build();
         given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
 
-        realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
-
-        assertThat(capplm.getItPtlApfPrgStsC())
-                .isEqualTo(com.kdb.it.common.approval.domain.ApprovalStatus.COMPLETED.code());
-        verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
+        assertThatThrownBy(
+                        () -> realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
+                .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
+        verify(eventPublisher, never()).publishEvent(any(ApprovalCompletedEvent.class));
     }
 
     @Test
-    @DisplayName("approve: 결재선 JSON이 깨진 경우 CustomGeneralException으로 트랜잭션 롤백 — ERR-03")
-    void approve_결재선Json파싱실패_CustomGeneralException() {
+    @DisplayName("approve: 결재선 JSON이 깨진 경우 DataCorruptionException으로 트랜잭션 롤백")
+    void approve_결재선Json파싱실패_DataCorruptionException() {
         ApplicationService realMapperService = serviceWithRealObjectMapper();
         Capplm capplm = Capplm.builder().apfMngNo(APF_MNG_NO).dcdReqInf("{not-json").build();
         given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
@@ -532,7 +556,7 @@ class ApplicationServiceTest {
 
         assertThatThrownBy(
                         () -> realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
-                .isInstanceOf(com.kdb.it.exception.CustomGeneralException.class);
+                .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
     }
 
     // ───────────────────────────────────────────────────────
