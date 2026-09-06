@@ -165,7 +165,7 @@ public class ItBudgetApprovalFacade {
             numbers.add(
                     persistence.persist(
                             ApplicationDraft.itBudgetV2(
-                                    "전산예산 결재 신청",
+                                    "전산예산 신청서",
                                     json,
                                     actor.getEno(),
                                     applicationSummary(publicSources(document)),
