@@ -32,20 +32,33 @@ import org.springframework.context.annotation.Primary;
  * <p><b>캐시별 정책:</b>
  *
  * <ul>
- *   <li>{@code codesByType}/{@code codesByCid}/{@code budgetPeriod}/{@code menuAuthMap} — 준정적 참조
- *       데이터. 1시간 TTL(쓰기 시 이미 {@code @CacheEvict}로 무효화하므로 TTL은 안전망).
+ *   <li>{@code codesByCid}/{@code budgetPeriod}/{@code menuAuthMap} — 준정적 참조 데이터. 60초 TTL(쓰기 시
+ *       {@code @CacheEvict}로 즉시 무효화되지만, 그것은 evict를 실행한 인스턴스에만 적용되므로 TTL이 다른 인스턴스의 stale 한도가 된다).
  *   <li>{@code tiptapMetadata} — 10분 TTL. 추가로 {@code ProjectService} create/update/delete가
  *       {@code @CacheEvict(allEntries=true)}로 즉시 무효화(사업 목록 변경 반영).
  *   <li>{@code notificationUnreadCount} — 60초 TTL, 사용자(eno)별 키. 쓰기 경로에서 evict하지만 TTL로 evict 누락 시에도
  *       stale 한도를 60초로 제한.
  * </ul>
+ *
+ * <p><b>다중 인스턴스 정합(AP 2대):</b> 모든 캐시는 인스턴스 로컬이며 무효화를 인스턴스 간에 전파하지 않습니다. 따라서 각 캐시의 TTL이 곧 다른 인스턴스가 옛
+ * 값을 보는 최대 시간입니다. 이 구조에서 stale 한도를 줄이는 수단은 TTL뿐이므로, 새 캐시를 추가할 때는 최대 크기와 함께 <b>"이 데이터가 다른 AP에서 몇 초까지
+ * 옛 값이어도 되는가"</b>를 근거로 TTL을 정합니다. 변경을 즉시 전파해야 하는 데이터가 생기면 TTL 단축으로는 부족하며, WAS 로그·서버 메트릭이 쓰는 피어 내부
+ * 엔드포인트({@code app.was-log.peers} + 공유 비밀 헤더) 방식으로 무효화를 브로드캐스트해야 합니다. 현재는 채택하지 않았습니다.
  */
 @Configuration
 @EnableCaching
 public class CacheConfig {
 
-    /** 준정적 참조 데이터(공통코드/예산기간/메뉴권한) TTL — 쓰기 evict 보유, TTL은 안전망. */
-    private static final Duration STATIC_TTL = Duration.ofHours(1);
+    /**
+     * 준정적 참조 데이터(공통코드/예산기간/메뉴권한) TTL.
+     *
+     * <p>이 값은 성능 튜닝 값이 아니라 <b>다중 인스턴스의 stale 한도</b>다. 캐시는 인스턴스 로컬이고 {@code @CacheEvict}는 evict를 실행한
+     * 인스턴스에만 적용되므로, 관리자가 한쪽 AP에서 공통코드나 메뉴 권한을 바꿔도 반대편 AP는 이 TTL이 지나야 새 값을 읽는다. 과거 1시간이었으나 가장 널리
+     * 참조되는 데이터의 한도가 알림 미읽음 수(60초)보다 길어 역전되어 있었고, 메뉴 권한 회수 반영도 그만큼 지연됐다.
+     *
+     * <p>대상 데이터가 작고(코드 그룹·연도·권한맵) 조회 1회로 재구성되므로 60초로 줄여도 DB 부하는 인스턴스당 분당 수 회 수준이다.
+     */
+    private static final Duration STATIC_TTL = Duration.ofSeconds(60);
 
     /** 준정적 캐시 최대 엔트리 수. 코드 그룹/연도/권한맵 키 수가 적어 넉넉히 둠. */
     private static final long STATIC_MAX_SIZE = 1_000L;
@@ -72,20 +85,19 @@ public class CacheConfig {
      * 내부(실제) Caffeine 캐시 매니저.
      *
      * <p>캐시별로 {@link CaffeineCacheManager#registerCustomCache(String,
-     * com.github.benmanes.caffeine.cache.Cache)} 로 명시 등록하여 각자의 TTL/최대크기를 강제합니다. 등록된 6개 캐시는 기존
-     * {@code ConcurrentMapCacheManager}가 등록하던 이름과 동일합니다(드롭 없음). 이 빈은 {@link
-     * #cacheManager(CaffeineCacheManager)} 프록시의 내부 위임 대상이며, 테스트가 네이티브 TTL(expireAfterWrite)을 직접 검사할
-     * 때 주입받습니다.
+     * com.github.benmanes.caffeine.cache.Cache)} 로 명시 등록하여 각자의 TTL/최대크기를 강제합니다. 등록 목록은 실제
+     * {@code @Cacheable} 이름과 1:1로 유지합니다 — 생산자 없는 이름을 등록해 두면 채워지지 않는 캐시가 설정에만 남아, 뒤에 읽는 사람이 그 데이터가
+     * 캐시된다고 오해합니다. 이 빈은 {@link #cacheManager(CaffeineCacheManager)} 프록시의 내부 위임 대상이며, 테스트가 네이티브
+     * TTL(expireAfterWrite)을 직접 검사할 때 주입받습니다.
      *
-     * @return 6개 캐시가 per-cache spec으로 등록된 {@link CaffeineCacheManager}
+     * @return 5개 캐시가 per-cache spec으로 등록된 {@link CaffeineCacheManager}
      */
     @Bean
     public CaffeineCacheManager caffeineCacheManager() {
         CaffeineCacheManager manager = new CaffeineCacheManager();
 
-        // 준정적 참조 데이터: 1시간 TTL (쓰기 시 @CacheEvict로 즉시 무효화 — §5.5.1)
+        // 준정적 참조 데이터: 60초 TTL (쓰기 시 @CacheEvict로 즉시 무효화 — §5.5.1)
         // 공통코드·메뉴 권한 등 준정적 조회가 사용하는 캐시 이름을 애플리케이션과 맞춥니다.
-        manager.registerCustomCache("codesByType", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
         manager.registerCustomCache("codesByCid", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
         manager.registerCustomCache("budgetPeriod", buildCache(STATIC_TTL, STATIC_MAX_SIZE));
         manager.registerCustomCache("menuAuthMap", buildCache(STATIC_TTL, STATIC_MAX_SIZE));

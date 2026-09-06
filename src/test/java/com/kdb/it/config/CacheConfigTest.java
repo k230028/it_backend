@@ -15,7 +15,7 @@ import org.springframework.cache.transaction.TransactionAwareCacheManagerProxy;
 /**
  * CacheConfig 단위 테스트.
  *
- * <p>내부 Caffeine 매니저가 6개 캐시(codesByType/codesByCid/budgetPeriod/notificationUnreadCount/
+ * <p>내부 Caffeine 매니저가 5개 캐시(codesByCid/budgetPeriod/notificationUnreadCount/
  * tiptapMetadata/menuAuthMap)를 모두 보유하고 캐시별 TTL/최대크기 spec이 설계대로 적용됐는지, 그리고 애플리케이션이 쓰는
  * {@code @Primary} CacheManager가 트랜잭션 인지 프록시(MED-1)인지 검증합니다. Spring 컨텍스트나 DB 없이 빈을 직접 생성해 실행합니다.
  */
@@ -42,11 +42,12 @@ class CacheConfigTest {
     }
 
     @Test
-    @DisplayName("기존 6개 캐시 이름을 모두 보유한다 (드롭 없음)")
-    void registersAllSixCaches() {
+    @DisplayName("실제로 사용되는 5개 캐시만 등록한다")
+    void registersAllFiveCaches() {
+        // codesByType은 @Cacheable 생산자가 없어 채워지지 않는 등록이었으므로 제거했다.
+        // 등록 목록은 실제 @Cacheable 이름과 1:1이어야 하며, 여기서 정확히 일치를 강제한다.
         assertThat(caffeineCacheManager.getCacheNames())
                 .containsExactlyInAnyOrder(
-                        "codesByType",
                         "codesByCid",
                         "budgetPeriod",
                         "notificationUnreadCount",
@@ -55,17 +56,18 @@ class CacheConfigTest {
     }
 
     @Test
-    @DisplayName("codesByCid/budgetPeriod/codesByType는 1시간 TTL")
-    void staticCaches_oneHourTtl() {
-        assertExpireAfterWrite("codesByCid", Duration.ofHours(1));
-        assertExpireAfterWrite("budgetPeriod", Duration.ofHours(1));
-        assertExpireAfterWrite("codesByType", Duration.ofHours(1));
+    @DisplayName("codesByCid/budgetPeriod는 60초 TTL — 다중 인스턴스 stale 한도")
+    void staticCaches_sixtySecondTtl() {
+        // @CacheEvict는 evict를 실행한 인스턴스에만 적용되므로, 다른 인스턴스의 stale 한도는 곧 TTL이다.
+        // 공통코드·예산기간은 가장 널리 참조되는 준정적 데이터라 한도를 초 단위로 유지한다.
+        assertExpireAfterWrite("codesByCid", Duration.ofSeconds(60));
+        assertExpireAfterWrite("budgetPeriod", Duration.ofSeconds(60));
     }
 
     @Test
-    @DisplayName("menuAuthMap은 1시간 TTL")
-    void menuAuthMap_oneHourTtl() {
-        assertExpireAfterWrite("menuAuthMap", Duration.ofHours(1));
+    @DisplayName("menuAuthMap은 60초 TTL — 권한 회수가 다른 인스턴스에 늦게 반영되지 않도록")
+    void menuAuthMap_sixtySecondTtl() {
+        assertExpireAfterWrite("menuAuthMap", Duration.ofSeconds(60));
     }
 
     @Test
