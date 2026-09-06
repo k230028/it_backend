@@ -166,6 +166,35 @@ class ItBudgetSubmissionTest {
     }
 
     @Test
+    void previewLogsOnlyFixedOutcomesWithoutUserOrSourceIdentifiers() {
+        var logger =
+                (ch.qos.logback.classic.Logger)
+                        org.slf4j.LoggerFactory.getLogger(ItBudgetApprovalFacade.class);
+        var appender =
+                new ch.qos.logback.core.read.ListAppender<
+                        ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            facade.preview(f.actor, previewRequest());
+            error("IT_BUDGET_PREVIEW_INVALID", 400, () -> facade.preview(f.actor, null));
+            assertThat(appender.list).hasSize(2);
+            assertThat(appender.list.get(0).getFormattedMessage()).contains("outcome=success");
+            assertThat(appender.list.get(1).getFormattedMessage()).contains("outcome=invalid");
+            assertThat(appender.list)
+                    .allSatisfy(
+                            event -> {
+                                assertThat(event.getFormattedMessage())
+                                        .doesNotContain("P1", "C1", "U1", "A1", "APF-");
+                                assertThat(event.getThrowableProxy()).isNull();
+                            });
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
     void recordsInvalidPreviewFailureAndStopsThePreviewTimer() {
         error("IT_BUDGET_PREVIEW_INVALID", 400, () -> facade.preview(f.actor, null));
 
@@ -193,6 +222,140 @@ class ItBudgetSubmissionTest {
                                 .counter()
                                 .count())
                 .isEqualTo(1);
+        assertThat(
+                        registry.get("approval.it_budget.submission.source_changed")
+                                .tag("source_kind", "PROJECT")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void countsEachChangedKindOnceAndDoesNotTagIdentifiers() {
+        var request = submission();
+        project.delete();
+        f.costs.findVersions(List.of("C1"), List.of(2)).getFirst().delete();
+        error("IT_BUDGET_SOURCE_CHANGED", 409, () -> facade.submit(f.actor, request));
+        for (String kind : List.of("PROJECT", "COST")) {
+            var counter =
+                    registry.get("approval.it_budget.submission.source_changed")
+                            .tag("source_kind", kind)
+                            .counter();
+            assertThat(counter.count()).isEqualTo(1);
+            assertThat(counter.getId().getTags())
+                    .containsExactly(io.micrometer.core.instrument.Tag.of("source_kind", kind));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void documentAndLedgerCountsWaitForCommitAndNeverCountRollback(boolean commit) {
+        var request = submission();
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThat(facade.submit(f.actor, request).applicationNumbers()).hasSize(2);
+            assertThat(registry.find("approval.it_budget.submission.documents").summary()).isNull();
+            var completion = TransactionSynchronizationManager.getSynchronizations().getFirst();
+            int status =
+                    commit
+                            ? TransactionSynchronization.STATUS_COMMITTED
+                            : TransactionSynchronization.STATUS_ROLLED_BACK;
+            completion.afterCompletion(status);
+            completion.afterCompletion(status);
+            if (commit) {
+                assertThat(
+                                registry.get("approval.it_budget.submission.documents")
+                                        .summary()
+                                        .count())
+                        .isEqualTo(1);
+                assertThat(
+                                registry.get("approval.it_budget.submission.documents")
+                                        .summary()
+                                        .totalAmount())
+                        .isEqualTo(2);
+                assertThat(
+                                registry.get("approval.it_budget.submission.sources")
+                                        .summary()
+                                        .totalAmount())
+                        .isEqualTo(2);
+            } else {
+                assertThat(registry.find("approval.it_budget.submission.documents").summary())
+                        .isNull();
+                assertThat(registry.find("approval.it_budget.submission.sources").summary())
+                        .isNull();
+            }
+            assertThat(
+                            registry.get("approval.it_budget.submission")
+                                    .tag("outcome", commit ? "success" : "error")
+                                    .counter()
+                                    .count())
+                    .isEqualTo(1);
+            assertThat(registry.get("approval.it_budget.submission.duration").timer().count())
+                    .isEqualTo(1);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void signatureMismatchHasSeparateMetricButBodyTamperingDoesNot() {
+        var request = submission();
+        String[] parts = request.previewToken().split("\\.");
+        byte[] signature = Base64.getUrlDecoder().decode(parts[2]);
+        signature[0] ^= 1;
+        String token =
+                parts[0]
+                        + "."
+                        + parts[1]
+                        + "."
+                        + Base64.getUrlEncoder().withoutPadding().encodeToString(signature);
+        var tampered =
+                new SubmissionRequest(
+                        request.previewDigest(), token, request.approvers(), request.documents());
+        error("IT_BUDGET_PREVIEW_INVALID", 400, () -> facade.submit(f.actor, tampered));
+        error(
+                "IT_BUDGET_PREVIEW_INVALID",
+                400,
+                () -> facade.submit(f.actor, mutate(request, "payload")));
+        assertThat(registry.get("approval.it_budget.preview.signature_failure").counter().count())
+                .isEqualTo(1);
+        assertThat(
+                        registry.get("approval.it_budget.submission")
+                                .tag("outcome", "invalid")
+                                .counter()
+                                .count())
+                .isEqualTo(2);
+    }
+
+    @Test
+    void summaryFailureCannotChangeCommittedResponseOrDuration() {
+        MeterRegistry failing = spy(new SimpleMeterRegistry());
+        doThrow(new IllegalStateException("registry contains private data"))
+                .when(failing)
+                .summary(anyString(), any(String[].class));
+        var request = submission();
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThat(facadeWith(failing).submit(f.actor, request).applicationNumbers())
+                    .hasSize(2);
+            assertThatCode(
+                            () ->
+                                    TransactionSynchronizationManager.getSynchronizations()
+                                            .getFirst()
+                                            .afterCompletion(
+                                                    TransactionSynchronization.STATUS_COMMITTED))
+                    .doesNotThrowAnyException();
+            assertThat(
+                            failing.get("approval.it_budget.submission")
+                                    .tag("outcome", "success")
+                                    .counter()
+                                    .count())
+                    .isEqualTo(1);
+            assertThat(failing.get("approval.it_budget.submission.duration").timer().count())
+                    .isEqualTo(1);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test
@@ -340,6 +503,12 @@ class ItBudgetSubmissionTest {
                         guard,
                         registry);
         error("IT_BUDGET_PREVIEW_EXPIRED", 409, () -> expiredFacade.submit(f.actor, request));
+        assertThat(
+                        registry.get("approval.it_budget.submission")
+                                .tag("outcome", "expired")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
         verify(f.loader, never()).loadForSubmission(anyList());
         verifyNoInteractions(applications);
     }
@@ -399,6 +568,12 @@ class ItBudgetSubmissionTest {
         var request = submission();
         renameUser(eno);
         error("IT_BUDGET_PREVIEW_STALE", 409, () -> facade.submit(f.actor, request));
+        assertThat(
+                        registry.get("approval.it_budget.submission")
+                                .tag("outcome", "stale")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
         verifyNoInteractions(applications);
     }
 
@@ -496,6 +671,12 @@ class ItBudgetSubmissionTest {
                         new org.springframework.dao.DataAccessResourceFailureException(
                                 "lock", new jakarta.persistence.LockTimeoutException()));
         error("IT_BUDGET_CONCURRENT_UPDATE", 409, () -> facade.submit(f.actor, request));
+        assertThat(
+                        registry.get("approval.it_budget.submission")
+                                .tag("outcome", "concurrent_update")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
         var unrelated = new org.springframework.dao.DataIntegrityViolationException("bad column");
         doThrow(unrelated).when(f.projects).findVersionsForUpdate(anyCollection(), anyCollection());
         assertThatThrownBy(() -> facade.submit(f.actor, request)).isSameAs(unrelated);
@@ -537,6 +718,10 @@ class ItBudgetSubmissionTest {
                                         document.payloadDigest(),
                                         document.sources().reversed())));
         assertThat(facade.submit(f.actor, request).applicationNumbers()).hasSize(1);
+        assertThat(registry.get("approval.it_budget.submission.documents").summary().totalAmount())
+                .isEqualTo(1);
+        assertThat(registry.get("approval.it_budget.submission.sources").summary().totalAmount())
+                .isEqualTo(2);
         var links = ArgumentCaptor.forClass(Cappla.class);
         verify(mappings, times(2)).save(links.capture());
         assertThat(links.getAllValues())

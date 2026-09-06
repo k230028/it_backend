@@ -10,13 +10,34 @@ public final class ItBudgetApprovalException extends RuntimeException {
     private final HttpStatus status;
     private final String code;
     private final List<ChangedSource> changedSources;
+    private final Reason reason;
+
+    /** HTTP 오류 코드를 바꾸지 않고 서명 검증 실패만 운영 지표에서 구별한다. */
+    public enum Reason {
+        UNSPECIFIED,
+        SIGNATURE_FAILURE
+    }
 
     public ItBudgetApprovalException(
             HttpStatus status, String code, String message, List<ChangedSource> changedSources) {
+        this(status, code, message, changedSources, Reason.UNSPECIFIED);
+    }
+
+    public ItBudgetApprovalException(
+            HttpStatus status,
+            String code,
+            String message,
+            List<ChangedSource> changedSources,
+            Reason reason) {
         super(message);
         this.status = status;
         this.code = code;
         this.changedSources = List.copyOf(changedSources);
+        this.reason = reason;
+    }
+
+    public Reason reason() {
+        return reason;
     }
 
     public HttpStatus status() {

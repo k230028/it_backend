@@ -12,7 +12,11 @@ public final class StoredSnapshotFixture {
             jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
 
     public static ItBudgetSnapshotReader reader() {
-        return new ItBudgetSnapshotReader(MAPPER, VALIDATOR, new ItBudgetCanonicalJson(MAPPER));
+        return new ItBudgetSnapshotReader(
+                MAPPER,
+                VALIDATOR,
+                new ItBudgetCanonicalJson(MAPPER),
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 
     public static com.kdb.it.common.approval.service.ApprovalLineDelegate delegate(

@@ -63,13 +63,19 @@ public class ItBudgetApprovalFacade {
         Timer.Sample sample = startTimer("submission");
         try {
             var response = doSubmit(actor, request);
-            completeSubmission(sample, "success", true);
+            completeSubmission(
+                    sample,
+                    "success",
+                    true,
+                    response.applicationNumbers().size(),
+                    request.documents().stream().mapToInt(d -> d.sources().size()).sum());
             return response;
         } catch (ItBudgetApprovalException exception) {
-            completeSubmission(sample, outcome(exception.code()), false);
+            recordFailureDetails(exception);
+            completeSubmission(sample, outcome(exception.code()), false, 0, 0);
             throw exception;
         } catch (RuntimeException exception) {
-            completeSubmission(sample, "error", false);
+            completeSubmission(sample, "error", false, 0, 0);
             throw exception;
         }
     }
@@ -583,15 +589,42 @@ public class ItBudgetApprovalFacade {
 
     private void recordPreview(String outcome) {
         recordCounter("approval.it_budget.preview.outcome", "preview", outcome);
+        log.info("전산예산 미리보기 완료: outcome={}", outcome);
     }
 
     private void recordSubmission(String outcome) {
         recordCounter("approval.it_budget.submission", "submission", outcome);
     }
 
-    private void completeSubmission(Timer.Sample sample, String outcome, boolean successful) {
+    private void recordFailureDetails(ItBudgetApprovalException exception) {
+        if (exception.reason() == ItBudgetApprovalException.Reason.SIGNATURE_FAILURE) {
+            recordTaggedCounter("approval.it_budget.preview.signature_failure");
+        }
+        if ("IT_BUDGET_SOURCE_CHANGED".equals(exception.code())) {
+            exception.changedSources().stream()
+                    .map(ChangedSource::kind)
+                    .distinct()
+                    .forEach(
+                            kind -> {
+                                recordTaggedCounter(
+                                        "approval.it_budget.submission.source_changed",
+                                        "source_kind",
+                                        kind.name());
+                                log.info(
+                                        "전산예산 상신 충돌: code=IT_BUDGET_SOURCE_CHANGED, source_kind={}",
+                                        kind.name());
+                            });
+        }
+    }
+
+    private void completeSubmission(
+            Timer.Sample sample,
+            String outcome,
+            boolean successful,
+            int documentCount,
+            int sourceCount) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            completeSubmissionMetrics(sample, outcome);
+            completeSubmissionMetrics(sample, outcome, documentCount, sourceCount);
             return;
         }
         var completed = new AtomicBoolean();
@@ -603,7 +636,9 @@ public class ItBudgetApprovalFacade {
                             if (!completed.compareAndSet(false, true)) return;
                             completeSubmissionMetrics(
                                     sample,
-                                    successful && status != STATUS_COMMITTED ? "error" : outcome);
+                                    successful && status != STATUS_COMMITTED ? "error" : outcome,
+                                    documentCount,
+                                    sourceCount);
                         }
                     });
         } catch (RuntimeException exception) {
@@ -611,9 +646,19 @@ public class ItBudgetApprovalFacade {
         }
     }
 
-    private void completeSubmissionMetrics(Timer.Sample sample, String outcome) {
+    private void completeSubmissionMetrics(
+            Timer.Sample sample, String outcome, int documentCount, int sourceCount) {
         try {
             recordSubmission(outcome);
+            if ("success".equals(outcome)) {
+                recordSummary("approval.it_budget.submission.documents", documentCount);
+                recordSummary("approval.it_budget.submission.sources", sourceCount);
+            }
+            log.info(
+                    "전산예산 상신 완료: outcome={}, documents={}, sources={}",
+                    outcome,
+                    "success".equals(outcome) ? documentCount : 0,
+                    "success".equals(outcome) ? sourceCount : 0);
         } finally {
             stopTimer(sample, "approval.it_budget.submission.duration", "submission");
         }
@@ -633,6 +678,22 @@ public class ItBudgetApprovalFacade {
             meterRegistry.counter(metric, "outcome", outcome).increment();
         } catch (RuntimeException exception) {
             metricFailure(operation, "counter");
+        }
+    }
+
+    private void recordTaggedCounter(String metric, String... tags) {
+        try {
+            meterRegistry.counter(metric, tags).increment();
+        } catch (RuntimeException exception) {
+            metricFailure("submission", "counter");
+        }
+    }
+
+    private void recordSummary(String metric, int count) {
+        try {
+            meterRegistry.summary(metric).record(count);
+        } catch (RuntimeException exception) {
+            metricFailure("submission", "summary");
         }
     }
 

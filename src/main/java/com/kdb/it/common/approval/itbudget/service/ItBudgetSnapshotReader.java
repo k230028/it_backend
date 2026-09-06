@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto;
 import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot;
 import com.kdb.it.exception.DataCorruptionException;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.validation.Validator;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -20,17 +21,24 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /** 저장 신청서를 한 번 파싱하고 전산예산 v2의 구조·무결성을 검증한다. 원장을 다시 읽지 않는다. */
 @Component
 public final class ItBudgetSnapshotReader {
+    private static final Logger log = LoggerFactory.getLogger(ItBudgetSnapshotReader.class);
     private final ObjectMapper mapper;
     private final Validator validator;
     private final ItBudgetCanonicalJson canonical;
+    private final MeterRegistry meterRegistry;
 
     public ItBudgetSnapshotReader(
-            ObjectMapper mapper, Validator validator, ItBudgetCanonicalJson canonical) {
+            ObjectMapper mapper,
+            Validator validator,
+            ItBudgetCanonicalJson canonical,
+            MeterRegistry meterRegistry) {
         this.mapper =
                 mapper.copy()
                         .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
@@ -38,6 +46,7 @@ public final class ItBudgetSnapshotReader {
                         .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         this.validator = validator;
         this.canonical = canonical;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -58,12 +67,17 @@ public final class ItBudgetSnapshotReader {
             String form = root.path("form").path("id").asText();
             boolean budget = "it-budget".equals(form) || "IT_BUDGET".equals(form);
             boolean envelope = root.has("integrity") || budget && root.has("payload");
+            // v2 봉투가 남아 있으면 버전 필드를 변조해도 v1 조회로 분류하지 않는다.
+            if (envelope) tag = "v2";
             if (!budget && !envelope && !(version.isIntegralNumber() && version.intValue() == 2))
                 return new ParsedSnapshot(root, 1, null);
             if (budget
                     && !envelope
-                    && (version.isMissingNode() || version.isInt() && version.intValue() == 1))
+                    && (version.isMissingNode() || version.isInt() && version.intValue() == 1)) {
+                recordCounter("approval.it_budget.snapshot.legacy_read");
+                log.debug("전산예산 스냅샷 조회: version=v1, outcome=legacy_read");
                 return new ParsedSnapshot(root, 1, null);
+            }
             if (!"it-budget".equals(form) || !version.isInt() || version.intValue() != 2)
                 throw corrupt("unknown", "지원하지 않는 전산예산 스냅샷 버전입니다.");
             tag = "v2";
@@ -88,10 +102,26 @@ public final class ItBudgetSnapshotReader {
                 throw corrupt(tag, "전산예산 스냅샷 payloadDigest가 일치하지 않습니다.");
             return new ParsedSnapshot(root, 2, payload);
         } catch (SnapshotCorruptionException exception) {
+            recordIntegrityFailure("v2".equals(tag) || "v2".equals(exception.versionTag()));
             throw exception;
         } catch (JsonProcessingException | IllegalArgumentException | DateTimeException exception) {
             // Jackson 예외의 메시지·cause에는 JSON 토큰/본문이 포함될 수 있어 외부 예외에 연결하지 않는다.
+            recordIntegrityFailure("v2".equals(tag));
             throw corrupt(tag, "신청서 상세 JSON 또는 필수 값이 손상되었습니다.");
+        }
+    }
+
+    private void recordIntegrityFailure(boolean v2) {
+        if (!v2) return;
+        recordCounter("approval.it_budget.snapshot.integrity_failure");
+        log.warn("전산예산 스냅샷 무결성 검증 실패: version=v2, outcome=integrity_failure");
+    }
+
+    private void recordCounter(String name) {
+        try {
+            meterRegistry.counter(name).increment();
+        } catch (RuntimeException exception) {
+            log.warn("전산예산 메트릭 기록 실패: operation=snapshot_read, stage=counter");
         }
     }
 

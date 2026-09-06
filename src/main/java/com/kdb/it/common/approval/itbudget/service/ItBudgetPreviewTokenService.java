@@ -98,7 +98,7 @@ public class ItBudgetPreviewTokenService {
         String signingKey = signingKeyFor(parts[0]);
         byte[] actualSignature = decode(parts[2]);
         if (actualSignature.length != HMAC_SHA256_LENGTH) {
-            throw invalid();
+            throw invalidSignature();
         }
         String signingInput = parts[0] + "." + parts[1];
         verifySignature(sign(signingKey, signingInput), actualSignature);
@@ -189,8 +189,17 @@ public class ItBudgetPreviewTokenService {
 
     private void verifySignature(byte[] expected, byte[] actual) {
         if (!MessageDigest.isEqual(expected, actual)) {
-            throw invalid();
+            throw invalidSignature();
         }
+    }
+
+    private ItBudgetApprovalException invalidSignature() {
+        return new ItBudgetApprovalException(
+                HttpStatus.BAD_REQUEST,
+                INVALID_CODE,
+                INVALID_MESSAGE,
+                List.of(),
+                ItBudgetApprovalException.Reason.SIGNATURE_FAILURE);
     }
 
     private byte[] decode(String value) {
