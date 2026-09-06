@@ -266,6 +266,24 @@ class ApplicationControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "10001")
+    void corruptDetailReturnsServerErrorWithoutRawParserContent() throws Exception {
+        given(applicationService.getApfDtlCone("APF_202600000001"))
+                .willAnswer(
+                        i ->
+                                com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture
+                                        .reader()
+                                        .read("{\"private\":SECRET_BODY}"));
+        var response =
+                mockMvc.perform(get("/api/applications/APF_202600000001/apfDtlCone"))
+                        .andExpect(status().isInternalServerError())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        assertThat(response).doesNotContain("SECRET_BODY", "JsonParseException", "apfDtlCone");
+    }
+
+    @Test
     @DisplayName("POST /api/applications - 신규 신청서 생성 → 201 Created + Location 헤더")
     @WithMockUser(username = "10001")
     void submit_인증_201() throws Exception {

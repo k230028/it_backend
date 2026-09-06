@@ -19,6 +19,34 @@ class ApprovalStoredSnapshotTest {
     private final ApprovalLineDelegate delegate =
             com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.delegate(MAPPER);
 
+    @Test
+    void replacementInheritsPendingSlotRoleAndNewSlotsAreAdditional() throws Exception {
+        var root = v2();
+        object(root, "/approvalLine/approvers/0").put("role", "TEAM_LEAD");
+        object(root, "/approvalLine/approvers/1").put("role", "DEPT_HEAD");
+        var application = Capplm.builder().itPtlApfPrgStsC("1").dcdReqInf(root.toString()).build();
+        var orders =
+                List.of(
+                        Cdecim.builder().dcrEno("E3").itPtlDcdStsC("1").build(),
+                        Cdecim.builder().dcrEno("E4").itPtlDcdStsC("1").build(),
+                        Cdecim.builder().dcrEno("E5").itPtlDcdStsC("1").build());
+        var users =
+                orders.stream()
+                        .<com.kdb.it.common.iam.entity.CuserI>map(
+                                a ->
+                                        com.kdb.it.common.iam.entity.CuserI.builder()
+                                                .eno(a.getDcrEno())
+                                                .usrNm("교체")
+                                                .ptCNm("직급")
+                                                .build())
+                        .toList();
+        delegate.replacePendingApproversInDetail(application, orders, users);
+        var result = MAPPER.readTree(application.getDcdReqInf());
+        assertThat(result.at("/approvalLine/approvers/0/role").asText()).isEqualTo("TEAM_LEAD");
+        assertThat(result.at("/approvalLine/approvers/1/role").asText()).isEqualTo("DEPT_HEAD");
+        assertThat(result.at("/approvalLine/approvers/2/role").asText()).isEqualTo("ADDITIONAL");
+    }
+
     @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
     void legacyReplacementRemovesUnselectedStaticPendingNodes(boolean withOrder) throws Exception {
@@ -89,6 +117,10 @@ class ApprovalStoredSnapshotTest {
 
     static Stream<Consumer<ObjectNode>> corruptions() {
         return Stream.of(
+                r -> object(r, "/approvalLine/approvers/0").remove("role"),
+                r -> object(r, "/approvalLine/approvers/0").putNull("role"),
+                r -> object(r, "/approvalLine/approvers/0").put("role", "UNKNOWN"),
+                r -> object(r, "/approvalLine/approvers/1").put("role", "TEAM_LEAD"),
                 r -> object(r, "/form").put("id", "another-form"),
                 r -> object(r, "/form").put("version", 3),
                 r -> object(r, "/form").put("version", "2"),
@@ -161,6 +193,8 @@ class ApprovalStoredSnapshotTest {
         assertThat(updated.at("/approvalLine/approvers/0/date").asText())
                 .matches("\\d{4}-\\d{2}-\\d{2}");
         assertThat(updated.get("payload")).isEqualTo(original.get("payload"));
+        assertThat(updated.at("/approvalLine/approvers/0/role").asText()).isEqualTo("TEAM_LEAD");
+        assertThat(updated.at("/approvalLine/approvers/1/role").asText()).isEqualTo("DEPT_HEAD");
         assertThat(updated.get("integrity")).isEqualTo(original.get("integrity"));
     }
 
@@ -209,6 +243,8 @@ class ApprovalStoredSnapshotTest {
     void v2ApprovalCommandsPreserveCompletedPersonAndReplacePendingIdentityAndDate()
             throws Exception {
         ObjectNode original = v2();
+        object(original, "/approvalLine/approvers/0").put("role", "ADDITIONAL");
+        object(original, "/approvalLine/approvers/1").put("role", "ADDITIONAL");
         Capplm application =
                 Capplm.builder().dcdReqInf(original.toString()).itPtlApfPrgStsC("1").build();
         Cdecim first = approver();
@@ -237,6 +273,8 @@ class ApprovalStoredSnapshotTest {
         assertThat(line.at("/approvers/1/name").textValue()).isEqualTo("교체 사용자");
         assertThat(line.at("/approvers/1/rank").textValue()).isEqualTo("부장");
         assertThat(line.at("/approvers/1/date").isNull()).isTrue();
+        assertThat(line.at("/approvers/0/role").asText()).isEqualTo("ADDITIONAL");
+        assertThat(line.at("/approvers/1/role").asText()).isEqualTo("ADDITIONAL");
         delegate.applyRecallInfo(
                 application, "U1", "회수", ApprovalDetailPolicy.DetailMode.SNAPSHOT_REQUIRED);
         var finalRoot = MAPPER.readTree(application.getDcdReqInf());

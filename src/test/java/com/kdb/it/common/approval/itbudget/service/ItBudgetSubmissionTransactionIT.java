@@ -236,6 +236,24 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                                                     response.applicationNumbers().getFirst())
                                             .getResultList();
                             assertThat(links).containsExactly("BCOSTM");
+                            for (String number : response.applicationNumbers()) {
+                                var stored =
+                                        em.find(
+                                                com.kdb.it.common.approval.entity.Capplm.class,
+                                                number);
+                                var parsed =
+                                        StoredSnapshotFixture.reader().read(stored.getDcdReqInf());
+                                assertThat(
+                                                parsed.approvalLine(true)
+                                                        .at("/approvers/0/role")
+                                                        .asText())
+                                        .isEqualTo("TEAM_LEAD");
+                                assertThat(
+                                                parsed.approvalLine(true)
+                                                        .at("/approvers/1/role")
+                                                        .asText())
+                                        .isEqualTo("DEPT_HEAD");
+                            }
                         });
         assertThat(events.committed).hasSize(2);
     }

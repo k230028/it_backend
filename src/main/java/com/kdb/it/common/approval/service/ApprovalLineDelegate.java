@@ -8,6 +8,7 @@ import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.entity.Cdecim;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRole;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader.ParsedSnapshot;
 import com.kdb.it.common.approval.service.ApprovalDetailPolicy.DetailMode;
@@ -97,7 +98,8 @@ public class ApprovalLineDelegate {
         ObjectNode line = line(parsed, inProgress(capplm));
         if (line == null) return;
         if (parsed.version() == 2) {
-            ((ArrayNode) line.get("approvers")).add(v2Approver(eno, name, rank));
+            ((ArrayNode) line.get("approvers"))
+                    .add(v2Approver(eno, name, rank, ApproverRole.ADDITIONAL));
         } else {
             ObjectNode approver = objectMapper.createObjectNode();
             approver.put("name", name == null ? "" : name);
@@ -198,7 +200,12 @@ public class ApprovalLineDelegate {
                 CuserI user = replacementUsers.get(index);
                 if (!user.getEno().equals(orderedApprovers.get(completedCount + index).getDcrEno()))
                     throw new DataCorruptionException("교체 결재자 정보가 일치하지 않습니다.");
-                replaced.add(v2Approver(user.getEno(), user.getUsrNm(), user.getPtCNm()));
+                int slot = completedCount + index;
+                ApproverRole role =
+                        slot < current.size()
+                                ? ApproverRole.valueOf(current.get(slot).get("role").textValue())
+                                : ApproverRole.ADDITIONAL;
+                replaced.add(v2Approver(user.getEno(), user.getUsrNm(), user.getPtCNm(), role));
             }
             lineObject.set("approvers", replaced);
         } else {
@@ -234,8 +241,9 @@ public class ApprovalLineDelegate {
         capplm.updateDetailContent(parsed.write());
     }
 
-    private ObjectNode v2Approver(String eno, String name, String rank) {
+    private ObjectNode v2Approver(String eno, String name, String rank, ApproverRole role) {
         ObjectNode approver = objectMapper.createObjectNode();
+        approver.put("role", role.name());
         approver.put("eno", eno);
         approver.put("name", name);
         approver.put("rank", rank);

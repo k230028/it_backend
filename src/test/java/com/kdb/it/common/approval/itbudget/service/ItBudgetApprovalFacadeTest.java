@@ -120,6 +120,15 @@ class ItBudgetApprovalFacadeTest {
     }
 
     @Test
+    void previewKeepsExplicitRolesInEnrichedApprovalLine() {
+        var snapshot =
+                mapper.valueToTree(
+                        facade.preview(actor, request()).documents().getFirst().snapshot());
+        assertThat(snapshot.at("/approvalLine/approvers/0/role").asText()).isEqualTo("TEAM_LEAD");
+        assertThat(snapshot.at("/approvalLine/approvers/1/role").asText()).isEqualTo("DEPT_HEAD");
+    }
+
+    @Test
     void digestViewsBindOrderedBoundariesAndIgnoreCaptureTime() {
         var response = facade.preview(actor, request());
         var claims = tokens.verify(response.previewToken(), "U1");
@@ -192,6 +201,9 @@ class ItBudgetApprovalFacadeTest {
                                 new ApproverRef(ApproverRole.ADDITIONAL, "A2")),
                         request().documents());
         var roleResponse = facade.preview(actor, roleChange);
+        assertThat(roleResponse.documents().getFirst().snapshot().approvalLine().approvers())
+                .extracting(ApprovalPerson::role)
+                .containsExactly(ApproverRole.TEAM_LEAD, ApproverRole.ADDITIONAL);
         var roleClaims = tokens.verify(roleResponse.previewToken(), "U1");
         assertThat(roleClaims.requestDigest()).isNotEqualTo(first.requestDigest());
         assertThat(roleClaims.previewDigest()).isNotEqualTo(first.previewDigest());
@@ -264,7 +276,15 @@ class ItBudgetApprovalFacadeTest {
         assertThat(result.documents().getFirst().snapshot().approvalLine().approvers())
                 .allSatisfy(p -> assertThat(p.date()).isNull());
         try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
-            assertThat(factory.getValidator().validate(new ApprovalPerson("A1", "성명", "직급", null)))
+            assertThat(
+                            factory.getValidator()
+                                    .validate(
+                                            new ApprovalPerson(
+                                                    ApproverRole.TEAM_LEAD,
+                                                    "A1",
+                                                    "성명",
+                                                    "직급",
+                                                    null)))
                     .isEmpty();
         }
     }

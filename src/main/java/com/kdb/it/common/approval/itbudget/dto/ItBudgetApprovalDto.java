@@ -166,6 +166,7 @@ public final class ItBudgetApprovalDto {
 
     @Schema(name = "ItBudgetSnapshotApprovalPerson", description = "결재선 사용자 표시 정보")
     public record ApprovalPerson(
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ApproverRole role,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String eno,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String rank,

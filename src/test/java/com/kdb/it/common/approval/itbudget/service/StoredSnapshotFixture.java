@@ -61,8 +61,8 @@ public final class StoredSnapshotFixture {
                      "exchangeRate":"1.2500","foreignAmount":"20.000","budgetAmount":"25.000"}]
                  }],"summary":{"total":"125.000","asset":"45.000","cost":"80.000"}},
                  "approvalLine":{"requester":{"eno":"U1","name":"신청자","rank":null},
-                   "approvers":[{"eno":"E1","name":"결재자 1","rank":"팀장","date":null},
-                                {"eno":"E2","name":"결재자 2","rank":"부장","date":null}]},
+                   "approvers":[{"role":"TEAM_LEAD","eno":"E1","name":"결재자 1","rank":"팀장","date":null},
+                                {"role":"DEPT_HEAD","eno":"E2","name":"결재자 2","rank":"부장","date":null}]},
                  "integrity":{"algorithm":"SHA-256","canonicalization":"IT_BUDGET_V2",
                    "payloadDigest":"", "capturedAt":"2026-09-06T05:30:00Z",
                    "sources":[{"kind":"PROJECT","id":"P1","revision":2,"order":1,"digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},

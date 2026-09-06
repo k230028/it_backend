@@ -106,6 +106,7 @@ public class ApplicationService {
 
     private final ApplicationPersistenceService persistence;
     private final ApprovalDetailPolicy detailPolicy;
+    private final com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader snapshotReader;
 
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
@@ -360,6 +361,7 @@ public class ApplicationService {
      * @param apfMngNo 조회할 신청관리번호
      * @return 신청관리번호와 세부내용을 담은 응답 DTO ({@link ApplicationDto.ApfDtlConeResponse})
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
+     * @throws com.kdb.it.exception.DataCorruptionException 저장 상세가 손상되었거나 필수 상세가 없는 경우
      */
     public ApplicationDto.ApfDtlConeResponse getApfDtlCone(String apfMngNo) {
         ApplicationRepository.ApplicationReadView view =
@@ -367,6 +369,7 @@ public class ApplicationService {
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+        validateDetails(List.of(new DetailRead(view.getApfMngNo(), view.getDcdReqInf())));
         return ApplicationDto.ApfDtlConeResponse.fromReadView(view);
     }
 
@@ -378,6 +381,7 @@ public class ApplicationService {
      * @param apfMngNo 조회할 신청관리번호
      * @return 신청서 상세 응답 DTO (결재자 목록 포함)
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
+     * @throws com.kdb.it.exception.DataCorruptionException 저장 상세가 손상되었거나 필수 상세가 없는 경우
      */
     public ApplicationDto.Response getApplication(String apfMngNo) {
         // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회)
@@ -386,6 +390,7 @@ public class ApplicationService {
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+        validateDetails(List.of(new DetailRead(view.getApfMngNo(), view.getDcdReqInf())));
         return ApplicationBulkReadSupport.assembleOne(
                 view, approverRepository, userRepository, organizationRepository);
     }
@@ -401,6 +406,7 @@ public class ApplicationService {
      * 결재자 목록과 함께 반환합니다.
      *
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
+     * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
     public List<ApplicationDto.Response> getApplications() {
         // 작성완료(0)·수기등록(9)은 결재함 대상이 아니므로 DB에서 제외한다 (최신순 상한 500건)
@@ -415,6 +421,7 @@ public class ApplicationService {
      * @param eno 결재자 사번 (인증 주체)
      * @return 결재 대기 신청서 응답 DTO 목록 (최신순, 각각 결재자 목록 포함)
      * @throws IllegalArgumentException 사번이 비어 있는 경우 (빈 결과와 구분한다)
+     * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
     public List<ApplicationDto.Response> getPendingApplications(String eno) {
         if (eno == null || eno.isBlank()) {
@@ -439,11 +446,19 @@ public class ApplicationService {
     /** 목록 조회의 응답 조립을 배치 읽기 지원 클래스에 위임합니다. */
     private List<ApplicationDto.Response> assembleList(
             List<ApplicationRepository.ApplicationReadView> views) {
+        validateDetails(
+                views.stream()
+                        .map(v -> new DetailRead(v.getApfMngNo(), v.getDcdReqInf()))
+                        .toList());
         return ApplicationBulkReadSupport.assembleList(
                 views, approverRepository, userRepository, organizationRepository);
     }
 
-    /** 일괄 조회 (여러 신청관리번호를 배치로 읽어 응답 조립). */
+    /**
+     * 여러 신청관리번호를 배치로 읽고 상세를 검증해 응답을 조립한다.
+     *
+     * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
+     */
     public ApplicationDto.BulkResponse getApplicationsByIds(ApplicationDto.BulkGetRequest request) {
         ApplicationDto.BulkResponse response =
                 ApplicationBulkReadSupport.read(
@@ -452,11 +467,30 @@ public class ApplicationService {
                         approverRepository,
                         userRepository,
                         organizationRepository);
+        validateDetails(
+                response.items().stream()
+                        .map(v -> new DetailRead(v.getApfMngNo(), v.getApfDtlCone()))
+                        .toList());
         if (!response.failedIds().isEmpty()) {
             log.warn("bulk-get 누락: type=application, failedIds={}", response.failedIds());
         }
         return response;
     }
+
+    /** 원문은 그대로 반환하되 JSON-less 협의회 분류는 누락 상세 전체를 배치 조회한다. */
+    private void validateDetails(List<DetailRead> details) {
+        var absentIds = details.stream().filter(d -> d.raw() == null).map(DetailRead::id).toList();
+        var jsonlessCouncilIds =
+                absentIds.isEmpty()
+                        ? java.util.Set.<String>of()
+                        : detailPolicy.findJsonlessCouncilIds(absentIds);
+        for (var detail : details) {
+            if (detail.raw() == null && jsonlessCouncilIds.contains(detail.id())) continue;
+            snapshotReader.read(detail.raw());
+        }
+    }
+
+    private record DetailRead(String id, String raw) {}
 
     /**
      * 전자결재 대시보드 집계 조회

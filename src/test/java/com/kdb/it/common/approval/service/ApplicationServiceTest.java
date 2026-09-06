@@ -208,6 +208,11 @@ class ApplicationServiceTest {
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
     @Mock private ApprovalDetailPolicy detailPolicy;
+
+    @org.mockito.Spy
+    private com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader snapshotReader =
+            com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.reader();
+
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
     @Mock private ApprovalRequestNotifier approvalRequestNotifier;
 
@@ -218,6 +223,8 @@ class ApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        given(detailPolicy.findJsonlessCouncilIds(any()))
+                .willAnswer(i -> new java.util.HashSet<>(i.<List<String>>getArgument(0)));
         org.springframework.test.util.ReflectionTestUtils.setField(
                 applicationService,
                 "persistence",
@@ -333,7 +340,8 @@ class ApplicationServiceTest {
                         userRepository,
                         bprojaSyncService,
                         approvalRequestNotifier),
-                new ApprovalDetailPolicy(applicationMapRepository));
+                new ApprovalDetailPolicy(applicationMapRepository),
+                com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.reader());
     }
 
     // ───────────────────────────────────────────────────────
@@ -662,6 +670,21 @@ class ApplicationServiceTest {
     }
 
     // ───────────────────────────────────────────────────────
+    @Test
+    void detailReadRejectsCorruptV2InsteadOfReturningRawJson() throws Exception {
+        var root = com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.v2();
+        com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.object(
+                        root, "/payload/summary")
+                .put("total", "999.000");
+        var view =
+                new ApplicationReadView(
+                        APF_MNG_NO, null, null, root.toString(), null, null, null, null);
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
+        assertThatThrownBy(() -> serviceWithRealObjectMapper().getApfDtlCone(APF_MNG_NO))
+                .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
+    }
+
     // getApfDtlCone — 커버리지 60% 달성을 위해 추가 (2026-04-29)
     // ───────────────────────────────────────────────────────
 

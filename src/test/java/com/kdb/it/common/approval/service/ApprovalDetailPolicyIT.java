@@ -33,6 +33,27 @@ class ApprovalDetailPolicyIT {
     @Autowired private ApplicationRepository applications;
     @Autowired private ApplicationMapRepository maps;
     @Autowired private ApprovalDetailPolicy policy;
+    @Autowired private ApplicationService service;
+
+    @Test
+    void detailReadValidatesOracleClobAndCouncilNullPolicy() throws Exception {
+        String raw =
+                com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.v2().toString();
+        String valid = application(raw);
+        String council = application(null);
+        source(council, "BASCTM", "C1", null, "N");
+        String invalidNull = application(null);
+        source(invalidNull, "BCOSTM", "C1", 1, "N");
+        String corrupt = application(raw.replace("\"125.000\"", "\"999.000\""));
+        applications.flush();
+        maps.flush();
+        assertThat(service.getApfDtlCone(valid).getApfDtlCone()).isEqualTo(raw);
+        assertThat(service.getApfDtlCone(council).getApfDtlCone()).isNull();
+        assertThatThrownBy(() -> service.getApfDtlCone(invalidNull))
+                .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
+        assertThatThrownBy(() -> service.getApfDtlCone(corrupt))
+                .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
+    }
 
     @Test
     void onlyUnambiguousActiveCouncilSourcesAllowAbsentDetail() {

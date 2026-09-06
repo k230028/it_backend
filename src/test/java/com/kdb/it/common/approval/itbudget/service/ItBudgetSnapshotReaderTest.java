@@ -11,6 +11,38 @@ class ItBudgetSnapshotReaderTest {
     private final ItBudgetSnapshotReader reader = reader();
 
     @Test
+    void rejectsMissingRoleInV2() throws Exception {
+        var root = v2();
+        object(root, "/approvalLine/approvers/0").remove("role");
+        assertThatThrownBy(() -> reader.read(root.toString()))
+                .isInstanceOf(DataCorruptionException.class);
+    }
+
+    @Test
+    void invalidRolesAndRoleOrderFailOnReadAndMutation() throws Exception {
+        for (String role : new String[] {"TEAM_LEAD", "UNKNOWN", ""}) {
+            var root = v2();
+            object(root, "/approvalLine/approvers/1").put("role", role);
+            assertThatThrownBy(() -> reader.read(root.toString()))
+                    .isInstanceOf(DataCorruptionException.class);
+        }
+        var root = v2();
+        object(root, "/approvalLine/approvers/0").putNull("role");
+        assertThatThrownBy(() -> reader.read(root.toString()))
+                .isInstanceOf(DataCorruptionException.class);
+        var reversed = v2();
+        object(reversed, "/approvalLine/approvers/0").put("role", "DEPT_HEAD");
+        object(reversed, "/approvalLine/approvers/1").put("role", "TEAM_LEAD");
+        assertThatThrownBy(() -> reader.read(reversed.toString()))
+                .isInstanceOf(DataCorruptionException.class);
+        var parsed = reader.read(v2().toString());
+        ((com.fasterxml.jackson.databind.node.ObjectNode)
+                        parsed.approvalLine(true).at("/approvers/1"))
+                .put("role", "TEAM_LEAD");
+        assertThatThrownBy(parsed::write).isInstanceOf(DataCorruptionException.class);
+    }
+
+    @Test
     void dispatchesLegacyAndV2WithoutRewritingLegacy() throws Exception {
         String legacy =
                 "{\"form\":{\"id\":\"it-budget\",\"version\":1},\"projects\":[],\"extension\":true}";

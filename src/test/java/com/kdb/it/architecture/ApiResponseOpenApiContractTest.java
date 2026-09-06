@@ -173,7 +173,7 @@ class ApiResponseOpenApiContractTest {
                 fields("eno", "name", "rank"));
         assertContract(
                 ItBudgetApprovalDto.ApprovalPerson.class,
-                fields("eno", "name", "rank", "date"),
+                fields("role", "eno", "name", "rank", "date"),
                 fields("date"));
         assertStringProperties(ItBudgetApprovalDto.Project.class, "currentRequestAmount");
         var projectSchema = resolve(ItBudgetApprovalDto.Project.class);

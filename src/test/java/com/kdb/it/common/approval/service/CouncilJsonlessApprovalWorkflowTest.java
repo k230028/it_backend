@@ -160,7 +160,8 @@ class CouncilJsonlessApprovalWorkflowTest {
                         sync,
                         notifier,
                         persistence,
-                        new ApprovalDetailPolicy(maps));
+                        new ApprovalDetailPolicy(maps),
+                        reader());
         lines =
                 new ApprovalLineManagementService(
                         applications, decisions, users, delegate, new ApprovalDetailPolicy(maps));

@@ -113,6 +113,8 @@ class ItBudgetSubmissionTest {
         assertThat(first.at("/integrity/payloadDigest").asText())
                 .isEqualTo(request.documents().getFirst().payloadDigest());
         assertThat(first.at("/approvalLine/approvers/0/date").isNull()).isTrue();
+        assertThat(first.at("/approvalLine/approvers/0/role").asText()).isEqualTo("TEAM_LEAD");
+        assertThat(first.at("/approvalLine/approvers/1/role").asText()).isEqualTo("DEPT_HEAD");
         assertThat(saved.getAllValues())
                 .allSatisfy(a -> assertThat(a.getDcdReqUsid()).isEqualTo("U1"));
         var links = ArgumentCaptor.forClass(Cappla.class);

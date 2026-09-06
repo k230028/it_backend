@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.itbudget.model;
 
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ApproverRole;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,7 +26,8 @@ public record ItBudgetSnapshot(
     public record Requester(String eno, String name, String rank) {}
 
     /** date는 실제 결재일이며 미리보기의 미결재 사용자는 null이다. */
-    public record ApprovalPerson(String eno, String name, String rank, LocalDate date) {}
+    public record ApprovalPerson(
+            ApproverRole role, String eno, String name, String rank, LocalDate date) {}
 
     public record ApprovalLine(Requester requester, List<ApprovalPerson> approvers) {
         public ApprovalLine {

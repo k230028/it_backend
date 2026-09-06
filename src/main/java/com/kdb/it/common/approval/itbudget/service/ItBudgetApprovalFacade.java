@@ -326,7 +326,7 @@ public class ItBudgetApprovalFacade {
                                 a -> {
                                     var p = requiredPerson(people, a.eno(), true);
                                     return new ItBudgetSnapshot.ApprovalPerson(
-                                            p.getEno(), p.getUsrNm(), p.getPtCNm(), null);
+                                            a.role(), p.getEno(), p.getUsrNm(), p.getPtCNm(), null);
                                 })
                         .toList();
         return new ItBudgetSnapshot.ApprovalLine(
@@ -365,7 +365,11 @@ public class ItBudgetApprovalFacade {
                                 line.requester().name(),
                                 line.requester().rank()),
                         line.approvers().stream()
-                                .map(p -> new ApprovalPerson(p.eno(), p.name(), p.rank(), p.date()))
+                                .map(
+                                        p ->
+                                                new ApprovalPerson(
+                                                        p.role(), p.eno(), p.name(), p.rank(),
+                                                        p.date()))
                                 .toList());
         var snapshot =
                 new com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ItBudgetSnapshot(

@@ -128,7 +128,14 @@ class ItBudgetCanonicalJsonTest {
     void snapshot_defensivelyCopiesCallerOwnedListsBeforeCanonicalDigest() {
         List<ItBudgetSnapshot.ApprovalPerson> approvers =
                 new ArrayList<>(
-                        List.of(new ItBudgetSnapshot.ApprovalPerson("E1", "결재자", "부장", null)));
+                        List.of(
+                                new ItBudgetSnapshot.ApprovalPerson(
+                                        com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto
+                                                .ApproverRole.DEPT_HEAD,
+                                        "E1",
+                                        "결재자",
+                                        "부장",
+                                        null)));
         List<ItBudgetSnapshot.ProjectItem> items =
                 new ArrayList<>(
                         List.of(

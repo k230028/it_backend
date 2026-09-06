@@ -73,6 +73,7 @@ public final class ItBudgetSnapshotReader {
             shape(document, ItBudgetApprovalDto.ItBudgetSnapshot.class);
             var snapshot = mapper.treeToValue(document, ItBudgetApprovalDto.ItBudgetSnapshot.class);
             validate(snapshot);
+            validateRoles(snapshot.approvalLine());
             var integrity = snapshot.integrity();
             if (!"SHA-256".equals(integrity.algorithm())
                     || !"IT_BUDGET_V2".equals(integrity.canonicalization())
@@ -96,6 +97,18 @@ public final class ItBudgetSnapshotReader {
 
     private void validate(Object value) {
         if (!validator.validate(value).isEmpty()) throw corrupt("v2", "스냅샷 필수 값 또는 형식이 올바르지 않습니다.");
+    }
+
+    private void validateRoles(ItBudgetApprovalDto.SnapshotApprovalLine line) {
+        Set<ItBudgetApprovalDto.ApproverRole> fixedRoles = new HashSet<>();
+        int previousRole = -1;
+        for (var person : line.approvers()) {
+            var role = person.role();
+            if (role.ordinal() < previousRole
+                    || role != ItBudgetApprovalDto.ApproverRole.ADDITIONAL && !fixedRoles.add(role))
+                throw corrupt("v2", "결재 역할 또는 순서가 올바르지 않습니다.");
+            previousRole = role.ordinal();
+        }
     }
 
     /** 모든 record 필드를 요구하되 null 허용 여부는 DTO의 Bean Validation을 따른다. */
@@ -255,10 +268,12 @@ public final class ItBudgetSnapshotReader {
             try {
                 if (version == 2) {
                     shape(root.get("approvalLine"), ItBudgetApprovalDto.SnapshotApprovalLine.class);
-                    validate(
+                    var line =
                             mapper.treeToValue(
                                     root.get("approvalLine"),
-                                    ItBudgetApprovalDto.SnapshotApprovalLine.class));
+                                    ItBudgetApprovalDto.SnapshotApprovalLine.class);
+                    validate(line);
+                    validateRoles(line);
                 }
                 return mapper.writeValueAsString(root);
             } catch (JsonProcessingException | IllegalArgumentException exception) {

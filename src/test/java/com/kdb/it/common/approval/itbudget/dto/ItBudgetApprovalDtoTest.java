@@ -57,7 +57,7 @@ class ItBudgetApprovalDtoTest {
                     objectMapper.readValue(
                             "{\"requester\":"
                                     + requester
-                                    + ",\"approvers\":[{\"eno\":\"E2\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}]}",
+                                    + ",\"approvers\":[{\"role\":\"DEPT_HEAD\",\"eno\":\"E2\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}]}",
                             SnapshotApprovalLine.class);
             assertThat(validator.validate(line))
                     .extracting(v -> v.getPropertyPath().toString())
@@ -65,7 +65,7 @@ class ItBudgetApprovalDtoTest {
         }
         var valid =
                 objectMapper.readValue(
-                        "{\"requester\":{\"eno\":\"E1\",\"name\":\"신청자\"},\"approvers\":[{\"eno\":\"E2\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}]}",
+                        "{\"requester\":{\"eno\":\"E1\",\"name\":\"신청자\"},\"approvers\":[{\"role\":\"DEPT_HEAD\",\"eno\":\"E2\",\"name\":\"결재자\",\"rank\":\"부장\",\"date\":\"2026-09-06\"}]}",
                         SnapshotApprovalLine.class);
         assertThat(validator.validate(valid)).isEmpty();
         assertThat(validator.validate(new Person(null, null, null))).isEmpty();

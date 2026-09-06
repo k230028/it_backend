@@ -36,6 +36,21 @@ class ItBudgetPreviewOpenApiContractTest {
                                         .getResponse()
                                         .getContentAsString());
         var operation = json.at("/paths/~1api~1applications~1it-budget~1previews/post");
+        assertThat(
+                        json.at("/components/schemas/ItBudgetSnapshotApprovalPerson/required")
+                                .toString())
+                .contains("role");
+        assertThat(
+                        json.at(
+                                        "/components/schemas/ItBudgetSnapshotApprovalPerson/properties/role/type")
+                                .toString())
+                .contains("string")
+                .doesNotContain("null");
+        assertThat(
+                        json.at(
+                                        "/components/schemas/ItBudgetSnapshotApprovalPerson/properties/role/enum")
+                                .toString())
+                .isEqualTo("[\"TEAM_LEAD\",\"DEPT_HEAD\",\"ADDITIONAL\"]");
         assertThat(json.at("/components/schemas/ItBudgetSourceDigest/required").toString())
                 .contains("displayName", "sourceDigest", "order");
         assertThat(
