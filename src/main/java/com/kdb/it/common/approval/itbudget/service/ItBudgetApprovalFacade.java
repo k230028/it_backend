@@ -18,6 +18,8 @@ import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class ItBudgetApprovalFacade {
     private final ObjectMapper mapper;
     private final com.kdb.it.common.approval.service.ApplicationPersistenceService persistence;
     private final com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalGuard;
+    private final MeterRegistry meterRegistry;
 
     /**
      * 서명된 미리보기와 잠긴 현재 원장을 비교하고 모든 문서를 하나의 트랜잭션으로 저장한다.
@@ -50,6 +53,23 @@ public class ItBudgetApprovalFacade {
      */
     @Transactional
     public SubmissionResponse submit(CustomUserDetails actor, SubmissionRequest request) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+        try {
+            var response = doSubmit(actor, request);
+            recordSubmission("success");
+            return response;
+        } catch (ItBudgetApprovalException exception) {
+            recordSubmission(outcome(exception.code()));
+            throw exception;
+        } catch (RuntimeException exception) {
+            recordSubmission("error");
+            throw exception;
+        } finally {
+            sample.stop(meterRegistry.timer("approval.it_budget.submission.duration"));
+        }
+    }
+
+    private SubmissionResponse doSubmit(CustomUserDetails actor, SubmissionRequest request) {
         requireActor(actor);
         var claims = tokens.verify(request == null ? null : request.previewToken(), actor.getEno());
         var normalized = boundRequest(request, claims);
@@ -161,6 +181,23 @@ public class ItBudgetApprovalFacade {
      * @throws ItBudgetApprovalException 입력·원장 값 오류(400), 원장 미존재·삭제(404)
      */
     public PreviewResponse preview(CustomUserDetails actor, PreviewRequest request) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+        try {
+            var response = doPreview(actor, request);
+            recordPreview("success");
+            return response;
+        } catch (ItBudgetApprovalException exception) {
+            recordPreview(outcome(exception.code()));
+            throw exception;
+        } catch (RuntimeException exception) {
+            recordPreview("error");
+            throw exception;
+        } finally {
+            sample.stop(meterRegistry.timer("approval.it_budget.preview"));
+        }
+    }
+
+    private PreviewResponse doPreview(CustomUserDetails actor, PreviewRequest request) {
         requireActor(actor);
         var normalized = normalize(request);
         var refs = normalized.documents().stream().flatMap(d -> d.sourceRefs().stream()).toList();
@@ -533,6 +570,25 @@ public class ItBudgetApprovalFacade {
                 return true;
         }
         return false;
+    }
+
+    private void recordPreview(String outcome) {
+        meterRegistry.counter("approval.it_budget.preview.outcome", "outcome", outcome).increment();
+    }
+
+    private void recordSubmission(String outcome) {
+        meterRegistry.counter("approval.it_budget.submission", "outcome", outcome).increment();
+    }
+
+    private static String outcome(String code) {
+        return switch (code) {
+            case "IT_BUDGET_PREVIEW_INVALID" -> "invalid";
+            case "IT_BUDGET_PREVIEW_EXPIRED" -> "expired";
+            case "IT_BUDGET_SOURCE_CHANGED" -> "source_changed";
+            case "IT_BUDGET_PREVIEW_STALE" -> "stale";
+            case "IT_BUDGET_CONCURRENT_UPDATE" -> "concurrent_update";
+            default -> "error";
+        };
     }
 
     private Payload publicPayload(ItBudgetSnapshot.Payload payload) {

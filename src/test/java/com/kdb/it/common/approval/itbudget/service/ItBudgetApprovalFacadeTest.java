@@ -17,6 +17,7 @@ import com.kdb.it.domain.budget.cost.repository.*;
 import com.kdb.it.domain.budget.project.entity.*;
 import com.kdb.it.domain.budget.project.repository.*;
 import com.kdb.it.domain.budget.project.service.ProjectAmountCalculator;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -57,7 +58,15 @@ class ItBudgetApprovalFacadeTest {
                             clock));
     final ItBudgetApprovalFacade facade =
             new ItBudgetApprovalFacade(
-                    loader, builder, canonical, tokens, users, mapper, null, null);
+                    loader,
+                    builder,
+                    canonical,
+                    tokens,
+                    users,
+                    mapper,
+                    null,
+                    null,
+                    new SimpleMeterRegistry());
 
     ItBudgetApprovalFacadeTest() {
         when(projects.findVersions(anyCollection(), anyCollection()))
@@ -144,7 +153,15 @@ class ItBudgetApprovalFacadeTest {
                         futureClock);
         var future =
                 new ItBudgetApprovalFacade(
-                                loader, builder, canonical, futureTokens, users, mapper, null, null)
+                                loader,
+                                builder,
+                                canonical,
+                                futureTokens,
+                                users,
+                                mapper,
+                                null,
+                                null,
+                                new SimpleMeterRegistry())
                         .preview(actor, normalized);
         assertThat(future.previewDigest()).isEqualTo(response.previewDigest());
         assertThat(future.documents().getFirst().snapshot().integrity().capturedAt())

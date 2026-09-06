@@ -14,6 +14,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
 import com.kdb.it.domain.budget.project.entity.*;
 import com.kdb.it.domain.budget.project.service.BprojaSyncService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,7 @@ class ItBudgetSubmissionTest {
     final BprojaSyncService sync = mock(BprojaSyncService.class);
     final ApprovalRequestNotifier notifier = mock(ApprovalRequestNotifier.class);
     final ApprovalWriteGuard guard = spy(new ApprovalWriteGuard(mappings));
+    final SimpleMeterRegistry registry = new SimpleMeterRegistry();
     final ApplicationPersistenceService persistence =
             spy(
                     new ApplicationPersistenceService(
@@ -50,7 +52,8 @@ class ItBudgetSubmissionTest {
                     f.users,
                     f.mapper,
                     persistence,
-                    guard);
+                    guard,
+                    registry);
     final Bprojm project =
             Bprojm.builder()
                     .abusMngNo("P1")
@@ -130,6 +133,59 @@ class ItBudgetSubmissionTest {
         order.verify(applications).getNextVal();
     }
 
+    @Test
+    void recordsPreviewAndSubmissionSuccessWithOneTimerAndCounterEach() {
+        facade.preview(f.actor, previewRequest());
+        assertThat(registry.get("approval.it_budget.preview").timer().count()).isEqualTo(1);
+        assertThat(
+                        registry.get("approval.it_budget.preview.outcome")
+                                .tag("outcome", "success")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
+
+        facade.submit(f.actor, submission());
+
+        assertThat(registry.get("approval.it_budget.submission.duration").timer().count())
+                .isEqualTo(1);
+        assertThat(
+                        registry.get("approval.it_budget.submission")
+                                .tag("outcome", "success")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void recordsInvalidPreviewFailureAndStopsThePreviewTimer() {
+        error("IT_BUDGET_PREVIEW_INVALID", 400, () -> facade.preview(f.actor, null));
+
+        assertThat(registry.get("approval.it_budget.preview").timer().count()).isEqualTo(1);
+        assertThat(
+                        registry.get("approval.it_budget.preview.outcome")
+                                .tag("outcome", "invalid")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void recordsSourceChangedFailureAndStopsTheSubmissionTimer() {
+        var request = submission();
+        project.delete();
+
+        error("IT_BUDGET_SOURCE_CHANGED", 409, () -> facade.submit(f.actor, request));
+
+        assertThat(registry.get("approval.it_budget.submission.duration").timer().count())
+                .isEqualTo(1);
+        assertThat(
+                        registry.get("approval.it_budget.submission")
+                                .tag("outcome", "source_changed")
+                                .counter()
+                                .count())
+                .isEqualTo(1);
+    }
+
     @ParameterizedTest
     @ValueSource(
             strings = {
@@ -181,7 +237,8 @@ class ItBudgetSubmissionTest {
                         f.users,
                         f.mapper,
                         persistence,
-                        guard);
+                        guard,
+                        registry);
         error("IT_BUDGET_PREVIEW_EXPIRED", 409, () -> expiredFacade.submit(f.actor, request));
         verify(f.loader, never()).loadForSubmission(anyList());
         verifyNoInteractions(applications);

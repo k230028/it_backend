@@ -187,6 +187,11 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `DB_SCHEMA`             | 객체 소유 스키마. 기본값은 `ITPOWN`                                 |
 | `JWT_SECRET`            | JWT 서명 키                                                          |
 | `TOKEN_FINGERPRINT_SECRET` | Refresh Token·MFA 지문 HMAC 키. `JWT_SECRET`과 분리하며 UTF-8 32바이트 이상이어야 함 |
+| `IT_BUDGET_PREVIEW_ACTIVE_KEY_ID` | 전산예산 미리보기 HMAC의 활성 키 ID. 영문·숫자·`_`·`-`만 사용 |
+| `IT_BUDGET_PREVIEW_SIGNING_KEY` | 전산예산 미리보기 HMAC의 활성 서명 키. UTF-8 기준 32바이트 이상 |
+| `IT_BUDGET_PREVIEW_PREVIOUS_KEY_ID` | 키 회전 기간에만 두는 직전 미리보기 HMAC 키 ID. 직전 서명 키와 반드시 함께 설정 |
+| `IT_BUDGET_PREVIEW_PREVIOUS_SIGNING_KEY` | 키 회전 기간에만 두는 직전 미리보기 HMAC 서명 키. 직전 키 ID와 반드시 함께 설정하며 UTF-8 기준 32바이트 이상 |
+| `APP_APPROVAL_IT_BUDGET_PREVIEW_TTL` | 전산예산 미리보기 유효 시간. 운영에서는 정확히 `PT30M`만 허용 |
 | `APP_FRONTEND_URL`      | SSO 기본 복귀 URL과 기본 CORS Origin                                 |
 | `CORS_ALLOWED_ORIGINS`  | 다중 CORS Origin이 필요할 때 콤마 구분으로 별도 지정                 |
 | `APP_TRUSTED_PROXIES`   | `X-Forwarded-For`를 신뢰할 프록시 IP 목록                            |
@@ -208,6 +213,18 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `JAVA_HOME`             | JDK25 설치 경로(C:\Program Files\Java\jdk-25.0.2)                 |
 
 운영에서는 개발·로컬 프로파일의 기본값을 사용하지 않습니다. `EnvironmentValidator`는 모든 프로파일에서 DB 비밀번호와 JWT 시크릿의 빈값을 차단하고, `prod`에서는 Gemini 키, 활성 EAI URL, 프론트 URL, 명시적 CORS Origin과 운영 보안 토글을 추가로 검증합니다.
+
+### 전산예산 미리보기 HMAC 키 회전
+
+전산예산 미리보기 토큰은 전용 HMAC 키를 사용합니다. `JWT_SECRET`, `TOKEN_FINGERPRINT_SECRET`, MFA 키를 이 용도로 재사용하지 않고, 위의 `IT_BUDGET_PREVIEW_*` 환경변수로만 주입합니다. 활성 키만 새 토큰에 서명하며, 검증은 회전 기간에 활성 키와 완전한 직전 키 쌍을 함께 허용합니다. 문서·로그·명령행에는 실제 키 값을 넣지 않습니다.
+
+회전 순서는 다음과 같습니다.
+
+1. 새 키를 `IT_BUDGET_PREVIEW_ACTIVE_KEY_ID`와 `IT_BUDGET_PREVIEW_SIGNING_KEY`로 배포하고, 기존 활성 키를 `IT_BUDGET_PREVIEW_PREVIOUS_KEY_ID`와 `IT_BUDGET_PREVIEW_PREVIOUS_SIGNING_KEY`로 함께 배포합니다.
+2. 이전 미리보기 토큰이 모두 만료되도록 **30분보다 길게** 기다립니다.
+3. 두 `IT_BUDGET_PREVIEW_PREVIOUS_*` 환경변수를 함께 제거합니다.
+
+`prod` 기동은 활성 키 ID 또는 활성 서명 키가 없거나 공백인 경우, 키 ID가 허용 문자 밖인 경우, 활성·직전 키 ID가 중복된 경우, 직전 ID/서명 키가 한쪽만 있는 경우, 활성 또는 직전 서명 키가 UTF-8 기준 32바이트보다 짧은 경우, 또는 `APP_APPROVAL_IT_BUDGET_PREVIEW_TTL`이 `PT30M`이 아닌 경우 실패합니다.
 
 ### 인스턴스별 환경변수 (RAC 2노드)
 

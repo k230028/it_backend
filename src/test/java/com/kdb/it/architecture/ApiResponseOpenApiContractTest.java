@@ -1,16 +1,23 @@
 package com.kdb.it.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.approval.itbudget.controller.ItBudgetApplicationController;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetApprovalFacade;
 import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto;
+import com.kdb.it.config.SwaggerConfig;
 import com.kdb.it.domain.bizplan.dto.BizplanDto;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
@@ -29,8 +36,75 @@ import io.swagger.v3.core.converter.ResolvedSchema;
 import io.swagger.v3.oas.models.media.Schema;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
+@SpringBootTest(classes = ApiResponseOpenApiContractTest.App.class)
+@AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("test")
 class ApiResponseOpenApiContractTest {
+    @Autowired MockMvc mvc;
+    @MockitoBean ItBudgetApprovalFacade itBudgetApprovalFacade;
+
+    @Test
+    void itBudgetPreviewAndSubmissionPathsExposeTypedRequestsResponsesAndMfaErrors()
+            throws Exception {
+        JsonNode document =
+                new ObjectMapper()
+                        .readTree(
+                                mvc.perform(get("/v3/api-docs"))
+                                        .andExpect(status().isOk())
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsString());
+        JsonNode preview = document.at("/paths/~1api~1applications~1it-budget~1previews/post");
+        JsonNode submission =
+                document.at("/paths/~1api~1applications~1it-budget~1submissions/post");
+
+        assertThat(preview.isMissingNode()).isFalse();
+        assertThat(submission.isMissingNode()).isFalse();
+        assertThat(preview.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetPreviewRequest");
+        assertThat(preview.at("/responses/200/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetPreviewResponse");
+        assertThat(submission.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetSubmissionRequest");
+        assertThat(submission.at("/responses/200/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetSubmissionResponse");
+        assertErrorResponse(preview, "400", "404");
+        assertErrorResponse(submission, "400", "409");
+        assertThat(preview.at("/responses/401/description").asText()).isEqualTo("미인증");
+        assertThat(preview.at("/responses/403/description").asText()).isEqualTo("권한 없음");
+        assertThat(submission.at("/responses/401/description").asText())
+                .isEqualTo("미인증 또는 결재용 MFA 필요");
+        assertThat(submission.at("/responses/403/description").asText()).isEqualTo("권한 없음");
+        assertThat(document.at("/components/schemas/ItBudgetChangedSource/required").toString())
+                .contains("kind", "id", "revision", "displayName", "modifiedBy", "modifiedAt");
+        assertThat(
+                        document.at(
+                                        "/components/schemas/ItBudgetChangedSource/properties/modifiedAt/type")
+                                .toString())
+                .contains("string", "null");
+    }
+
+    private static void assertErrorResponse(JsonNode operation, String... statuses) {
+        for (String responseStatus : statuses)
+            assertThat(
+                            operation
+                                    .at(
+                                            "/responses/"
+                                                    + responseStatus
+                                                    + "/content/application~1json/schema/$ref")
+                                    .asText())
+                    .isEqualTo("#/components/schemas/ItBudgetApprovalErrorResponse");
+    }
 
     @Test
     void itBudgetApprovalSchemasExposeRequiredFieldsAndStableEnums() {
@@ -880,4 +954,9 @@ class ApiResponseOpenApiContractTest {
     private static String[] checkItemCodes() {
         return new String[] {"01", "02", "03", "04", "05", "06"};
     }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableAutoConfiguration
+    @Import({ItBudgetApplicationController.class, SwaggerConfig.class})
+    static class App {}
 }
