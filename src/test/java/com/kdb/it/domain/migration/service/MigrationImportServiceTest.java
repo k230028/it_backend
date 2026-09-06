@@ -63,6 +63,8 @@ import org.mockito.quality.Strictness;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class MigrationImportServiceTest {
+    @Mock private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
+    @Mock private jakarta.persistence.EntityManager entityManager;
 
     @Mock private CostService costService;
     @Mock private CostRepository costRepository;
@@ -1073,13 +1075,34 @@ class MigrationImportServiceTest {
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatching());
         Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
-        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0055"))
                 .thenReturn(List.of(matched));
 
         service.commit(commitRequestWithoutDecision(), "999999");
 
         verify(costService, never()).createCost(any(), anyBoolean());
         assertThat(matched.getBgUntAbusC()).isEqualTo("571");
+        var ordered =
+                org.mockito.Mockito.inOrder(costRepository, entityManager, approvalWriteGuard);
+        ordered.verify(costRepository).findCurrentVersionsForUpdate("COST-2026-0055");
+        ordered.verify(entityManager).refresh(matched);
+        ordered.verify(approvalWriteGuard).verifyWritable("BCOSTM", "COST-2026-0055", 1, "수정");
+    }
+
+    @Test
+    void 종합이관은_잠금후_진행중결재가_있으면_사업코드를_바꾸지않는다() {
+        MigrationImportService service = service();
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
+        when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatching());
+        Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0055"))
+                .thenReturn(List.of(matched));
+        org.mockito.Mockito.doThrow(new IllegalStateException("결재중"))
+                .when(approvalWriteGuard)
+                .verifyWritable("BCOSTM", "COST-2026-0055", 1, "수정");
+        assertThatThrownBy(() -> service.commit(commitRequestWithoutDecision(), "999999"))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(matched.getBgUntAbusC()).isNull();
     }
 
     /**
@@ -1101,7 +1124,7 @@ class MigrationImportServiceTest {
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatching());
         Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
-        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0055"))
                 .thenReturn(List.of(matched));
 
         MigrationDto.CommitRequest request = commitRequestWithoutDecision();
@@ -1122,7 +1145,7 @@ class MigrationImportServiceTest {
         when(validator.validate(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(yearSnapshot.load(anyString())).thenReturn(costSnapshotMatching());
         Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
-        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0055"))
                 .thenReturn(List.of(matched));
 
         MigrationDto.CommitRequest request = commitRequestWithoutDecision();
@@ -1163,7 +1186,7 @@ class MigrationImportServiceTest {
 
         service.commit(commitRequestWithoutDecision(), "999999");
 
-        verify(costRepository, never()).findByCostBgNoAndDelYn("COST-2026-0055", "N");
+        verify(costRepository, never()).findCurrentVersionsForUpdate("COST-2026-0055");
     }
 
     /**
@@ -1197,7 +1220,7 @@ class MigrationImportServiceTest {
         when(budgetRateApplicationService.applyItemRates(any()))
                 .thenReturn(new BudgetWorkDto.ApplyResponse("ok", 0, null));
         Bcostm matched = Bcostm.builder().costBgNo("COST-2026-0055").bgSno(1).lstYn("Y").build();
-        when(costRepository.findByCostBgNoAndDelYn("COST-2026-0055", "N"))
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0055"))
                 .thenReturn(List.of(matched));
 
         MigrationImportService service =
@@ -1277,7 +1300,9 @@ class MigrationImportServiceTest {
                 budgetRateApplicationService,
                 planService,
                 // 매핑 판정은 실물로 돌리고 기록만 목으로 관측한다
-                new PlanAdjustmentProgressRecorder(bprojaSyncService));
+                new PlanAdjustmentProgressRecorder(bprojaSyncService),
+                new MigrationCostBudgetUnitWriter(
+                        costRepository, approvalWriteGuard, entityManager));
     }
 
     private void stubLookupIndex() {

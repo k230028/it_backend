@@ -23,6 +23,22 @@ import org.springframework.data.repository.query.Param;
  */
 public interface ApplicationMapRepository extends JpaRepository<Cappla, CapplaId> {
 
+    /** 상세 없는 신청서 양식 분류에 필요한 원본 식별자 projection이다. */
+    interface DetailSourceView extends ApplicationMapView {
+        String getFntTbNm();
+    }
+
+    /** 상세 없는 문서의 활성 원본을 배치 조회해 일괄 결재의 문서별 추가 조회를 방지한다. */
+    @Query(
+            """
+            SELECT c.apfDcmNo AS apfDcmNo, c.fntTbNm AS fntTbNm,
+                   c.pkColNm AS pkColNm, c.fntTbCrySno AS fntTbCrySno
+              FROM Cappla c JOIN Capplm m ON m.apfMngNo = c.apfDcmNo
+             WHERE c.apfDcmNo IN :applicationIds AND c.delYn = 'N' AND m.dcdReqInf IS NULL
+            """)
+    java.util.List<DetailSourceView> findDetailSourcesByApplicationIds(
+            @Param("applicationIds") java.util.List<String> applicationIds);
+
     /** 결재 응답 조립에 필요한 신청서 연결 최소 필드입니다. */
     interface ApplicationMapView {
         String getApfDcmNo();

@@ -21,12 +21,32 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class TerminalBulkImportCostServiceTest {
+
+    @Test
+    void 진행중결재는_이관옵션으로도_부모와단말기를_수정할수없다() {
+        Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
+        when(cost.getCostBgNo()).thenReturn("COST-LOCK");
+        when(cost.getBgSno()).thenReturn(3);
+        when(costRepository.findCurrentVersionsForUpdate("COST-LOCK")).thenReturn(List.of(cost));
+        org.mockito.Mockito.doThrow(new IllegalStateException("결재중"))
+                .when(approvalWriteGuard)
+                .verifyWritable("BCOSTM", "COST-LOCK", 3, "수정");
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                costService.updateCostForMigration(
+                                        "COST-LOCK", new CostDto.UpdateRequest()))
+                .isInstanceOf(IllegalStateException.class);
+        var ordered = org.mockito.Mockito.inOrder(costRepository, approvalWriteGuard);
+        ordered.verify(costRepository).findCurrentVersionsForUpdate("COST-LOCK");
+        ordered.verify(approvalWriteGuard).verifyWritable("BCOSTM", "COST-LOCK", 3, "수정");
+        verify(cost, never()).update(org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verifyNoInteractions(btermmRepository);
+    }
 
     @Mock private CostRepository costRepository;
     @Mock private BtermmRepository btermmRepository;
@@ -35,7 +55,26 @@ class TerminalBulkImportCostServiceTest {
     @Mock private CodeService codeService;
     @Mock private XcrLookupService xcrLookupService;
     @Mock private CostQueryService costQueryService;
-    @InjectMocks private CostService costService;
+    @Mock private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
+    @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+    private CostService costService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        costService =
+                new CostService(
+                        costRepository,
+                        new com.kdb.it.domain.budget.cost.service.CostWriteTargetLoader(
+                                costRepository),
+                        btermmRepository,
+                        userRepository,
+                        orgNameResolver,
+                        codeService,
+                        xcrLookupService,
+                        costQueryService,
+                        approvalWriteGuard,
+                        approvalStamper);
+    }
 
     @Test
     void 이관전용생성은_대상연도로채번하고_제출금액과외화를보존한다() {
@@ -81,7 +120,7 @@ class TerminalBulkImportCostServiceTest {
         when(cost.getBgSno()).thenReturn(1);
         when(cost.getCttNm()).thenReturn("원래 전산업무비 제목");
         when(cost.getCttOppNm()).thenReturn("원래 계약상대처");
-        when(costRepository.findByCostBgNoAndDelYn("COST-2025-0007", "N"))
+        when(costRepository.findCurrentVersionsForUpdate("COST-2025-0007"))
                 .thenReturn(List.of(cost));
 
         Btermm existing = org.mockito.Mockito.mock(Btermm.class);
@@ -110,6 +149,15 @@ class TerminalBulkImportCostServiceTest {
 
         assertThat(costService.updateCostForMigration("COST-2025-0007", request))
                 .isEqualTo("COST-2025-0007");
+        var ordered =
+                org.mockito.Mockito.inOrder(
+                        costRepository, approvalWriteGuard, btermmRepository, existing);
+        ordered.verify(costRepository).findCurrentVersionsForUpdate("COST-2025-0007");
+        ordered.verify(approvalWriteGuard).verifyWritable("BCOSTM", "COST-2025-0007", 1, "수정");
+        ordered.verify(btermmRepository)
+                .findByTermBgNoAndTermBgSnoAndDelYn("COST-2025-0007", 1, "N");
+        ordered.verify(existing)
+                .update(org.mockito.ArgumentMatchers.any(Btermm.UpdateCommand.class));
         ArgumentCaptor<Bcostm.UpdateCommand> costCommandCaptor =
                 ArgumentCaptor.forClass(Bcostm.UpdateCommand.class);
         verify(cost).update(costCommandCaptor.capture());

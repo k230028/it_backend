@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kdb.it.common.approval.entity.Cappla;
+import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
@@ -34,12 +36,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -407,7 +412,7 @@ class MigrationImportIt {
 
         // 2차 반영: 무관한 사업의 전산업무비를 매칭 경로로 편성한다. 1차 사업은 이번 반영에 들어 있지
         // 않으므로 편성률이 그대로여야 한다
-        요청비용을_만든다("무관벤더", "무관 계약", new BigDecimal("15000000"), null);
+        수정가능비용을_만든다("무관벤더", "무관 계약", new BigDecimal("15000000"), null);
         service.commit(전산업무비_커밋요청("무관벤더", "무관 계약", REGISTERED_ABUS_CODE), ACTOR_ENO);
 
         assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BITEMM", "N"))
@@ -592,13 +597,13 @@ class MigrationImportIt {
      * 매칭된 전산업무비의 빈 사업코드({@code BG_UNT_ABUS_C})가 종합본 값으로 채워지는지 정상·비정상 두 경우로 확인합니다 (§4.1).
      *
      * <p>편성요청서 양식에는 사업코드 열이 없어 1단계가 만드는 {@code BCOSTM}은 이 값이 항상 {@code null}입니다({@link #요청비용을_만든다}가
-     * 그 전제를 그대로 재현합니다).
+     * 그 전제를 그대로 재현합니다). 코드 보충 성공은 결재 전 원장으로 검증하며, 진행·완료 상태의 차단은 별도 테스트가 고정합니다.
      */
     @Test
     @Tag("it")
     @DisplayName("매칭된_전산업무비의_빈_사업코드가_종합본_값으로_채워진다")
     void 매칭된_전산업무비의_빈_사업코드가_종합본_값으로_채워진다() {
-        String costNo = 요청비용을_만든다("테스트벤더", "테스트 유지보수", new BigDecimal("15000000"), null);
+        String costNo = 수정가능비용을_만든다("테스트벤더", "테스트 유지보수", new BigDecimal("15000000"), null);
 
         service.commit(전산업무비_커밋요청("테스트벤더", "테스트 유지보수", REGISTERED_ABUS_CODE), ACTOR_ENO);
 
@@ -606,11 +611,52 @@ class MigrationImportIt {
         assertThat(updated.getBgUntAbusC()).isEqualTo(REGISTERED_ABUS_CODE);
     }
 
+    /** 비관리자 이관 호출도 진행·완료된 정확한 비용 개정본을 수정할 수 없습니다. */
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "2"})
+    void 결재중이거나_완료된_비용은_코드보충을_거부하고_원장을_보존한다(String approvalStatus) {
+        String costNo = 수정가능비용을_만든다("보호벤더", "보호 계약", new BigDecimal("15000000"), null);
+        Bcostm before = costRepository.findByCostBgNoAndDelYnAndLstYn(costNo, "N", "Y").get(0);
+        String applicationId = "APF-" + BSE_YY + "-" + UUID.randomUUID();
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(
+                        status -> {
+                            entityManager.persist(
+                                    Capplm.builder()
+                                            .apfMngNo(applicationId)
+                                            .itPtlApfPrgStsC(approvalStatus)
+                                            .build());
+                            entityManager.persist(
+                                    Cappla.builder()
+                                            .apfDcmNo(applicationId)
+                                            .fntTbNm("BCOSTM")
+                                            .pkColNm(costNo)
+                                            .fntTbCrySno(before.getBgSno())
+                                            .delYn("N")
+                                            .build());
+                        });
+
+        assertThatThrownBy(
+                        () ->
+                                service.commit(
+                                        전산업무비_커밋요청("보호벤더", "보호 계약", REGISTERED_ABUS_CODE),
+                                        ACTOR_ENO))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("수정할 수 없습니다");
+
+        Bcostm after = costRepository.findByCostBgNoAndDelYnAndLstYn(costNo, "N", "Y").get(0);
+        assertThat(after.getBgUntAbusC()).isNull();
+        assertThat(after.getCostTotXpAmt()).isEqualByComparingTo(before.getCostTotXpAmt());
+        assertThat(after.getCttNm()).isEqualTo(before.getCttNm());
+        assertThat(after.getBgSno()).isEqualTo(before.getBgSno());
+        assertThat(bbugtmRepository.findByBseYyAndFntTbNmAndDelYn(BSE_YY, "BCOSTM", "N")).isEmpty();
+    }
+
     /**
      * 코드표에 없는 사업코드는 반입 전체를 막아 원장에 닿지 못합니다.
      *
      * <p>{@code MigrationValidator.validateCostRowAlways}는 사업코드를 매칭 행 포함 <b>항상</b> 검사하므로, 이 값은
-     * {@code MigrationImportService.fillCostBudgetUnitCodes}에 닿기도 전에 {@code CODE_UNRESOLVED}
+     * {@code MigrationCostBudgetUnitWriter.fillCostBudgetUnitCodes}에 닿기도 전에 {@code CODE_UNRESOLVED}
      * BLOCKER로 커밋 전체를 막습니다. {@code fillCostBudgetUnitCodes} 자신의 카탈로그 방어(코드표에 없으면 채우지 않는다)는 코드 카탈로그
      * 자체가 비어 있을 때만 실제로 열리는 방어선이라, 카탈로그가 채워진 이 로컬 DB 환경에서는 검증기가 이미 더 앞에서 막아 도달하지 않습니다. 그래도 "미등록 값이
      * 원장에 새지 않는다"는 최종 결과는 이 테스트가 고정합니다. {@code BG_UNT_ABUS_C}는 {@code VARCHAR2(3)}이라, 이 방어가 없으면
@@ -856,6 +902,16 @@ class MigrationImportIt {
      */
     private String 요청비용을_만든다(
             String vendor, String contract, BigDecimal amount, String existingAbusCode) {
+        String costNo = 수정가능비용을_만든다(vendor, contract, amount, existingAbusCode);
+        Bcostm created = costRepository.findByCostBgNoAndDelYnAndLstYn(costNo, "N", "Y").get(0);
+        approvalStamper.stamp(
+                "BCOSTM", costNo, created.getBgSno(), "테스트 편성요청서 반입", ACTOR_ENO, BSE_YY);
+        return costNo;
+    }
+
+    /** 사업코드를 보충할 수 있는 결재 전 비용을 만들며 CAPPLM/CAPPLA는 생성하지 않습니다. */
+    private String 수정가능비용을_만든다(
+            String vendor, String contract, BigDecimal amount, String existingAbusCode) {
         CostDto.CreateRequest request = new CostDto.CreateRequest();
         request.setBseYy(BSE_YY);
         request.setIoeC(COST_IOE_C);
@@ -868,11 +924,7 @@ class MigrationImportIt {
         request.setCgprId(ACTOR_ENO);
         request.setBgUntAbusC(existingAbusCode);
 
-        String costNo = costService.createCost(request, true);
-        Bcostm created = costRepository.findByCostBgNoAndDelYnAndLstYn(costNo, "N", "Y").get(0);
-        approvalStamper.stamp(
-                "BCOSTM", costNo, created.getBgSno(), "테스트 편성요청서 반입", ACTOR_ENO, BSE_YY);
-        return costNo;
+        return costService.createCost(request, true);
     }
 
     /**

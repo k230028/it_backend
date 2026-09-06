@@ -79,6 +79,16 @@ class EnvironmentValidatorStartupTest {
     }
 
     @Test
+    @DisplayName("운영 프로파일에서 미리보기 TTL이 30분이 아니면 실제 기동 중 차단")
+    void prod_nonThirtyMinutePreviewTtl_failsDuringStartup() {
+        assertStartupFails(
+                Map.of(
+                        "spring.profiles.active", "prod",
+                        "app.approval.it-budget.preview.ttl", "PT31M"),
+                "app.approval.it-budget.preview.ttl");
+    }
+
+    @Test
     @DisplayName("active non-prod가 있으면 default prod보다 active를 우선해 정상 기동")
     void activeNonProdWithDefaultProd_startsSuccessfully() {
         assertStartupSucceeds(
@@ -162,6 +172,11 @@ class EnvironmentValidatorStartupTest {
         properties.put("app.frontend-url", "https://it.kdb.co.kr");
         properties.put("springdoc.api-docs.enabled", "false");
         properties.put("springdoc.swagger-ui.enabled", "false");
+        properties.put("app.approval.it-budget.preview.active-key-id", "prod-v2");
+        properties.put(
+                "app.approval.it-budget.preview.active-signing-key",
+                "preview-signing-key-for-production-minimum-32-bytes");
+        properties.put("app.approval.it-budget.preview.ttl", "PT30M");
         properties.putAll(overrides);
         return properties.entrySet().stream()
                 .map(entry -> "--" + entry.getKey() + "=" + entry.getValue())

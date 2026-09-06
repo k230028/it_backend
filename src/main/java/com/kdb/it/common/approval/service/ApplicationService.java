@@ -104,11 +104,12 @@ public class ApplicationService {
     /** 결재요청 알림 발행 전담 컴포넌트 — 결재선의 다음 결재자 조회, 메일 페이로드 렌더링, 이벤트 발행을 위임한다. */
     private final ApprovalRequestNotifier approvalRequestNotifier;
 
+    private final ApplicationPersistenceService persistence;
+    private final ApprovalDetailPolicy detailPolicy;
+    private final com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotReader snapshotReader;
+
     /** 원천테이블명: 정보화사업 마스터(BPROJM). BPROJA 적재 대상 식별용 상수. */
     private static final String FNT_TB_BPROJM = "BPROJM";
-
-    /** 전산업무비 원천 테이블명 — 개정 순번 검증 대상입니다. */
-    private static final String FNT_TB_BCOSTM = "BCOSTM";
 
     /**
      * 신청서 등록 (결재 요청)
@@ -133,117 +134,7 @@ public class ApplicationService {
      */
     @Transactional
     public String submit(ApplicationDto.CreateRequest request) {
-
-        // Oracle 시퀀스로 채번하여 신청관리번호 생성 (APF-{yyyy}-{seq:08d})
-        Long capplmSeq = applicationRepository.getNextVal();
-        String apfMngNo =
-                String.format("APF-%s-%08d", java.time.LocalDate.now().getYear(), capplmSeq);
-
-        // 1. 신청서 마스터 생성 (초기 상태: "결재중")
-        Capplm capplm =
-                Capplm.builder()
-                        .apfMngNo(apfMngNo) // 신청관리번호 (PK)
-                        .dcdReqTtl(request.getApfNm()) // 결재요청제목
-                        .dcdReqInf(request.getApfDtlCone()) // 결재요청정보 (JSON)
-                        .itPtlApfPrgStsC(ApprovalStatus.IN_PROGRESS.code())
-                        .dcdReqUsid(request.getRqsEno()) // 결재요청사용자ID
-                        .dcdReqBbrC(resolveRequesterBbrC(request.getRqsEno())) // 결재요청부점코드
-                        .dcdReqDtm(LocalDate.now()) // 결재요청일시 = 오늘
-                        .rgprDcdReqCone(request.getRqsOpnn()) // 등록자결재요청내용
-                        .build();
-        applicationRepository.save(capplm);
-
-        // 1-1. 원천 데이터 연결 저장 (orcItems 각각에 대해 Cappla 생성)
-        // 하나의 신청서가 복수의 원천 레코드(정보화사업, 전산관리비 등)를 연결할 수 있습니다.
-        if (request.getOrcItems() != null && !request.getOrcItems().isEmpty()) {
-            for (ApplicationDto.OrcItem item : request.getOrcItems()) {
-                Integer crySno = resolveSourceVersionSno(item);
-                Cappla cappla =
-                        Cappla.builder()
-                                .apfDcmNo(apfMngNo)
-                                .fntTbNm(item.getFntTbNm())
-                                .pkColNm(item.getPkColNm())
-                                .fntTbCrySno(crySno)
-                                .build();
-                applicationMapRepository.save(cappla);
-
-                // 정보화사업(BPROJM) 결재 상신 → 정보화사업관계(BPROJA) 상태를 결재중('05')으로 갱신.
-                // 단계 key(CNCD_RFR_NO)는 작성('01') 시와 동일하게 프로젝트관리번호(pkColNm) 자신을 사용해
-                // 동일 행을 멱등 upsert 한다. 전산업무비(BCOSTM) 등 비-프로젝트 원천은 적재 대상이 아니다.
-                if (FNT_TB_BPROJM.equals(item.getFntTbNm())) {
-                    bprojaSyncService.upsert(item.getPkColNm(), item.getPkColNm(), "05");
-                }
-            }
-        }
-
-        // 2. 결재선 생성: 요청받은 결재자 사번 목록을 순번(dcdSqn)대로 저장
-        List<String> approverEnos = request.getApproverEnos();
-        List<Cdecim> savedApprovers = new java.util.ArrayList<>();
-
-        for (int i = 0; i < approverEnos.size(); i++) {
-            Cdecim cdecim =
-                    Cdecim.builder()
-                            .dcdMngNo(apfMngNo) // 결재관리번호 (FK)
-                            .dcrSqnSno(i + 1) // 결재순번 (1부터 시작)
-                            .dcrEno(approverEnos.get(i)) // 결재자 사원번호
-                            .itPtlDcdStsC(
-                                    DecisionStatus.PENDING.code()) // 초기 결재상태: 미결재(1) — NOT NULL
-                            .lstDcdYn(i == approverEnos.size() - 1 ? "Y" : "N") // 마지막 결재자 여부
-                            .dcdTpC(Cdecim.DECISION_TYPE_REQUEST) // 결재유형: 요청(10) — NOT NULL
-                            .build();
-            approverRepository.save(cdecim);
-            savedApprovers.add(cdecim);
-        }
-
-        // 3. 다음 결재 차례인 결재자에게 알림 발행 (결재선의 가장 앞 순번 결재자)
-        //    AFTER_COMMIT 리스너가 처리하므로 본 트랜잭션은 차단되지 않는다.
-        //    참고: 기안자와 1차 결재자가 동일하더라도 자동 승인하지 않고 명시적 결재를 요구합니다.
-        approvalRequestNotifier.notifyApprovalRequest(capplm);
-
-        return apfMngNo; // 생성된 신청관리번호 반환
-    }
-
-    /**
-     * 상신 대상 원천 개정본의 순번을 검증해 반환합니다.
-     *
-     * <p>결재 매핑의 순번은 승인 완료 시 어느 개정본을 최종본으로 승격할지 결정합니다. 잘못된 순번이 실리면 승인 시점에 폐기된 구버전이 다시 최종본이 되거나(내용
-     * 롤백), 순번이 비어 있으면 승격 리스너가 예외를 던져 승인 트랜잭션 전체가 롤백됩니다. 두 경우 모두 결재자에게 원인을 알 수 없는 실패로 보이므로 상신 시점에
-     * 거절합니다.
-     *
-     * <p>순번 개념이 없는 원천 테이블은 검증 대상이 아니며 입력값을 그대로 씁니다.
-     *
-     * @param item 상신 요청의 원천 데이터 연결 항목
-     * @return 검증된 개정 순번 (검증 대상이 아니면 입력값 그대로, 없으면 null)
-     * @throws IllegalArgumentException 순번이 없거나 활성 개정본이 존재하지 않는 경우
-     */
-    private Integer resolveSourceVersionSno(ApplicationDto.OrcItem item) {
-        Integer sno =
-                item.getFntTbCrySno() != null && !item.getFntTbCrySno().isBlank()
-                        ? Integer.parseInt(item.getFntTbCrySno().trim())
-                        : null;
-        boolean versioned =
-                FNT_TB_BPROJM.equals(item.getFntTbNm()) || FNT_TB_BCOSTM.equals(item.getFntTbNm());
-        if (!versioned) {
-            return sno;
-        }
-        if (sno == null) {
-            throw new IllegalArgumentException(
-                    "상신 대상 개정본 순번이 없습니다: %s %s".formatted(item.getFntTbNm(), item.getPkColNm()));
-        }
-        boolean exists =
-                FNT_TB_BPROJM.equals(item.getFntTbNm())
-                        ? projectRepository
-                                .findByAbusMngNoAndSnoAndDelYn(item.getPkColNm(), sno, "N")
-                                .isPresent()
-                        : costRepository
-                                .findByCostBgNoAndBgSnoAndDelYn(item.getPkColNm(), sno, "N")
-                                .isPresent();
-        if (!exists) {
-            throw new IllegalArgumentException(
-                    "상신 대상 개정본이 없습니다: %s %s #%d"
-                            .formatted(item.getFntTbNm(), item.getPkColNm(), sno));
-        }
-        return sno;
+        return persistence.persist(ApplicationPersistenceService.ApplicationDraft.from(request));
     }
 
     /**
@@ -272,6 +163,14 @@ public class ApplicationService {
      */
     @Transactional
     public void approve(String apfMngNo, ApplicationDto.ApproveRequest request) {
+        approve(apfMngNo, request, null);
+    }
+
+    /** 일괄 결재에서는 원본 양식 분류 결과를 재사용한다. 마스터 잠금은 각 명령에서 유지한다. */
+    private void approve(
+            String apfMngNo,
+            ApplicationDto.ApproveRequest request,
+            java.util.Set<String> jsonlessCouncilIds) {
         // 신청서 마스터 조회 (없으면 예외)
         Capplm capplm =
                 applicationRepository
@@ -355,7 +254,12 @@ public class ApplicationService {
         }
 
         // 신청서 상세 내용(JSON) 내 결재선 정보 업데이트 (결재 일자 기록)
-        approvalLineDelegate.doUpdate(capplm, approvers, approvedList);
+        var detailMode =
+                jsonlessCouncilIds == null
+                        ? detailPolicy.resolve(capplm)
+                        : detailPolicy.resolve(capplm, jsonlessCouncilIds);
+        if (detailMode != ApprovalDetailPolicy.DetailMode.JSONLESS_COUNCIL)
+            approvalLineDelegate.doUpdate(capplm, approvers, approvedList);
 
         // 신청서 전체 상태 업데이트
         String newApfSts = null;
@@ -406,6 +310,11 @@ public class ApplicationService {
         List<ApplicationDto.ApprovalResult> results = new java.util.ArrayList<>(); // 개별 결과 목록
         int successCount = 0; // 성공 건수
         int failureCount = 0; // 실패 건수
+        var jsonlessCouncilIds =
+                detailPolicy.findJsonlessCouncilIds(
+                        request.getApprovals().stream()
+                                .map(ApplicationDto.ApprovalItem::getApfMngNo)
+                                .toList());
 
         // 모든 신청서를 순회하며 승인 처리
         for (ApplicationDto.ApprovalItem item : request.getApprovals()) {
@@ -417,7 +326,7 @@ public class ApplicationService {
                 approveRequest.setDcdSts(item.getDcdSts()); // 승인 상태 (승인, 반려)
 
                 // 개별 승인 처리
-                approve(item.getApfMngNo(), approveRequest);
+                approve(item.getApfMngNo(), approveRequest, jsonlessCouncilIds);
 
                 // 성공 결과 추가
                 results.add(
@@ -452,6 +361,7 @@ public class ApplicationService {
      * @param apfMngNo 조회할 신청관리번호
      * @return 신청관리번호와 세부내용을 담은 응답 DTO ({@link ApplicationDto.ApfDtlConeResponse})
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
+     * @throws com.kdb.it.exception.DataCorruptionException 저장 상세가 손상되었거나 필수 상세가 없는 경우
      */
     public ApplicationDto.ApfDtlConeResponse getApfDtlCone(String apfMngNo) {
         ApplicationRepository.ApplicationReadView view =
@@ -459,6 +369,7 @@ public class ApplicationService {
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+        validateDetails(List.of(new DetailRead(view.getApfMngNo(), view.getDcdReqInf())));
         return ApplicationDto.ApfDtlConeResponse.fromReadView(view);
     }
 
@@ -470,6 +381,7 @@ public class ApplicationService {
      * @param apfMngNo 조회할 신청관리번호
      * @return 신청서 상세 응답 DTO (결재자 목록 포함)
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
+     * @throws com.kdb.it.exception.DataCorruptionException 저장 상세가 손상되었거나 필수 상세가 없는 경우
      */
     public ApplicationDto.Response getApplication(String apfMngNo) {
         // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회)
@@ -478,6 +390,7 @@ public class ApplicationService {
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+        validateDetails(List.of(new DetailRead(view.getApfMngNo(), view.getDcdReqInf())));
         return ApplicationBulkReadSupport.assembleOne(
                 view, approverRepository, userRepository, organizationRepository);
     }
@@ -493,6 +406,7 @@ public class ApplicationService {
      * 결재자 목록과 함께 반환합니다.
      *
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
+     * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
     public List<ApplicationDto.Response> getApplications() {
         // 작성완료(0)·수기등록(9)은 결재함 대상이 아니므로 DB에서 제외한다 (최신순 상한 500건)
@@ -507,6 +421,7 @@ public class ApplicationService {
      * @param eno 결재자 사번 (인증 주체)
      * @return 결재 대기 신청서 응답 DTO 목록 (최신순, 각각 결재자 목록 포함)
      * @throws IllegalArgumentException 사번이 비어 있는 경우 (빈 결과와 구분한다)
+     * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
     public List<ApplicationDto.Response> getPendingApplications(String eno) {
         if (eno == null || eno.isBlank()) {
@@ -531,24 +446,19 @@ public class ApplicationService {
     /** 목록 조회의 응답 조립을 배치 읽기 지원 클래스에 위임합니다. */
     private List<ApplicationDto.Response> assembleList(
             List<ApplicationRepository.ApplicationReadView> views) {
+        validateDetails(
+                views.stream()
+                        .map(v -> new DetailRead(v.getApfMngNo(), v.getDcdReqInf()))
+                        .toList());
         return ApplicationBulkReadSupport.assembleList(
                 views, approverRepository, userRepository, organizationRepository);
     }
 
     /**
-     * 신청자 사번으로 현재 소속 부점코드를 조회합니다.
+     * 여러 신청관리번호를 배치로 읽고 상세를 검증해 응답을 조립한다.
      *
-     * @param eno 신청자 사번
-     * @return 신청자 소속 부점코드, 없으면 null
+     * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
-    private String resolveRequesterBbrC(String eno) {
-        if (eno == null || eno.isBlank()) {
-            return null;
-        }
-        return userRepository.findById(eno).map(user -> user.getBbrC()).orElse(null);
-    }
-
-    /** 일괄 조회 (여러 신청관리번호를 배치로 읽어 응답 조립). */
     public ApplicationDto.BulkResponse getApplicationsByIds(ApplicationDto.BulkGetRequest request) {
         ApplicationDto.BulkResponse response =
                 ApplicationBulkReadSupport.read(
@@ -557,11 +467,30 @@ public class ApplicationService {
                         approverRepository,
                         userRepository,
                         organizationRepository);
+        validateDetails(
+                response.items().stream()
+                        .map(v -> new DetailRead(v.getApfMngNo(), v.getApfDtlCone()))
+                        .toList());
         if (!response.failedIds().isEmpty()) {
             log.warn("bulk-get 누락: type=application, failedIds={}", response.failedIds());
         }
         return response;
     }
+
+    /** 원문은 그대로 반환하되 JSON-less 협의회 분류는 누락 상세 전체를 배치 조회한다. */
+    private void validateDetails(List<DetailRead> details) {
+        var absentIds = details.stream().filter(d -> d.raw() == null).map(DetailRead::id).toList();
+        var jsonlessCouncilIds =
+                absentIds.isEmpty()
+                        ? java.util.Set.<String>of()
+                        : detailPolicy.findJsonlessCouncilIds(absentIds);
+        for (var detail : details) {
+            if (detail.raw() == null && jsonlessCouncilIds.contains(detail.id())) continue;
+            snapshotReader.read(detail.raw());
+        }
+    }
+
+    private record DetailRead(String id, String raw) {}
 
     /**
      * 전자결재 대시보드 집계 조회
@@ -733,8 +662,9 @@ public class ApplicationService {
             throw new AccessDeniedException("회수 권한이 없습니다.");
         }
 
+        approvalLineDelegate.applyRecallInfo(
+                capplm, currentEno, request.getRecallOpnn(), detailPolicy.resolve(capplm));
         capplm.updateStatus(ApprovalStatus.RECALLED);
-        approvalLineDelegate.applyRecallInfo(capplm, currentEno, request.getRecallOpnn());
 
         for (Cdecim a : approvers) {
             if (DecisionStatus.isPendingCode(a.getItPtlDcdStsC())) {

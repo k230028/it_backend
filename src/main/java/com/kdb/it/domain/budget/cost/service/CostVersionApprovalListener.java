@@ -25,12 +25,17 @@ public class CostVersionApprovalListener {
      *
      * @param event 결재 상태 변경 이벤트
      */
+    @org.springframework.core.annotation.Order(20)
     @EventListener
     @Transactional
     public void handleApprovalCompleted(ApprovalCompletedEvent event) {
         if (!COMPLETED.equals(event.newStatus())) return;
-        applicationMapRepository
-                .findByApfDcmNoAndFntTbNm(event.apfMngNo(), COST_TABLE)
+        applicationMapRepository.findByApfDcmNoAndFntTbNm(event.apfMngNo(), COST_TABLE).stream()
+                .sorted(
+                        java.util.Comparator.comparing(
+                                        com.kdb.it.common.approval.entity.Cappla::getPkColNm)
+                                .thenComparing(
+                                        com.kdb.it.common.approval.entity.Cappla::getFntTbCrySno))
                 .forEach(
                         link ->
                                 costVersionService.promoteApprovedVersion(

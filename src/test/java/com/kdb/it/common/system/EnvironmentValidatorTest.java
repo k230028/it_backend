@@ -141,7 +141,98 @@ class EnvironmentValidatorTest {
         env.setProperty("server.servlet.session.cookie.http-only", "true");
         env.setProperty("server.servlet.session.cookie.same-site", "lax");
         env.setProperty("app.frontend-url", "https://it.kdb.co.kr");
+        env.setProperty("app.approval.it-budget.preview.active-key-id", "prod-v2");
+        env.setProperty(
+                "app.approval.it-budget.preview.active-signing-key",
+                "preview-signing-key-for-production-minimum-32-bytes");
+        env.setProperty("app.approval.it-budget.preview.ttl", "PT30M");
         return env;
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 미리보기 활성 키 ID가 없으면 기동을 차단한다")
+    void validate_prodMissingPreviewActiveKeyId_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.active-key-id", " ");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("IT_BUDGET_PREVIEW_ACTIVE_KEY_ID");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 미리보기 활성 서명 키가 UTF-8 32바이트보다 짧으면 기동을 차단한다")
+    void validate_prodShortPreviewActiveSigningKey_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.active-signing-key", "가나다라마바사아자차");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("IT_BUDGET_PREVIEW_SIGNING_KEY")
+                .hasMessageContaining("32바이트");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 직전 키 ID와 서명 키는 함께 설정해야 한다")
+    void validate_prodPreviewPreviousKeyPairRequired_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.previous-key-id", "prod-v1");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("previous-key-id")
+                .hasMessageContaining("previous-signing-key");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"prod.v2", "prod/v2", "prod v2"})
+    @DisplayName("운영 프로파일에서 grammar 밖 활성 키 ID는 기동을 차단한다")
+    void validate_prodMalformedPreviewActiveKeyId_throws(String keyId) {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.active-key-id", keyId);
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("active-key-id");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 grammar 밖 직전 키 ID는 기동을 차단한다")
+    void validate_prodMalformedPreviewPreviousKeyId_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.previous-key-id", "prod.v1");
+        env.setProperty(
+                "app.approval.it-budget.preview.previous-signing-key",
+                "previous-preview-signing-key-for-production-minimum-32-bytes");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("previous-key-id");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 활성·직전 키 ID 중복은 기동을 차단한다")
+    void validate_prodDuplicatePreviewKeyId_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.previous-key-id", "prod-v2");
+        env.setProperty(
+                "app.approval.it-budget.preview.previous-signing-key",
+                "previous-preview-signing-key-for-production-minimum-32-bytes");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("서로 달라야");
+    }
+
+    @Test
+    @DisplayName("운영 프로파일에서 미리보기 TTL이 정확히 30분이 아니면 기동을 차단한다")
+    void validate_prodNonThirtyMinutePreviewTtl_throws() {
+        MockEnvironment env = prodEnvWithAllRequired();
+        env.setProperty("app.approval.it-budget.preview.ttl", "PT31M");
+
+        assertThatThrownBy(() -> new EnvironmentValidator(env).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("preview.ttl");
     }
 
     @ParameterizedTest
@@ -635,6 +726,11 @@ class EnvironmentValidatorTest {
         requiredProperties.put("server.servlet.session.cookie.http-only", "true");
         requiredProperties.put("server.servlet.session.cookie.same-site", "lax");
         requiredProperties.put("app.frontend-url", "https://it.kdb.co.kr");
+        requiredProperties.put("app.approval.it-budget.preview.active-key-id", "prod-v2");
+        requiredProperties.put(
+                "app.approval.it-budget.preview.active-signing-key",
+                "preview-signing-key-for-production-minimum-32-bytes");
+        requiredProperties.put("app.approval.it-budget.preview.ttl", "PT30M");
         requiredProperties.putAll(overrides);
 
         if (includeProdProfile) {

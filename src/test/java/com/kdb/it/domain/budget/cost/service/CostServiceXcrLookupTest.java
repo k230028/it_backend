@@ -27,7 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -62,12 +61,26 @@ class CostServiceXcrLookupTest {
     /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
-    @InjectMocks private CostService costService;
+    @Mock private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
+    @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+    private CostService costService;
 
     private static final String IT_MNGC_NO = "COST_2026_0001";
 
     @org.junit.jupiter.api.BeforeEach
     void setUpAuthorOrgDefault() {
+        costService =
+                new CostService(
+                        costRepository,
+                        new CostWriteTargetLoader(costRepository),
+                        btermmRepository,
+                        cuserIRepository,
+                        orgNameResolver,
+                        codeService,
+                        xcrLookupService,
+                        queryService,
+                        approvalWriteGuard,
+                        approvalStamper);
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())
                 .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());

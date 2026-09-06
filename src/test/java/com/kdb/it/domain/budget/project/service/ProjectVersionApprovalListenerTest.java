@@ -18,6 +18,21 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ProjectVersionApprovalListenerTest {
 
+    @Test
+    void promotesInStableIdAndRevisionOrder() {
+        given(applicationMapRepository.findByApfDcmNoAndFntTbNm("ORDER", "BPROJM"))
+                .willReturn(
+                        List.of(
+                                Cappla.builder().pkColNm("B").fntTbCrySno(2).build(),
+                                Cappla.builder().pkColNm("A").fntTbCrySno(3).build(),
+                                Cappla.builder().pkColNm("A").fntTbCrySno(1).build()));
+        listener.handleApprovalCompleted(new ApprovalCompletedEvent("ORDER", "결재완료"));
+        var ordered = org.mockito.Mockito.inOrder(projectVersionService);
+        ordered.verify(projectVersionService).promoteApprovedVersion("A", 1);
+        ordered.verify(projectVersionService).promoteApprovedVersion("A", 3);
+        ordered.verify(projectVersionService).promoteApprovedVersion("B", 2);
+    }
+
     @Mock private ApplicationMapRepository applicationMapRepository;
     @Mock private ProjectVersionService projectVersionService;
 

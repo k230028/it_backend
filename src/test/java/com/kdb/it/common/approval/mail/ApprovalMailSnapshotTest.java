@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.mail;
 
+import static com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.reader;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,7 +31,7 @@ class ApprovalMailSnapshotTest {
                 }
                 """;
 
-        ApprovalMailSnapshot snapshot = objectMapper.readValue(json, ApprovalMailSnapshot.class);
+        ApprovalMailSnapshot snapshot = ApprovalMailSnapshot.from(reader().read(json));
 
         assertThat(snapshot.projects()).hasSize(1);
         assertThat(snapshot.projects().get(0).abusNm()).isEqualTo("차세대 시스템");
@@ -45,7 +46,7 @@ class ApprovalMailSnapshotTest {
                 "{\"projects\": [{\"abusNm\": \"사업\", \"future\": \"값\"}], \"costs\": [],"
                         + " \"extra\": 1}";
 
-        ApprovalMailSnapshot snapshot = objectMapper.readValue(json, ApprovalMailSnapshot.class);
+        ApprovalMailSnapshot snapshot = ApprovalMailSnapshot.from(reader().read(json));
 
         assertThat(snapshot.projects()).hasSize(1);
     }
@@ -53,7 +54,7 @@ class ApprovalMailSnapshotTest {
     @Test
     @DisplayName("배열이 없으면 빈 목록으로 접는다")
     void parse_missingArrays_returnsEmptyLists() throws Exception {
-        ApprovalMailSnapshot snapshot = objectMapper.readValue("{}", ApprovalMailSnapshot.class);
+        ApprovalMailSnapshot snapshot = ApprovalMailSnapshot.from(reader().read("{}"));
 
         assertThat(snapshot.projects()).isEmpty();
         assertThat(snapshot.costs()).isEmpty();

@@ -82,6 +82,8 @@ public class CostVersionService {
     /** 결재 완료된 정확한 개정본을 현재 최종본으로 원자적으로 전환합니다. */
     @Transactional
     public void promoteApprovedVersion(String costBgNo, Integer bgSno) {
+        // 이전 최종본의 강등도 같은 잠금 집합에 포함해 낮은 순번부터 잠근다.
+        costRepository.findAllVersionsForUpdate(costBgNo);
         costRepository
                 .findVersionForUpdate(costBgNo, bgSno)
                 .orElseThrow(

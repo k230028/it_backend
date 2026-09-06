@@ -68,6 +68,10 @@ class ApprovalLineConcurrencyIT {
                                             applicationRepository.save(
                                                     Capplm.builder()
                                                             .apfMngNo(apfMngNo)
+                                                            .dcdReqInf(
+                                                                    "{\"approvalLine\":{\"teamLead\":{\"id\":\""
+                                                                            + APPROVER_ENO
+                                                                            + "\"}}}")
                                                             .itPtlApfPrgStsC(
                                                                     ApprovalStatus.IN_PROGRESS
                                                                             .code())
@@ -191,6 +195,41 @@ class ApprovalLineConcurrencyIT {
         request.setDcdOpnn("동시성 승인");
         request.setDcdSts("승인");
         return request;
+    }
+
+    @Test
+    void corruptV2ApprovalRollsBackMasterAndDecisionRows() throws Exception {
+        var root = com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.v2();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) root.at("/payload/projects/0"))
+                .put("name", "변조된 스냅샷");
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(
+                        status ->
+                                applicationRepository
+                                        .findByIdForUpdate(apfMngNo)
+                                        .orElseThrow()
+                                        .updateDetailContent(root.toString()));
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                runAs(
+                                        APPROVER_ENO,
+                                        () ->
+                                                applicationService.approve(
+                                                        apfMngNo, approveRequest())))
+                .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class)
+                .hasMessageContaining("payloadDigest");
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                "SELECT IT_PTL_APF_PRG_STS_C FROM TPRMPP_CAPPLM WHERE APF_DCM_NO = ?",
+                                String.class,
+                                apfMngNo))
+                .isEqualTo(ApprovalStatus.IN_PROGRESS.code());
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                "SELECT IT_PTL_DCD_STS_C FROM TPRMPP_CDECIM WHERE APF_DCM_NO = ?",
+                                String.class,
+                                apfMngNo))
+                .isEqualTo(DecisionStatus.PENDING.code());
     }
 
     private void runAs(String eno, Runnable action) {

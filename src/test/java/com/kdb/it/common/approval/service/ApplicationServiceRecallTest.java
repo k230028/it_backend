@@ -48,6 +48,7 @@ class ApplicationServiceRecallTest {
     @Mock private OrganizationRepository organizationRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private ApprovalLineDelegate approvalLineDelegate;
+    @Mock private ApprovalDetailPolicy detailPolicy;
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
 
     @InjectMocks private ApplicationService service;
@@ -86,7 +87,7 @@ class ApplicationServiceRecallTest {
 
         service.recall(APF, req(), "E001", false);
 
-        verify(approvalLineDelegate).applyRecallInfo(any(), eq("E001"), eq("사유"));
+        verify(approvalLineDelegate).applyRecallInfo(any(), eq("E001"), eq("사유"), any());
         verify(eventPublisher).publishEvent(any(ApprovalRecalledEvent.class));
     }
 

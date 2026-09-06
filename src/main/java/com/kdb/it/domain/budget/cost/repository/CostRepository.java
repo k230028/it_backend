@@ -19,18 +19,64 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>복합키 타입: {@link BcostmId} (itMngcNo + itMngcSno)
  *
- * <p>Soft Delete 패턴 적용: 조회 시 항상 {@code delYn='N'} 조건을 사용합니다.
+ * <p>일반 업무 조회는 {@code delYn='N'} 조건을 적용한다. 스냅샷 변경 감지용 버전 조회·잠금은 삭제 상태까지 읽는다.
  */
 public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRepositoryCustom {
 
+    /** 문서 전체 삭제·승격 전에 활성 개정본을 순번순으로 모두 잠그며 대기를 5초로 제한한다. */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
+    @Query("SELECT p FROM Bcostm p WHERE p.costBgNo = :id AND p.delYn = 'N' ORDER BY p.bgSno")
+    List<Bcostm> findAllVersionsForUpdate(@Param("id") String id);
+
+    /** 기존 대표행 선택 계약을 보존하며 활성 최종본 후보를 순번순으로 잠근다. */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
+    @Query(
+            "SELECT c FROM Bcostm c WHERE c.costBgNo = :id AND c.delYn = 'N' AND c.lstYn = 'Y' ORDER BY c.bgSno")
+    List<Bcostm> findCurrentVersionsForUpdate(@Param("id") String id);
+
+    /** 삭제 상태까지 읽는 스냅샷용 후보 조회다. 빈 집합은 호출하지 않으며 정확한 ID·개정 쌍은 호출자가 필터한다. */
+    @Query(
+            "SELECT c FROM Bcostm c WHERE c.costBgNo IN :ids AND c.bgSno IN :revisions ORDER BY c.costBgNo, c.bgSno")
+    List<Bcostm> findVersions(
+            @Param("ids") Collection<String> ids,
+            @Param("revisions") Collection<Integer> revisions);
+
+    /** 최대 500개 참조의 삭제 상태까지 안정 순서로 잠그며 잠금 대기를 5초로 제한한다. */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
+    @Query(
+            "SELECT c FROM Bcostm c WHERE c.costBgNo IN :ids AND c.bgSno IN :revisions ORDER BY c.costBgNo, c.bgSno")
+    List<Bcostm> findVersionsForUpdate(
+            @Param("ids") Collection<String> ids,
+            @Param("revisions") Collection<Integer> revisions);
+
     /** 재상신 순번 채번 중 동일 예산의 현재 최종본을 잠급니다. */
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
     @Query(
             "SELECT c FROM Bcostm c WHERE c.costBgNo = :costBgNo AND c.lstYn = 'Y' AND c.delYn = 'N'")
     Optional<Bcostm> findCurrentVersionForUpdate(@Param("costBgNo") String costBgNo);
 
     /** 최종본 전환 전에 승인 대상 개정본을 잠급니다. */
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.QueryHints(
+            @jakarta.persistence.QueryHint(
+                    name = "jakarta.persistence.lock.timeout",
+                    value = "5000"))
     @Query(
             "SELECT c FROM Bcostm c WHERE c.costBgNo = :costBgNo AND c.bgSno = :bgSno AND c.delYn = 'N'")
     Optional<Bcostm> findVersionForUpdate(

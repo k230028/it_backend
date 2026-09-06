@@ -340,9 +340,10 @@ public class ProjectService {
     public void assignImportedPersonNames(String abusMngNo, String tlrNm, String usrNm) {
         Bprojm project =
                 projectRepository
-                        .findByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
+                        .findCurrentVersionForUpdate(abusMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
+        verifyImportedProjectWritable(project);
         project.assignPersonNames(tlrNm, usrNm);
     }
 
@@ -374,8 +375,7 @@ public class ProjectService {
      */
     private boolean isBlockedByApproval(String prjMngNo, Integer sno) {
         // 차단 상태 판정은 전산업무비와 같은 규칙을 써야 하므로 공용 가드에 위임한다.
-        return capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                "BPROJM", prjMngNo, sno, ApprovalWriteGuard.blockingStatuses());
+        return new ApprovalWriteGuard(capplaRepository).isBlocked("BPROJM", prjMngNo, sno);
     }
 
     /**
@@ -440,9 +440,8 @@ public class ProjectService {
         // 프로젝트 조회 (삭제되지 않은 항목만)
         Bprojm project =
                 (sno == null
-                                ? projectRepository.findByAbusMngNoAndDelYn(prjMngNo, "N")
-                                : projectRepository.findByAbusMngNoAndSnoAndDelYn(
-                                        prjMngNo, sno, "N"))
+                                ? projectRepository.findCurrentVersionForUpdate(prjMngNo)
+                                : projectRepository.findVersionForUpdate(prjMngNo, sno))
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -575,9 +574,10 @@ public class ProjectService {
             String abusMngNo, BigDecimal totRqmAmt, BigDecimal mplAmt, BigDecimal dfrAmt) {
         Bprojm project =
                 projectRepository
-                        .findByAbusMngNoAndDelYn(abusMngNo, "N")
+                        .findCurrentVersionForUpdate(abusMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("사업을 찾을 수 없습니다: " + abusMngNo));
+        verifyImportedProjectWritable(project);
         validateNonNegative("총소요금액", totRqmAmt);
         validateNonNegative("예정금액", mplAmt);
         validateNonNegative("지급금액", dfrAmt);
@@ -585,6 +585,12 @@ public class ProjectService {
             throw new IllegalArgumentException("총소요금액은 예정금액과 지급금액의 합 이상이어야 합니다.");
         }
         project.assignAmountSnapshot(totRqmAmt, mplAmt, dfrAmt);
+    }
+
+    private void verifyImportedProjectWritable(Bprojm project) {
+        if (isBlockedByApproval(project.getAbusMngNo(), project.getSno())) {
+            throw new IllegalStateException(approvalBlockMessage("수정"));
+        }
     }
 
     private static void validateNonNegative(String fieldName, BigDecimal amount) {
@@ -683,9 +689,9 @@ public class ProjectService {
         // 삭제한 문서가 되살아나고, 그 초안을 상신·승인하면 문서 자체가 복구된다.
         List<Bprojm> targets =
                 sno == null
-                        ? projectRepository.findByAbusMngNoAndDelYnOrderBySnoAsc(prjMngNo, "N")
+                        ? projectRepository.findAllVersionsForUpdate(prjMngNo)
                         : projectRepository
-                                .findByAbusMngNoAndSnoAndDelYn(prjMngNo, sno, "N")
+                                .findVersionForUpdate(prjMngNo, sno)
                                 .map(List::of)
                                 .orElseGet(List::of);
         if (targets.isEmpty()) {

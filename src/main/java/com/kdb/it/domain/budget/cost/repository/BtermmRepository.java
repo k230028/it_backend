@@ -10,6 +10,12 @@ import org.springframework.data.repository.query.Param;
 /** 단말기관리마스터(Btermm) 데이터 접근 리포지토리 */
 public interface BtermmRepository extends JpaRepository<Btermm, BtermmId> {
 
+    /** 삭제 행을 포함한 부모 버전 후보의 단말기를 일괄 조회한다. 빈 집합은 호출하지 않으며 정확한 부모 쌍은 호출자가 필터한다. */
+    @Query("SELECT t FROM Btermm t WHERE t.termBgNo IN :ids AND t.termBgSno IN :revisions")
+    List<Btermm> findSourceVersions(
+            @Param("ids") java.util.Collection<String> ids,
+            @Param("revisions") java.util.Collection<Integer> revisions);
+
     /**
      * 특정 전산관리비와 연관된 모든 단말기 목록 조회
      *

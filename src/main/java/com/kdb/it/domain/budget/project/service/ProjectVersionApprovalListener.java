@@ -24,6 +24,7 @@ public class ProjectVersionApprovalListener {
      *
      * @param event 결재 완료 또는 반려 이벤트
      */
+    @org.springframework.core.annotation.Order(10)
     @EventListener
     @Transactional
     public void handleApprovalCompleted(ApprovalCompletedEvent event) {
@@ -31,8 +32,13 @@ public class ProjectVersionApprovalListener {
             return;
         }
         for (Cappla link :
-                applicationMapRepository.findByApfDcmNoAndFntTbNm(
-                        event.apfMngNo(), PROJECT_TABLE)) {
+                applicationMapRepository
+                        .findByApfDcmNoAndFntTbNm(event.apfMngNo(), PROJECT_TABLE)
+                        .stream()
+                        .sorted(
+                                java.util.Comparator.comparing(Cappla::getPkColNm)
+                                        .thenComparing(Cappla::getFntTbCrySno))
+                        .toList()) {
             projectVersionService.promoteApprovedVersion(link.getPkColNm(), link.getFntTbCrySno());
         }
     }

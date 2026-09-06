@@ -10,6 +10,22 @@ import org.springframework.stereotype.Component;
 public class ProjectAmountCalculator {
 
     /**
+     * 저장 스냅샷에서 당해 요청금액을 복원한다. 음수도 저장 불변식 진단을 위해 그대로 반환한다.
+     *
+     * @param totalRequiredAmt 저장 총소요금액. null은 허용하지 않는다.
+     * @param plannedAmt 저장 예정금액. null이면 0이다.
+     * @param paidAmt 저장 지급금액. null이면 0이다.
+     * @return 총소요금액에서 예정·지급금액을 뺀 정확한 금액
+     * @throws NullPointerException 저장 총소요금액이 없는 경우
+     */
+    public BigDecimal restoreCurrentRequestAmount(
+            BigDecimal totalRequiredAmt, BigDecimal plannedAmt, BigDecimal paidAmt) {
+        return java.util.Objects.requireNonNull(totalRequiredAmt, "저장 총소요금액")
+                .subtract(orZero(plannedAmt))
+                .subtract(orZero(paidAmt));
+    }
+
+    /**
      * 현재 요청금액, 예정금액, 지급금액과 총소요금액을 계산합니다.
      *
      * @param activeItems 활성 품목 목록

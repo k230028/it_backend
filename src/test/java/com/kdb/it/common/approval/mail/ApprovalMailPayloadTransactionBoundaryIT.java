@@ -107,4 +107,26 @@ class ApprovalMailPayloadTransactionBoundaryIT {
 
         assertThat(payload).isNotNull().contains("APF-2026-99999999");
     }
+
+    @Test
+    void corruptV2SummaryDoesNotMarkSubmissionTransactionRollbackOnly() throws Exception {
+        given(userRepository.findNameViewByEno(anyString())).willReturn(java.util.Optional.empty());
+        var root = com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture.v2();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) root.at("/payload/projects/0"))
+                .put("name", "변조된 요약");
+        Capplm application = application();
+        application.updateDetailContent(root.toString());
+        String payload =
+                new TransactionTemplate(transactionManager)
+                        .execute(
+                                status -> {
+                                    String result = provider.render(application);
+                                    assertThat(status.isRollbackOnly()).isFalse();
+                                    return result;
+                                });
+        assertThat(payload)
+                .isNotNull()
+                .contains("APF-2026-99999999", "결재하러 가기")
+                .doesNotContain("변조된 요약", "사업 요약");
+    }
 }

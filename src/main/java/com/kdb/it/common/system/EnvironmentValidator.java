@@ -2,6 +2,8 @@ package com.kdb.it.common.system;
 
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.web.server.Cookie;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Component;
  *   <li>{@code spring.datasource.password} → 환경변수 {@code DB_PASSWORD}
  *   <li>{@code jwt.secret} → 환경변수 {@code JWT_SECRET}
  *   <li>{@code security.token-fingerprint-secret} → 환경변수 {@code TOKEN_FINGERPRINT_SECRET}
+ *   <li>(운영 프로파일 전용) {@code app.approval.it-budget.preview.*} → 전산예산 미리보기 HMAC 활성·직전 키
  *   <li>(운영 프로파일 전용) {@code gemini.api.key}/{@code eai.url}(eai.enabled=true)/{@code
  *       cors.allowed-origins}(와일드카드 금지)/{@code app.sso.allow-direct-eno}(false 고정)/{@code
  *       app.mfa.store}(운영 memory 금지 — SEC-13)/{@code app.frontend-url}/{@code
@@ -33,6 +36,9 @@ import org.springframework.stereotype.Component;
 @Lazy(false)
 @RequiredArgsConstructor
 public class EnvironmentValidator {
+
+    private static final Pattern TOKEN_KEY_ID = Pattern.compile("[A-Za-z0-9_-]+");
+    private static final Duration IT_BUDGET_PREVIEW_TTL = Duration.ofMinutes(30);
 
     private final Environment environment;
 
@@ -132,6 +138,67 @@ public class EnvironmentValidator {
         if ("memory".equalsIgnoreCase(mfaStore)) {
             throw securityViolation("app.mfa.store");
         }
+
+        validateItBudgetPreviewKeys();
+    }
+
+    /** 운영 미리보기 HMAC 키는 기본값 없이 활성 키를 두고, 직전 키는 회전 중에만 쌍으로 둔다. */
+    private void validateItBudgetPreviewKeys() {
+        checkRequired(
+                "app.approval.it-budget.preview.active-key-id", "IT_BUDGET_PREVIEW_ACTIVE_KEY_ID");
+        checkRequired(
+                "app.approval.it-budget.preview.active-signing-key",
+                "IT_BUDGET_PREVIEW_SIGNING_KEY");
+        checkMinimumUtf8Bytes(
+                "app.approval.it-budget.preview.active-signing-key",
+                "IT_BUDGET_PREVIEW_SIGNING_KEY",
+                32);
+        validateTokenKeyId("app.approval.it-budget.preview.active-key-id");
+
+        String previousKeyId =
+                environment.getProperty("app.approval.it-budget.preview.previous-key-id");
+        String previousSigningKey =
+                environment.getProperty("app.approval.it-budget.preview.previous-signing-key");
+        boolean hasPreviousKeyId = hasText(previousKeyId);
+        boolean hasPreviousSigningKey = hasText(previousSigningKey);
+        if (hasPreviousKeyId != hasPreviousSigningKey) {
+            throw new IllegalStateException(
+                    "운영 보안 위반: app.approval.it-budget.preview.previous-key-id와 "
+                            + "app.approval.it-budget.preview.previous-signing-key는 함께 설정해야 합니다.");
+        }
+        if (hasPreviousSigningKey) {
+            validateTokenKeyId("app.approval.it-budget.preview.previous-key-id");
+            if (previousKeyId.equals(
+                    environment.getProperty("app.approval.it-budget.preview.active-key-id"))) {
+                throw new IllegalStateException(
+                        "운영 보안 위반: app.approval.it-budget.preview.active-key-id와 "
+                                + "app.approval.it-budget.preview.previous-key-id는 서로 달라야 합니다.");
+            }
+            checkMinimumUtf8Bytes(
+                    "app.approval.it-budget.preview.previous-signing-key",
+                    "IT_BUDGET_PREVIEW_PREVIOUS_SIGNING_KEY",
+                    32);
+        }
+        validateItBudgetPreviewTtl();
+    }
+
+    private void validateTokenKeyId(String propertyKey) {
+        String keyId = environment.getProperty(propertyKey);
+        if (!hasText(keyId) || !TOKEN_KEY_ID.matcher(keyId).matches()) {
+            throw securityViolation(propertyKey);
+        }
+    }
+
+    private void validateItBudgetPreviewTtl() {
+        String propertyKey = "app.approval.it-budget.preview.ttl";
+        try {
+            if (!IT_BUDGET_PREVIEW_TTL.equals(
+                    Duration.parse(environment.getProperty(propertyKey)))) {
+                throw securityViolation(propertyKey);
+            }
+        } catch (RuntimeException exception) {
+            throw securityViolation(propertyKey);
+        }
     }
 
     private void rejectTrue(String key) {
@@ -202,6 +269,10 @@ public class EnvironmentValidator {
     /** 환경변수 해석에 실패해 플레이스홀더 문자열이 그대로 남은 경우를 미설정으로 판정합니다. */
     private boolean isUnresolvedPlaceholder(String value) {
         return value.startsWith("${") && value.endsWith("}");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank() && !isUnresolvedPlaceholder(value);
     }
 
     /** HMAC 지문 키가 SHA-256 최소 키 길이를 만족하는지 확인합니다. */

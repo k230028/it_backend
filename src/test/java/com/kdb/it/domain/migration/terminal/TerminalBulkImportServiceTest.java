@@ -72,8 +72,22 @@ class TerminalBulkImportServiceTest {
                         codeService,
                         orgIdentityResolver);
         when(orgIdentityResolver.snapshot()).thenReturn(orgIndex());
-        when(costRepository.findByCostBgNoAndBseYyAndLstYnAndDelYn(any(), any(), any(), any()))
-                .thenReturn(java.util.Optional.of(org.mockito.Mockito.mock(Bcostm.class)));
+        when(costRepository.findCurrentVersionsForUpdate("COST-2025-0002"))
+                .thenReturn(
+                        List.of(
+                                Bcostm.builder()
+                                        .costBgNo("COST-2025-0002")
+                                        .bgSno(1)
+                                        .bseYy("2025")
+                                        .build()));
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0002"))
+                .thenReturn(
+                        List.of(
+                                Bcostm.builder()
+                                        .costBgNo("COST-2026-0002")
+                                        .bgSno(1)
+                                        .bseYy("2026")
+                                        .build()));
         when(codeService.findCodeEntitiesByCIdWithoutCache(any()))
                 .thenAnswer(invocation -> codes((String) invocation.getArgument(0)));
         when(costService.updateCostForMigration(any(), any()))
@@ -107,6 +121,10 @@ class TerminalBulkImportServiceTest {
                 service.commit(new TerminalBulkImportDto.Request(2026, List.of(row)), "999999");
 
         assertThat(result.updateCount()).isEqualTo(2);
+        var ordered = org.mockito.Mockito.inOrder(costRepository, costService);
+        ordered.verify(costRepository).findCurrentVersionsForUpdate("COST-2025-0002");
+        ordered.verify(costRepository).findCurrentVersionsForUpdate("COST-2026-0002");
+        ordered.verify(costService).updateCostForMigration(eq("COST-2025-0002"), any());
         assertThat(result.groups())
                 .extracting(TerminalBulkImportDto.Group::costId)
                 .containsExactly("COST-2025-0002", "COST-2026-0002");

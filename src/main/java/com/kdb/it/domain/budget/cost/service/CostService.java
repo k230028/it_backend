@@ -39,6 +39,7 @@ public class CostService {
     private static final String COST_TABLE = "BCOSTM";
 
     private final CostRepository costRepository;
+    private final CostWriteTargetLoader writeTargetLoader;
     private final BtermmRepository btermmRepository;
     private final UserRepository cuserIRepository;
     private final OrgNameResolver orgNameResolver;
@@ -288,6 +289,10 @@ public class CostService {
             Long sequence = costRepository.getNextSequenceValue();
             costBgNo = String.format("COST-%s-%04d", idYear, sequence);
             request.setCostBgNo(costBgNo);
+        } else {
+            // 이미 존재하는 관리번호의 다음 순번만 기존 행 잠금으로 직렬화한다.
+            // 최초 생성처럼 행이 없으면 PK 유일 제약이 충돌을 검출한다.
+            costRepository.findAllVersionsForUpdate(costBgNo);
         }
         Integer nextSno = costRepository.getNextSnoValue(costBgNo);
         if (nextSno == null) {
@@ -375,11 +380,12 @@ public class CostService {
     public void assignImportedPersonName(String costBgNo, String cgprNm) {
         Bcostm cost =
                 costRepository
-                        .findByCostBgNoAndLstYnAndDelYn(costBgNo, "Y", "N")
+                        .findCurrentVersionForUpdate(costBgNo)
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
                                                 "전산업무비를 찾을 수 없습니다: " + costBgNo));
+        approvalWriteGuard.verifyWritable(COST_TABLE, costBgNo, cost.getBgSno(), "수정");
         cost.assignCgprName(cgprNm);
     }
 
@@ -416,29 +422,13 @@ public class CostService {
         if (!preserveSubmittedAmounts) {
             codeService.validateBudgetPeriod();
         }
-        List<Bcostm> currentCosts =
-                bgSno == null ? costRepository.findByCostBgNoAndDelYn(itMngcNo, "N") : List.of();
-        if (bgSno == null && currentCosts.isEmpty()) {
-            throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
-        }
-        Bcostm target =
-                bgSno == null
-                        ? CostRepresentativeSelector.pick(currentCosts)
-                        : costRepository
-                                .findByCostBgNoAndBgSnoAndDelYn(itMngcNo, bgSno, "N")
-                                .orElseThrow(
-                                        () ->
-                                                new IllegalArgumentException(
-                                                        "Cost not found with id: "
-                                                                + itMngcNo
-                                                                + ", sno: "
-                                                                + bgSno));
+        Bcostm target = writeTargetLoader.loadForUpdate(itMngcNo, bgSno);
         if (!preserveSubmittedAmounts) {
             OwnershipVerifier.verifyModifiable(target.getFstEnrUsid(), target.getCostSvnDpmC());
-            // 결재중 개정본과 결재완료 최종본의 제자리 수정을 막는다. 이관 일괄업로드 경로는 대상에서 제외한다.
-            approvalWriteGuard.verifyWritable(
-                    COST_TABLE, target.getCostBgNo(), target.getBgSno(), "수정");
         }
+        // 이관도 잠근 정확한 개정본의 결재 상태를 확인한 뒤에만 원장과 단말기를 수정한다.
+        approvalWriteGuard.verifyWritable(
+                COST_TABLE, target.getCostBgNo(), target.getBgSno(), "수정");
 
         if (!preserveSubmittedAmounts) {
             request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
@@ -589,7 +579,7 @@ public class CostService {
     public void deleteCost(String itMngcNo) {
         codeService.validateBudgetPeriod();
         // 최종본만 지우면 재상신 초안이 남아 미상신 목록에 삭제 문서가 되살아난다. 모든 활성 개정본을 지운다.
-        List<Bcostm> costs = costRepository.findByCostBgNoAndDelYnOrderByBgSnoAsc(itMngcNo, "N");
+        List<Bcostm> costs = costRepository.findAllVersionsForUpdate(itMngcNo);
         if (costs.isEmpty()) {
             throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
         }
@@ -622,7 +612,7 @@ public class CostService {
         codeService.validateBudgetPeriod();
         Bcostm cost =
                 costRepository
-                        .findByCostBgNoAndBgSnoAndDelYn(itMngcNo, bgSno, "N")
+                        .findVersionForUpdate(itMngcNo, bgSno)
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(

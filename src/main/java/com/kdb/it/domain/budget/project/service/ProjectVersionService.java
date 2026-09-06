@@ -148,6 +148,8 @@ public class ProjectVersionService {
      */
     @Transactional
     public void promoteApprovedVersion(String abusMngNo, Integer sno) {
+        // 이전 최종본과 자식의 강등도 같은 잠금 집합에 포함해 낮은 순번부터 잠근다.
+        projectRepository.findAllVersionsForUpdate(abusMngNo);
         projectRepository
                 .findVersionForUpdate(abusMngNo, sno)
                 .orElseThrow(() -> new IllegalArgumentException("승격할 사업 개정본이 없습니다: " + abusMngNo));

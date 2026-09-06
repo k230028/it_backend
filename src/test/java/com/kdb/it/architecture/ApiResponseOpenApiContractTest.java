@@ -1,15 +1,23 @@
 package com.kdb.it.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
+import com.kdb.it.common.approval.itbudget.controller.ItBudgetApplicationController;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetApprovalFacade;
 import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.dto.BoardMetaDto;
 import com.kdb.it.common.board.dto.BoardPostDto;
 import com.kdb.it.common.notification.dto.NotificationDto;
 import com.kdb.it.common.system.dto.AuthDto;
 import com.kdb.it.common.system.tiptap.dto.TiptapVariableDto;
+import com.kdb.it.config.SwaggerConfig;
 import com.kdb.it.domain.bizplan.dto.BizplanDto;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.document.dto.ServiceRequestDocDto;
@@ -26,10 +34,264 @@ import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
 import io.swagger.v3.oas.models.media.Schema;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
+@SpringBootTest(classes = ApiResponseOpenApiContractTest.App.class)
+@AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("test")
 class ApiResponseOpenApiContractTest {
+    @Autowired MockMvc mvc;
+    @MockitoBean ItBudgetApprovalFacade itBudgetApprovalFacade;
+
+    @Test
+    void itBudgetPreviewAndSubmissionPathsExposeTypedRequestsResponsesAndMfaErrors()
+            throws Exception {
+        JsonNode document =
+                new ObjectMapper()
+                        .readTree(
+                                mvc.perform(get("/v3/api-docs"))
+                                        .andExpect(status().isOk())
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsString());
+        JsonNode preview = document.at("/paths/~1api~1applications~1it-budget~1previews/post");
+        JsonNode submission =
+                document.at("/paths/~1api~1applications~1it-budget~1submissions/post");
+
+        assertThat(preview.isMissingNode()).isFalse();
+        assertThat(submission.isMissingNode()).isFalse();
+        assertThat(preview.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetPreviewRequest");
+        assertThat(preview.at("/responses/200/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetPreviewResponse");
+        assertThat(submission.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetSubmissionRequest");
+        assertThat(submission.at("/responses/200/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetSubmissionResponse");
+        assertErrorResponse(preview, "400", "404");
+        assertErrorResponse(submission, "400", "409");
+        assertThat(preview.at("/responses/401/description").asText()).isEqualTo("미인증");
+        assertThat(preview.at("/responses/403/description").asText()).isEqualTo("권한 없음");
+        assertThat(submission.at("/responses/401/description").asText())
+                .isEqualTo("미인증 또는 결재용 MFA 필요");
+        assertThat(submission.at("/responses/403/description").asText()).isEqualTo("권한 없음");
+        assertRequired(document, "ItBudgetPreviewRequest", "approvers", "documents");
+        assertRequired(
+                document,
+                "ItBudgetPreviewResponse",
+                "previewDigest",
+                "previewToken",
+                "expiresAt",
+                "documents");
+        assertRequired(
+                document,
+                "ItBudgetSubmissionRequest",
+                "previewDigest",
+                "previewToken",
+                "approvers",
+                "documents");
+        assertRequired(document, "ItBudgetSubmissionResponse", "applicationNumbers");
+        assertRequired(
+                document,
+                "ItBudgetApprovalErrorResponse",
+                "timestamp",
+                "status",
+                "code",
+                "message");
+        assertRequired(
+                document,
+                "ItBudgetChangedSource",
+                "kind",
+                "id",
+                "revision",
+                "displayName",
+                "modifiedBy",
+                "modifiedAt");
+        JsonNode changedSources =
+                document.at(
+                        "/components/schemas/ItBudgetApprovalErrorResponse/properties/changedSources");
+        assertThat(changedSources.path("type").asText()).isEqualTo("array");
+        assertThat(changedSources.at("/items/$ref").asText())
+                .isEqualTo("#/components/schemas/ItBudgetChangedSource");
+        JsonNode modifiedAt =
+                document.at("/components/schemas/ItBudgetChangedSource/properties/modifiedAt");
+        assertThat(jsonStrings(modifiedAt.path("type")))
+                .containsExactlyInAnyOrder("string", "null");
+        assertThat(modifiedAt.path("format").asText()).isEqualTo("date-time");
+    }
+
+    private static void assertErrorResponse(JsonNode operation, String... statuses) {
+        for (String responseStatus : statuses)
+            assertThat(
+                            operation
+                                    .at(
+                                            "/responses/"
+                                                    + responseStatus
+                                                    + "/content/application~1json/schema/$ref")
+                                    .asText())
+                    .isEqualTo("#/components/schemas/ItBudgetApprovalErrorResponse");
+    }
+
+    private static void assertRequired(JsonNode document, String schema, String... fields) {
+        assertThat(jsonStrings(document.at("/components/schemas/" + schema + "/required")))
+                .containsExactlyInAnyOrder(fields);
+    }
+
+    private static List<String> jsonStrings(JsonNode node) {
+        assertThat(node.isArray()).isTrue();
+        var values = new ArrayList<String>();
+        node.forEach(value -> values.add(value.asText()));
+        return values;
+    }
+
+    @Test
+    void itBudgetApprovalSchemasExposeRequiredFieldsAndStableEnums() {
+        Class<?> requester =
+                java.util.Arrays.stream(
+                                ItBudgetApprovalDto.SnapshotApprovalLine.class
+                                        .getRecordComponents())
+                        .filter(c -> c.getName().equals("requester"))
+                        .findFirst()
+                        .orElseThrow()
+                        .getType();
+        assertContract(requester, fields("eno", "name", "rank"), fields("rank"));
+        assertContract(
+                ItBudgetApprovalDto.Person.class,
+                fields("eno", "name", "rank"),
+                fields("eno", "name", "rank"));
+        assertContract(
+                ItBudgetApprovalDto.ApprovalPerson.class,
+                fields("role", "eno", "name", "rank", "date"),
+                fields("date"));
+        assertStringProperties(ItBudgetApprovalDto.Project.class, "currentRequestAmount");
+        var projectSchema = resolve(ItBudgetApprovalDto.Project.class);
+        assertThat(projectSchema.getRequired()).contains("currentRequestAmount");
+        assertThat(
+                        Boolean.TRUE.equals(
+                                property(projectSchema, "currentRequestAmount").getNullable()))
+                .isFalse();
+        assertPatternProperties(
+                ItBudgetApprovalDto.Project.class, "^-?\\d+\\.\\d{3}$", "currentRequestAmount");
+        assertContract(
+                ItBudgetApprovalDto.PreviewRequest.class,
+                fields("approvers", "documents"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.SubmissionRequest.class,
+                fields("previewDigest", "previewToken", "approvers", "documents"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.ChangedSource.class,
+                fields("kind", "id", "revision", "displayName", "modifiedBy", "modifiedAt"),
+                Set.of("modifiedAt"));
+        assertContract(
+                ItBudgetApprovalDto.PreviewResponse.class,
+                fields("previewDigest", "previewToken", "expiresAt", "documents"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.PreviewDocument.class,
+                fields("clientDocumentKey", "snapshot", "payloadDigest", "sources"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.ItBudgetSnapshot.class,
+                fields("form", "payload", "approvalLine", "integrity"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.SourceDigest.class,
+                fields("kind", "id", "revision", "order", "sourceDigest", "displayName"),
+                Set.of());
+        assertContract(
+                ItBudgetApprovalDto.SubmissionDocument.class,
+                fields("clientDocumentKey", "payloadDigest", "sources"),
+                Set.of());
+        assertStringProperties(ItBudgetApprovalDto.Summary.class, "total", "asset", "cost");
+        assertStringProperties(ItBudgetApprovalDto.ProjectItem.class, "quantity", "amount");
+        assertStringProperties(ItBudgetApprovalDto.ProjectItem.class, "id");
+        assertStringProperties(ItBudgetApprovalDto.Terminal.class, "id");
+        assertStringProperties(ItBudgetApprovalDto.Cost.class, "baseYear");
+        assertThat(resolve(ItBudgetApprovalDto.ProjectItem.class).getRequired()).contains("id");
+        assertThat(resolve(ItBudgetApprovalDto.Terminal.class).getRequired()).contains("id");
+        assertThat(property(resolve(ItBudgetApprovalDto.Project.class), "startDate").getNullable())
+                .isTrue();
+        assertThat(property(resolve(ItBudgetApprovalDto.CodeLabel.class), "code").getNullable())
+                .isTrue();
+        assertThat(property(resolve(ItBudgetApprovalDto.Cost.class), "baseYear").getNullable())
+                .isTrue();
+        assertStringProperties(
+                ItBudgetApprovalDto.Project.class, "projectBudget", "assetBudget", "costBudget");
+        assertStringProperties(
+                ItBudgetApprovalDto.Terminal.class,
+                "exchangeRate",
+                "foreignAmount",
+                "budgetAmount");
+        assertStringProperties(
+                ItBudgetApprovalDto.Cost.class,
+                "totalAmount",
+                "exchangeRate",
+                "assetBudget",
+                "costBudget");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Summary.class, "^-?\\d+\\.\\d{3}$", "total", "asset", "cost");
+        assertPatternProperties(ItBudgetApprovalDto.ProjectItem.class, "^-?\\d+$", "quantity");
+        assertPatternProperties(
+                ItBudgetApprovalDto.ProjectItem.class, "^-?\\d+\\.\\d{3}$", "amount");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Project.class,
+                "^-?\\d+\\.\\d{3}$",
+                "projectBudget",
+                "assetBudget",
+                "costBudget");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Terminal.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Terminal.class,
+                "^-?\\d+\\.\\d{3}$",
+                "foreignAmount",
+                "budgetAmount");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Cost.class,
+                "^-?\\d+\\.\\d{3}$",
+                "totalAmount",
+                "assetBudget",
+                "costBudget");
+        assertPatternProperties(
+                ItBudgetApprovalDto.Cost.class, "^-?\\d+\\.\\d{4}$", "exchangeRate");
+        assertDateProperties(ItBudgetApprovalDto.ApprovalPerson.class, "date");
+        assertDateProperties(
+                ItBudgetApprovalDto.Project.class, "startDate", "endDate", "feasibilityDate");
+        assertDateProperties(
+                ItBudgetApprovalDto.Cost.class, "exchangeRateBaseDate", "firstDeferralDate");
+        assertFormat(ItBudgetApprovalDto.Integrity.class, "capturedAt", "date-time");
+        assertPropertiesRequiredExcept(
+                ItBudgetApprovalDto.ErrorResponse.class, fields("changedSources"));
+        assertThat(
+                        Boolean.TRUE.equals(
+                                property(
+                                                resolve(ItBudgetApprovalDto.ErrorResponse.class),
+                                                "changedSources")
+                                        .getNullable()))
+                .isFalse();
+        assertEnum(ItBudgetApprovalDto.SourceRef.class, "kind", "PROJECT", "COST");
+        assertEnum(ItBudgetApprovalDto.SourceDigest.class, "kind", "PROJECT", "COST");
+        assertEnum(
+                ItBudgetApprovalDto.ApproverRef.class,
+                "role",
+                "TEAM_LEAD",
+                "DEPT_HEAD",
+                "ADDITIONAL");
+    }
 
     @Test
     void councilResponsesExposeRequiredNullableAndEnumContracts() {
@@ -676,6 +938,40 @@ class ApiResponseOpenApiContractTest {
                 .containsExactly(values);
     }
 
+    private static void assertStringProperties(Class<?> type, String... properties) {
+        Schema<?> schema = resolve(type);
+        for (String property : properties) {
+            assertThat(property(schema, property).getType())
+                    .as("%s.%s type", type.getSimpleName(), property)
+                    .isEqualTo("string");
+        }
+    }
+
+    private static void assertPatternProperties(
+            Class<?> type, String expectedPattern, String... properties) {
+        Schema<?> schema = resolve(type);
+        for (String property : properties) {
+            assertThat(property(schema, property).getPattern())
+                    .as("%s.%s pattern", type.getSimpleName(), property)
+                    .isEqualTo(expectedPattern);
+        }
+    }
+
+    private static void assertDateProperties(Class<?> type, String... properties) {
+        Schema<?> schema = resolve(type);
+        for (String property : properties) {
+            assertThat(property(schema, property).getFormat())
+                    .as("%s.%s format", type.getSimpleName(), property)
+                    .isEqualTo("date");
+        }
+    }
+
+    private static void assertFormat(Class<?> type, String propertyName, String expectedFormat) {
+        assertThat(property(resolve(type), propertyName).getFormat())
+                .as("%s.%s format", type.getSimpleName(), propertyName)
+                .isEqualTo(expectedFormat);
+    }
+
     private static Schema<?> resolve(Class<?> type) {
         ResolvedSchema resolved =
                 ModelConverters.getInstance()
@@ -708,4 +1004,9 @@ class ApiResponseOpenApiContractTest {
     private static String[] checkItemCodes() {
         return new String[] {"01", "02", "03", "04", "05", "06"};
     }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableAutoConfiguration
+    @Import({ItBudgetApplicationController.class, SwaggerConfig.class})
+    static class App {}
 }
