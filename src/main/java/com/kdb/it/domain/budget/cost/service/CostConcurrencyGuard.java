@@ -3,8 +3,11 @@ package com.kdb.it.domain.budget.cost.service;
 import com.kdb.it.common.system.exception.LockTimeouts;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.exception.CostConflictException;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -54,22 +57,49 @@ public class CostConcurrencyGuard {
                     null,
                     null);
         }
-        String current =
-                concurrencyStamper.stamp(
-                        target,
-                        btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(
-                                target.getCostBgNo(), target.getBgSno(), "N"));
+        List<Btermm> terminals =
+                btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(
+                        target.getCostBgNo(), target.getBgSno(), "N");
+        String current = concurrencyStamper.stamp(target, terminals);
         if (current.equals(submitted)) {
             return;
         }
+        LastChange lastChange = lastChange(target, terminals);
         throw new CostConflictException(
                 HttpStatus.CONFLICT,
                 "COST_SOURCE_CHANGED",
                 "다른 사용자가 이 전산업무비를 수정했습니다.",
-                changedBy(target.getLstChgUsid(), nameResolver),
-                target.getLstChgDtm(),
+                changedBy(lastChange.usid(), nameResolver),
+                lastChange.at(),
                 current,
                 queryService.getCost(target.getCostBgNo(), target.getBgSno()));
+    }
+
+    /** 충돌을 알릴 때 표시할 최종 변경 주체. */
+    private record LastChange(String usid, LocalDateTime at) {}
+
+    /**
+     * 원장과 단말 가운데 가장 나중에 바뀐 쪽을 고릅니다.
+     *
+     * <p>스탬프는 부모와 단말을 함께 덮으므로, 단말만 수정된 충돌에서 부모의 감사 정보를 쓰면 바꾸지 않은 사람을 변경자로 지목하게 됩니다. 스탬프 계산에 이미 읽어 둔
+     * 단말 목록을 그대로 사용하므로 추가 조회는 없습니다.
+     *
+     * @param target 잠금이 걸린 대상 개정본
+     * @param terminals 같은 개정본의 {@code DEL_YN='N'} 단말 목록
+     * @return 더 나중에 바뀐 쪽의 사번과 일시. 수정일시가 없는 단말은 비교에서 제외한다.
+     */
+    private static LastChange lastChange(Bcostm target, List<Btermm> terminals) {
+        LastChange latest = new LastChange(target.getLstChgUsid(), target.getLstChgDtm());
+        for (Btermm terminal : terminals) {
+            LocalDateTime changedAt = terminal.getLstChgDtm();
+            if (changedAt == null) {
+                continue;
+            }
+            if (latest.at() == null || changedAt.isAfter(latest.at())) {
+                latest = new LastChange(terminal.getLstChgUsid(), changedAt);
+            }
+        }
+        return latest;
     }
 
     /**

@@ -3082,6 +3082,105 @@ class CostServiceTest {
         }
 
         @Test
+        @DisplayName("단말만 더 최근에 바뀌었으면 단말의 변경자를 알려준다")
+        void terminalIsMoreRecentSoItsModifierIsReported() {
+            Bcostm cost = locked();
+            given(cost.getLstChgUsid()).willReturn("10002");
+            given(cost.getLstChgDtm()).willReturn(java.time.LocalDateTime.of(2026, 9, 8, 10, 0));
+            Btermm terminal = mock(Btermm.class);
+            given(terminal.getLstChgUsid()).willReturn("10003");
+            given(terminal.getLstChgDtm())
+                    .willReturn(java.time.LocalDateTime.of(2026, 9, 8, 14, 25));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(List.of(terminal));
+            given(cuserIRepository.findByEno("10003"))
+                    .willReturn(Optional.of(CuserI.builder().eno("10003").usrNm("박단말").build()));
+            given(concurrencyStamper.stamp(eq(cost), anyList())).willReturn("b".repeat(64));
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(Optional.of(cost));
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("a".repeat(64)).build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e -> {
+                                                CostConflictException conflict =
+                                                        (CostConflictException) e;
+                                                assertThat(conflict.changedBy()).isEqualTo("박단말");
+                                                assertThat(conflict.changedAt())
+                                                        .isEqualTo(
+                                                                java.time.LocalDateTime.of(
+                                                                        2026, 9, 8, 14, 25));
+                                            }));
+        }
+
+        @Test
+        @DisplayName("부모가 더 최근이면 단말이 있어도 부모의 변경자를 알려준다")
+        void parentIsMoreRecentSoParentModifierWins() {
+            Bcostm cost = locked();
+            given(cost.getLstChgUsid()).willReturn("10002");
+            given(cost.getLstChgDtm()).willReturn(java.time.LocalDateTime.of(2026, 9, 8, 16, 0));
+            Btermm terminal = mock(Btermm.class);
+            given(terminal.getLstChgUsid()).willReturn("10003");
+            given(terminal.getLstChgDtm())
+                    .willReturn(java.time.LocalDateTime.of(2026, 9, 8, 14, 25));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(List.of(terminal));
+            given(cuserIRepository.findByEno("10002"))
+                    .willReturn(Optional.of(CuserI.builder().eno("10002").usrNm("김변경").build()));
+            given(concurrencyStamper.stamp(eq(cost), anyList())).willReturn("b".repeat(64));
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(Optional.of(cost));
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("a".repeat(64)).build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e ->
+                                                    assertThat(
+                                                                    ((CostConflictException) e)
+                                                                            .changedBy())
+                                                            .isEqualTo("김변경")));
+        }
+
+        @Test
+        @DisplayName("단말 수정일시가 비어 있으면 부모 기준으로 판단한다")
+        void terminalWithoutTimestampDoesNotWin() {
+            Bcostm cost = locked();
+            given(cost.getLstChgUsid()).willReturn("10002");
+            given(cost.getLstChgDtm()).willReturn(java.time.LocalDateTime.of(2026, 9, 8, 10, 0));
+            Btermm terminal = mock(Btermm.class);
+            given(terminal.getLstChgUsid()).willReturn("10003");
+            given(terminal.getLstChgDtm()).willReturn(null);
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(List.of(terminal));
+            given(cuserIRepository.findByEno("10002"))
+                    .willReturn(Optional.of(CuserI.builder().eno("10002").usrNm("김변경").build()));
+            given(concurrencyStamper.stamp(eq(cost), anyList())).willReturn("b".repeat(64));
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(Optional.of(cost));
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("a".repeat(64)).build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e ->
+                                                    assertThat(
+                                                                    ((CostConflictException) e)
+                                                                            .changedBy())
+                                                            .isEqualTo("김변경")));
+        }
+
+        @Test
         @DisplayName("스탬프가 같으면 저장을 진행한다")
         void matchingStampProceeds() {
             Bcostm cost = locked();
