@@ -146,23 +146,23 @@ class RequestFormValidatorTest {
     }
 
     @Test
-    @DisplayName("현황·필요성·사업범위가 물리 컬럼 길이를 넘으면 잘라 넣고 경고한다")
-    void truncatesLongProjectNarrativesWithWarnings() {
+    @DisplayName("VARCHAR2 현황만 자르고 CLOB 사업 서술은 원문을 유지한다")
+    void truncatesOnlyVarcharProjectNarrativesWithWarnings() {
         ProjectDto.CreateRequest project = project("길이 검증 사업");
         project.setCpnSafCone("현".repeat(1001));
-        project.setAbusNcsCone("가".repeat(101));
-        project.setAbusRngCone("범".repeat(201));
+        project.setAbusPulNcsInf("가".repeat(101));
+        project.setAbusPulDrcnInf("범".repeat(201));
 
         List<RequestFormDto.FormDiagnostic> diagnostics =
                 validator().validate(projectsOf(project), "2026");
 
         assertThat(project.getCpnSafCone().getBytes(StandardCharsets.UTF_8)).hasSize(999);
-        assertThat(project.getAbusNcsCone().getBytes(StandardCharsets.UTF_8)).hasSize(300);
-        assertThat(project.getAbusRngCone().getBytes(StandardCharsets.UTF_8)).hasSize(600);
+        assertThat(project.getAbusPulNcsInf()).isEqualTo("가".repeat(101));
+        assertThat(project.getAbusPulDrcnInf()).isEqualTo("범".repeat(201));
         assertThat(diagnostics)
                 .filteredOn(d -> d.code() == RequestFormDiagnosticCode.TEXT_TRUNCATED)
                 .extracting(RequestFormDto.FormDiagnostic::field)
-                .containsExactlyInAnyOrder("cpnSafCone", "abusNcsCone", "abusRngCone");
+                .containsExactly("cpnSafCone");
         assertThat(diagnostics)
                 .filteredOn(d -> d.code() == RequestFormDiagnosticCode.TEXT_TRUNCATED)
                 .extracting(RequestFormDto.FormDiagnostic::severity)

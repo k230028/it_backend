@@ -102,10 +102,10 @@ class RecurringProjectFormAdapterTest {
                         .projects()
                         .get(0);
 
-        assertThat(project.getAbusCone()).isEqualTo("PC, 모니터 구입");
+        assertThat(project.getAbusPulConeInf()).isEqualTo("PC, 모니터 구입");
         assertThat(project.getCpnSafCone()).isEqualTo("내용연수 경과");
-        assertThat(project.getAbusNcsCone()).isNull();
-        assertThat(project.getAbusRngCone()).isEqualTo("고장기기 교체");
+        assertThat(project.getAbusPulNcsInf()).isNull();
+        assertThat(project.getAbusPulDrcnInf()).isEqualTo("고장기기 교체");
         assertThat(project.getPlmDes()).isEqualTo("업무효율 저하");
     }
 

@@ -88,13 +88,27 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/applications - 인증된 사용자 → 200 + 배열 반환")
-    @WithMockUser(username = "10001")
-    void getApplications_인증_200() throws Exception {
-        given(applicationService.getApplications()).willReturn(List.of());
-        mockMvc.perform(get("/api/applications"))
+    @DisplayName("GET /api/applications - 기본 조회는 인증 사용자의 부서 범위를 전달한다")
+    void getApplications_부서범위_200() throws Exception {
+        given(applicationService.getApplications(USER, false)).willReturn(List.of());
+        mockMvc.perform(get("/api/applications").with(user(USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+        verify(applicationService).getApplications(USER, false);
+    }
+
+    @Test
+    @DisplayName("GET /api/applications - 일반 사용자의 전체 요청도 서버에서 부서 범위로 제한한다")
+    void getApplications_일반사용자전체요청_부서범위() throws Exception {
+        given(applicationService.getApplications(USER, true)).willReturn(List.of());
+
+        mockMvc.perform(
+                        get("/api/applications")
+                                .with(user(USER))
+                                .param("allDepartments", "true"))
+                .andExpect(status().isOk());
+
+        verify(applicationService).getApplications(USER, true);
     }
 
     @Test
@@ -104,20 +118,19 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/applications/pending - 인증 주체 사번으로 조회한다")
-    @WithMockUser(username = "10001")
+    @DisplayName("GET /api/applications/pending - 인증 주체와 부서 범위를 전달한다")
     void getPendingApplications_인증_200() throws Exception {
-        given(applicationService.getPendingApplications("10001")).willReturn(List.of());
-        mockMvc.perform(get("/api/applications/pending"))
+        given(applicationService.getPendingApplications(USER, false)).willReturn(List.of());
+        mockMvc.perform(get("/api/applications/pending").with(user(USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+        verify(applicationService).getPendingApplications(USER, false);
     }
 
     @Test
-    @DisplayName("GET /api/applications/home-inbox - 인증 주체의 결재함·기안함만 조회한다")
-    @WithMockUser(username = "10001")
+    @DisplayName("GET /api/applications/home-inbox - 인증 주체의 부서 결재함·기안함만 조회한다")
     void getHomeInbox_인증주체_200() throws Exception {
-        given(approvalHomeInboxService.getHomeInbox("10001"))
+        given(approvalHomeInboxService.getHomeInbox(USER))
                 .willReturn(
                         new ApprovalHomeInboxDto.Response(
                                 List.of(
@@ -134,11 +147,11 @@ class ApplicationControllerTest {
                                 List.of(),
                                 List.of()));
 
-        mockMvc.perform(get("/api/applications/home-inbox"))
+        mockMvc.perform(get("/api/applications/home-inbox").with(user(USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.approvalPending[0].apfMngNo").value("APF-001"))
                 .andExpect(jsonPath("$.approvalPending[0].actionable").value(true));
-        verify(approvalHomeInboxService).getHomeInbox("10001");
+        verify(approvalHomeInboxService).getHomeInbox(USER);
     }
 
     @Test

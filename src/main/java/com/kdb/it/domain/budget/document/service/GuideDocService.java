@@ -3,6 +3,7 @@ package com.kdb.it.domain.budget.document.service;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.HtmlSanitizer;
 import com.kdb.it.domain.budget.document.dto.GuideDocDto;
+import com.kdb.it.domain.budget.document.entity.BgdocDocumentType;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import java.util.HashMap;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class GuideDocService {
 
     private static final String GUIDE_DOCUMENT_PREFIX = "GDOC-";
+    private static final String DOCUMENT_TYPE = BgdocDocumentType.BUSINESS_GUIDE.code();
 
     /** 가이드 문서 데이터 접근 리포지토리 (TPRMPP_BGDOCM) */
     private final GuideDocRepository guideDocRepository;
@@ -49,8 +51,7 @@ public class GuideDocService {
      */
     public List<GuideDocDto.ListResponse> getDocumentList() {
         List<GuideDocRepository.GuideDocListView> views =
-                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn(
-                        GUIDE_DOCUMENT_PREFIX, "N");
+                guideDocRepository.findListViewsByDocDtlItmCAndDelYn(DOCUMENT_TYPE, "N");
 
         Set<String> modifierEnos =
                 views.stream()
@@ -90,8 +91,7 @@ public class GuideDocService {
     public GuideDocDto.Response getDocument(String docMngNo) {
         Bgdocm document =
                 guideDocRepository
-                        .findByDocMngNoAndDocMngNoStartingWithAndDelYn(
-                                docMngNo, GUIDE_DOCUMENT_PREFIX, "N")
+                        .findByDocMngNoAndDocDtlItmCAndDelYn(docMngNo, DOCUMENT_TYPE, "N")
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -152,8 +152,7 @@ public class GuideDocService {
     public String updateDocument(String docMngNo, GuideDocDto.UpdateRequest request) {
         Bgdocm document =
                 guideDocRepository
-                        .findByDocMngNoAndDocMngNoStartingWithAndDelYn(
-                                docMngNo, GUIDE_DOCUMENT_PREFIX, "N")
+                        .findByDocMngNoAndDocDtlItmCAndDelYn(docMngNo, DOCUMENT_TYPE, "N")
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -180,8 +179,7 @@ public class GuideDocService {
     public void deleteDocument(String docMngNo) {
         Bgdocm document =
                 guideDocRepository
-                        .findByDocMngNoAndDocMngNoStartingWithAndDelYn(
-                                docMngNo, GUIDE_DOCUMENT_PREFIX, "N")
+                        .findByDocMngNoAndDocDtlItmCAndDelYn(docMngNo, DOCUMENT_TYPE, "N")
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(

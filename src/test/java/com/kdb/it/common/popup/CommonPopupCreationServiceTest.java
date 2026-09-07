@@ -28,8 +28,8 @@ class CommonPopupCreationServiceTest {
     @DisplayName("최초 저장은 common.popup 구분자와 PDOC 관리번호로 문서를 생성한다")
     void createPopup_createsIdentifiedPopupDocument() {
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                CommonPopupService.DOCUMENT_IDENTIFIER, "PDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                CommonPopupService.DOCUMENT_IDENTIFIER, "05", "N"))
                 .willReturn(Optional.empty());
         given(bgdocNumberAllocator.next("PDOC-")).willReturn("PDOC-2026-0017");
         given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
@@ -51,8 +51,8 @@ class CommonPopupCreationServiceTest {
     void createPopup_updatesDocumentCreatedByAnotherRequest() {
         Bgdocm concurrent = org.mockito.Mockito.mock(Bgdocm.class);
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                CommonPopupService.DOCUMENT_IDENTIFIER, "PDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                CommonPopupService.DOCUMENT_IDENTIFIER, "05", "N"))
                 .willReturn(Optional.of(concurrent));
         given(guideDocRepository.saveAndFlush(concurrent)).willReturn(concurrent);
 
@@ -68,9 +68,7 @@ class CommonPopupCreationServiceTest {
     @DisplayName("전결권 안내도 전용 식별자와 PDOC 관리번호로 생성한다")
     void createPopup_createsApprovalAuthorityDocument() {
         String identifier = CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER;
-        given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                identifier, "PDOC-", "N"))
+        given(guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(identifier, "05", "N"))
                 .willReturn(Optional.empty());
         given(bgdocNumberAllocator.next("PDOC-")).willReturn("PDOC-2026-0018");
         given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))

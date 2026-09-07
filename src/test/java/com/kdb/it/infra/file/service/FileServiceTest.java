@@ -726,15 +726,18 @@ class FileServiceTest {
     }
 
     @Test
-    @DisplayName("downloadFile: 존재하는 파일이면 Resource와 MIME 타입을 반환한다")
-    void downloadFile_존재하는파일_리소스반환(@TempDir java.nio.file.Path tempDir) throws Exception {
+    @DisplayName("downloadFile: 기존 한글 DB 경로로 이동된 영문 폴더의 파일을 읽는다")
+    void downloadFile_기존한글DB경로_영문폴더파일반환(@TempDir java.nio.file.Path tempDir) throws Exception {
         ReflectionTestUtils.setField(fileService, "basePath", tempDir.toString());
-        java.nio.file.Path storageDir = tempDir.resolve("요구사항정의서").resolve("2026").resolve("05");
-        Files.createDirectories(storageDir);
-        java.nio.file.Path filePath = storageDir.resolve("SVR1_test.pdf");
+        java.nio.file.Path legacyStorageDir =
+                tempDir.resolve("요구사항정의서").resolve("2026").resolve("05");
+        java.nio.file.Path movedStorageDir =
+                tempDir.resolve("requirement-documents").resolve("2026").resolve("05");
+        Files.createDirectories(movedStorageDir);
+        java.nio.file.Path filePath = movedStorageDir.resolve("SVR1_test.pdf");
         Files.writeString(filePath, "PDF", StandardCharsets.UTF_8);
         Cfilem cfilem = mockCfilem(FL_MNG_NO);
-        given(cfilem.getFlKpnPth()).willReturn(storageDir.toString());
+        given(cfilem.getFlKpnPth()).willReturn(legacyStorageDir.toString());
         given(cfilem.getFlPysNm()).willReturn("SVR1_test.pdf");
         given(cfilem.getFlNm()).willReturn("요구사항정의서.pdf");
         given(fileRepository.findByFlMpnIdAndDelYn(FL_MNG_NO, "N")).willReturn(Optional.of(cfilem));
@@ -958,8 +961,8 @@ class FileServiceTest {
     @DisplayName("uploadFileInternal: 디렉토리 생성 IOException 발생 시 cause 포함 예외 반환 — ERR-02")
     void uploadFileInternal_디렉토리생성IOException_cause포함(@TempDir java.nio.file.Path tempDir)
             throws Exception {
-        // orcDtt 이름으로 파일을 미리 생성 → 같은 이름의 하위 디렉토리 생성 불가 (NotADirectoryException)
-        java.nio.file.Path blockingFile = tempDir.resolve("요구사항정의서");
+        // 영문 저장 폴더 이름으로 파일을 미리 생성 → 같은 이름의 하위 디렉토리 생성 불가
+        java.nio.file.Path blockingFile = tempDir.resolve("requirement-documents");
         java.nio.file.Files.createFile(blockingFile);
 
         configureUploadUnit(tempDir);
@@ -991,7 +994,7 @@ class FileServiceTest {
         MockMultipartFile emptyFile =
                 new MockMultipartFile("files", "empty.txt", "text/plain", new byte[0]);
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder().apgFlKdNm("첨부").flTpCone("첨부파일").build();
+                FileDto.UploadRequest.builder().apgFlKdNm("정보화사업").flTpCone("첨부파일").build();
 
         FileDto.BulkUploadResponse result =
                 fileService.uploadFiles(List.of(okFile, emptyFile), request);
@@ -1048,7 +1051,7 @@ class FileServiceTest {
                         "text/plain",
                         "second".getBytes(StandardCharsets.UTF_8));
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder().apgFlKdNm("첨부").flTpCone("첨부파일").build();
+                FileDto.UploadRequest.builder().apgFlKdNm("정보화사업").flTpCone("첨부파일").build();
 
         FileDto.BulkUploadResponse result =
                 fileService.uploadFiles(List.of(firstFile, secondFile), request);
@@ -1179,7 +1182,7 @@ class FileServiceTest {
         given(fileRepository.getNextSequenceValue()).willReturn(99L);
 
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder().apgFlKdNm("파일copy실패").flTpCone("첨부파일").build();
+                FileDto.UploadRequest.builder().apgFlKdNm("정보화사업").flTpCone("첨부파일").build();
 
         // Act & Assert: Files.copy(inputStream, ...) → IOException → CustomGeneralException(메시지, e)
         assertThatThrownBy(() -> fileService.uploadFileInternal(mockFile, request))

@@ -109,7 +109,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                 p.bzTpC,
                                 p.abusTc,
                                 p.abusNm,
-                                p.abusCone,
+                                p.abusPulConeInf,
                                 p.prlmHrkOgzCCone,
                                 p.svnDpmC,
                                 svnOrg.bbrNm,
@@ -182,7 +182,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                 p.bzTpC,
                                 p.abusTc,
                                 p.abusNm,
-                                p.abusCone,
+                                p.abusPulConeInf,
                                 p.prlmHrkOgzCCone,
                                 p.svnDpmC,
                                 svnOrg.bbrNm,
@@ -229,12 +229,12 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                             BigDecimal aTotal = aAsset.add(aCost);
 
                             return new BudgetStatusDto.ProjectResponse(
-                                    // abusMngNo, bzTpC, abusTc, abusNm, abusCone
+                                    // abusMngNo, bzTpC, abusTc, abusNm, abusPulConeInf
                                     t.get(p.abusMngNo),
                                     t.get(p.bzTpC),
                                     t.get(p.abusTc),
                                     t.get(p.abusNm),
-                                    t.get(p.abusCone),
+                                    t.get(p.abusPulConeInf),
                                     // prlmHrkOgzCCone, svnDpmC, svnDpmCNm
                                     t.get(p.prlmHrkOgzCCone),
                                     t.get(p.svnDpmC),
@@ -467,7 +467,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                 p.abusMngNo,
                                 p.abusTc,
                                 p.abusNm,
-                                p.abusCone,
+                                p.abusPulConeInf,
                                 machCur,
                                 machQtt,
                                 machAmt,
@@ -489,7 +489,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                 itemCode.cdva.eq(i.ioeC),
                                 codeIsActive(itemCode))
                         .where(p.bseYy.eq(bgYy), p.odnYn.eq("Y"), p.delYn.eq("N"), p.lstYn.eq("Y"))
-                        .groupBy(p.abusMngNo, p.sno, p.abusTc, p.abusNm, p.abusCone)
+                        .groupBy(p.abusMngNo, p.sno, p.abusTc, p.abusNm, p.abusPulConeInf)
                         .orderBy(p.abusMngNo.asc())
                         .fetch();
 
@@ -515,7 +515,7 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                     t.get(p.abusMngNo),
                                     t.get(p.abusTc),
                                     t.get(p.abusNm),
-                                    t.get(p.abusCone),
+                                    t.get(p.abusPulConeInf),
                                     t.get(machCur),
                                     mQtt,
                                     mUnitPrice,

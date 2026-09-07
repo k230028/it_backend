@@ -11,10 +11,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
@@ -129,9 +129,7 @@ class ProjectServiceTest {
         var ordered =
                 org.mockito.Mockito.inOrder(projectRepository, capplaRepository, bitemmRepository);
         ordered.verify(projectRepository).findVersionForUpdate("LOCK-P", 3);
-        ordered.verify(capplaRepository)
-                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                        eq("BPROJM"), eq("LOCK-P"), eq(3), anyList());
+        ordered.verify(capplaRepository).findLatestApplicationStatus("BPROJM", "LOCK-P", 3);
         ordered.verify(bitemmRepository).findByAbusMngNoAndFntTbCrySno("LOCK-P", 3);
         assertThat(project.getDelYn()).isEqualTo("Y");
         verify(projectRepository, never()).findByAbusMngNoAndSnoAndDelYn(any(), any(), any());
@@ -521,17 +519,14 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findAllVersionsForUpdate(prjMngNo)).willReturn(List.of(project));
-        // 결재중 신청서 존재
-        given(
-                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
-                .willReturn(true);
+        given(projectRepository.findVersionForUpdate(prjMngNo, 1)).willReturn(Optional.of(project));
+        given(capplaRepository.findLatestApplicationStatus("BPROJM", prjMngNo, 1))
+                .willReturn(Optional.of(ApprovalStatus.IN_PROGRESS.code()));
 
-        // when & then (기본 인증 주체가 시스템관리자이므로 차단 사유는 결재중뿐이다)
-        assertThatThrownBy(() -> projectService.deleteProject(prjMngNo))
+        // when & then
+        assertThatThrownBy(() -> projectService.deleteProject(prjMngNo, 1))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("결재중인 프로젝트는 삭제할 수 없습니다");
+                .hasMessageContaining("임시저장 또는 작성완료");
     }
 
     @Test
@@ -541,7 +536,7 @@ class ProjectServiceTest {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findAllVersionsForUpdate(prjMngNo)).willReturn(List.of(project));
+        given(projectRepository.findVersionForUpdate(prjMngNo, 1)).willReturn(Optional.of(project));
         // 결재중 신청서 없음
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -550,45 +545,20 @@ class ProjectServiceTest {
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 1)).willReturn(List.of());
 
         // when
-        projectService.deleteProject(prjMngNo);
+        projectService.deleteProject(prjMngNo, 1);
 
         // then: Soft Delete 검증
         assertThat(project.getDelYn()).isEqualTo("Y");
     }
 
     @Test
-    @DisplayName("deleteProject: 문서 삭제는 최종본뿐 아니라 남아 있는 재신청 초안까지 함께 지운다")
-    void deleteProject_문서삭제시_초안까지_함께삭제한다() {
-        String prjMngNo = "PRJ-2026-0001";
-        Bprojm current = mock(Bprojm.class);
-        Bprojm draft = mock(Bprojm.class);
-        given(current.getAbusMngNo()).willReturn(prjMngNo);
-        given(current.getSno()).willReturn(1);
-        given(current.getFstEnrUsid()).willReturn("10001");
-        given(current.getSvnDpmC()).willReturn("BBR001");
-        given(draft.getAbusMngNo()).willReturn(prjMngNo);
-        given(draft.getSno()).willReturn(2);
-        given(draft.getFstEnrUsid()).willReturn("10001");
-        given(draft.getSvnDpmC()).willReturn("BBR001");
-        given(projectRepository.findAllVersionsForUpdate(prjMngNo))
-                .willReturn(List.of(current, draft));
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 1)).willReturn(List.of());
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 2)).willReturn(List.of());
-
-        projectService.deleteProject(prjMngNo);
-
-        verify(current).delete();
-        verify(draft).delete();
-    }
-
-    @Test
     @DisplayName("deleteProject - 미존재 프로젝트 삭제 시 IllegalArgumentException 발생")
     void deleteProject_미존재프로젝트_예외발생() {
         // given
-        given(projectRepository.findAllVersionsForUpdate("INVALID")).willReturn(List.of());
+        given(projectRepository.findVersionForUpdate("INVALID", 1)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> projectService.deleteProject("INVALID"))
+        assertThatThrownBy(() -> projectService.deleteProject("INVALID", 1))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Project not found");
     }
@@ -1410,24 +1380,21 @@ class ProjectServiceTest {
     }
 
     @Test
-    @DisplayName("deleteProject: 시스템관리자는 결재완료를 차단 상태에서 제외하고 결재중만 확인한다")
-    void deleteProject_관리자_결재완료제외() {
+    @DisplayName("deleteProject: 시스템관리자도 결재완료 문서는 삭제할 수 없다")
+    void deleteProject_관리자_결재완료차단() {
         String prjMngNo = "PRJ-2026-0001";
         Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).delYn("N").build();
 
-        given(projectRepository.findAllVersionsForUpdate(prjMngNo)).willReturn(List.of(project));
-        given(
-                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
-                .willReturn(false);
-        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, 1)).willReturn(List.of());
+        given(projectRepository.findVersionForUpdate(prjMngNo, 1)).willReturn(Optional.of(project));
+        given(capplaRepository.findLatestApplicationStatus("BPROJM", prjMngNo, 1))
+                .willReturn(Optional.of(ApprovalStatus.COMPLETED.code()));
 
-        projectService.deleteProject(prjMngNo);
+        assertThatThrownBy(() -> projectService.deleteProject(prjMngNo, 1))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("임시저장 또는 작성완료");
 
-        assertThat(project.getDelYn()).isEqualTo("Y");
-        verify(capplaRepository)
-                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                        "BPROJM", prjMngNo, 1, List.of(ApprovalStatus.IN_PROGRESS.code()));
+        assertThat(project.getDelYn()).isEqualTo("N");
+        verifyNoInteractions(bitemmRepository);
     }
 
     // ───────────────────────────────────────────────────────
@@ -1633,15 +1600,15 @@ class ProjectServiceTest {
                 ProjectDto.CreateRequest.builder()
                         .abusMngNo(prjMngNo)
                         .abusNm("수기 관리번호 사업")
-                        .abusCone("<script>alert(1)</script><p>설명</p>")
-                        .abusRngCone("<b>범위</b>")
+                        .abusPulConeInf("<script>alert(1)</script><p>설명</p>")
+                        .abusPulDrcnInf("<b>범위</b>")
                         .build();
         given(projectRepository.existsByAbusMngNoAndDelYn(prjMngNo, "N")).willReturn(false);
 
         String result = projectService.createProject(request);
 
         assertThat(result).isEqualTo(prjMngNo);
-        assertThat(request.getAbusCone()).doesNotContain("<script>");
+        assertThat(request.getAbusPulConeInf()).doesNotContain("<script>");
         verify(projectRepository).save(any(Bprojm.class));
     }
 
@@ -1985,8 +1952,8 @@ class ProjectServiceTest {
     void deleteProject_품목포함_함께논리삭제() {
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
         Bitemm item = Bitemm.builder().gclMngNo("GCL-0001").sno(1).delYn("N").build();
-        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
-                .willReturn(List.of(project));
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 1))
+                .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
@@ -1994,7 +1961,7 @@ class ProjectServiceTest {
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySno("PRJ-2026-0001", 1))
                 .willReturn(List.of(item));
 
-        projectService.deleteProject("PRJ-2026-0001");
+        projectService.deleteProject("PRJ-2026-0001", 1);
 
         assertThat(project.getDelYn()).isEqualTo("Y");
         assertThat(item.getDelYn()).isEqualTo("Y");
@@ -2041,6 +2008,56 @@ class ProjectServiceTest {
         assertThat(originalItem.getDelYn()).isEqualTo("N");
         verify(projectRepository, never()).findCurrentVersionForUpdate(projectNo);
         verify(bitemmRepository, never()).findByAbusMngNoAndFntTbCrySno(projectNo, 1);
+    }
+
+    @Test
+    @DisplayName("deleteProject: 같은 부서 사용자는 작성완료 최종본의 지정 순번만 삭제한다")
+    void deleteProject_동일부서_작성완료순번만삭제() {
+        String projectNo = "PRJ-2027-0601";
+        CustomUserDetails user =
+                new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "101");
+        given(authentication.getPrincipal()).willReturn(user);
+        Bprojm target =
+                Bprojm.builder()
+                        .abusMngNo(projectNo)
+                        .sno(2)
+                        .lstYn("Y")
+                        .fstEnrUsid("10001")
+                        .svnDpmC("101")
+                        .delYn("N")
+                        .build();
+        Bitemm targetItem =
+                Bitemm.builder()
+                        .gclMngNo("GCL-2027-0601")
+                        .sno(1)
+                        .abusMngNo(projectNo)
+                        .fntTbCrySno(2)
+                        .delYn("N")
+                        .build();
+        given(projectRepository.findVersionForUpdate(projectNo, 2)).willReturn(Optional.of(target));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(projectNo), eq(2), anyList()))
+                .willReturn(false);
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(projectNo, 2))
+                .willReturn(List.of(targetItem));
+
+        projectService.deleteProject(projectNo, 2);
+
+        assertThat(target.getDelYn()).isEqualTo("Y");
+        assertThat(targetItem.getDelYn()).isEqualTo("Y");
+        verify(projectRepository, never()).findAllVersionsForUpdate(projectNo);
+        verify(bitemmRepository, never()).findByAbusMngNoAndFntTbCrySno(projectNo, 1);
+    }
+
+    @Test
+    @DisplayName("deleteProject: 순번이 없으면 어떤 이력도 조회하거나 삭제하지 않는다")
+    void deleteProject_순번누락_거부() {
+        assertThatThrownBy(() -> projectService.deleteProject("PRJ-2027-0601", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("순번");
+
+        verifyNoInteractions(projectRepository);
     }
 
     @Test
@@ -2161,7 +2178,7 @@ class ProjectServiceTest {
     @DisplayName("updateProject: 일반사용자는 본인 작성 프로젝트를 수정할 수 있다")
     void updateProject_일반사용자_본인작성허용() {
         CustomUserDetails user =
-                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "999");
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
         given(authentication.getPrincipal()).willReturn(user);
         Bprojm project =
                 Bprojm.builder()
@@ -2536,11 +2553,11 @@ class ProjectServiceTest {
     // ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("deleteProject: 일반사용자가 본인 작성 프로젝트를 삭제할 수 있다")
+    @DisplayName("deleteProject: 일반사용자가 같은 부서 프로젝트를 삭제할 수 있다")
     void deleteProject_일반사용자_본인작성_삭제허용() {
         // given
         CustomUserDetails user =
-                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "999");
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
         given(authentication.getPrincipal()).willReturn(user);
         Bprojm project =
                 Bprojm.builder()
@@ -2550,8 +2567,8 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
-                .willReturn(List.of(project));
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 1))
+                .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
@@ -2560,7 +2577,7 @@ class ProjectServiceTest {
                 .willReturn(List.of());
 
         // when
-        projectService.deleteProject("PRJ-2026-0001");
+        projectService.deleteProject("PRJ-2026-0001", 1);
 
         // then
         assertThat(project.getDelYn()).isEqualTo("Y");
@@ -2581,11 +2598,11 @@ class ProjectServiceTest {
                         .svnDpmC("101")
                         .delYn("N")
                         .build();
-        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
-                .willReturn(List.of(project));
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 1))
+                .willReturn(Optional.of(project));
 
         // when & then
-        assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001"))
+        assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001", 1))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
@@ -2604,8 +2621,8 @@ class ProjectServiceTest {
                         .svnDpmC("101") // 같은 부서
                         .delYn("N")
                         .build();
-        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
-                .willReturn(List.of(project));
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 1))
+                .willReturn(Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 eq("BPROJM"), eq("PRJ-2026-0001"), eq(1), anyList()))
@@ -2614,7 +2631,7 @@ class ProjectServiceTest {
                 .willReturn(List.of());
 
         // when
-        projectService.deleteProject("PRJ-2026-0001");
+        projectService.deleteProject("PRJ-2026-0001", 1);
 
         // then
         assertThat(project.getDelYn()).isEqualTo("Y");
@@ -2635,11 +2652,11 @@ class ProjectServiceTest {
                         .svnDpmC("101") // 다른 부서
                         .delYn("N")
                         .build();
-        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
-                .willReturn(List.of(project));
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 1))
+                .willReturn(Optional.of(project));
 
         // when & then
-        assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001"))
+        assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001", 1))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
@@ -2649,11 +2666,11 @@ class ProjectServiceTest {
         // given
         given(authentication.getPrincipal()).willReturn("anonymous");
         Bprojm project = Bprojm.builder().abusMngNo("PRJ-2026-0001").sno(1).delYn("N").build();
-        given(projectRepository.findAllVersionsForUpdate("PRJ-2026-0001"))
-                .willReturn(List.of(project));
+        given(projectRepository.findVersionForUpdate("PRJ-2026-0001", 1))
+                .willReturn(Optional.of(project));
 
         // when & then
-        assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001"))
+        assertThatThrownBy(() -> projectService.deleteProject("PRJ-2026-0001", 1))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
                 .hasMessageContaining("인증 정보");
     }
@@ -2946,8 +2963,8 @@ class ProjectServiceTest {
                 ProjectDto.CreateRequest.builder()
                         .abusNm("XSS 테스트 사업")
                         .bseYy("2026")
-                        .abusCone("<script>alert('xss')</script><p>설명</p>")
-                        .abusRngCone("<script>alert('xss2')</script><b>범위</b>")
+                        .abusPulConeInf("<script>alert('xss')</script><p>설명</p>")
+                        .abusPulDrcnInf("<script>alert('xss2')</script><b>범위</b>")
                         .build();
         given(projectRepository.getNextSequenceValue()).willReturn(10L);
 
@@ -2956,8 +2973,8 @@ class ProjectServiceTest {
 
         // then: script 태그 제거됨
         assertThat(result).matches("PRJ-2026-\\d{4}");
-        assertThat(request.getAbusCone()).doesNotContain("<script>");
-        assertThat(request.getAbusRngCone()).doesNotContain("<script>");
+        assertThat(request.getAbusPulConeInf()).doesNotContain("<script>");
+        assertThat(request.getAbusPulDrcnInf()).doesNotContain("<script>");
     }
 
     // ───────────────────────────────────────────────────────
@@ -2982,8 +2999,8 @@ class ProjectServiceTest {
         ProjectDto.UpdateRequest request =
                 ProjectDto.UpdateRequest.builder()
                         .abusNm("XSS 수정 테스트")
-                        .abusCone("<script>alert('xss')</script><p>설명</p>")
-                        .abusRngCone("<script>alert('xss2')</script><b>범위</b>")
+                        .abusPulConeInf("<script>alert('xss')</script><p>설명</p>")
+                        .abusPulDrcnInf("<script>alert('xss2')</script><b>범위</b>")
                         .build();
 
         // when
@@ -2991,8 +3008,8 @@ class ProjectServiceTest {
 
         // then
         assertThat(result).isEqualTo(prjMngNo);
-        assertThat(request.getAbusCone()).doesNotContain("<script>");
-        assertThat(request.getAbusRngCone()).doesNotContain("<script>");
+        assertThat(request.getAbusPulConeInf()).doesNotContain("<script>");
+        assertThat(request.getAbusPulDrcnInf()).doesNotContain("<script>");
     }
 
     // ───────────────────────────────────────────────────────

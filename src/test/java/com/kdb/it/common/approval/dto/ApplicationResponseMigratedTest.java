@@ -13,19 +13,48 @@ import org.junit.jupiter.api.Test;
 
 class ApplicationResponseMigratedTest {
 
-    private ApplicationRepository.ApplicationReadView view(String rgprDcdReqCone) {
+    private ApplicationRepository.ApplicationReadView view(
+            String statusCode, String rgprDcdReqCone) {
         ApplicationRepository.ApplicationReadView view =
                 mock(ApplicationRepository.ApplicationReadView.class);
         when(view.getApfMngNo()).thenReturn("APF-2026-00000001");
+        when(view.getItPtlApfPrgStsC()).thenReturn(statusCode);
         when(view.getRgprDcdReqCone()).thenReturn(rgprDcdReqCone);
         return view;
     }
 
-    private Capplm application(String rgprDcdReqCone) {
+    private ApplicationRepository.ApplicationReadView view(String rgprDcdReqCone) {
+        return view("2", rgprDcdReqCone);
+    }
+
+    private Capplm application(String statusCode, String rgprDcdReqCone) {
         return Capplm.builder()
                 .apfMngNo("APF-2026-00000001")
+                .itPtlApfPrgStsC(statusCode)
                 .rgprDcdReqCone(rgprDcdReqCone)
                 .build();
+    }
+
+    private Capplm application(String rgprDcdReqCone) {
+        return application("2", rgprDcdReqCone);
+    }
+
+    @Test
+    @DisplayName("수기등록 상태는 과거 표식 문구가 없어도 migrated=true")
+    void migrated_whenManualStatusWithoutMigrationNote() {
+        ApplicationDto.Response response =
+                ApplicationDto.Response.fromReadViews(view("9", null), List.of(), null, null);
+
+        assertThat(response.isMigrated()).isTrue();
+    }
+
+    @Test
+    @DisplayName("엔티티 변환도 수기등록 상태를 우선해 migrated=true")
+    void migrated_whenManualStatusWithoutMigrationNoteFromEntity() {
+        ApplicationDto.Response response =
+                ApplicationDto.Response.fromEntity(application("9", null), List.of());
+
+        assertThat(response.isMigrated()).isTrue();
     }
 
     @Test

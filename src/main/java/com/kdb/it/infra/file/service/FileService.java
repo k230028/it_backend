@@ -4,6 +4,7 @@ import com.kdb.it.common.board.service.BoardPostFileCacheService;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
 import com.kdb.it.infra.file.FileOwnershipChecker;
+import com.kdb.it.infra.file.FileStoragePathPolicy;
 import com.kdb.it.infra.file.authz.FileTargetWriteAuthorizerRegistry;
 import com.kdb.it.infra.file.dto.FileDto;
 import com.kdb.it.infra.file.entity.Cfilem;
@@ -50,7 +51,7 @@ import org.springframework.web.multipart.MultipartFile;
  *
  * <pre>
  * {basePath}/{원본구분}/{년도}/{월}/
- * 예) /data/files/요구사항정의서/2026/03/
+ * 예) /dat/springitp/requirement-documents/2026/03/
  * </pre>
  *
  * <p>Soft Delete 패턴: {@code DEL_YN='Y'}로 논리 삭제합니다 (물리 파일은 유지).
@@ -534,7 +535,7 @@ public class FileService {
         // 실제 파일 경로 생성 및 Directory Traversal 방지 검증
         Path base = Paths.get(basePath).normalize().toAbsolutePath();
         Path filePath =
-                Paths.get(cfilem.getFlKpnPth())
+                FileStoragePathPolicy.resolveStoredDirectory(cfilem.getFlKpnPth())
                         .resolve(cfilem.getFlPysNm())
                         .normalize()
                         .toAbsolutePath();

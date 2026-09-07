@@ -122,6 +122,7 @@ public class ApplicationInfoDto {
                 .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
                 .migrated(
                         MigrationApprovalMarker.isMigrated(
+                                capplm.getItPtlApfPrgStsC(),
                                 capplm.getRgprDcdReqCone())) // 수기 엑셀 이관 여부
                 .approvers(approverDtos) // 결재자 목록
                 .build();
@@ -150,7 +151,10 @@ public class ApplicationInfoDto {
                 .rqsEno(application.getDcdReqUsid())
                 .rqsDt(application.getDcdReqDtm())
                 .rqsOpnn(application.getRgprDcdReqCone())
-                .migrated(MigrationApprovalMarker.isMigrated(application.getRgprDcdReqCone()))
+                .migrated(
+                        MigrationApprovalMarker.isMigrated(
+                                application.getItPtlApfPrgStsC(),
+                                application.getRgprDcdReqCone()))
                 .approvers(decisions.stream().map(ApproverDto::fromReadView).toList())
                 .build();
     }

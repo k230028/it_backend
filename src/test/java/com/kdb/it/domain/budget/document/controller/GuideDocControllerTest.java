@@ -73,6 +73,7 @@ class GuideDocControllerTest {
                                 new GuideDocDto.ListResponse(
                                         "GDOC-2026-0001",
                                         "가이드문서",
+                                        "01",
                                         "N",
                                         null,
                                         "10001",

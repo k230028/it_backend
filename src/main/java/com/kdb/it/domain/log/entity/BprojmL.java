@@ -2,6 +2,7 @@ package com.kdb.it.domain.log.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -86,23 +87,27 @@ public class BprojmL extends BaseLogEntity {
     @Column(name = "IT_PTL_EDRT_TC", length = 2, comment = "전결권")
     private String edrtTc;
 
-    @Column(name = "ABUS_CONE", length = 1000, comment = "사업설명")
-    private String abusCone;
+    @Lob
+    @Column(name = "ABUS_PUL_CONE_INF", comment = "사업추진내용정보")
+    private String abusPulConeInf;
 
     @Column(name = "CPN_SAF_CONE", length = 1000, comment = "현황")
     private String cpnSafCone;
 
-    @Column(name = "ABUS_NCS_CONE", length = 300, comment = "필요성")
-    private String abusNcsCone;
+    @Lob
+    @Column(name = "ABUS_PUL_NCS_INF", comment = "사업추진필요성정보")
+    private String abusPulNcsInf;
 
-    @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과")
-    private String dgogPpoCone;
+    @Lob
+    @Column(name = "ABUS_XPT_EFF_INF", comment = "사업기대효과정보")
+    private String abusXptEffInf;
 
     @Column(name = "PLM_DES", length = 4000, comment = "문제")
     private String plmDes;
 
-    @Column(name = "ABUS_RNG_CONE", length = 600, comment = "사업범위내용")
-    private String abusRngCone;
+    @Lob
+    @Column(name = "ABUS_PUL_DRCN_INF", comment = "사업추진방향정보")
+    private String abusPulDrcnInf;
 
     @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
     private String mnPrgCone;

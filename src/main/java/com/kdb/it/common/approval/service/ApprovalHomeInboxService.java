@@ -3,6 +3,7 @@ package com.kdb.it.common.approval.service;
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.dto.ApprovalHomeInboxDto;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,13 +38,22 @@ public class ApprovalHomeInboxService {
      *
      * <p>한 신청서가 결재함과 기안함에 동시에 속할 수 있으므로 같은 항목이 여러 목록에 들어갈 수 있습니다.
      *
-     * @param eno 인증 사용자 사번
+     * @param user 인증 사용자
      * @return 결재함·기안함 상태별 목록
      * @throws IllegalArgumentException 사번이 null이거나 공백일 때
      */
-    public ApprovalHomeInboxDto.Response getHomeInbox(String eno) {
+    public ApprovalHomeInboxDto.Response getHomeInbox(CustomUserDetails user) {
+        if (user == null) {
+            throw new org.springframework.security.access.AccessDeniedException("인증 정보가 필요합니다.");
+        }
+        String eno = user.getEno();
         if (eno == null || eno.isBlank()) {
             throw new IllegalArgumentException("사용자 사번이 필요합니다.");
+        }
+        String departmentCode = user.getBbrC() == null ? "" : user.getBbrC().trim();
+        if (departmentCode.isBlank()) {
+            return new ApprovalHomeInboxDto.Response(
+                    List.of(), List.of(), List.of(), List.of(), List.of());
         }
 
         List<ApprovalHomeInboxDto.Item> approvalPending = new ArrayList<>();
@@ -53,7 +63,7 @@ public class ApprovalHomeInboxService {
         List<ApprovalHomeInboxDto.Item> draftRejected = new ArrayList<>();
 
         for (ApplicationRepository.HomeInboxRow row :
-                applicationRepository.findHomeInboxRowsByEno(eno)) {
+                applicationRepository.findHomeInboxRowsByEnoAndBbrC(eno, departmentCode)) {
             ApprovalHomeInboxDto.Item item = toItem(row);
             if (row.getApprovalPending() == 1) approvalPending.add(item);
             if (row.getApprovalCompleted() == 1) approvalCompleted.add(item);

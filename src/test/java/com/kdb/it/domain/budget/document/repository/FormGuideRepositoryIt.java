@@ -27,19 +27,19 @@ class FormGuideRepositoryIt extends AbstractOracleRepositoryTest {
                         document("FDOC-FG-WHITE", "info.resource.item", "\t\n\r", "N")));
         guideDocRepository.flush();
 
-        assertThat(guideDocRepository.findActiveFormGuides("FDOC-", "info."))
+        assertThat(guideDocRepository.findActiveFormGuides("02", "info."))
                 .extracting(Bgdocm::getDocMngNo)
                 .containsExactly("FDOC-FG-INFO");
     }
 
     @Test
-    void findByDocTtlConeAndDocMngNoStartingWithAndDelYn_findsTheActiveFdocForItsCatalogId() {
+    void findByDocTtlConeAndDocDtlItmCAndDelYn_findsTheActiveFdocForItsCatalogId() {
         guideDocRepository.save(document("FDOC-FG-UNIQUE", "info.basic.abusNm", "<p>본문</p>", "N"));
         guideDocRepository.flush();
 
         assertThat(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                "info.basic.abusNm", "FDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                "info.basic.abusNm", "02", "N"))
                 .hasValueSatisfying(
                         document -> assertThat(document.getDocMngNo()).isEqualTo("FDOC-FG-UNIQUE"));
     }
@@ -48,6 +48,7 @@ class FormGuideRepositoryIt extends AbstractOracleRepositoryTest {
         LocalDateTime now = LocalDateTime.of(2026, 8, 25, 12, 0);
         return Bgdocm.builder()
                 .docMngNo(docMngNo)
+                .docDtlItmC(docMngNo.startsWith("FDOC-") ? "02" : "01")
                 .docTtlCone(guideId)
                 .nacTxtInf(content)
                 .delYn(delYn)

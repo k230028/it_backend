@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TerminalBulkImportService {
 
+    private static final String TERMINAL_IOE_CODE = "010";
+
     private final TerminalBulkImportPlanner planner;
     private final CostService costService;
     private final CostRepository costRepository;
@@ -44,17 +46,30 @@ public class TerminalBulkImportService {
             TerminalBulkImportDto.Request request, String actorEno) {
         Prepared prepared = prepare(request, true);
         List<TerminalBulkImportDto.Group> groups = new ArrayList<>();
-        for (PreparedGroup group : prepared.groups()) {
+        Map<TerminalBulkImportDto.Row, String> previousCostIds = new HashMap<>();
+        List<PreparedGroup> orderedGroups =
+                java.util.stream.Stream.concat(
+                                prepared.groups().stream()
+                                        .filter(group -> group.plan().previousPeriod()),
+                                prepared.groups().stream()
+                                        .filter(group -> !group.plan().previousPeriod()))
+                        .toList();
+        for (PreparedGroup group : orderedGroups) {
+            String previousCostId = resolvePreviousCostId(group, previousCostIds);
             String costId;
             if (group.createNew()) {
                 costId =
                         costService.createCostForMigration(
-                                toCreateRequest(group, actorEno),
+                                toCreateRequest(group, previousCostId),
                                 Integer.parseInt(group.plan().bseYy()));
             } else {
                 costId =
                         costService.updateCostForMigration(
-                                group.plan().costId(), toUpdateRequest(group, actorEno));
+                                group.plan().costId(), toUpdateRequest(group, previousCostId));
+            }
+            costService.stampManualMigration(costId, actorEno);
+            if (group.plan().previousPeriod()) {
+                group.plan().rows().forEach(row -> previousCostIds.put(row, costId));
             }
             groups.add(toResponse(group, costId));
         }
@@ -64,6 +79,33 @@ public class TerminalBulkImportService {
                 (int) groups.stream().filter(TerminalBulkImportDto.Group::createNew).count(),
                 (int) groups.stream().filter(group -> !group.createNew()).count(),
                 groups);
+    }
+
+    private static String resolvePreviousCostId(
+            PreparedGroup group, Map<TerminalBulkImportDto.Row, String> previousCostIds) {
+        if (group.plan().previousPeriod()) return null;
+        List<String> resolved =
+                group.plan().rows().stream()
+                        .map(
+                                row -> {
+                                    String generated = previousCostIds.get(row);
+                                    if (generated != null) return generated;
+                                    return normalizeId(row.previousCostId());
+                                })
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .toList();
+        if (resolved.size() > 1) {
+            throw new IllegalArgumentException(
+                    "하나의 당해연도 전산업무비에 서로 다른 전년도 관리번호가 연결되어 있습니다: " + String.join(", ", resolved));
+        }
+        return resolved.isEmpty() ? null : resolved.getFirst();
+    }
+
+    private static String normalizeId(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private Prepared prepare(TerminalBulkImportDto.Request request, boolean lock) {
@@ -157,10 +199,11 @@ public class TerminalBulkImportService {
                 xcr);
     }
 
-    private CostDto.CreateRequest toCreateRequest(PreparedGroup group, String actorEno) {
+    private CostDto.CreateRequest toCreateRequest(PreparedGroup group, String previousCostId) {
         PreparedRow first = group.rows().getFirst();
         return CostDto.CreateRequest.builder()
                 .bseYy(group.plan().bseYy())
+                .ioeC(TERMINAL_IOE_CODE)
                 .cttNm(first.row().terminalName())
                 .cttOppNm(first.row().service())
                 .costTotXpAmt(group.plan().totalKrwAmount())
@@ -178,13 +221,15 @@ public class TerminalBulkImportService {
                 .svnTemNm(first.teamName())
                 .tmnYn("Y")
                 .abusTc(first.businessType())
+                .cncdRfrNo(previousCostId)
                 .terminals(toTerminals(group))
                 .build();
     }
 
-    private CostDto.UpdateRequest toUpdateRequest(PreparedGroup group, String actorEno) {
+    private CostDto.UpdateRequest toUpdateRequest(PreparedGroup group, String previousCostId) {
         PreparedRow first = group.rows().getFirst();
         return CostDto.UpdateRequest.builder()
+                .ioeC(TERMINAL_IOE_CODE)
                 .cttNm(first.row().terminalName())
                 .cttOppNm(first.row().service())
                 .costTotXpAmt(group.plan().totalKrwAmount())
@@ -202,6 +247,7 @@ public class TerminalBulkImportService {
                 .tmnYn("Y")
                 .abusTc(first.businessType())
                 .bseYy(group.plan().bseYy())
+                .cncdRfrNo(previousCostId)
                 .terminals(toTerminals(group))
                 .build();
     }

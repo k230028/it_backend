@@ -28,12 +28,12 @@ final class ProjectDtoSupport {
                 .tlrUsid(request.getTlrUsid())
                 .dvmTlrUsid(request.getDvmTlrUsid())
                 .edrtTc(request.getEdrtTc())
-                .abusCone(request.getAbusCone())
+                .abusPulConeInf(request.getAbusPulConeInf())
                 .cpnSafCone(request.getCpnSafCone())
-                .abusNcsCone(request.getAbusNcsCone())
-                .dgogPpoCone(request.getDgogPpoCone())
+                .abusPulNcsInf(request.getAbusPulNcsInf())
+                .abusXptEffInf(request.getAbusXptEffInf())
                 .plmDes(request.getPlmDes())
-                .abusRngCone(request.getAbusRngCone())
+                .abusPulDrcnInf(request.getAbusPulDrcnInf())
                 .mnPrgCone(request.getMnPrgCone())
                 .hrfPlnCone(request.getHrfPlnCone())
                 .bzDttNm(request.getBzDttNm())
@@ -76,12 +76,8 @@ final class ProjectDtoSupport {
     static boolean isTextWithinByteLimit(ProjectDto.CreateRequest request) {
         return isProjectTextWithinByteLimit(
                 request.getAbusNm(),
-                request.getAbusCone(),
                 request.getCpnSafCone(),
-                request.getAbusNcsCone(),
-                request.getDgogPpoCone(),
                 request.getPlmDes(),
-                request.getAbusRngCone(),
                 request.getMnPrgCone(),
                 request.getHrfPlnCone());
     }
@@ -89,12 +85,8 @@ final class ProjectDtoSupport {
     static boolean isTextWithinByteLimit(ProjectDto.UpdateRequest request) {
         return isProjectTextWithinByteLimit(
                 request.getAbusNm(),
-                request.getAbusCone(),
                 request.getCpnSafCone(),
-                request.getAbusNcsCone(),
-                request.getDgogPpoCone(),
                 request.getPlmDes(),
-                request.getAbusRngCone(),
                 request.getMnPrgCone(),
                 request.getHrfPlnCone());
     }
@@ -115,22 +107,10 @@ final class ProjectDtoSupport {
     }
 
     private static boolean isProjectTextWithinByteLimit(
-            String abusNm,
-            String abusCone,
-            String cpnSafCone,
-            String abusNcsCone,
-            String dgogPpoCone,
-            String plmDes,
-            String abusRngCone,
-            String mnPrgCone,
-            String hrfPlnCone) {
+            String abusNm, String cpnSafCone, String plmDes, String mnPrgCone, String hrfPlnCone) {
         return isWithinByteLimit(abusNm, 100)
-                && isWithinByteLimit(abusCone, 1000)
                 && isWithinByteLimit(cpnSafCone, 1000)
-                && isWithinByteLimit(abusNcsCone, 300)
-                && isWithinByteLimit(dgogPpoCone, 4000)
                 && isWithinByteLimit(plmDes, 4000)
-                && isWithinByteLimit(abusRngCone, 600)
                 && isWithinByteLimit(mnPrgCone, 2000)
                 && isWithinByteLimit(hrfPlnCone, 300);
     }

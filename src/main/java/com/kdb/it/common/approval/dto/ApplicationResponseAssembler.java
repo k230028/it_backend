@@ -35,7 +35,9 @@ final class ApplicationResponseAssembler {
                 .rqsBbrNm(requesterBbrNm)
                 .rqsDt(view.getDcdReqDtm())
                 .rqsOpnn(view.getRgprDcdReqCone())
-                .migrated(MigrationApprovalMarker.isMigrated(view.getRgprDcdReqCone()))
+                .migrated(
+                        MigrationApprovalMarker.isMigrated(
+                                view.getItPtlApfPrgStsC(), view.getRgprDcdReqCone()))
                 .approvers(
                         approvers.stream()
                                 .map(

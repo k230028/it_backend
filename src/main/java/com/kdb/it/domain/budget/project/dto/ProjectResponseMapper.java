@@ -47,12 +47,12 @@ public final class ProjectResponseMapper {
                 .tlrUsidNm(project.getTlrNm()) // 주관부서담당팀장명 스냅샷 (행번 미해석 시 표시 폴백)
                 .dvmTlrUsid(project.getDvmTlrUsid()) // IT부서담당팀장
                 .edrtTc(project.getEdrtTc()) // 전결권
-                .abusCone(project.getAbusCone()) // 사업설명
+                .abusPulConeInf(project.getAbusPulConeInf()) // 사업설명
                 .cpnSafCone(project.getCpnSafCone()) // 현황
-                .abusNcsCone(project.getAbusNcsCone()) // 필요성
-                .dgogPpoCone(project.getDgogPpoCone()) // 기대효과
+                .abusPulNcsInf(project.getAbusPulNcsInf()) // 필요성
+                .abusXptEffInf(project.getAbusXptEffInf()) // 기대효과
                 .plmDes(project.getPlmDes()) // 문제
-                .abusRngCone(project.getAbusRngCone()) // 사업범위
+                .abusPulDrcnInf(project.getAbusPulDrcnInf()) // 사업범위
                 .mnPrgCone(project.getMnPrgCone()) // 추진경과
                 .hrfPlnCone(project.getHrfPlnCone()) // 향후계획
                 .bzDttNm(project.getBzDttNm()) // 업무구분

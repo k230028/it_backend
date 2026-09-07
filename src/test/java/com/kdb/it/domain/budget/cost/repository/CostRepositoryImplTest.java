@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.repository;
 
+import static com.kdb.it.support.QuerydslExpressionTestSupport.constants;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -102,6 +103,19 @@ class CostRepositoryImplTest {
         sut.searchByCondition(condition);
 
         assertThat(capturedPredicate()).doesNotContain("bcostm.lstYn = Y");
+    }
+
+    @Test
+    @DisplayName("apfSts=none 신청대상에서 수기등록 상태를 제외한다")
+    void searchByCondition_apfStsNone_수기등록제외() {
+        CostDto.SearchCondition condition = new CostDto.SearchCondition();
+        condition.setApfSts("none");
+
+        sut.searchByCondition(condition);
+
+        ArgumentCaptor<Predicate> predicate = ArgumentCaptor.forClass(Predicate.class);
+        org.mockito.Mockito.verify(mockQuery).where(predicate.capture());
+        assertThat(constants(predicate.getValue())).contains("1", "2", "9");
     }
 
     @ParameterizedTest

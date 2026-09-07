@@ -85,6 +85,30 @@ public final class OwnershipVerifier {
     }
 
     /**
+     * 현재 인증 사용자가 대상 부서의 문서를 삭제할 수 있는지 검증합니다.
+     *
+     * <p>예산 원천 문서 삭제는 작성자 개인이 아니라 작성부서에 귀속되므로 같은 부서 사용자 또는 시스템관리자에게 허용합니다.
+     *
+     * @param resourceBbrC 삭제 대상 문서의 작성부서코드
+     * @throws AccessDeniedException 인증 정보가 없거나 다른 부서의 일반 사용자인 경우
+     */
+    public static void verifySameDepartmentOrAdmin(String resourceBbrC) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null
+                || !(authentication.getPrincipal() instanceof CustomUserDetails user)) {
+            throw new AccessDeniedException("인증 정보가 없어 삭제할 수 없습니다.");
+        }
+
+        if (user.isAdmin()
+                || (StringUtils.hasText(resourceBbrC)
+                        && Objects.equals(resourceBbrC, user.getBbrC()))) {
+            return;
+        }
+
+        throw new AccessDeniedException("같은 부서 사용자 또는 시스템관리자만 삭제할 수 있습니다.");
+    }
+
+    /**
      * 현재 인증 사용자가 시스템관리자인지 확인합니다.
      *
      * <p>거부가 아니라 <b>분기</b>가 필요한 규칙에서 사용합니다(예: 결재완료 문서를 관리자만 사후 정정할 수 있게 여는 예외). 접근 자체를 막아야 하면

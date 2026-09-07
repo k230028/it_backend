@@ -49,7 +49,7 @@ final class CouncilResponseMapper {
                 row.sttDt(),
                 row.endDt(),
                 row.itDpm(),
-                row.abusCone(),
+                row.abusPulConeInf(),
                 row.csfHeldYn(),
                 row.hasInfoSecResource());
     }
@@ -80,7 +80,7 @@ final class CouncilResponseMapper {
         LocalDate sttDt = project == null ? null : project.getSttDtm();
         LocalDate endDt = project == null ? null : project.getEndDtm();
         String itDpm = project == null ? null : project.getDvmDpmC();
-        String prjDes = project == null ? null : project.getAbusCone();
+        String prjDes = project == null ? null : project.getAbusPulConeInf();
 
         return new CouncilDto.ListResponse(
                 council.getItPtlAsctId(),

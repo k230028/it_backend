@@ -19,6 +19,7 @@ import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 전산관리비(IT 관리비) 관리 REST 컨트롤러
@@ -160,12 +162,14 @@ public class CostController {
      * <p>전산관리비를 물리적으로 삭제하지 않고, DEL_YN 컬럼을 'Y'로 변경하여 논리 삭제(Soft Delete)를 수행합니다. 삭제된 항목은 조회에서 제외됩니다.
      *
      * @param itMngcNo 삭제할 전산관리비 관리번호
-     * @return HTTP 200 (본문 없음), HTTP 404 전산관리비가 없는 경우
+     *     <p>임시저장 또는 작성완료 상태인 지정 순번의 전산업무비와 단말기만 삭제합니다.
+     * @return HTTP 204 (본문 없음), HTTP 404 전산관리비가 없는 경우
      */
     @Operation(summary = "전산관리비 삭제", description = "전산관리비를 삭제(Soft Delete)합니다.")
     @ApiResponses(
             value = {
                 @ApiResponse(responseCode = "204", description = "삭제 성공", content = @Content),
+                @ApiResponse(responseCode = "400", description = "삭제 불가", content = @Content),
                 @ApiResponse(
                         responseCode = "404",
                         description = "존재하지 않는 전산관리비",
@@ -176,9 +180,13 @@ public class CostController {
             @Parameter(description = "전산관리비 관리번호", required = true, example = "COST_2026_0001")
                     @PathVariable("itMngcNo")
                     String itMngcNo,
-            @RequestParam(value = "sno", required = false) Integer bgSno) {
-        if (bgSno == null) costService.deleteCost(itMngcNo);
-        else costService.deleteCost(itMngcNo, bgSno);
+            @Parameter(description = "삭제할 전산업무비 순번", required = true, example = "1")
+                    @RequestParam(value = "sno", required = false)
+                    Integer bgSno) {
+        if (bgSno == null || bgSno < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "삭제할 전산업무비 순번이 필요합니다.");
+        }
+        costService.deleteCost(itMngcNo, bgSno);
         return ResponseEntity.noContent().build();
     }
 

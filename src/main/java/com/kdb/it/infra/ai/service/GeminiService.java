@@ -1,13 +1,13 @@
 package com.kdb.it.infra.ai.service;
 
 import com.kdb.it.infra.ai.dto.GeminiDto;
+import com.kdb.it.infra.file.FileStoragePathPolicy;
 import com.kdb.it.infra.file.entity.Cfilem;
 import com.kdb.it.infra.file.repository.FileRepository;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -281,7 +281,9 @@ public class GeminiService {
         }
 
         // 3. 디스크에서 파일 읽기
-        Path filePath = Paths.get(cfilem.getFlKpnPth()).resolve(cfilem.getFlPysNm());
+        Path filePath =
+                FileStoragePathPolicy.resolveStoredDirectory(cfilem.getFlKpnPth())
+                        .resolve(cfilem.getFlPysNm());
         if (!Files.exists(filePath)) {
             return FilePartResult.skip("디스크에 파일 없음: " + filePath + " (저장 경로와 실제 파일 위치가 다를 수 있음)");
         }

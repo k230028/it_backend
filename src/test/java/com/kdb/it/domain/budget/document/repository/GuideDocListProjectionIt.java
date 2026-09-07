@@ -34,7 +34,7 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
         guideDocRepository.flush();
 
         List<GuideDocRepository.GuideDocListView> allActiveViews =
-                guideDocRepository.findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N");
+                guideDocRepository.findListViewsByDocDtlItmCAndDelYn("01", "N");
         assertThat(allActiveViews).noneMatch(view -> view.getDocMngNo().equals("FDOC-BE03LIST-01"));
 
         List<Bgdocm> activeEntities =
@@ -42,9 +42,7 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
                         .filter(e -> e.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
         List<GuideDocRepository.GuideDocListView> activeViews =
-                guideDocRepository
-                        .findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "N")
-                        .stream()
+                guideDocRepository.findListViewsByDocDtlItmCAndDelYn("01", "N").stream()
                         .filter(v -> v.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
 
@@ -69,21 +67,20 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
 
         // delYn='Y' 필터는 삭제된 문서만 반환한다 (본문 없는 프로젝션 필터 동등성)
         List<GuideDocRepository.GuideDocListView> deletedViews =
-                guideDocRepository
-                        .findListViewsByDocMngNoStartingWithAndDelYn("GDOC-", "Y")
-                        .stream()
+                guideDocRepository.findListViewsByDocDtlItmCAndDelYn("01", "Y").stream()
                         .filter(v -> v.getDocMngNo().startsWith("GDOC-BE03LIST-"))
                         .toList();
         assertThat(deletedViews)
                 .singleElement()
                 .satisfies(v -> assertThat(v.getDocMngNo()).isEqualTo("GDOC-BE03LIST-DL"));
 
-        // 프로젝션 인터페이스에는 본문(nacTxtInf) getter가 존재하지 않고 정확히 7개 getter만 선언되어 있다
+        // 프로젝션 인터페이스에는 본문(nacTxtInf) getter가 존재하지 않고 정확히 8개 getter만 선언되어 있다
         assertThat(declaredMethodNames(GuideDocRepository.GuideDocListView.class))
-                .hasSize(7)
+                .hasSize(8)
                 .containsExactlyInAnyOrder(
                         "getDocMngNo",
                         "getDocTtlCone",
+                        "getDocDtlItmC",
                         "getDelYn",
                         "getFstEnrDtm",
                         "getFstEnrUsid",
@@ -95,6 +92,7 @@ class GuideDocListProjectionIt extends AbstractOracleRepositoryTest {
         LocalDateTime now = LocalDateTime.of(2026, 7, 21, 12, 0);
         return Bgdocm.builder()
                 .docMngNo(docMngNo)
+                .docDtlItmC(docMngNo.startsWith("FDOC-") ? "02" : "01")
                 .docTtlCone(docTtlCone)
                 .nacTxtInf("<p>본문 " + docMngNo + "</p>")
                 .delYn(delYn)

@@ -61,7 +61,7 @@ class ProjectDirectoryControllerTest {
                 .andExpect(jsonPath("$[0].stsTcNm").value("사업 추진"))
                 .andExpect(jsonPath("$[0].svnDpmCNm").value("리스크관리부"))
                 .andExpect(jsonPath("$[0].tyyBgAmt").doesNotExist())
-                .andExpect(jsonPath("$[0].abusCone").doesNotExist());
+                .andExpect(jsonPath("$[0].abusPulConeInf").doesNotExist());
     }
 
     @Test

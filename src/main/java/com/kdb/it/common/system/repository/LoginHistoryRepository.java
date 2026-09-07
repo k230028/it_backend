@@ -1,7 +1,7 @@
 package com.kdb.it.common.system.repository;
 
 import com.kdb.it.common.system.entity.Clognh;
-import com.kdb.it.common.util.LabeledCountRow;
+import com.kdb.it.common.util.NativeRowMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -110,18 +110,19 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
     long countByEnoAndItPtlLgnTcAndLgnDtmAfter(String eno, String itPtlLgnTc, LocalDateTime after);
 
     /**
-     * 최근 30일 일별 로그인 성공 건수 집계 (대시보드용)
+     * 최근 30일 일별 로그인 성공 건수·접속자 수 집계 (대시보드용)
      *
-     * <p>TPRMPP_CLOGNH에서 {@code IT_PTL_LGN_TC='1'} 조건으로 최근 30일간의 날짜별 로그인 성공 건수를 집계합니다. Oracle TRUNC
-     * 함수로 날짜 단위 그룹화.
+     * <p>TPRMPP_CLOGNH에서 {@code IT_PTL_LGN_TC='1'} 조건으로 최근 30일간의 날짜별 로그인 성공 건수(접속 횟수)와 행번(ENO) 중복을
+     * 제거한 접속자 수를 함께 집계합니다. Oracle TRUNC 함수로 날짜 단위 그룹화.
      *
-     * @return [날짜 문자열(YYYY-MM-DD), 건수] 쌍의 배열 목록
+     * @return [날짜 문자열(YYYY-MM-DD), 접속 횟수, 접속자 수(행번 DISTINCT)] 배열 목록
      */
     @Query(
             value =
                     """
             SELECT TO_CHAR(TRUNC(LGN_DTM), 'YYYY-MM-DD') AS LGN_DATE,
-                   COUNT(*) AS CNT
+                   COUNT(*) AS CNT,
+                   COUNT(DISTINCT ENO) AS UNIQUE_CNT
             FROM TPRMPP_CLOGNH
             WHERE IT_PTL_LGN_TC = '1'
               AND LGN_DTM >= TRUNC(SYSDATE) - 30
@@ -132,11 +133,47 @@ public interface LoginHistoryRepository extends JpaRepository<Clognh, Long> {
     List<Object[]> findDailyLoginStats();
 
     /**
-     * 최근 30일 일별 로그인 성공 건수를 DTO로 봉인 반환한다(#6).
+     * 최근 30일 일별 로그인 성공 건수·접속자 수를 DTO로 봉인 반환한다(#6).
      *
-     * @return (일자 YYYY-MM-DD, 건수) DTO 목록
+     * @return (일자 YYYY-MM-DD, 접속 횟수, 접속자 수) DTO 목록
      */
-    default List<LabeledCountRow> findDailyLoginStatRows() {
-        return findDailyLoginStats().stream().map(LabeledCountRow::fromRow).toList();
+    default List<DailyLoginStatRow> findDailyLoginStatRows() {
+        return findDailyLoginStats().stream().map(DailyLoginStatRow::fromRow).toList();
+    }
+
+    /**
+     * {@link #findDailyLoginStats()} 3컬럼 native 집계 결과 DTO.
+     *
+     * @param label 집계 일자(YYYY-MM-DD)
+     * @param count 로그인 성공 건수(접속 횟수)
+     * @param uniqueUserCount 행번(ENO) 중복을 제거한 접속자 수
+     */
+    record DailyLoginStatRow(String label, long count, long uniqueUserCount) {
+        /** 컬럼 수 가드: SELECT 절 길이가 바뀌면 즉시 드러나도록 한다. */
+        private static final int EXPECTED_COLUMNS = 3;
+
+        /**
+         * native {@code Object[]} 1행을 DTO로 매핑한다. 건수 컬럼이 null이면 0으로 폴백한다.
+         *
+         * @param r [0]=일자(VARCHAR), [1]=접속 횟수(NUMBER), [2]=접속자 수(NUMBER)
+         * @return 매핑된 DTO
+         * @throws IllegalStateException 컬럼 수가 3이 아니면(SQL/팩토리 불일치 조기 검출)
+         */
+        public static DailyLoginStatRow fromRow(Object[] r) {
+            if (r == null || r.length != EXPECTED_COLUMNS) {
+                throw new IllegalStateException(
+                        "컬럼 수 불일치: 기대="
+                                + EXPECTED_COLUMNS
+                                + ", 실제="
+                                + (r == null ? "null" : r.length));
+            }
+            return new DailyLoginStatRow(
+                    NativeRowMapper.toStr(r[0]), zeroIfNull(r[1]), zeroIfNull(r[2]));
+        }
+
+        private static long zeroIfNull(Object v) {
+            Long n = NativeRowMapper.toLong(v);
+            return n == null ? 0L : n;
+        }
     }
 }

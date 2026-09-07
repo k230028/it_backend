@@ -29,7 +29,7 @@ class BudgetCardNoteServiceTest {
     @Test
     @DisplayName("공개 조회는 카드 순서대로 등록된 참고사항을 반환한다")
     void getNotes_등록문서_카드순서반환() {
-        given(guideDocRepository.findAllByDocMngNoStartingWithAndDelYn("BNOTE-", "N"))
+        given(guideDocRepository.findAllByDocDtlItmCAndDelYn("03", "N"))
                 .willReturn(
                         List.of(
                                 note("BNOTE-ORDINARY", "BUDGET_CARD_NOTE_ORDINARY", "경상 안내"),
@@ -46,8 +46,8 @@ class BudgetCardNoteServiceTest {
     void save_기존문서_본문수정() {
         Bgdocm document = note("BNOTE-COST", "BUDGET_CARD_NOTE_COST", "이전 안내");
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                "BUDGET_CARD_NOTE_COST", "BNOTE-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                "BUDGET_CARD_NOTE_COST", "03", "N"))
                 .willReturn(Optional.of(document));
 
         BudgetCardNoteDto.Response result =
@@ -61,8 +61,8 @@ class BudgetCardNoteServiceTest {
     @DisplayName("미등록 카드 참고사항 저장은 고정 문서번호로 새 행을 만든다")
     void save_미등록문서_고정문서번호생성() {
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                "BUDGET_CARD_NOTE_IT_PROJECT", "BNOTE-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                "BUDGET_CARD_NOTE_IT_PROJECT", "03", "N"))
                 .willReturn(Optional.empty());
         given(guideDocRepository.save(any(Bgdocm.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));

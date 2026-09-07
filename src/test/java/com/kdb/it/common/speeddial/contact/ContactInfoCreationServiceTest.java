@@ -27,8 +27,8 @@ class ContactInfoCreationServiceTest {
     @Test
     void createContactInfo_createsAnIdentifiedContactDocument() {
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "04", "N"))
                 .willReturn(Optional.empty());
         given(bgdocNumberAllocator.next("CDOC-")).willReturn("CDOC-2026-0017");
         given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
@@ -54,8 +54,8 @@ class ContactInfoCreationServiceTest {
                         .nacTxtInf("<p>기존</p>")
                         .build();
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                ContactInfoService.DOCUMENT_IDENTIFIER, "CDOC-", "N"))
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                ContactInfoService.DOCUMENT_IDENTIFIER, "04", "N"))
                 .willReturn(Optional.of(existing));
 
         ContactInfoDto.Response response =

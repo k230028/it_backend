@@ -157,8 +157,8 @@ class ProjectServiceCacheEvictTest {
     void deleteProject_evictsTiptapMetadata() {
         Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
         given(project.getSno()).willReturn(1);
-        given(projectRepository.findAllVersionsForUpdate(anyString()))
-                .willReturn(java.util.List.of(project));
+        given(projectRepository.findVersionForUpdate(anyString(), any()))
+                .willReturn(java.util.Optional.of(project));
         given(
                         capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
                                 anyString(), anyString(), any(), any()))
@@ -166,7 +166,7 @@ class ProjectServiceCacheEvictTest {
         given(bitemmRepository.findByAbusMngNoAndFntTbCrySno(anyString(), any()))
                 .willReturn(java.util.List.of());
 
-        projectService.deleteProject("PRJ-2026-0001");
+        projectService.deleteProject("PRJ-2026-0001", 1);
 
         assertThat(tiptapCache.get("ALL")).isNull();
         assertThat(tiptapCache.get("D001")).isNull();

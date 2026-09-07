@@ -18,15 +18,15 @@ import org.springframework.data.repository.query.Param;
 public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
 
     /**
-     * GDOC 접두사의 문서관리번호와 삭제여부로 단건 조회
+     * 문서관리번호·문서상세항목코드·삭제여부로 단건 조회
      *
      * @param docMngNo 문서관리번호
-     * @param docMngNoPrefix 단계별 가이드 문서관리번호 접두사
+     * @param docDtlItmC 문서상세항목코드
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 가이드 문서
      */
-    Optional<Bgdocm> findByDocMngNoAndDocMngNoStartingWithAndDelYn(
-            String docMngNo, String docMngNoPrefix, String delYn);
+    Optional<Bgdocm> findByDocMngNoAndDocDtlItmCAndDelYn(
+            String docMngNo, String docDtlItmC, String delYn);
 
     /**
      * 삭제여부로 전체 목록 조회
@@ -36,15 +36,15 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
      */
     List<Bgdocm> findAllByDelYn(String delYn);
 
-    /** 문서관리번호 접두사와 삭제여부로 활성 문서를 조회합니다. */
-    List<Bgdocm> findAllByDocMngNoStartingWithAndDelYn(String docMngNoPrefix, String delYn);
+    /** 문서상세항목코드와 삭제여부로 활성 문서를 조회합니다. */
+    List<Bgdocm> findAllByDocDtlItmCAndDelYn(String docDtlItmC, String delYn);
 
     /**
      * 사업 유형에 맞는 본문이 있는 활성 입력 길라잡이를 조회합니다.
      *
-     * <p>기존 단계별 가이드와 섞이지 않도록 {@code FDOC-} 접두사를 받고, 공백뿐인 본문은 사용자 패널에 표시하지 않습니다.
+     * <p>문서상세항목코드로 길라잡이를 구분하며, 공백뿐인 본문은 사용자 패널에 표시하지 않습니다.
      *
-     * @param prefix 입력 길라잡이 문서관리번호 접두사
+     * @param docDtlItmC 문서상세항목코드
      * @param guideIdPrefix 사업 유형별 길라잡이 ID 접두사
      * @return 활성·본문 보유 길라잡이 목록
      */
@@ -53,7 +53,7 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
                     """
                     select *
                       from TPRMPP_BGDOCM
-                     where DOC_MNG_NO like :prefix || '%'
+                     where DOC_DTL_ITM_C = :docDtlItmC
                        and DOC_TTL_CONE like :guideIdPrefix || '%'
                        and DEL_YN = 'N'
                        and NAC_TXT_INF is not null
@@ -61,30 +61,29 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
                     """,
             nativeQuery = true)
     List<Bgdocm> findActiveFormGuides(
-            @Param("prefix") String prefix, @Param("guideIdPrefix") String guideIdPrefix);
+            @Param("docDtlItmC") String docDtlItmC, @Param("guideIdPrefix") String guideIdPrefix);
 
     /**
      * 고정 ID로 활성 입력 길라잡이 하나를 찾습니다.
      *
      * @param docTtlCone 고정 길라잡이 ID
-     * @param docMngNoPrefix 입력 길라잡이 문서관리번호 접두사
+     * @param docDtlItmC 문서상세항목코드
      * @param delYn 삭제여부
      * @return 조건에 맞는 입력 길라잡이
      */
-    Optional<Bgdocm> findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-            String docTtlCone, String docMngNoPrefix, String delYn);
+    Optional<Bgdocm> findByDocTtlConeAndDocDtlItmCAndDelYn(
+            String docTtlCone, String docDtlItmC, String delYn);
 
     /**
-     * GDOC 접두사와 삭제여부로 목록 조회용 경량 프로젝션 조회
+     * 문서상세항목코드와 삭제여부로 목록 조회용 경량 프로젝션 조회
      *
      * <p>본문({@code nacTxtInf}, CLOB)을 제외한 목록 화면 전용 필드만 조회하여 불필요한 CLOB 로딩을 방지합니다.
      *
-     * @param docMngNoPrefix 단계별 가이드 문서관리번호 접두사
+     * @param docDtlItmC 문서상세항목코드
      * @param delYn 삭제여부 ('N'=미삭제)
      * @return 조건에 맞는 가이드 문서 목록 프로젝션
      */
-    List<GuideDocListView> findListViewsByDocMngNoStartingWithAndDelYn(
-            String docMngNoPrefix, String delYn);
+    List<GuideDocListView> findListViewsByDocDtlItmCAndDelYn(String docDtlItmC, String delYn);
 
     /** 가이드 문서 목록 조회용 경량 프로젝션 (본문 {@code nacTxtInf} 제외) */
     interface GuideDocListView {
@@ -94,6 +93,9 @@ public interface GuideDocRepository extends JpaRepository<Bgdocm, String> {
 
         /** 문서명 */
         String getDocTtlCone();
+
+        /** 문서상세항목코드 */
+        String getDocDtlItmC();
 
         /** 삭제여부 */
         String getDelYn();

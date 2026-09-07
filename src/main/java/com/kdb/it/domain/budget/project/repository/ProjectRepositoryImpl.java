@@ -160,10 +160,10 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
         }
         if (apfSts != null && !apfSts.isBlank()) {
             if (BudgetListVersionScope.SCOPE_NONE.equals(apfSts)) {
-                // 미상신(재상신 가능 포함): 활성(1 결재중) 또는 완료(2 결재완료)인 CAPPLM이 없는 경우.
+                // 미상신(재상신 가능 포함): 활성(1)·완료(2)·수기등록(9) CAPPLM이 없는 경우.
                 // - 한 번도 상신 안 한 경우 → CAPPLA 자체 없음 → 자동 매칭
                 // - 반려(3)/회수(4)만 존재하는 경우 → 활성/완료가 없으므로 매칭 (재상신 허용)
-                // - 진행 중(1) 또는 완료(2)가 있으면 → 차단
+                // - 진행 중(1)·완료(2)·수기등록(9)이 있으면 → 차단
                 builder.and(
                         JPAExpressions.selectOne()
                                 .from(cappla, capplm)
@@ -178,6 +178,9 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
                                                         .code(),
                                                 com.kdb.it.common.approval.domain.ApprovalStatus
                                                         .COMPLETED
+                                                        .code(),
+                                                com.kdb.it.common.approval.domain.ApprovalStatus
+                                                        .MANUAL
                                                         .code()))
                                 .notExists());
             } else {

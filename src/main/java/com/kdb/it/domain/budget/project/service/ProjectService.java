@@ -253,8 +253,8 @@ public class ProjectService {
         }
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
-        request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
-        request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
+        request.setAbusPulConeInf(HtmlSanitizer.sanitize(request.getAbusPulConeInf()));
+        request.setAbusPulDrcnInf(HtmlSanitizer.sanitize(request.getAbusPulDrcnInf()));
 
         // 의무완료기한(FLF_FSG_DT, VARCHAR2(8)) 정규화: 프론트는 "YYYY-MM-DD"(ISO)로 보내므로
         // 하이픈을 제거해 yyyyMMdd 8자리로 저장 (ORA-12899 방지, 품목 xcrBseDt와 동일 처리)
@@ -456,8 +456,8 @@ public class ProjectService {
         }
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
-        request.setAbusCone(HtmlSanitizer.sanitize(request.getAbusCone()));
-        request.setAbusRngCone(HtmlSanitizer.sanitize(request.getAbusRngCone()));
+        request.setAbusPulConeInf(HtmlSanitizer.sanitize(request.getAbusPulConeInf()));
+        request.setAbusPulDrcnInf(HtmlSanitizer.sanitize(request.getAbusPulDrcnInf()));
 
         // 프로젝트 기본 정보 수정 (JPA Dirty Checking으로 자동 반영)
         project.update(
@@ -473,12 +473,12 @@ public class ProjectService {
                         request.getTlrUsid(),
                         request.getDvmTlrUsid(),
                         request.getEdrtTc(),
-                        request.getAbusCone(),
+                        request.getAbusPulConeInf(),
                         request.getCpnSafCone(),
-                        request.getAbusNcsCone(),
-                        request.getDgogPpoCone(),
+                        request.getAbusPulNcsInf(),
+                        request.getAbusXptEffInf(),
                         request.getPlmDes(),
-                        request.getAbusRngCone(),
+                        request.getAbusPulDrcnInf(),
                         request.getMnPrgCone(),
                         request.getHrfPlnCone(),
                         request.getBzDttNm(),
@@ -658,67 +658,29 @@ public class ProjectService {
         private static final TeamSnapshot EMPTY = new TeamSnapshot(null, null);
     }
 
-    /**
-     * 정보화사업 삭제 (Soft Delete)
-     *
-     * <p>프로젝트와 연결된 품목({@link com.kdb.it.domain.budget.project.entity.Bitemm}) 모두를 {@code
-     * DEL_YN='Y'}로 논리 삭제합니다.
-     *
-     * <p>결재 상태 확인: "결재중" 또는 "결재완료" 상태인 경우 삭제가 불가합니다.
-     *
-     * @param prjMngNo 삭제할 프로젝트관리번호
-     * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
-     * @throws IllegalStateException 결재중(또는 비관리자의 결재완료) 상태여서 삭제 불가한 경우
-     */
-    // 프로젝트 삭제 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
-    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
-    @Transactional
-    public void deleteProject(String prjMngNo) {
-        deleteProject(prjMngNo, null);
-    }
-
-    /** 미상신 재신청 초안을 지정한 개정 순번으로만 논리 삭제합니다. */
+    /** 지정한 사업 개정본과 그 순번에 연결된 품목만 논리 삭제합니다. */
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public void deleteProject(String prjMngNo, Integer sno) {
-        // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
+        if (sno == null || sno < 1) {
+            throw new IllegalArgumentException("삭제할 사업 순번이 필요합니다.");
+        }
         codeService.validateBudgetPeriod();
+        Bprojm project =
+                projectRepository
+                        .findVersionForUpdate(prjMngNo, sno)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Project not found with id: "
+                                                        + prjMngNo
+                                                        + ", sno: "
+                                                        + sno));
+        OwnershipVerifier.verifySameDepartmentOrAdmin(project.getSvnDpmC());
+        new ApprovalWriteGuard(capplaRepository).verifyDeletable("BPROJM", prjMngNo, sno);
 
-        // 순번을 지정하면 그 개정본만, 지정하지 않으면 문서 전체를 지운다.
-        // 문서 전체 삭제에서 최종본만 지우면 재신청 초안이 DEL_YN='N'으로 남아 미상신 목록에
-        // 삭제한 문서가 되살아나고, 그 초안을 상신·승인하면 문서 자체가 복구된다.
-        List<Bprojm> targets =
-                sno == null
-                        ? projectRepository.findAllVersionsForUpdate(prjMngNo)
-                        : projectRepository
-                                .findVersionForUpdate(prjMngNo, sno)
-                                .map(List::of)
-                                .orElseGet(List::of);
-        if (targets.isEmpty()) {
-            throw new IllegalArgumentException("Project not found with id: " + prjMngNo);
-        }
-
-        for (Bprojm project : targets) {
-            // RBAC 수정 권한 검증 (Admin/DeptManager/작성자 여부 확인)
-            OwnershipVerifier.verifyModifiable(project.getFstEnrUsid(), project.getSvnDpmC());
-
-            // 결재 상태 확인 (BPROJM 테이블 코드로 신청서 연결 여부 조회)
-            if (isBlockedByApproval(prjMngNo, project.getSno())) {
-                throw new IllegalStateException(approvalBlockMessage("삭제"));
-            }
-        }
-
-        for (Bprojm project : targets) {
-            // 1. 프로젝트 Soft Delete (DEL_YN='Y')
-            project.delete();
-
-            // 2. 관련 품목 전체 Soft Delete (DEL_YN 무관하게 모든 품목 조회 후 삭제)
-            List<com.kdb.it.domain.budget.project.entity.Bitemm> bitemms =
-                    bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, project.getSno());
-            for (com.kdb.it.domain.budget.project.entity.Bitemm bitemm : bitemms) {
-                bitemm.delete(); // BaseEntity.delete() 호출 (DEL_YN='Y')
-            }
-        }
+        project.delete();
+        bitemmRepository.findByAbusMngNoAndFntTbCrySno(prjMngNo, sno).forEach(Bitemm::delete);
     }
 
     /**

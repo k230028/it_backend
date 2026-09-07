@@ -242,13 +242,13 @@ class CapitalProjectFormAdapterTest {
         ProjectDto.CreateRequest project =
                 adapter.adapt(contextOf(RequestFormFixtures.fullFormXls())).projects().get(0);
 
-        assertThat(project.getAbusCone()).isEqualTo("접속방식 변경");
+        assertThat(project.getAbusPulConeInf()).isEqualTo("접속방식 변경");
         assertThat(project.getCpnSafCone()).isEqualTo("Exture3.0 운영 중");
-        assertThat(project.getAbusNcsCone()).isEqualTo("접속체계 전환 대응");
-        assertThat(project.getDgogPpoCone()).isEqualTo("PD 자격 유지");
+        assertThat(project.getAbusPulNcsInf()).isEqualTo("접속체계 전환 대응");
+        assertThat(project.getAbusXptEffInf()).isEqualTo("PD 자격 유지");
         assertThat(project.getPlmDes()).isEqualTo("PD 업무 수행 불가");
         // 사업범위는 여러 행에 걸치는 HTML 필드라 행 사이 줄바꿈이 <br>로 남아야 화면에 그대로 보인다
-        assertThat(project.getAbusRngCone())
+        assertThat(project.getAbusPulDrcnInf())
                 .isEqualTo("전용망 거래 기능<br>추가 요구사항 1<br>추가 요구사항 2<br>추가 요구사항 3");
     }
 

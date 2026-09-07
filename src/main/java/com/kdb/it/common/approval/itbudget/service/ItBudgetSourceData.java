@@ -49,12 +49,12 @@ final class ItBudgetSourceData {
         values.put("usrNm", p.getUsrNm());
         values.put("dvmTlrUsid", p.getDvmTlrUsid());
         values.put("edrtTc", p.getEdrtTc());
-        values.put("abusCone", p.getAbusCone());
+        values.put("abusPulConeInf", p.getAbusPulConeInf());
         values.put("cpnSafCone", p.getCpnSafCone());
-        values.put("abusNcsCone", p.getAbusNcsCone());
-        values.put("dgogPpoCone", p.getDgogPpoCone());
+        values.put("abusPulNcsInf", p.getAbusPulNcsInf());
+        values.put("abusXptEffInf", p.getAbusXptEffInf());
         values.put("plmDes", p.getPlmDes());
-        values.put("abusRngCone", p.getAbusRngCone());
+        values.put("abusPulDrcnInf", p.getAbusPulDrcnInf());
         values.put("mnPrgCone", p.getMnPrgCone());
         values.put("hrfPlnCone", p.getHrfPlnCone());
         values.put("bzDttNm", p.getBzDttNm());

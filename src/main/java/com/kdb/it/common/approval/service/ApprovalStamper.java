@@ -6,6 +6,7 @@ import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.system.security.OwnershipVerifier;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,19 @@ public class ApprovalStamper {
             String actorEno,
             String bseYy,
             ApprovalStatus status) {
+        return stamp(fntTbNm, pkColNm, fntTbCrySno, title, actorEno, null, bseYy, status);
+    }
+
+    /** 원천 작성부서를 포함해 호출자가 지정한 상태의 이관 받이를 만듭니다. */
+    public String stamp(
+            String fntTbNm,
+            String pkColNm,
+            Integer fntTbCrySno,
+            String title,
+            String actorEno,
+            String bbrC,
+            String bseYy,
+            ApprovalStatus status) {
         String year = (bseYy == null || bseYy.isBlank()) ? currentYear() : bseYy;
         return create(
                 fntTbNm,
@@ -81,7 +95,7 @@ public class ApprovalStamper {
                 fntTbCrySno,
                 title,
                 actorEno,
-                null,
+                bbrC,
                 year,
                 status,
                 MigrationApprovalMarker.NOTE,
@@ -94,6 +108,10 @@ public class ApprovalStamper {
      * <p>같은 원천 개정본에 연결된 최신 신청서가 이미 작성완료면 제목만 갱신해 멱등하게 동작하고, 결재중이면 저장을 거부합니다. 신청서가 없거나
      * 결재완료·반려·회수·수기등록이면 새 작성완료 신청서를 만듭니다. 결재요청일시는 비워 두고 실제 상신 신청서에만 기록합니다.
      *
+     * <p>예외적으로 시스템관리자가 결재완료·수기등록 건을 사후 정정하는 저장은 신청서 상태를 바꾸지 않습니다. 정정은 확정된 원장 자체를 고치는 것이므로 새 작성완료
+     * 신청서를 만들지 않고 기존 신청서식별번호를 그대로 돌려줍니다. 관리자 판정은 {@link OwnershipVerifier#isCurrentUserAdmin()}에
+     * 위임하며, 일반 사용자의 수기등록 건 저장은 상신을 위해 기존대로 새 작성완료 신청서를 만듭니다.
+     *
      * @param fntTbNm 원천테이블명 — {@code BCOSTM} 또는 {@code BPROJM}
      * @param pkColNm 관리번호
      * @param fntTbCrySno 개정 순번
@@ -103,7 +121,7 @@ public class ApprovalStamper {
      * @param bseYy 예산연도. 신청서번호 채번에는 쓰지 않습니다 — 작성완료는 이후 {@code ApplicationService#submit}의 상신 채번과
      *     시간순이 어긋나지 않도록 항상 현재 연도로 채번합니다(§클래스 JavaDoc). 호출자 시그니처를 유지하기 위해 파라미터는 남겨 두되 본문에서는 사용하지
      *     않습니다.
-     * @return 작성완료 신청서식별번호
+     * @return 작성완료 신청서식별번호. 관리자 정정이면 상태를 유지한 기존 신청서식별번호
      * @throws IllegalStateException 최신 신청서가 결재중인 경우
      */
     public String stampDrafted(
@@ -126,6 +144,9 @@ public class ApprovalStamper {
                 }
                 if (ApprovalStatus.DRAFTED.code().equals(status)) {
                     latest.renewDraft(resolveTitle(title, pkColNm));
+                    return latest.getApfMngNo();
+                }
+                if (isAdminCorrection(status)) {
                     return latest.getApfMngNo();
                 }
             }
@@ -185,6 +206,19 @@ public class ApprovalStamper {
         applicationMapRepository.save(applicationMap);
 
         return apfDcmNo;
+    }
+
+    /**
+     * 시스템관리자가 결재완료·수기등록 원장을 사후 정정하는 저장인지 판정합니다.
+     *
+     * @param status 최신 신청서의 진행상태 코드
+     * @return 결재완료 또는 수기등록이면서 현재 사용자가 시스템관리자면 true
+     */
+    private static boolean isAdminCorrection(String status) {
+        boolean settled =
+                ApprovalStatus.COMPLETED.code().equals(status)
+                        || ApprovalStatus.MANUAL.code().equals(status);
+        return settled && OwnershipVerifier.isCurrentUserAdmin();
     }
 
     private static String resolveTitle(String title, String fallback) {

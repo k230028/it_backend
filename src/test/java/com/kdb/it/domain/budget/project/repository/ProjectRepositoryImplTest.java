@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.project.repository;
 
+import static com.kdb.it.support.QuerydslExpressionTestSupport.constants;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -231,6 +232,19 @@ class ProjectRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("apfSts=none 신청대상에서 수기등록 상태를 제외한다")
+    void searchByCondition_apfStsNone_수기등록제외() {
+        ProjectDto.SearchCondition condition = new ProjectDto.SearchCondition();
+        condition.setApfSts("none");
+
+        sut.searchByCondition(condition);
+
+        ArgumentCaptor<Predicate> predicate = ArgumentCaptor.forClass(Predicate.class);
+        org.mockito.Mockito.verify(mockQuery).where(predicate.capture());
+        assertThat(constants(predicate.getValue())).contains("1", "2", "9");
+    }
+
+    @Test
     @DisplayName("apfSts에 결재완료 값을 입력하면 EXISTS 서브쿼리 분기로 진입한다")
     void searchByCondition_apfStsSpecificValue_executesQuery() {
         // Arrange
@@ -283,12 +297,12 @@ class ProjectRepositoryImplTest {
         assertThat(selected)
                 .contains("bprojm.abusMngNo", "bprojm.abusNm", "bprojm.bseYy")
                 .doesNotContain(
-                        "abusCone",
+                        "abusPulConeInf",
                         "cpnSafCone",
-                        "abusNcsCone",
-                        "dgogPpoCone",
+                        "abusPulNcsInf",
+                        "abusXptEffInf",
                         "plmDes",
-                        "abusRngCone",
+                        "abusPulDrcnInf",
                         "mnPrgCone",
                         "hrfPlnCone");
     }

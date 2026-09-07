@@ -123,7 +123,7 @@ public class RequestFormFileImporter {
             String cgprNm = cost.getCgprId();
             cost.setCgprId(null);
             cost.setBseYy(bseYy);
-            String costBgNo = costService.createCost(cost, true);
+            String costBgNo = costService.createCostForMigration(cost, Integer.parseInt(bseYy));
             costService.assignImportedPersonName(costBgNo, cgprNm);
             String apfMngNo = stamp(TABLE_COST, costBgNo, cost.getCttNm(), actorEno, bseYy);
             created.add(

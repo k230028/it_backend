@@ -64,7 +64,7 @@ class CouncilProjectRowMappingIt extends AbstractOracleRepositoryTest {
             assertThat(d.sttDt()).isEqualTo(NativeRowMapper.toLd(r[13]));
             assertThat(d.endDt()).isEqualTo(NativeRowMapper.toLd(r[14]));
             assertThat(d.itDpm()).isEqualTo(NativeRowMapper.toStr(r[15]));
-            assertThat(d.abusCone()).isEqualTo(NativeRowMapper.toStr(r[16]));
+            assertThat(d.abusPulConeInf()).isEqualTo(NativeRowMapper.toStr(r[16]));
             assertThat(d.csfHeldYn()).isEqualTo(NativeRowMapper.toStr(r[17]));
         }
     }

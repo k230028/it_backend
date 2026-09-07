@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 
 import com.kdb.it.common.approval.dto.ApprovalHomeInboxDto;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ApprovalHomeInboxService 단위 테스트")
 class ApprovalHomeInboxServiceTest {
+
+    private static final CustomUserDetails USER =
+            new CustomUserDetails("E10001", List.of(CustomUserDetails.ATH_USER), "D001");
 
     @Mock private ApplicationRepository applicationRepository;
 
@@ -38,7 +42,7 @@ class ApprovalHomeInboxServiceTest {
                 homeRow("APF-002", "내 완료 문서", "홍길동", "2", 0, 0, "COMPLETED", 0);
         ApplicationRepository.HomeInboxRow draftRejected =
                 homeRow("APF-001", "내 반려 문서", "홍길동", "3", 0, 0, "REJECTED", 0);
-        given(applicationRepository.findHomeInboxRowsByEno("E10001"))
+        given(applicationRepository.findHomeInboxRowsByEnoAndBbrC("E10001", "D001"))
                 .willReturn(
                         List.of(
                                 approvalPending,
@@ -47,7 +51,7 @@ class ApprovalHomeInboxServiceTest {
                                 draftCompleted,
                                 draftRejected));
 
-        ApprovalHomeInboxDto.Response result = approvalHomeInboxService.getHomeInbox("E10001");
+        ApprovalHomeInboxDto.Response result = approvalHomeInboxService.getHomeInbox(USER);
 
         assertThat(result.approvalPending())
                 .extracting(ApprovalHomeInboxDto.Item::apfMngNo)
@@ -70,9 +74,31 @@ class ApprovalHomeInboxServiceTest {
     @Test
     @DisplayName("getHomeInbox: 인증 사번이 비어 있으면 빈 목록이 아닌 입력 오류로 구분한다")
     void getHomeInbox_사번없음_예외() {
-        assertThatThrownBy(() -> approvalHomeInboxService.getHomeInbox(" "))
+        assertThatThrownBy(
+                        () ->
+                                approvalHomeInboxService.getHomeInbox(
+                                        new CustomUserDetails(
+                                                " ",
+                                                List.of(CustomUserDetails.ATH_USER),
+                                                "D001")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("사번");
+    }
+
+    @Test
+    @DisplayName("getHomeInbox: 소속 부서가 없으면 전체 조회로 열리지 않는다")
+    void getHomeInbox_부서없음_빈목록() {
+        CustomUserDetails userWithoutDepartment =
+                new CustomUserDetails("E10001", List.of(CustomUserDetails.ATH_USER), null);
+
+        ApprovalHomeInboxDto.Response result =
+                approvalHomeInboxService.getHomeInbox(userWithoutDepartment);
+
+        assertThat(result.approvalPending()).isEmpty();
+        assertThat(result.approvalCompleted()).isEmpty();
+        assertThat(result.draftInProgress()).isEmpty();
+        assertThat(result.draftCompleted()).isEmpty();
+        assertThat(result.draftRejected()).isEmpty();
     }
 
     private ApplicationRepository.HomeInboxRow homeRow(

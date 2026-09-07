@@ -10,6 +10,7 @@ import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.DataCorruptionException;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ApplicationDetailReadTest {
+    private static final CustomUserDetails ADMIN =
+            new CustomUserDetails("U1", List.of(CustomUserDetails.ATH_ADMIN), "D1");
     private final ApplicationRepository applications = mock(ApplicationRepository.class);
     private final ApplicationMapRepository maps = mock(ApplicationMapRepository.class);
     private final ApplicationService service =
@@ -79,6 +82,19 @@ class ApplicationDetailReadTest {
     }
 
     @Test
+    void manualApplicationWithoutJsonReturnsMetadataForSourceFileViewer() {
+        var view = view(null);
+        when(view.getItPtlApfPrgStsC()).thenReturn("9");
+
+        ApplicationDto.Response response = service.getApplication("A1");
+
+        assertThat(response.getApfMngNo()).isEqualTo("A1");
+        assertThat(response.getApfDtlCone()).isNull();
+        assertThat(response.isMigrated()).isTrue();
+        verifyNoInteractions(maps);
+    }
+
+    @Test
     void nullDetailListsUseOneSourceBatchQuery() {
         var first = view(null);
         var second = mock(ApplicationRepository.ApplicationReadView.class);
@@ -99,7 +115,7 @@ class ApplicationDetailReadTest {
                                 })
                         .toList();
         when(maps.findDetailSourcesByApplicationIds(List.of("A1", "A2"))).thenReturn(sources);
-        assertThat(service.getApplications())
+        assertThat(service.getApplications(ADMIN, true))
                 .extracting(ApplicationDto.Response::getApfMngNo)
                 .containsExactly("A1", "A2");
         verify(maps).findDetailSourcesByApplicationIds(List.of("A1", "A2"));
@@ -121,8 +137,8 @@ class ApplicationDetailReadTest {
                 List.<org.assertj.core.api.ThrowableAssert.ThrowingCallable>of(
                         () -> service.getApfDtlCone("A1"),
                         () -> service.getApplication("A1"),
-                        () -> service.getApplications(),
-                        () -> service.getPendingApplications("U1"),
+                        () -> service.getApplications(ADMIN, true),
+                        () -> service.getPendingApplications(ADMIN, true),
                         () -> service.getApplicationsByIds(request))) {
             assertThatThrownBy(call).isInstanceOf(DataCorruptionException.class).hasNoCause();
         }

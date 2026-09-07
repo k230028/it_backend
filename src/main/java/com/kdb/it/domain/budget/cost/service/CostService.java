@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.cost.service;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.service.ApprovalStamper;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
@@ -414,6 +415,27 @@ public class CostService {
         return updateCost(itMngcNo, null, request, true);
     }
 
+    /** 금융정보단말기 일괄업로드 원장에 원장 부서 소속의 수기등록 신청서를 연결합니다. */
+    @Transactional
+    public String stampManualMigration(String itMngcNo, String actorEno) {
+        Bcostm target =
+                costRepository
+                        .findCurrentVersionForUpdate(itMngcNo)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "전산업무비를 찾을 수 없습니다: " + itMngcNo));
+        return approvalStamper.stamp(
+                COST_TABLE,
+                target.getCostBgNo(),
+                target.getBgSno(),
+                target.getCttNm(),
+                actorEno,
+                target.getCostSvnDpmC(),
+                target.getBseYy(),
+                ApprovalStatus.MANUAL);
+    }
+
     private String updateCost(
             String itMngcNo,
             Integer bgSno,
@@ -569,46 +591,12 @@ public class CostService {
         return true;
     }
 
-    /**
-     * 전산업무비 전체 이력과 연결된 활성 단말기를 논리 삭제합니다.
-     *
-     * @param itMngcNo 전산업무비 관리번호
-     * @throws IllegalArgumentException 활성 비용이 없는 경우
-     */
-    @Transactional
-    public void deleteCost(String itMngcNo) {
-        codeService.validateBudgetPeriod();
-        // 최종본만 지우면 재상신 초안이 남아 미상신 목록에 삭제 문서가 되살아난다. 모든 활성 개정본을 지운다.
-        List<Bcostm> costs = costRepository.findAllVersionsForUpdate(itMngcNo);
-        if (costs.isEmpty()) {
-            throw new IllegalArgumentException("Cost not found with id: " + itMngcNo);
-        }
-        Bcostm primary = CostRepresentativeSelector.pick(costs);
-        OwnershipVerifier.verifyModifiable(primary.getFstEnrUsid(), primary.getCostSvnDpmC());
-        for (Bcostm cost : costs) {
-            approvalWriteGuard.verifyWritable(
-                    COST_TABLE, cost.getCostBgNo(), cost.getBgSno(), "삭제");
-        }
-        List<String> costNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
-        Map<String, List<Btermm>> terminalsByKey =
-                btermmRepository.findByTermBgNoInAndDelYn(costNos, "N").stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        terminal ->
-                                                terminalPk(
-                                                        terminal.getTermBgNo(),
-                                                        terminal.getTermBgSno())));
-        for (Bcostm cost : costs) {
-            cost.delete();
-            terminalsByKey
-                    .getOrDefault(terminalPk(cost.getCostBgNo(), cost.getBgSno()), List.of())
-                    .forEach(Btermm::delete);
-        }
-    }
-
-    /** 관리번호의 다른 이력은 보존하고 지정한 미상신 개정본만 논리 삭제합니다. */
+    /** 지정한 전산업무비 개정본과 그 순번에 연결된 단말기만 논리 삭제합니다. */
     @Transactional
     public void deleteCost(String itMngcNo, Integer bgSno) {
+        if (bgSno == null || bgSno < 1) {
+            throw new IllegalArgumentException("삭제할 전산업무비 순번이 필요합니다.");
+        }
         codeService.validateBudgetPeriod();
         Bcostm cost =
                 costRepository
@@ -620,12 +608,8 @@ public class CostService {
                                                         + itMngcNo
                                                         + ", sno: "
                                                         + bgSno));
-        if (!"N".equals(cost.getLstYn())) {
-            throw new IllegalArgumentException("미상신 재상신 개정본만 삭제할 수 있습니다.");
-        }
-        OwnershipVerifier.verifyModifiable(cost.getFstEnrUsid(), cost.getCostSvnDpmC());
-        // 결재중인 초안을 지우면 최종 승인 시 리스너가 승격 대상을 찾지 못해 승인 트랜잭션 전체가 롤백된다.
-        approvalWriteGuard.verifyWritable(COST_TABLE, itMngcNo, bgSno, "삭제");
+        OwnershipVerifier.verifySameDepartmentOrAdmin(cost.getCostSvnDpmC());
+        approvalWriteGuard.verifyDeletable(COST_TABLE, itMngcNo, bgSno);
         cost.delete();
         btermmRepository.findByTermBgNoAndTermBgSno(itMngcNo, bgSno).forEach(Btermm::delete);
     }

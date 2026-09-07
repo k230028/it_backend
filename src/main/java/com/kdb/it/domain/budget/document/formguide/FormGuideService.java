@@ -1,6 +1,7 @@
 package com.kdb.it.domain.budget.document.formguide;
 
 import com.kdb.it.common.util.HtmlSanitizer;
+import com.kdb.it.domain.budget.document.entity.BgdocDocumentType;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import com.kdb.it.domain.budget.document.service.BgdocNumberAllocator;
@@ -25,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class FormGuideService {
 
     private static final String FORM_GUIDE_DOCUMENT_PREFIX = "FDOC-";
+    private static final String DOCUMENT_TYPE = BgdocDocumentType.FORM_GUIDE.code();
     private static final String ACTIVE = "N";
 
     private final GuideDocRepository guideDocRepository;
@@ -101,8 +103,7 @@ public class FormGuideService {
         }
 
         return guideDocRepository
-                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                        entry.guideId(), FORM_GUIDE_DOCUMENT_PREFIX, ACTIVE)
+                .findByDocTtlConeAndDocDtlItmCAndDelYn(entry.guideId(), DOCUMENT_TYPE, ACTIVE)
                 .map(
                         document -> {
                             document.update(entry.guideId(), contentHtml);
@@ -123,8 +124,8 @@ public class FormGuideService {
         FormGuideCatalog.Entry entry = FormGuideCatalog.require(guideId);
         Bgdocm document =
                 guideDocRepository
-                        .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                entry.guideId(), FORM_GUIDE_DOCUMENT_PREFIX, ACTIVE)
+                        .findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                entry.guideId(), DOCUMENT_TYPE, ACTIVE)
                         .orElseThrow(
                                 () -> new NotFoundException("등록되지 않은 길라잡이입니다: " + entry.guideId()));
         document.delete();
@@ -133,7 +134,7 @@ public class FormGuideService {
     private Map<String, Bgdocm> activeDocuments(FormGuideScope scope) {
         requireScope(scope);
         return guideDocRepository
-                .findActiveFormGuides(FORM_GUIDE_DOCUMENT_PREFIX, scope.guideIdPrefix())
+                .findActiveFormGuides(DOCUMENT_TYPE, scope.guideIdPrefix())
                 .stream()
                 .filter(document -> isCatalogEntryForScope(document.getDocTtlCone(), scope))
                 .collect(Collectors.toMap(Bgdocm::getDocTtlCone, Function.identity()));
@@ -145,6 +146,7 @@ public class FormGuideService {
                 Bgdocm.builder()
                         .docMngNo(docMngNo)
                         .docTtlCone(guideId)
+                        .docDtlItmC(DOCUMENT_TYPE)
                         .nacTxtInf(contentHtml)
                         .build();
         try {

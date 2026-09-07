@@ -114,7 +114,7 @@ class CapitalOverviewReaderTest {
                 reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
 
         // 개요는 Tiptap이 편집하고 화면이 v-html로 그린다 — 개행을 <br>로 옮겨야 두 줄로 보인다
-        assertThat(project.getAbusCone()).isEqualTo("1) 인증 연동<br>2) 로그 수집");
+        assertThat(project.getAbusPulConeInf()).isEqualTo("1) 인증 연동<br>2) 로그 수집");
         // 현황은 Textarea 평문이고 화면이 whitespace-pre-wrap으로 그린다 — <br>를 넣으면 글자 그대로 찍힌다
         assertThat(project.getCpnSafCone()).isEqualTo("1) 구형 장비\n2) 수기 대장");
     }
@@ -131,7 +131,7 @@ class CapitalOverviewReaderTest {
         ProjectDto.CreateRequest project =
                 reader.read(sheet, context(Map.of()), FormCatalogs.empty()).project();
 
-        assertThat(project.getAbusRngCone()).isEqualTo("1) 인증 &lt;연동&gt;<br>2) 로그 &amp; 감사");
+        assertThat(project.getAbusPulDrcnInf()).isEqualTo("1) 인증 &lt;연동&gt;<br>2) 로그 &amp; 감사");
     }
 
     @Test

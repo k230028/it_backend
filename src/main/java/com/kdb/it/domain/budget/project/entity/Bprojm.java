@@ -9,6 +9,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -148,29 +149,33 @@ public class Bprojm extends BaseEntity {
     @Column(name = "IT_PTL_EDRT_TC", length = 2, comment = "전결권 (물리컬럼 IT_PTL_EDRT_TC=전결권구분코드)")
     private String edrtTc;
 
-    /** 사업설명: 사업의 전반적인 설명 (최대 1000자) */
-    @Column(name = "ABUS_CONE", length = 1000, comment = "사업설명 (물리컬럼 ABUS_CONE=사업내용)")
-    private String abusCone;
+    /** 사업추진내용정보: 사업의 전반적인 추진 내용입니다. */
+    @Lob
+    @Column(name = "ABUS_PUL_CONE_INF", comment = "사업추진내용정보")
+    private String abusPulConeInf;
 
     /** 현황: 현재 업무/시스템의 현황 분석 내용 (최대 1000자) */
     @Column(name = "CPN_SAF_CONE", length = 1000, comment = "현황 (물리컬럼 CPN_SAF_CONE=회사현황내용)")
     private String cpnSafCone;
 
-    /** 필요성: 사업의 필요성 및 당위성 (최대 300자) */
-    @Column(name = "ABUS_NCS_CONE", length = 300, comment = "필요성 (물리컬럼 ABUS_NCS_CONE=사업필요성내용)")
-    private String abusNcsCone;
+    /** 사업추진필요성정보: 사업 추진의 필요성과 당위성입니다. */
+    @Lob
+    @Column(name = "ABUS_PUL_NCS_INF", comment = "사업추진필요성정보")
+    private String abusPulNcsInf;
 
-    /** 기대효과: 사업 완료 후 기대되는 효과 (최대 4000자) */
-    @Column(name = "DGOG_PPO_CONE", length = 4000, comment = "기대효과 (물리컬럼 DGOG_PPO_CONE=효과성목적내용)")
-    private String dgogPpoCone;
+    /** 사업기대효과정보: 사업 완료 후 기대되는 효과입니다. */
+    @Lob
+    @Column(name = "ABUS_XPT_EFF_INF", comment = "사업기대효과정보")
+    private String abusXptEffInf;
 
     /** 문제: 현재 문제점 또는 개선이 필요한 사항 (최대 4000자) */
     @Column(name = "PLM_DES", length = 4000, comment = "문제 (물리컬럼 PLM_DES=문제설명)")
     private String plmDes;
 
-    /** 사업범위내용: 사업의 대상 범위 및 경계 (최대 600자) */
-    @Column(name = "ABUS_RNG_CONE", length = 600, comment = "사업범위내용")
-    private String abusRngCone;
+    /** 사업추진방향정보: 사업의 추진 방향과 대상 범위입니다. */
+    @Lob
+    @Column(name = "ABUS_PUL_DRCN_INF", comment = "사업추진방향정보")
+    private String abusPulDrcnInf;
 
     /** 주요진행내용: 사업 추진 진행 상황 및 경과 내용 (최대 2000자) */
     @Column(name = "MN_PRG_CONE", length = 2000, comment = "주요진행내용")
@@ -283,12 +288,12 @@ public class Bprojm extends BaseEntity {
                 .usrNm(usrNm)
                 .dvmTlrUsid(dvmTlrUsid)
                 .edrtTc(edrtTc)
-                .abusCone(abusCone)
+                .abusPulConeInf(abusPulConeInf)
                 .cpnSafCone(cpnSafCone)
-                .abusNcsCone(abusNcsCone)
-                .dgogPpoCone(dgogPpoCone)
+                .abusPulNcsInf(abusPulNcsInf)
+                .abusXptEffInf(abusXptEffInf)
                 .plmDes(plmDes)
-                .abusRngCone(abusRngCone)
+                .abusPulDrcnInf(abusPulDrcnInf)
                 .mnPrgCone(mnPrgCone)
                 .hrfPlnCone(hrfPlnCone)
                 .bzDttNm(bzDttNm)
@@ -324,12 +329,12 @@ public class Bprojm extends BaseEntity {
      * @param tlrUsid 주관부서담당팀장 사번
      * @param dvmTlrUsid IT부서담당팀장 사번
      * @param edrtTc 전결권구분코드
-     * @param abusCone 사업설명 (물리컬럼 ABUS_CONE=사업내용)
+     * @param abusPulConeInf 사업설명 (물리컬럼 ABUS_PUL_CONE_INF=사업내용)
      * @param cpnSafCone 현황 (물리컬럼 CPN_SAF_CONE=회사현황내용)
-     * @param abusNcsCone 필요성 (물리컬럼 ABUS_NCS_CONE=사업필요성내용)
-     * @param dgogPpoCone 기대효과 (물리컬럼 DGOG_PPO_CONE=효과성목적내용)
+     * @param abusPulNcsInf 필요성 (물리컬럼 ABUS_PUL_NCS_INF=사업필요성내용)
+     * @param abusXptEffInf 기대효과 (물리컬럼 ABUS_XPT_EFF_INF=효과성목적내용)
      * @param plmDes 문제 (물리컬럼 PLM_DES=문제설명)
-     * @param abusRngCone 사업범위내용
+     * @param abusPulDrcnInf 사업범위내용
      * @param mnPrgCone 주요진행내용
      * @param hrfPlnCone 향후계획 (물리컬럼 HRF_PLN_CONE=향후계획내용)
      * @param bzDttNm 업무구분명 (공통코드 BZ_DTT 코드값명)
@@ -357,12 +362,12 @@ public class Bprojm extends BaseEntity {
             String tlrUsid,
             String dvmTlrUsid,
             String edrtTc,
-            String abusCone,
+            String abusPulConeInf,
             String cpnSafCone,
-            String abusNcsCone,
-            String dgogPpoCone,
+            String abusPulNcsInf,
+            String abusXptEffInf,
             String plmDes,
-            String abusRngCone,
+            String abusPulDrcnInf,
             String mnPrgCone,
             String hrfPlnCone,
             String bzDttNm,
@@ -396,12 +401,12 @@ public class Bprojm extends BaseEntity {
                 cmd.tlrUsid(),
                 cmd.dvmTlrUsid(),
                 cmd.edrtTc(),
-                cmd.abusCone(),
+                cmd.abusPulConeInf(),
                 cmd.cpnSafCone(),
-                cmd.abusNcsCone(),
-                cmd.dgogPpoCone(),
+                cmd.abusPulNcsInf(),
+                cmd.abusXptEffInf(),
                 cmd.plmDes(),
-                cmd.abusRngCone(),
+                cmd.abusPulDrcnInf(),
                 cmd.mnPrgCone(),
                 cmd.hrfPlnCone(),
                 cmd.bzDttNm(),
@@ -434,12 +439,12 @@ public class Bprojm extends BaseEntity {
      * @param tlrUsid 주관부서 담당 팀장 사용자 ID
      * @param dvmTlrUsid 개발부서 담당 팀장 사용자 ID
      * @param edrtTc IT포탈 전결권 구분 코드
-     * @param abusCone 사업내용
+     * @param abusPulConeInf 사업내용
      * @param cpnSafCone 회사현황내용
-     * @param abusNcsCone 사업필요성내용
-     * @param dgogPpoCone 효과성목적내용
+     * @param abusPulNcsInf 사업필요성내용
+     * @param abusXptEffInf 효과성목적내용
      * @param plmDes 문제설명
-     * @param abusRngCone 사업범위내용
+     * @param abusPulDrcnInf 사업범위내용
      * @param mnPrgCone 주요진행내용
      * @param hrfPlnCone 향후계획내용
      * @param bzDttNm 업무구분명
@@ -468,12 +473,12 @@ public class Bprojm extends BaseEntity {
             String tlrUsid,
             String dvmTlrUsid,
             String edrtTc,
-            String abusCone,
+            String abusPulConeInf,
             String cpnSafCone,
-            String abusNcsCone,
-            String dgogPpoCone,
+            String abusPulNcsInf,
+            String abusXptEffInf,
             String plmDes,
-            String abusRngCone,
+            String abusPulDrcnInf,
             String mnPrgCone,
             String hrfPlnCone,
             String bzDttNm,
@@ -499,12 +504,12 @@ public class Bprojm extends BaseEntity {
         this.endDtm = endDtm;
         applyPersonIds(usid, dvmUsid, tlrUsid, dvmTlrUsid);
         this.edrtTc = edrtTc;
-        this.abusCone = abusCone;
+        this.abusPulConeInf = abusPulConeInf;
         this.cpnSafCone = cpnSafCone;
-        this.abusNcsCone = abusNcsCone;
-        this.dgogPpoCone = dgogPpoCone;
+        this.abusPulNcsInf = abusPulNcsInf;
+        this.abusXptEffInf = abusXptEffInf;
         this.plmDes = plmDes;
-        this.abusRngCone = abusRngCone;
+        this.abusPulDrcnInf = abusPulDrcnInf;
         this.mnPrgCone = mnPrgCone;
         this.hrfPlnCone = hrfPlnCone;
         this.bzDttNm = bzDttNm;
@@ -556,12 +561,12 @@ public class Bprojm extends BaseEntity {
      * @param tlrUsid 주관부서 담당 팀장 사용자 ID
      * @param dvmTlrUsid 개발부서 담당 팀장 사용자 ID
      * @param edrtTc IT포탈 전결권 구분 코드
-     * @param abusCone 사업내용
+     * @param abusPulConeInf 사업내용
      * @param cpnSafCone 회사현황내용
-     * @param abusNcsCone 사업필요성내용
-     * @param dgogPpoCone 효과성목적내용
+     * @param abusPulNcsInf 사업필요성내용
+     * @param abusXptEffInf 효과성목적내용
      * @param plmDes 문제설명
-     * @param abusRngCone 사업범위내용
+     * @param abusPulDrcnInf 사업범위내용
      * @param mnPrgCone 주요진행내용
      * @param hrfPlnCone 향후계획내용
      * @param bzDttNm 업무구분명
@@ -589,12 +594,12 @@ public class Bprojm extends BaseEntity {
             String tlrUsid,
             String dvmTlrUsid,
             String edrtTc,
-            String abusCone,
+            String abusPulConeInf,
             String cpnSafCone,
-            String abusNcsCone,
-            String dgogPpoCone,
+            String abusPulNcsInf,
+            String abusXptEffInf,
             String plmDes,
-            String abusRngCone,
+            String abusPulDrcnInf,
             String mnPrgCone,
             String hrfPlnCone,
             String bzDttNm,
@@ -618,12 +623,12 @@ public class Bprojm extends BaseEntity {
         this.endDtm = endDtm;
         applyPersonIds(usid, dvmUsid, tlrUsid, dvmTlrUsid);
         this.edrtTc = edrtTc;
-        this.abusCone = abusCone;
+        this.abusPulConeInf = abusPulConeInf;
         this.cpnSafCone = cpnSafCone;
-        this.abusNcsCone = abusNcsCone;
-        this.dgogPpoCone = dgogPpoCone;
+        this.abusPulNcsInf = abusPulNcsInf;
+        this.abusXptEffInf = abusXptEffInf;
         this.plmDes = plmDes;
-        this.abusRngCone = abusRngCone;
+        this.abusPulDrcnInf = abusPulDrcnInf;
         this.mnPrgCone = mnPrgCone;
         this.hrfPlnCone = hrfPlnCone;
         this.bzDttNm = bzDttNm;

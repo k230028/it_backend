@@ -55,8 +55,8 @@ public class Cfilem extends BaseEntity {
     private String flPysNm;
 
     /**
-     * 파일저장경로: 서버 내 실제 저장 디렉토리 경로 (예: /data/files/요구사항정의서/2026/03). DB는 NULL 허용(레거시)이며 업로드 플로우가 항상
-     * 값을 채운다.
+     * 파일저장경로: 서버 내 실제 저장 디렉토리 경로 (예: /dat/springitp/requirement-documents/2026/03). DB는 NULL
+     * 허용(레거시)이며 업로드 플로우가 항상 값을 채운다.
      */
     @Column(name = "FL_KPN_PTH", length = 255, comment = "파일저장경로")
     private String flKpnPth;

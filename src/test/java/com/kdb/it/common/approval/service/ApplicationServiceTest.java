@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.domain.ApprovalStatus;
@@ -69,6 +70,11 @@ import org.springframework.security.access.AccessDeniedException;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ApplicationServiceTest {
+
+    private static final CustomUserDetails LIST_USER =
+            new CustomUserDetails("E10001", List.of(CustomUserDetails.ATH_USER), "D001");
+    private static final CustomUserDetails LIST_ADMIN =
+            new CustomUserDetails("E10001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
 
     private record NameView(String eno, String usrNm, String ptCNm)
             implements UserRepository.UserNameView {
@@ -752,7 +758,7 @@ class ApplicationServiceTest {
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
 
-        List<ApplicationDto.Response> result = applicationService.getApplications();
+        List<ApplicationDto.Response> result = applicationService.getApplications(LIST_ADMIN, true);
 
         assertThat(result).hasSize(2);
     }
@@ -767,12 +773,58 @@ class ApplicationServiceTest {
                                         ApprovalStatus.MANUAL.code())))
                 .willReturn(List.of());
 
-        List<ApplicationDto.Response> result = applicationService.getApplications();
+        List<ApplicationDto.Response> result = applicationService.getApplications(LIST_ADMIN, true);
 
         assertThat(result).isEmpty();
         assertThat(ApplicationService.INBOX_EXCLUDED_STATUS_CODES).containsExactly("0", "9");
         verify(applicationRepository, times(1))
                 .findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(List.of("0", "9"));
+    }
+
+    @Test
+    @DisplayName("getApplications: 일반 사용자의 전체 요청도 인증 사용자의 작성 부서로 제한한다")
+    void getApplications_일반사용자전체요청_부서범위강제() {
+        given(
+                        applicationRepository
+                                .findTop500ByDcdReqBbrCAndItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                                        "D001", ApplicationService.INBOX_EXCLUDED_STATUS_CODES))
+                .willReturn(List.of());
+
+        List<ApplicationDto.Response> result = applicationService.getApplications(LIST_USER, true);
+
+        assertThat(result).isEmpty();
+        verify(applicationRepository)
+                .findTop500ByDcdReqBbrCAndItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                        "D001", ApplicationService.INBOX_EXCLUDED_STATUS_CODES);
+        verify(applicationRepository, never())
+                .findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(any());
+    }
+
+    @Test
+    @DisplayName("getApplications: 시스템관리자가 전체를 선택한 경우에만 전체 부서를 조회한다")
+    void getApplications_관리자전체선택_전체범위() {
+        given(
+                        applicationRepository
+                                .findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                                        ApplicationService.INBOX_EXCLUDED_STATUS_CODES))
+                .willReturn(List.of());
+
+        applicationService.getApplications(LIST_ADMIN, true);
+
+        verify(applicationRepository)
+                .findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                        ApplicationService.INBOX_EXCLUDED_STATUS_CODES);
+    }
+
+    @Test
+    @DisplayName("getApplications: 소속 부서가 없는 사용자는 전체 조회로 열리지 않는다")
+    void getApplications_부서없음_빈목록() {
+        CustomUserDetails userWithoutDepartment =
+                new CustomUserDetails("E10002", List.of(CustomUserDetails.ATH_USER), null);
+
+        assertThat(applicationService.getApplications(userWithoutDepartment, false)).isEmpty();
+
+        verifyNoInteractions(applicationRepository);
     }
 
     @Test
@@ -793,7 +845,7 @@ class ApplicationServiceTest {
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(d1, d2));
 
-        List<ApplicationDto.Response> result = applicationService.getApplications();
+        List<ApplicationDto.Response> result = applicationService.getApplications(LIST_ADMIN, true);
 
         assertThat(result).hasSize(2);
         assertThat(result.getFirst().getApprovers())
@@ -835,7 +887,7 @@ class ApplicationServiceTest {
                                         .organization(CorgnI.builder().bbrNm("기획팀").build())
                                         .build()));
 
-        ApplicationDto.Response response = applicationService.getApplications().getFirst();
+        ApplicationDto.Response response = applicationService.getApplications(LIST_ADMIN, true).getFirst();
 
         assertThat(response.getApprovers())
                 .extracting(ApplicationDto.ApproverResponse::getUsrNm)
@@ -871,7 +923,7 @@ class ApplicationServiceTest {
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of(legacyPending));
 
-        List<ApplicationDto.Response> result = applicationService.getApplications();
+        List<ApplicationDto.Response> result = applicationService.getApplications(LIST_ADMIN, true);
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().getApprovers().getFirst().getDcdSts()).isNull();
@@ -886,7 +938,7 @@ class ApplicationServiceTest {
                                 ApplicationService.INBOX_EXCLUDED_STATUS_CODES))
                 .willReturn(List.of());
 
-        List<ApplicationDto.Response> result = applicationService.getApplications();
+        List<ApplicationDto.Response> result = applicationService.getApplications(LIST_ADMIN, true);
 
         assertThat(result).isEmpty();
     }
@@ -910,7 +962,8 @@ class ApplicationServiceTest {
         given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
                 .willReturn(List.of());
 
-        List<ApplicationDto.Response> result = applicationService.getPendingApplications("E10001");
+        List<ApplicationDto.Response> result =
+                applicationService.getPendingApplications(LIST_ADMIN, true);
 
         assertThat(result)
                 .extracting(ApplicationDto.Response::getApfMngNo)
@@ -918,11 +971,24 @@ class ApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("getPendingApplications: 결재 대기도 인증 사용자의 작성 부서로 제한한다")
+    void getPendingApplications_부서범위() {
+        given(applicationRepository.findPendingApfMngNosByEnoAndBbrC("E10001", "D001"))
+                .willReturn(List.of());
+
+        assertThat(applicationService.getPendingApplications(LIST_USER, false)).isEmpty();
+
+        verify(applicationRepository).findPendingApfMngNosByEnoAndBbrC("E10001", "D001");
+        verify(applicationRepository, never()).findPendingApfMngNosByEno(any());
+    }
+
+    @Test
     @DisplayName("getPendingApplications: 결재 대기 건이 없으면 빈 목록을 반환하고 상세를 조회하지 않는다")
     void getPendingApplications_대기없음_빈목록반환() {
         given(applicationRepository.findPendingApfMngNosByEno("E10001")).willReturn(List.of());
 
-        List<ApplicationDto.Response> result = applicationService.getPendingApplications("E10001");
+        List<ApplicationDto.Response> result =
+                applicationService.getPendingApplications(LIST_ADMIN, true);
 
         assertThat(result).isEmpty();
         verify(applicationRepository, never()).findReadViewsByApfMngNoIn(any());
@@ -932,7 +998,13 @@ class ApplicationServiceTest {
     @DisplayName("getPendingApplications: 사번이 비어 있으면 빈 목록이 아니라 예외로 구분한다")
     void getPendingApplications_사번없음_예외() {
         org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> applicationService.getPendingApplications("  "))
+                        () ->
+                                applicationService.getPendingApplications(
+                                        new CustomUserDetails(
+                                                "  ",
+                                                List.of(CustomUserDetails.ATH_USER),
+                                                "D001"),
+                                        false))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(applicationRepository, never()).findPendingApfMngNosByEno(any());
     }
@@ -1444,7 +1516,7 @@ class ApplicationServiceTest {
         given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any()))
                 .willReturn(List.of(new OrgNameView("18001", null)));
 
-        List<ApplicationDto.Response> result = applicationService.getApplications();
+        List<ApplicationDto.Response> result = applicationService.getApplications(LIST_ADMIN, true);
 
         assertThat(result).hasSize(1);
     }

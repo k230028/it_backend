@@ -55,7 +55,7 @@ public class CapitalProjectSheetAdapter implements SheetAdapter {
             request.setBseYy(ctx.bseYy());
             request.setAbusNm(projectName);
             request.setBzTpC(AdapterSupport.cellOf(sheet, row, "projectType", ctx));
-            request.setAbusCone(AdapterSupport.cellOf(sheet, row, "projectOutline", ctx));
+            request.setAbusPulConeInf(AdapterSupport.cellOf(sheet, row, "projectOutline", ctx));
             request.setPrlmHrkOgzCCone(AdapterSupport.cellOf(sheet, row, "headquarters", ctx));
             request.setSvnDpmC(deptCode);
             request.setSvnTemC(orgCode(sheet, row, "teamName", ctx));

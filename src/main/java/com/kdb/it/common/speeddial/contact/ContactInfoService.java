@@ -1,6 +1,7 @@
 package com.kdb.it.common.speeddial.contact;
 
 import com.kdb.it.common.util.HtmlSanitizer;
+import com.kdb.it.domain.budget.document.entity.BgdocDocumentType;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -16,7 +17,7 @@ public class ContactInfoService {
     /** 담당자 정보 문서를 식별하는 DOC_TTL_CONE 고정값입니다. */
     public static final String DOCUMENT_IDENTIFIER = "SPEED_DIAL_CONTACT_INFO";
 
-    private static final String DOCUMENT_NUMBER_PREFIX = "CDOC-";
+    private static final String DOCUMENT_TYPE = BgdocDocumentType.CONTACT_INFO.code();
 
     private final GuideDocRepository guideDocRepository;
     private final ContactInfoCreationService contactInfoCreationService;
@@ -28,8 +29,7 @@ public class ContactInfoService {
      */
     public ContactInfoDto.Response getContactInfo() {
         return guideDocRepository
-                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                        DOCUMENT_IDENTIFIER, DOCUMENT_NUMBER_PREFIX, "N")
+                .findByDocTtlConeAndDocDtlItmCAndDelYn(DOCUMENT_IDENTIFIER, DOCUMENT_TYPE, "N")
                 .map(
                         document ->
                                 new ContactInfoDto.Response(
@@ -50,8 +50,7 @@ public class ContactInfoService {
             throw new IllegalArgumentException("담당자 정보 본문은 비어 있을 수 없습니다.");
         }
         return guideDocRepository
-                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                        DOCUMENT_IDENTIFIER, DOCUMENT_NUMBER_PREFIX, "N")
+                .findByDocTtlConeAndDocDtlItmCAndDelYn(DOCUMENT_IDENTIFIER, DOCUMENT_TYPE, "N")
                 .map(
                         document -> {
                             document.update(DOCUMENT_IDENTIFIER, sanitizedContent);
@@ -78,8 +77,7 @@ public class ContactInfoService {
             return contactInfoCreationService.createContactInfo(sanitizedContent);
         } catch (DataIntegrityViolationException conflict) {
             return guideDocRepository
-                    .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                            DOCUMENT_IDENTIFIER, DOCUMENT_NUMBER_PREFIX, "N")
+                    .findByDocTtlConeAndDocDtlItmCAndDelYn(DOCUMENT_IDENTIFIER, DOCUMENT_TYPE, "N")
                     .map(
                             document -> {
                                 document.update(DOCUMENT_IDENTIFIER, sanitizedContent);

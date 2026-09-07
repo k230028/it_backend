@@ -381,8 +381,12 @@ public class AdminDto {
      * 관리자 대시보드 로그인 통계 응답 DTO
      *
      * @param date 집계 일자
-     * @param count 로그인 건수
+     * @param count 로그인 성공 건수(접속 횟수)
+     * @param uniqueUserCount 행번 중복을 제거한 접속자 수
      */
     @Schema(name = "AdminDto.LoginStatResponse", description = "일별 로그인 통계")
-    public record LoginStatResponse(LocalDate date, Long count) {}
+    public record LoginStatResponse(
+            LocalDate date,
+            @Schema(description = "로그인 성공 건수(접속 횟수)") Long count,
+            @Schema(description = "행번 중복을 제거한 접속자 수") Long uniqueUserCount) {}
 }

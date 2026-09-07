@@ -18,7 +18,7 @@
 ## 스탬프 규칙 (`ApprovalStamper`)
 
 - `stamp(...)`: 반입 전용. 결재완료 또는 수기등록 상태의 받이를 만든다.
-- `stampDrafted(...)`: `ProjectService`·`CostService`가 요청의 `complete=true`일 때 호출한다. 같은 `(원천, 관리번호, 순번)`의 최신 신청서가 `0`이면 제목만 갱신하고, `1`이면 `IllegalStateException`, 그 외에는 새 `0` 신청서를 만든다.
+- `stampDrafted(...)`: `ProjectService`·`CostService`가 요청의 `complete=true`일 때 호출한다. 같은 `(원천, 관리번호, 순번)`의 최신 신청서가 `0`이면 제목만 갱신하고, `1`이면 `IllegalStateException`, 그 외에는 새 `0` 신청서를 만든다. 단, 시스템관리자가 `2`(결재완료)·`9`(수기등록) 건을 사후 정정하는 저장은 상태를 바꾸지 않고 기존 신청서를 그대로 유지한다(원장 직접 수정).
 - 결재 상신(`ApplicationService.submit`)은 묶음 단위로 새 `1` 신청서를 만든다. `0` 행은 갱신하지 않고 최신 신청서번호 판정으로 자연히 덮인다.
 
 ## 목록·집계

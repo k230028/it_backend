@@ -101,13 +101,13 @@ public class CapitalOverviewReader {
         project.setAbusTc(CodeDefaults.NOT_APPLICABLE);
         project.setAbusNm(FormText.singleLineName(labelReader.value(sheet, "사업명")));
         // 개요는 사업범위와 함께 Tiptap이 편집하는 HTML 필드다 — 나머지 서술 칸은 평문(Textarea)이라 개행을 그대로 둔다
-        project.setAbusCone(FormText.multiLineRichText(labelReader.value(sheet, "(개요)")));
+        project.setAbusPulConeInf(FormText.multiLineRichText(labelReader.value(sheet, "(개요)")));
         project.setCpnSafCone(labelReader.value(sheet, "(현황)"));
-        project.setAbusNcsCone(labelReader.value(sheet, "(필요성)"));
-        project.setDgogPpoCone(labelReader.value(sheet, "(기대효과)"));
+        project.setAbusPulNcsInf(labelReader.value(sheet, "(필요성)"));
+        project.setAbusXptEffInf(labelReader.value(sheet, "(기대효과)"));
         project.setPlmDes(labelReader.value(sheet, "(미추진시 문제점)"));
         // 사업범위는 여러 행에 나뉘어 적히는 HTML(Tiptap) 필드다 — 행 사이 줄바꿈을 <br>로 옮겨야 화면에 그대로 보인다
-        project.setAbusRngCone(
+        project.setAbusPulDrcnInf(
                 FormText.multiLineRichText(
                         labelReader.multiRowValue(sheet, "사업 범위 (전산 요구사항)", MULTI_ROW_SPAN)));
         project.setMnPrgCone(labelReader.multiRowValue(sheet, "추진경과", MULTI_ROW_SPAN));

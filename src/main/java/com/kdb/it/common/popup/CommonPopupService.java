@@ -1,6 +1,7 @@
 package com.kdb.it.common.popup;
 
 import com.kdb.it.common.util.HtmlSanitizer;
+import com.kdb.it.domain.budget.document.entity.BgdocDocumentType;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import java.util.Optional;
@@ -23,6 +24,7 @@ public class CommonPopupService {
             "project.approval-authority";
 
     private static final String DOCUMENT_NUMBER_PREFIX = "PDOC-";
+    private static final String DOCUMENT_TYPE = BgdocDocumentType.NOTICE_POPUP.code();
 
     private final GuideDocRepository guideDocRepository;
     private final CommonPopupCreationService creationService;
@@ -89,8 +91,8 @@ public class CommonPopupService {
     }
 
     private Optional<Bgdocm> findActiveDocument(String identifier) {
-        return guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                identifier, DOCUMENT_NUMBER_PREFIX, "N");
+        return guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                identifier, DOCUMENT_TYPE, "N");
     }
 
     private CommonPopupDto.AdminResponse update(

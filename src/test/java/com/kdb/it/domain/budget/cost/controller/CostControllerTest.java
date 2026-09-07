@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -260,10 +261,24 @@ class CostControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/cost/{itMngcNo} - 인증된 사용자 → 204 No Content")
+    @DisplayName("DELETE /api/cost/{itMngcNo} - 순번이 없으면 400을 반환한다")
     @WithMockUser(username = "10001")
-    void deleteCost_인증_204() throws Exception {
-        mockMvc.perform(delete("/api/cost/COST_2026_0001")).andExpect(status().isNoContent());
+    void deleteCost_순번누락_400() throws Exception {
+        mockMvc.perform(delete("/api/cost/COST_2026_0001")).andExpect(status().isBadRequest());
+
+        verifyNoInteractions(costService);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/cost/{itMngcNo} - 유효하지 않은 순번은 400을 반환한다")
+    @WithMockUser(username = "10001")
+    void deleteCost_유효하지않은순번_400() throws Exception {
+        for (String sno : List.of("0", "-1", "invalid")) {
+            mockMvc.perform(delete("/api/cost/COST_2026_0001").param("sno", sno))
+                    .andExpect(status().isBadRequest());
+        }
+
+        verifyNoInteractions(costService);
     }
 
     @Test

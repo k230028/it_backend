@@ -75,8 +75,11 @@ public class ApplicationController {
      */
     @GetMapping
     @Operation(summary = "전체 신청서 조회", description = "작성완료(0)·수기등록(9) 신청서를 제외한 신청서 정보를 조회합니다.")
-    public ResponseEntity<java.util.List<ApplicationDto.Response>> getApplications() {
-        return ResponseEntity.ok(applicationService.getApplications());
+    public ResponseEntity<java.util.List<ApplicationDto.Response>> getApplications(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(value = "allDepartments", defaultValue = "false")
+                    boolean allDepartments) {
+        return ResponseEntity.ok(applicationService.getApplications(user, allDepartments));
     }
 
     /**
@@ -93,8 +96,10 @@ public class ApplicationController {
     @GetMapping("/pending")
     @Operation(summary = "본인 결재 대기 신청서 조회", description = "결재중이면서 본인 결재선이 미처리인 신청서만 최신순으로 조회합니다.")
     public ResponseEntity<java.util.List<ApplicationDto.Response>> getPendingApplications(
-            Authentication auth) {
-        return ResponseEntity.ok(applicationService.getPendingApplications(auth.getName()));
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(value = "allDepartments", defaultValue = "false")
+                    boolean allDepartments) {
+        return ResponseEntity.ok(applicationService.getPendingApplications(user, allDepartments));
     }
 
     /**
@@ -385,8 +390,9 @@ public class ApplicationController {
     /** 인증 사용자의 전자결재 Home 결재함·기안함 전체 목록을 반환합니다. */
     @GetMapping("/home-inbox")
     @Operation(summary = "전자결재 Home 목록 조회", description = "인증 사용자의 결재함과 기안함을 상태별로 반환합니다.")
-    public ResponseEntity<ApprovalHomeInboxDto.Response> getHomeInbox(Authentication auth) {
-        return ResponseEntity.ok(approvalHomeInboxService.getHomeInbox(auth.getName()));
+    public ResponseEntity<ApprovalHomeInboxDto.Response> getHomeInbox(
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(approvalHomeInboxService.getHomeInbox(user));
     }
 
     /**

@@ -44,7 +44,6 @@ public class RequestFormValidator {
     private static final int PROJECT_DESCRIPTION_LIMIT = 1000;
     private static final int PROJECT_NECESSITY_LIMIT = 300;
     private static final int PROJECT_LONG_TEXT_LIMIT = 4000;
-    private static final int PROJECT_SCOPE_LIMIT = 600;
     private static final int PROJECT_PROGRESS_LIMIT = 2000;
 
     /** 비목코드 필드 id. 어댑터가 이미 보고한 대상은 여기서 다시 보지 않습니다. */
@@ -317,15 +316,6 @@ public class RequestFormValidator {
                             subject,
                             "사업명",
                             diagnostics));
-            project.setAbusCone(
-                    truncate(
-                            project.getAbusCone(),
-                            PROJECT_DESCRIPTION_LIMIT,
-                            sheet,
-                            "abusCone",
-                            subject,
-                            "사업설명",
-                            diagnostics));
             project.setCpnSafCone(
                     truncate(
                             project.getCpnSafCone(),
@@ -334,33 +324,6 @@ public class RequestFormValidator {
                             "cpnSafCone",
                             subject,
                             "현황",
-                            diagnostics));
-            project.setAbusNcsCone(
-                    truncate(
-                            project.getAbusNcsCone(),
-                            PROJECT_NECESSITY_LIMIT,
-                            sheet,
-                            "abusNcsCone",
-                            subject,
-                            "필요성",
-                            diagnostics));
-            project.setAbusRngCone(
-                    truncate(
-                            project.getAbusRngCone(),
-                            PROJECT_SCOPE_LIMIT,
-                            sheet,
-                            "abusRngCone",
-                            subject,
-                            "사업범위",
-                            diagnostics));
-            project.setDgogPpoCone(
-                    truncate(
-                            project.getDgogPpoCone(),
-                            PROJECT_LONG_TEXT_LIMIT,
-                            sheet,
-                            "dgogPpoCone",
-                            subject,
-                            "기대효과",
                             diagnostics));
             project.setPlmDes(
                     truncate(
@@ -399,14 +362,6 @@ public class RequestFormValidator {
                     "사업명",
                     diagnostics);
             limit(
-                    project.getAbusCone(),
-                    PROJECT_DESCRIPTION_LIMIT,
-                    sheet,
-                    "abusCone",
-                    subject,
-                    "사업설명",
-                    diagnostics);
-            limit(
                     project.getCpnSafCone(),
                     PROJECT_DESCRIPTION_LIMIT,
                     sheet,
@@ -415,36 +370,12 @@ public class RequestFormValidator {
                     "현황",
                     diagnostics);
             limit(
-                    project.getAbusNcsCone(),
-                    PROJECT_NECESSITY_LIMIT,
-                    sheet,
-                    "abusNcsCone",
-                    subject,
-                    "필요성",
-                    diagnostics);
-            limit(
-                    project.getDgogPpoCone(),
-                    PROJECT_LONG_TEXT_LIMIT,
-                    sheet,
-                    "dgogPpoCone",
-                    subject,
-                    "기대효과",
-                    diagnostics);
-            limit(
                     project.getPlmDes(),
                     PROJECT_LONG_TEXT_LIMIT,
                     sheet,
                     "plmDes",
                     subject,
                     "미추진시 문제점",
-                    diagnostics);
-            limit(
-                    project.getAbusRngCone(),
-                    PROJECT_SCOPE_LIMIT,
-                    sheet,
-                    "abusRngCone",
-                    subject,
-                    "사업범위",
                     diagnostics);
             limit(
                     project.getMnPrgCone(),

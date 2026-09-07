@@ -371,7 +371,12 @@ public class ApplicationService {
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
-        validateDetails(List.of(new DetailRead(view.getApfMngNo(), view.getDcdReqInf())));
+        validateDetails(
+                List.of(
+                        new DetailRead(
+                                view.getApfMngNo(),
+                                view.getItPtlApfPrgStsC(),
+                                view.getDcdReqInf())));
         return ApplicationDto.ApfDtlConeResponse.fromReadView(view);
     }
 
@@ -392,7 +397,12 @@ public class ApplicationService {
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
-        validateDetails(List.of(new DetailRead(view.getApfMngNo(), view.getDcdReqInf())));
+        validateDetails(
+                List.of(
+                        new DetailRead(
+                                view.getApfMngNo(),
+                                view.getItPtlApfPrgStsC(),
+                                view.getDcdReqInf())));
         return ApplicationBulkReadSupport.assembleOne(
                 view, approverRepository, userRepository, organizationRepository);
     }
@@ -410,26 +420,46 @@ public class ApplicationService {
      * @return 전체 신청서 응답 DTO 목록 (각각 결재자 목록 포함)
      * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
-    public List<ApplicationDto.Response> getApplications() {
-        // 작성완료(0)·수기등록(9)은 결재함 대상이 아니므로 DB에서 제외한다 (최신순 상한 500건)
-        return assembleList(
-                applicationRepository.findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
-                        INBOX_EXCLUDED_STATUS_CODES));
+    public List<ApplicationDto.Response> getApplications(
+            CustomUserDetails user, boolean allDepartments) {
+        String departmentCode = resolveDepartmentScope(user, allDepartments);
+        if (departmentCode != null && departmentCode.isBlank()) return List.of();
+
+        List<ApplicationRepository.ApplicationReadView> views =
+                departmentCode == null
+                        ? applicationRepository
+                                .findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                                        INBOX_EXCLUDED_STATUS_CODES)
+                        : applicationRepository
+                                .findTop500ByDcdReqBbrCAndItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                                        departmentCode, INBOX_EXCLUDED_STATUS_CODES);
+        return assembleList(views);
     }
 
     /**
      * 특정 결재자의 결재 대기 신청서 목록을 DB에서 걸러 조회합니다(목록 상한에 밀려 누락되지 않고, 다른 사람의 결재 건도 실리지 않습니다).
      *
-     * @param eno 결재자 사번 (인증 주체)
+     * @param user 인증 사용자(사번·소속 부서·시스템관리자 여부)
+     * @param allDepartments 시스템관리자의 전체 부서 조회 요청 여부
      * @return 결재 대기 신청서 응답 DTO 목록 (최신순, 각각 결재자 목록 포함)
      * @throws IllegalArgumentException 사번이 비어 있는 경우 (빈 결과와 구분한다)
+     * @throws AccessDeniedException 인증 정보가 없는 경우
      * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
-    public List<ApplicationDto.Response> getPendingApplications(String eno) {
+    public List<ApplicationDto.Response> getPendingApplications(
+            CustomUserDetails user, boolean allDepartments) {
+        if (user == null) throw new AccessDeniedException("인증 정보가 필요합니다.");
+        String eno = user.getEno();
         if (eno == null || eno.isBlank()) {
             throw new IllegalArgumentException("결재자 사번이 필요합니다.");
         }
-        List<String> apfMngNos = applicationRepository.findPendingApfMngNosByEno(eno);
+        String departmentCode = resolveDepartmentScope(user, allDepartments);
+        if (departmentCode != null && departmentCode.isBlank()) return List.of();
+        List<String> apfMngNos =
+                departmentCode == null
+                        ? applicationRepository.findPendingApfMngNosByEno(eno)
+                        : applicationRepository.findPendingApfMngNosByEnoAndBbrC(
+                                eno, departmentCode);
         if (apfMngNos.isEmpty()) {
             return List.of();
         }
@@ -445,12 +475,25 @@ public class ApplicationService {
                 apfMngNos.stream().map(viewsById::get).filter(java.util.Objects::nonNull).toList());
     }
 
+    /** 인증 사용자와 관리자 전체 조회 선택으로 적용할 작성 부서 범위를 결정합니다. */
+    private static String resolveDepartmentScope(
+            CustomUserDetails user, boolean allDepartments) {
+        if (user == null) throw new AccessDeniedException("인증 정보가 필요합니다.");
+        if (allDepartments && user.isAdmin()) return null;
+        return user.getBbrC() == null ? "" : user.getBbrC().trim();
+    }
+
     /** 목록 조회의 응답 조립을 배치 읽기 지원 클래스에 위임합니다. */
     private List<ApplicationDto.Response> assembleList(
             List<ApplicationRepository.ApplicationReadView> views) {
         validateDetails(
                 views.stream()
-                        .map(v -> new DetailRead(v.getApfMngNo(), v.getDcdReqInf()))
+                        .map(
+                                v ->
+                                        new DetailRead(
+                                                v.getApfMngNo(),
+                                                v.getItPtlApfPrgStsC(),
+                                                v.getDcdReqInf()))
                         .toList());
         return ApplicationBulkReadSupport.assembleList(
                 views, approverRepository, userRepository, organizationRepository);
@@ -471,7 +514,12 @@ public class ApplicationService {
                         organizationRepository);
         validateDetails(
                 response.items().stream()
-                        .map(v -> new DetailRead(v.getApfMngNo(), v.getApfDtlCone()))
+                        .map(
+                                v ->
+                                        new DetailRead(
+                                                v.getApfMngNo(),
+                                                v.getApfStsC(),
+                                                v.getApfDtlCone()))
                         .toList());
         if (!response.failedIds().isEmpty()) {
             log.warn("bulk-get 누락: type=application, failedIds={}", response.failedIds());
@@ -479,20 +527,29 @@ public class ApplicationService {
         return response;
     }
 
-    /** 원문은 그대로 반환하되 JSON-less 협의회 분류는 누락 상세 전체를 배치 조회한다. */
+    /** 원문은 그대로 반환하되 본문이 없는 수기등록·협의회 신청서는 각 업무 계약에 따라 허용한다. */
     private void validateDetails(List<DetailRead> details) {
-        var absentIds = details.stream().filter(d -> d.raw() == null).map(DetailRead::id).toList();
+        var absentIds =
+                details.stream()
+                        .filter(d -> d.raw() == null && !d.isManual())
+                        .map(DetailRead::id)
+                        .toList();
         var jsonlessCouncilIds =
                 absentIds.isEmpty()
                         ? java.util.Set.<String>of()
                         : detailPolicy.findJsonlessCouncilIds(absentIds);
         for (var detail : details) {
+            if (detail.raw() == null && detail.isManual()) continue;
             if (detail.raw() == null && jsonlessCouncilIds.contains(detail.id())) continue;
             snapshotReader.read(detail.raw());
         }
     }
 
-    private record DetailRead(String id, String raw) {}
+    private record DetailRead(String id, String statusCode, String raw) {
+        private boolean isManual() {
+            return ApprovalStatus.MANUAL.code().equals(statusCode);
+        }
+    }
 
     /**
      * 전자결재 대시보드 집계 조회

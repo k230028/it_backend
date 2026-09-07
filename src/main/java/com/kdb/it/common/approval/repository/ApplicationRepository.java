@@ -99,6 +99,11 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
     List<ApplicationReadView> findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
             Collection<String> itPtlApfPrgStsCs);
 
+    /** 지정 부서가 작성한 결재함 대상 신청서를 최신순 상한 500건으로 조회합니다. */
+    List<ApplicationReadView>
+            findTop500ByDcdReqBbrCAndItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                    String dcdReqBbrC, Collection<String> itPtlApfPrgStsCs);
+
     /**
      * 특정 결재자가 지금 처리해야 할 신청서 식별번호를 최신순으로 조회합니다.
      *
@@ -129,6 +134,28 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         """,
             nativeQuery = true)
     List<String> findPendingApfMngNosByEno(@Param("eno") String eno);
+
+    /** 특정 결재자가 처리할 신청서 중 지정 부서가 작성한 문서 식별번호를 최신순으로 조회합니다. */
+    @Query(
+            value =
+                    """
+        SELECT a.APF_DCM_NO
+        FROM TPRMPP_CAPPLM a
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
+          AND a.DCD_REQ_BBR_C = :bbrC
+          AND EXISTS (
+            SELECT 1
+            FROM TPRMPP_CDECIM d
+            WHERE d.APF_DCM_NO = a.APF_DCM_NO
+              AND d.DCR_ENO = :eno
+              AND d.DCR_SQN_SNO > 0
+              AND d.IT_PTL_DCD_STS_C = '1'
+          )
+        ORDER BY a.APF_DCM_NO DESC
+        """,
+            nativeQuery = true)
+    List<String> findPendingApfMngNosByEnoAndBbrC(
+            @Param("eno") String eno, @Param("bbrC") String bbrC);
 
     /** 전자결재 Home의 결재함·기안함을 한 번에 구성하는 최소 조회 필드입니다. */
     interface HomeInboxRow {
@@ -202,7 +229,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                           ) THEN 1 ELSE 0 END AS "actionable"
         FROM TPRMPP_CAPPLM a
         LEFT JOIN TPRMPP_CUSERI u ON u.ENO = a.DCD_REQ_USID
-        WHERE (a.IT_PTL_APF_PRG_STS_C = '1' AND EXISTS (
+        WHERE a.DCD_REQ_BBR_C = :bbrC
+          AND ((a.IT_PTL_APF_PRG_STS_C = '1' AND EXISTS (
                  SELECT 1 FROM TPRMPP_CDECIM d
                  WHERE d.APF_DCM_NO = a.APF_DCM_NO
                    AND d.DCR_ENO = :eno
@@ -216,11 +244,12 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                    AND d.DCR_SQN_SNO > 0
                    AND d.IT_PTL_DCD_STS_C = '2'
                ))
-           OR (a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C IN ('1', '2', '3'))
+           OR (a.DCD_REQ_USID = :eno AND a.IT_PTL_APF_PRG_STS_C IN ('1', '2', '3')))
         ORDER BY a.DCD_REQ_DTM DESC, a.APF_DCM_NO DESC
         """,
             nativeQuery = true)
-    List<HomeInboxRow> findHomeInboxRowsByEno(@Param("eno") String eno);
+    List<HomeInboxRow> findHomeInboxRowsByEnoAndBbrC(
+            @Param("eno") String eno, @Param("bbrC") String bbrC);
 
     /** 여러 신청서를 응답 조립용 read view로 조회합니다. */
     List<ApplicationReadView> findReadViewsByApfMngNoIn(Collection<String> apfMngNos);

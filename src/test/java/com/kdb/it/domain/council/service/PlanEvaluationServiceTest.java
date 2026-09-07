@@ -164,13 +164,13 @@ class PlanEvaluationServiceTest {
         ProjectDto.Response detail =
                 ProjectDto.Response.builder()
                         .abusMngNo("PRJ-1")
-                        .abusCone("사업 개요")
+                        .abusPulConeInf("사업 개요")
                         .sttDtm(LocalDate.of(2026, 1, 1))
                         .endDtm(LocalDate.of(2026, 12, 31))
                         .build();
         given(planService.getPlan("PLN-2026-0001")).willReturn(plan);
         ProjectDto.Response duplicate =
-                ProjectDto.Response.builder().abusMngNo("PRJ-1").abusCone("중복 상세").build();
+                ProjectDto.Response.builder().abusMngNo("PRJ-1").abusPulConeInf("중복 상세").build();
         given(projectService.getProjectsByIds(any(ProjectDto.BulkGetRequest.class)))
                 .willReturn(new ProjectDto.BulkResponse(List.of(detail, duplicate), List.of()));
 

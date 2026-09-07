@@ -1,5 +1,6 @@
 package com.kdb.it.domain.budget.document.dto;
 
+import com.kdb.it.domain.budget.document.entity.BgdocDocumentType;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -54,6 +55,7 @@ public class GuideDocDto {
             return Bgdocm.builder()
                     .docMngNo(this.docMngNo)
                     .docTtlCone(this.docTtlCone)
+                    .docDtlItmC(BgdocDocumentType.BUSINESS_GUIDE.code())
                     .nacTxtInf(this.nacTxtInf)
                     .build();
         }
@@ -95,6 +97,10 @@ public class GuideDocDto {
         @Schema(description = "문서명")
         private String docTtlCone;
 
+        /** 문서상세항목코드 */
+        @Schema(description = "문서상세항목코드")
+        private String docDtlItmC;
+
         /** 문서정보 (CLOB, HTML 포함 가능) */
         @Schema(description = "문서정보")
         private String nacTxtInf;
@@ -129,6 +135,7 @@ public class GuideDocDto {
             return Response.builder()
                     .docMngNo(entity.getDocMngNo())
                     .docTtlCone(entity.getDocTtlCone())
+                    .docDtlItmC(entity.getDocDtlItmC())
                     .nacTxtInf(entity.getNacTxtInf())
                     .delYn(entity.getDelYn())
                     .fstEnrDtm(entity.getFstEnrDtm())
@@ -146,6 +153,7 @@ public class GuideDocDto {
      *
      * @param docMngNo 문서관리번호
      * @param docTtlCone 문서명
+     * @param docDtlItmC 문서상세항목코드
      * @param delYn 삭제여부
      * @param fstEnrDtm 최초생성시간
      * @param fstEnrUsid 최초생성자 사번
@@ -157,6 +165,7 @@ public class GuideDocDto {
     public record ListResponse(
             @Schema(description = "문서관리번호") String docMngNo,
             @Schema(description = "문서명") String docTtlCone,
+            @Schema(description = "문서상세항목코드") String docDtlItmC,
             @Schema(description = "삭제여부") String delYn,
             @Schema(description = "최초생성시간") LocalDateTime fstEnrDtm,
             @Schema(description = "최초생성자") String fstEnrUsid,
@@ -176,6 +185,7 @@ public class GuideDocDto {
             return new ListResponse(
                     view.getDocMngNo(),
                     view.getDocTtlCone(),
+                    view.getDocDtlItmC(),
                     view.getDelYn(),
                     view.getFstEnrDtm(),
                     view.getFstEnrUsid(),

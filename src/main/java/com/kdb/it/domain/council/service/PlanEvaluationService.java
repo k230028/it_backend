@@ -138,7 +138,7 @@ public class PlanEvaluationService {
                             textOf(n, "pulDtt"),
                             textOf(n, "svnHdq"),
                             textOf(n, "svnDpmNm"),
-                            d != null ? d.getAbusCone() : null,
+                            d != null ? d.getAbusPulConeInf() : null,
                             d != null ? d.getSttDtm() : null,
                             d != null ? d.getEndDtm() : null,
                             decimalOf(n, "prjBg"),

@@ -278,8 +278,8 @@ JWT_SECRET=...                      # 두 대가 다르면 AP1이 발급한 토�
 TOKEN_FINGERPRINT_SECRET=...        # 위와 같은 이유로 반드시 동일
 FILE_BASE_PATH=/dat/springitp       # 두 대가 같은 공유 스토리지를 봐야 합니다
 WAS_LOG_INTERNAL_SECRET=...
-WAS_LOG_PEER_SVR1=https://ap1-host:28080
-WAS_LOG_PEER_SVR2=https://ap2-host:28080
+WAS_LOG_PEER_SVR1=http://ap1-host:28080
+WAS_LOG_PEER_SVR2=http://ap2-host:28080
 ```
 
 알아 둘 점:

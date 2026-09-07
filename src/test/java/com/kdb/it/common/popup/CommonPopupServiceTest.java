@@ -59,9 +59,9 @@ class CommonPopupServiceTest {
         Bgdocm document = popupDocument();
         given(document.getNacTxtInf()).willReturn("<p>전결권 안내</p>");
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
                                 CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
-                                "PDOC-",
+                                "05",
                                 "N"))
                 .willReturn(Optional.of(document));
 
@@ -130,9 +130,9 @@ class CommonPopupServiceTest {
     @DisplayName("전결권 안내 최초 저장은 전용 식별자로 PDOC 문서를 생성한다")
     void saveApprovalAuthorityNotice_createsDedicatedDocument() {
         given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
                                 CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
-                                "PDOC-",
+                                "05",
                                 "N"))
                 .willReturn(Optional.empty());
         Bgdocm created = popupDocument();
@@ -191,8 +191,8 @@ class CommonPopupServiceTest {
     private void givenActiveDocument(Optional<Bgdocm>... results) {
         var stubbing =
                 given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                CommonPopupService.DOCUMENT_IDENTIFIER, "PDOC-", "N"));
+                        guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
+                                CommonPopupService.DOCUMENT_IDENTIFIER, "05", "N"));
         if (results.length == 1) {
             stubbing.willReturn(results[0]);
             return;

@@ -41,6 +41,10 @@ public class Bgdocm extends BaseEntity {
     @Column(name = "DOC_TTL_CONE", length = 300, comment = "문서명 (물리컬럼 DOC_TTL_CONE=문서제목내용)")
     private String docTtlCone;
 
+    /** 문서상세항목코드: BGDOC 문서의 기능 영역을 구분합니다. */
+    @Column(name = "DOC_DTL_ITM_C", length = 2, comment = "문서상세항목코드")
+    private String docDtlItmC;
+
     /** 문서정보: 가이드 문서 상세 내용 (CLOB, HTML 포함 가능) */
     @Lob
     @Column(name = "NAC_TXT_INF", comment = "문서정보 (물리컬럼 NAC_TXT_INF=게시물본문정보)")

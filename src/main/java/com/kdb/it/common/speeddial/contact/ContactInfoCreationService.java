@@ -1,5 +1,6 @@
 package com.kdb.it.common.speeddial.contact;
 
+import com.kdb.it.domain.budget.document.entity.BgdocDocumentType;
 import com.kdb.it.domain.budget.document.entity.Bgdocm;
 import com.kdb.it.domain.budget.document.repository.GuideDocRepository;
 import com.kdb.it.domain.budget.document.service.BgdocNumberAllocator;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 class ContactInfoCreationService {
 
     private static final String DOCUMENT_NUMBER_PREFIX = "CDOC-";
+    private static final String DOCUMENT_TYPE = BgdocDocumentType.CONTACT_INFO.code();
 
     private final GuideDocRepository guideDocRepository;
     private final BgdocNumberAllocator bgdocNumberAllocator;
@@ -22,8 +24,8 @@ class ContactInfoCreationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     ContactInfoDto.Response createContactInfo(String sanitizedContent) {
         return guideDocRepository
-                .findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                        ContactInfoService.DOCUMENT_IDENTIFIER, DOCUMENT_NUMBER_PREFIX, "N")
+                .findByDocTtlConeAndDocDtlItmCAndDelYn(
+                        ContactInfoService.DOCUMENT_IDENTIFIER, DOCUMENT_TYPE, "N")
                 .map(
                         document -> {
                             document.update(
@@ -39,6 +41,7 @@ class ContactInfoCreationService {
                                     Bgdocm.builder()
                                             .docMngNo(documentNumber)
                                             .docTtlCone(ContactInfoService.DOCUMENT_IDENTIFIER)
+                                            .docDtlItmC(DOCUMENT_TYPE)
                                             .nacTxtInf(sanitizedContent)
                                             .build();
                             guideDocRepository.saveAndFlush(document);

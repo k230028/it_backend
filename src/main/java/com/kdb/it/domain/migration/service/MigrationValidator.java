@@ -277,8 +277,6 @@ public class MigrationValidator {
         MigrationCellChecks.limitLength(
                 sheet, row, "projectType", 300, overrides, out); // ABUS_PPO_CONE
         MigrationCellChecks.limitLength(
-                sheet, row, "projectOutline", 1000, overrides, out); // ABUS_CONE
-        MigrationCellChecks.limitLength(
                 sheet, row, "headquarters", 100, overrides, out); // PRLM_HRK_OGZ_C_CONE
         MigrationCellChecks.resolveOrgCell(sheet, row, "deptName", index, overrides, out, true);
         MigrationCellChecks.resolveOrgCell(sheet, row, "teamName", index, overrides, out, false);

@@ -101,7 +101,7 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
     }
 
     @Test
-    @DisplayName("findHomeInboxRowsByEno: Oracle 조회값과 현재 결재 차례를 projection으로 봉인한다")
+    @DisplayName("Home·pending 부서 조회는 모든 OR 분기에서 타 부서 결재를 제외한다")
     void homeInbox_nativeQuery_executes() {
         String apfMngNo = "APF-HOME-INBOX-IT";
         String eno = "EHOMEIT001";
@@ -113,6 +113,7 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
                         .itPtlApfPrgStsC("1")
                         .dcdReqTtl("Home projection 검증")
                         .dcdReqUsid(eno)
+                        .dcdReqBbrC("D001")
                         .dcdReqDtm(requestedAt)
                         .fstEnrDtm(auditAt)
                         .fstEnrUsid("HOME-IT")
@@ -122,11 +123,27 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
                         .build());
         entityManager.persist(decision(apfMngNo, 1, "EBEFORE001", auditAt));
         entityManager.persist(decision(apfMngNo, 2, eno, auditAt));
+
+        String otherPending = "APF-HOME-OTHER-PENDING";
+        entityManager.persist(
+                application(
+                        otherPending, "1", "EOTHERREQ01", "D002", "타 부서 결재 대기", auditAt));
+        entityManager.persist(decision(otherPending, 1, eno, "1", auditAt));
+
+        String otherCompleted = "APF-HOME-OTHER-COMPLETED";
+        entityManager.persist(
+                application(
+                        otherCompleted, "2", "EOTHERREQ02", "D002", "타 부서 결재 완료", auditAt));
+        entityManager.persist(decision(otherCompleted, 1, eno, "2", auditAt));
+
+        String otherDraft = "APF-HOME-OTHER-DRAFT";
+        entityManager.persist(
+                application(otherDraft, "3", eno, "D002", "타 부서 본인 기안", auditAt));
         entityManager.flush();
         entityManager.clear();
 
         List<ApplicationRepository.HomeInboxRow> rows =
-                applicationRepository.findHomeInboxRowsByEno(eno);
+                applicationRepository.findHomeInboxRowsByEnoAndBbrC(eno, "D001");
 
         assertThat(rows).hasSize(1);
         ApplicationRepository.HomeInboxRow row = rows.getFirst();
@@ -138,15 +155,51 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
         assertThat(row.getApprovalCompleted()).isZero();
         assertThat(row.getDraftCategory()).isEqualTo("IN_PROGRESS");
         assertThat(row.getActionable()).isZero();
+
+        assertThat(applicationRepository.findPendingApfMngNosByEnoAndBbrC(eno, "D001"))
+                .containsExactly(apfMngNo);
+        assertThat(applicationRepository.findPendingApfMngNosByEnoAndBbrC(eno, "D002"))
+                .containsExactly(otherPending);
+    }
+
+    private Capplm application(
+            String apfMngNo,
+            String status,
+            String requesterEno,
+            String bbrC,
+            String title,
+            LocalDateTime auditAt) {
+        return Capplm.builder()
+                .apfMngNo(apfMngNo)
+                .itPtlApfPrgStsC(status)
+                .dcdReqTtl(title)
+                .dcdReqUsid(requesterEno)
+                .dcdReqBbrC(bbrC)
+                .dcdReqDtm(auditAt.toLocalDate())
+                .fstEnrDtm(auditAt)
+                .fstEnrUsid("HOME-IT")
+                .lstChgDtm(auditAt)
+                .lstChgUsid("HOME-IT")
+                .delYn("N")
+                .build();
     }
 
     private Cdecim decision(String apfMngNo, int sequence, String eno, LocalDateTime auditAt) {
+        return decision(apfMngNo, sequence, eno, "1", auditAt);
+    }
+
+    private Cdecim decision(
+            String apfMngNo,
+            int sequence,
+            String eno,
+            String status,
+            LocalDateTime auditAt) {
         return Cdecim.builder()
                 .dcdMngNo(apfMngNo)
                 .dcrSqnSno(sequence)
                 .dcrEno(eno)
                 .dcdTpC(Cdecim.DECISION_TYPE_REQUEST)
-                .itPtlDcdStsC("1")
+                .itPtlDcdStsC(status)
                 .lstDcdYn(sequence == 2 ? "Y" : "N")
                 .fstEnrDtm(auditAt)
                 .fstEnrUsid("HOME-IT")

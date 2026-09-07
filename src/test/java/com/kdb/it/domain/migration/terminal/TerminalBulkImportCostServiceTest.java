@@ -5,6 +5,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.OrgNameResolver;
@@ -111,6 +112,33 @@ class TerminalBulkImportCostServiceTest {
         assertThat(terminalCaptor.getValue().getCgprId()).isNull();
         assertThat(terminalCaptor.getValue().getTermRqmBgAmt()).isEqualByComparingTo("1200");
         assertThat(terminalCaptor.getValue().getFcAmt()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void 단말기이관원장을_원장부서의_수기등록신청서로표시한다() {
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-2026-0007")
+                        .bgSno(2)
+                        .bseYy("2026")
+                        .cttNm("금융정보단말기")
+                        .costSvnDpmC("D001")
+                        .build();
+        when(costRepository.findCurrentVersionForUpdate("COST-2026-0007"))
+                .thenReturn(java.util.Optional.of(cost));
+
+        costService.stampManualMigration("COST-2026-0007", "999999");
+
+        verify(approvalStamper)
+                .stamp(
+                        "BCOSTM",
+                        "COST-2026-0007",
+                        2,
+                        "금융정보단말기",
+                        "999999",
+                        "D001",
+                        "2026",
+                        ApprovalStatus.MANUAL);
     }
 
     @Test

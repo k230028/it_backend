@@ -732,10 +732,10 @@ public class CouncilService {
             edrt = p.getEdrtTc();
             sttDt = p.getSttDtm();
             endDt = p.getEndDtm();
-            ncs = p.getAbusNcsCone();
+            ncs = p.getAbusPulNcsInf();
             prjBg = deriveCurrentYearBudgets(List.of(p.getAbusMngNo())).get(p.getAbusMngNo());
-            prjDes = p.getAbusCone();
-            xptEff = p.getDgogPpoCone();
+            prjDes = p.getAbusPulConeInf();
+            xptEff = p.getAbusXptEffInf();
             svnDpm = p.getSvnDpmC();
         }
 

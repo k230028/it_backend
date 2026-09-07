@@ -57,7 +57,7 @@ class FileUploadUnitServiceTest {
     }
 
     private FileDto.UploadRequest request() {
-        return FileDto.UploadRequest.builder().apgFlKdNm("첨부").flTpCone("첨부파일").build();
+        return FileDto.UploadRequest.builder().apgFlKdNm("정보화사업").flTpCone("첨부파일").build();
     }
 
     // ───────────────────────────────────────────────────────
@@ -252,7 +252,7 @@ class FileUploadUnitServiceTest {
         // Assert
         assertThat(result.getFlPysNm()).endsWith(".pdf");
         assertThat(result.getFlMpnId()).isEqualTo("FL-00000004");
-        assertThat(result.getApgFlKdNm()).isEqualTo("첨부");
+        assertThat(result.getApgFlKdNm()).isEqualTo("정보화사업");
         assertThat(result.getFlTpCone()).isEqualTo("첨부파일");
         assertThat(result.getApgFlSz()).isEqualTo(7L);
     }
@@ -307,8 +307,8 @@ class FileUploadUnitServiceTest {
     }
 
     @Test
-    @DisplayName("uploadFileInNewTransaction: 한글 종류는 기존과 같은 basePath/종류/년/월에 저장한다")
-    void uploadFileInNewTransaction_한글종류는_그대로저장된다(@TempDir Path tempDir) {
+    @DisplayName("uploadFileInNewTransaction: 한글 파일 종류는 영문 폴더에 저장한다")
+    void uploadFileInNewTransaction_한글종류는_영문폴더에저장된다(@TempDir Path tempDir) {
         ReflectionTestUtils.setField(fileUploadUnitService, "basePath", tempDir.toString());
         given(fileRepository.getNextSequenceValue()).willReturn(1L);
         FileDto.UploadRequest request =
@@ -320,10 +320,11 @@ class FileUploadUnitServiceTest {
 
         java.time.LocalDate today = java.time.LocalDate.now();
         Path expected =
-                tempDir.resolve("편성요청서반입")
+                tempDir.resolve("request-form-imports")
                         .resolve(String.valueOf(today.getYear()))
                         .resolve(String.format("%02d", today.getMonthValue()));
         assertThat(saved.getFlKpnPth()).isEqualTo(expected.toString());
+        assertThat(tempDir.resolve("편성요청서반입")).doesNotExist();
     }
 
     @Test
@@ -332,7 +333,7 @@ class FileUploadUnitServiceTest {
         Path blockedBase = Files.writeString(tempDir.resolve("blocked-base.txt"), "x");
         ReflectionTestUtils.setField(fileUploadUnitService, "basePath", blockedBase.toString());
         FileDto.UploadRequest request =
-                FileDto.UploadRequest.builder().apgFlKdNm("첨부").flTpCone("첨부파일").build();
+                FileDto.UploadRequest.builder().apgFlKdNm("정보화사업").flTpCone("첨부파일").build();
         MockMultipartFile file =
                 new MockMultipartFile("file", "a.txt", "text/plain", "x".getBytes(UTF_8));
 

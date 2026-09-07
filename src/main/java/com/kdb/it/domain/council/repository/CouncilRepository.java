@@ -203,7 +203,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.STT_DTM        AS sttDt,
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
-                p.ABUS_CONE       AS abusCone,
+                p.ABUS_PUL_CONE_INF AS abusPulConeInf,
                 a.CSF_HELD_YN       AS csfHeldYn,
                 CASE WHEN EXISTS (
                     SELECT 1 FROM TPRMPP_BITEMM i
@@ -271,7 +271,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
                 p.STT_DTM        AS sttDt,
                 p.END_DTM        AS endDt,
                 p.DVM_DPM_C        AS itDpm,
-                p.ABUS_CONE       AS abusCone,
+                p.ABUS_PUL_CONE_INF AS abusPulConeInf,
                 a.CSF_HELD_YN       AS csfHeldYn,
                 CASE WHEN EXISTS (
                     SELECT 1 FROM TPRMPP_BITEMM i

@@ -24,7 +24,6 @@ import com.kdb.it.common.iam.repository.RoleRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.repository.LoginHistoryRepository;
 import com.kdb.it.common.system.repository.RefreshTokenRepository;
-import com.kdb.it.common.util.LabeledCountRow;
 import com.kdb.it.infra.file.repository.FileRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -959,12 +958,14 @@ class AdminServiceTest {
         given(loginHistoryRepository.findDailyLoginStatRows())
                 .willReturn(
                         Collections.singletonList(
-                                LabeledCountRow.fromRow(new Object[] {"2026-05-09", 3L})));
+                                LoginHistoryRepository.DailyLoginStatRow.fromRow(
+                                        new Object[] {"2026-05-09", 3L, 2L})));
 
         List<AdminDto.LoginStatResponse> result = adminService.getLoginStats();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).date()).isEqualTo(LocalDate.of(2026, 5, 9));
         assertThat(result.get(0).count()).isEqualTo(3L);
+        assertThat(result.get(0).uniqueUserCount()).isEqualTo(2L);
     }
 }

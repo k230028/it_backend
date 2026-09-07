@@ -32,7 +32,9 @@ final class ApplicationDtoSupport {
                 .rqsBbrNm(requesterBbrNm) // 신청부서명
                 .rqsDt(capplm.getDcdReqDtm()) // 신청일자(결재요청일시에서 파생)
                 .rqsOpnn(capplm.getRgprDcdReqCone()) // 신청의견(등록자결재요청내용에서 파생)
-                .migrated(MigrationApprovalMarker.isMigrated(capplm.getRgprDcdReqCone()))
+                .migrated(
+                        MigrationApprovalMarker.isMigrated(
+                                capplm.getItPtlApfPrgStsC(), capplm.getRgprDcdReqCone()))
                 .approvers(
                         approvers.stream()
                                 .map(ApproverResponse::fromEntity) // 각 결재자 엔티티를 DTO로 변환

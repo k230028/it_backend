@@ -396,7 +396,7 @@ public class ApplicationDto {
         private String rqsOpnn;
 
         /**
-         * 편성요청서 반입으로 만들어진 결재완료 기록이면 true.
+         * 편성요청서 반입으로 만들어진 수기등록 기록이면 true.
          *
          * <p>이 값이 true면 신청서 본문이 없으므로 화면은 신청서 PDF 대신 반입 원본 파일 목록을 보여줍니다.
          */

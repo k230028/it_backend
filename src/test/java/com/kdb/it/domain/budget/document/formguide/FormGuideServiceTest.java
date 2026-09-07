@@ -45,8 +45,7 @@ class FormGuideServiceTest {
                         .docTtlCone(GUIDE_ID)
                         .nacTxtInf("<p>사업명 안내</p>")
                         .build();
-        given(guideDocRepository.findActiveFormGuides("FDOC-", "info."))
-                .willReturn(List.of(document));
+        given(guideDocRepository.findActiveFormGuides("02", "info.")).willReturn(List.of(document));
 
         List<FormGuideDto.PublicResponse> result =
                 formGuideService.getPublished(FormGuideScope.INFO);
@@ -70,7 +69,7 @@ class FormGuideServiceTest {
                         .docTtlCone("info.basic.bgYy")
                         .nacTxtInf(" \t\n")
                         .build();
-        given(guideDocRepository.findActiveFormGuides("FDOC-", "info."))
+        given(guideDocRepository.findActiveFormGuides("02", "info."))
                 .willReturn(List.of(nullContent, blankContent));
 
         List<FormGuideDto.PublicResponse> result =
@@ -99,7 +98,7 @@ class FormGuideServiceTest {
                                 "FDOC-2026-0006",
                                 "info.overview.saf",
                                 "<span data-file-id=\"FILE-1\"></span>"));
-        given(guideDocRepository.findActiveFormGuides("FDOC-", "info.")).willReturn(documents);
+        given(guideDocRepository.findActiveFormGuides("02", "info.")).willReturn(documents);
 
         List<FormGuideDto.PublicResponse> result =
                 formGuideService.getPublished(FormGuideScope.INFO);
@@ -116,7 +115,7 @@ class FormGuideServiceTest {
     @Test
     @DisplayName("관리 카탈로그 조회는 미등록 항목도 현재 문서번호 없이 반환한다")
     void getCatalog_미등록항목_전체카탈로그반환() {
-        given(guideDocRepository.findActiveFormGuides("FDOC-", "info.")).willReturn(List.of());
+        given(guideDocRepository.findActiveFormGuides("02", "info.")).willReturn(List.of());
 
         List<FormGuideDto.CatalogResponse> result =
                 formGuideService.getCatalog(FormGuideScope.INFO);
@@ -134,7 +133,7 @@ class FormGuideServiceTest {
     @Test
     @DisplayName("관리 카탈로그는 의미 없는 활성 문서를 미등록 상태로 반환한다")
     void getCatalog_의미없는HTML_미등록상태() {
-        given(guideDocRepository.findActiveFormGuides("FDOC-", "info."))
+        given(guideDocRepository.findActiveFormGuides("02", "info."))
                 .willReturn(List.of(guide("FDOC-2026-0001", GUIDE_ID, "<p><br></p>")));
 
         FormGuideDto.CatalogResponse result =
@@ -150,9 +149,7 @@ class FormGuideServiceTest {
     @Test
     @DisplayName("신규 저장은 HTML을 정화하고 FDOC 관리번호를 발급한다")
     void save_신규등록_HTML정화후저장() {
-        given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                GUIDE_ID, "FDOC-", "N"))
+        given(guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(GUIDE_ID, "02", "N"))
                 .willReturn(Optional.empty());
         given(bgdocNumberAllocator.next("FDOC-")).willReturn("FDOC-2026-0012");
 
@@ -177,9 +174,7 @@ class FormGuideServiceTest {
                         .docTtlCone(GUIDE_ID)
                         .nacTxtInf("<p>이전</p>")
                         .build();
-        given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                GUIDE_ID, "FDOC-", "N"))
+        given(guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(GUIDE_ID, "02", "N"))
                 .willReturn(Optional.of(document));
 
         String guideDocNo =
@@ -245,9 +240,7 @@ class FormGuideServiceTest {
     @Test
     @DisplayName("신규 등록의 데이터 제약 위반은 409 충돌로 변환한다")
     void save_동시중복_충돌예외() {
-        given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                GUIDE_ID, "FDOC-", "N"))
+        given(guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(GUIDE_ID, "02", "N"))
                 .willReturn(Optional.empty());
         given(bgdocNumberAllocator.next("FDOC-")).willReturn("FDOC-2026-0013");
         given(guideDocRepository.save(any(Bgdocm.class)))
@@ -267,9 +260,7 @@ class FormGuideServiceTest {
     @Test
     @DisplayName("신규 등록의 flush 시점 제약 위반도 409 충돌로 변환한다")
     void save_flush시점동시중복_충돌예외() {
-        given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                GUIDE_ID, "FDOC-", "N"))
+        given(guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(GUIDE_ID, "02", "N"))
                 .willReturn(Optional.empty());
         given(bgdocNumberAllocator.next("FDOC-")).willReturn("FDOC-2026-0014");
         doThrow(new DataIntegrityViolationException("duplicate")).when(guideDocRepository).flush();
@@ -288,9 +279,7 @@ class FormGuideServiceTest {
     @Test
     @DisplayName("미등록 길라잡이 삭제는 404 대상의 미존재 예외를 던진다")
     void delete_미등록_미존재예외() {
-        given(
-                        guideDocRepository.findByDocTtlConeAndDocMngNoStartingWithAndDelYn(
-                                GUIDE_ID, "FDOC-", "N"))
+        given(guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(GUIDE_ID, "02", "N"))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> formGuideService.delete(GUIDE_ID))

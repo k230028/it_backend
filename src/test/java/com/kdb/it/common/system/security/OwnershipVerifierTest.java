@@ -185,6 +185,33 @@ class OwnershipVerifierTest {
     }
 
     @Test
+    @DisplayName("삭제 권한은 같은 부서의 일반 사용자를 허용한다")
+    void verifySameDepartmentOrAdmin_일반사용자_같은부서_허용() {
+        setUser("10002", "D001", false, false);
+
+        assertThatCode(() -> OwnershipVerifier.verifySameDepartmentOrAdmin("D001"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("삭제 권한은 시스템관리자에게 부서와 무관하게 허용한다")
+    void verifySameDepartmentOrAdmin_관리자_타부서_허용() {
+        setUser("90000", "D999", true, false);
+
+        assertThatCode(() -> OwnershipVerifier.verifySameDepartmentOrAdmin("D001"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("삭제 권한은 다른 부서의 일반 사용자를 거부한다")
+    void verifySameDepartmentOrAdmin_일반사용자_타부서_거부() {
+        setUser("10002", "D002", false, false);
+
+        assertThatThrownBy(() -> OwnershipVerifier.verifySameDepartmentOrAdmin("D001"))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
     @DisplayName("현재 사용자 관리자 판정은 CustomUserDetails가 아닌 ROLE_ADMIN principal을 거부한다")
     void isCurrentUserAdmin_비CustomUserDetails관리자권한문자열_거부() {
         SecurityContextHolder.getContext()

@@ -671,7 +671,8 @@ public class AdminService {
     // =========================================================================
 
     /**
-     * 최근 30일 일별 로그인 성공 건수를 집계하여 반환합니다. Oracle TRUNC 함수를 사용하여 날짜 단위로 그룹화합니다.
+     * 최근 30일 일별 로그인 성공 건수(접속 횟수)와 행번 중복을 제거한 접속자 수를 집계하여 반환합니다. Oracle TRUNC 함수를 사용하여 날짜 단위로
+     * 그룹화합니다.
      *
      * @return 일별 로그인 통계 DTO 목록 (날짜 오름차순)
      */
@@ -683,7 +684,9 @@ public class AdminService {
                 .map(
                         row ->
                                 new AdminDto.LoginStatResponse(
-                                        LocalDate.parse(row.label()), row.count()))
+                                        LocalDate.parse(row.label()),
+                                        row.count(),
+                                        row.uniqueUserCount()))
                 .toList();
     }
 }

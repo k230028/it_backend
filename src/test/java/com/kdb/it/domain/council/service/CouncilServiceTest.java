@@ -429,7 +429,7 @@ class CouncilServiceTest {
                         .sttDtm(LocalDate.of(2026, 1, 1))
                         .endDtm(LocalDate.of(2026, 12, 31))
                         .dvmDpmC("IT")
-                        .abusCone("사업설명")
+                        .abusPulConeInf("사업설명")
                         .build();
         given(councilRepository.findByCommitteeMember("10001", "N")).willReturn(List.of(council));
         given(projectOverviewRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
@@ -602,9 +602,9 @@ class CouncilServiceTest {
                         .edrtTc("전결권자")
                         .sttDtm(LocalDate.of(2026, 1, 1))
                         .endDtm(LocalDate.of(2026, 12, 31))
-                        .abusNcsCone("필요성")
-                        .abusCone("사업설명")
-                        .dgogPpoCone("기대효과")
+                        .abusPulNcsInf("필요성")
+                        .abusPulConeInf("사업설명")
+                        .abusXptEffInf("기대효과")
                         .build();
         given(councilRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(Optional.of(council));

@@ -11,6 +11,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
@@ -392,9 +393,9 @@ class CostServiceTest {
     @Test
     @DisplayName("deleteCost: 존재하지 않는 관리번호이면 IllegalArgumentException을 던진다")
     void deleteCost_존재하지않는관리번호_IllegalArgumentException발생() {
-        given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO)).willReturn(List.of());
+        given(costRepository.findVersionForUpdate(IT_MNGC_NO, 1)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO))
+        assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 1))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(IT_MNGC_NO);
     }
@@ -611,6 +612,20 @@ class CostServiceTest {
 
         verify(approvalStamper, never())
                 .stampDrafted(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("createCost: 반입 관리번호는 전달받은 예산연도로 채번한다")
+    void createCostForMigration_usesBudgetYearForManagementNumber() {
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder().cttNm("2025년 반입 계약").build();
+        given(costRepository.getNextSequenceValue()).willReturn(7L);
+        given(costRepository.getNextSnoValue("COST-2025-0007")).willReturn(1);
+        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+
+        String result = costService.createCostForMigration(request, 2025);
+
+        assertThat(result).isEqualTo("COST-2025-0007");
     }
 
     @Test
@@ -886,12 +901,12 @@ class CostServiceTest {
             given(cost.getFstEnrUsid()).willReturn("10001");
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
 
-            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO)).willReturn(List.of(cost));
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 1)).willReturn(Optional.of(cost));
             // 연관 단말기 없음
             given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1)).willReturn(List.of());
 
             // when
-            costService.deleteCost(IT_MNGC_NO);
+            costService.deleteCost(IT_MNGC_NO, 1);
 
             // then: cost.delete() 호출 확인 (Soft Delete 검증)
             verify(cost).delete();
@@ -1475,11 +1490,11 @@ class CostServiceTest {
             given(cost.getCostSvnDpmC()).willReturn("BBR001");
             given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
             given(terminal.getTermBgSno()).willReturn(1);
-            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO)).willReturn(List.of(cost));
-            given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 1)).willReturn(Optional.of(cost));
+            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1))
                     .willReturn(List.of(terminal));
 
-            costService.deleteCost(IT_MNGC_NO);
+            costService.deleteCost(IT_MNGC_NO, 1);
 
             verify(cost).delete();
             verify(terminal).delete();
@@ -2669,54 +2684,6 @@ class CostServiceTest {
         verify(btermmRepository, never()).findByTermBgNoAndTermBgSnoAndDelYn(any(), any(), any());
     }
 
-    @Test
-    @DisplayName("deleteCost는 단말기를 IN 일괄 조회로 1회만 조회한다")
-    void deleteCost_batchLoadsTerminals_once() {
-        // Arrange: 관리자 인증 컨텍스트
-        CustomUserDetails admin =
-                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
-        org.springframework.security.core.Authentication auth =
-                mock(org.springframework.security.core.Authentication.class);
-        org.springframework.security.core.context.SecurityContext ctx =
-                mock(org.springframework.security.core.context.SecurityContext.class);
-        given(auth.getPrincipal()).willReturn(admin);
-        given(ctx.getAuthentication()).willReturn(auth);
-        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
-
-        try {
-            // 동일 관리번호의 이력 2건 (BG_SNO 상이)
-            Bcostm cost1 = mock(Bcostm.class);
-            Bcostm cost2 = mock(Bcostm.class);
-            given(cost1.getCostBgNo()).willReturn(IT_MNGC_NO);
-            given(cost1.getBgSno()).willReturn(1);
-            given(cost1.getFstEnrUsid()).willReturn("10001");
-            given(cost1.getCostSvnDpmC()).willReturn("BBR001");
-            given(cost2.getCostBgNo()).willReturn(IT_MNGC_NO);
-            given(cost2.getBgSno()).willReturn(2);
-
-            Btermm terminal = mock(Btermm.class);
-            given(terminal.getTermBgNo()).willReturn(IT_MNGC_NO);
-            given(terminal.getTermBgSno()).willReturn(1);
-
-            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO))
-                    .willReturn(List.of(cost1, cost2));
-            given(btermmRepository.findByTermBgNoInAndDelYn(any(), eq("N")))
-                    .willReturn(List.of(terminal));
-
-            // Act
-            costService.deleteCost(IT_MNGC_NO);
-
-            // Assert: IN 일괄 조회 1회, 행별 조회 0회
-            verify(btermmRepository).findByTermBgNoInAndDelYn(any(), eq("N"));
-            verify(btermmRepository, never()).findByTermBgNoAndTermBgSno(any(), any());
-            verify(cost1).delete();
-            verify(cost2).delete();
-            verify(terminal).delete();
-        } finally {
-            org.springframework.security.core.context.SecurityContextHolder.clearContext();
-        }
-    }
-
     @Nested
     @DisplayName("getTerminalServiceNames — 단말기 서비스명 후보 조회")
     class TerminalServiceNameTests {
@@ -2822,12 +2789,39 @@ class CostServiceTest {
                     org.mockito.Mockito.inOrder(
                             costRepository, capplaRepository, draft, btermmRepository);
             ordered.verify(costRepository).findVersionForUpdate(IT_MNGC_NO, 3);
-            ordered.verify(capplaRepository)
-                    .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
-                            eq("BCOSTM"), eq(IT_MNGC_NO), eq(3), anyList());
+            ordered.verify(capplaRepository).findLatestApplicationStatus("BCOSTM", IT_MNGC_NO, 3);
             ordered.verify(draft).delete();
             ordered.verify(btermmRepository).findByTermBgNoAndTermBgSno(IT_MNGC_NO, 3);
             verify(costRepository, never()).findByCostBgNoAndBgSnoAndDelYn(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("같은 부서 사용자는 작성완료 최종본의 지정 순번과 연결 단말기만 삭제한다")
+        void exactRevisionDelete_allowsSameDepartmentForCurrentVersion() {
+            Bcostm target = revision(3, "Y");
+            given(target.getFstEnrUsid()).willReturn("OTHER");
+            Btermm terminal = mock(Btermm.class);
+            given(costRepository.findVersionForUpdate(IT_MNGC_NO, 3))
+                    .willReturn(Optional.of(target));
+            given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 3))
+                    .willReturn(List.of(terminal));
+
+            asUser(false, () -> costService.deleteCost(IT_MNGC_NO, 3));
+
+            verify(target).delete();
+            verify(terminal).delete();
+            verify(costRepository, never()).findAllVersionsForUpdate(IT_MNGC_NO);
+            verify(btermmRepository, never()).findByTermBgNoAndTermBgSno(IT_MNGC_NO, 2);
+        }
+
+        @Test
+        @DisplayName("순번이 없으면 어떤 전산업무비 이력도 조회하거나 삭제하지 않는다")
+        void exactRevisionDelete_rejectsMissingSno() {
+            assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, null))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("순번");
+
+            verifyNoInteractions(costRepository);
         }
 
         /** 해당 순번에 지정한 결재상태의 신청서가 걸려 있다고 설정한다. */
@@ -2851,14 +2845,15 @@ class CostServiceTest {
             Bcostm draft = revision(2, "N");
             given(costRepository.findVersionForUpdate(IT_MNGC_NO, 2))
                     .willReturn(java.util.Optional.of(draft));
-            approvalOn(2, IN_PROGRESS);
+            given(capplaRepository.findLatestApplicationStatus("BCOSTM", IT_MNGC_NO, 2))
+                    .willReturn(Optional.of(IN_PROGRESS));
 
             asUser(
                     true,
                     () ->
                             assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 2))
                                     .isInstanceOf(IllegalStateException.class)
-                                    .hasMessageContaining("결재중"));
+                                    .hasMessageContaining("임시저장 또는 작성완료"));
 
             verify(draft, never()).delete();
         }
@@ -2905,22 +2900,6 @@ class CostServiceTest {
                                     .isInstanceOf(IllegalStateException.class));
 
             verify(approved, never()).update(any());
-        }
-
-        @Test
-        @DisplayName("문서 삭제는 최종본뿐 아니라 남아 있는 재상신 초안까지 함께 지운다 — 삭제 문서 부활을 막는다")
-        void deleteDocument_초안까지_함께_삭제한다() {
-            Bcostm current = revision(1, "Y");
-            Bcostm draft = revision(2, "N");
-            given(costRepository.findAllVersionsForUpdate(IT_MNGC_NO))
-                    .willReturn(List.of(current, draft));
-            given(btermmRepository.findByTermBgNoInAndDelYn(List.of(IT_MNGC_NO), "N"))
-                    .willReturn(List.of());
-
-            asUser(true, () -> costService.deleteCost(IT_MNGC_NO));
-
-            verify(current).delete();
-            verify(draft).delete();
         }
     }
 }

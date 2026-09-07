@@ -21,7 +21,7 @@ public class BudgetStatusDto {
      * @param bzTpC 사업유형코드
      * @param abusTc 사업구분코드
      * @param abusNm 사업명
-     * @param abusCone 사업내용
+     * @param abusPulConeInf 사업내용
      * @param prlmHrkOgzCCone 인사상위조직코드내용
      * @param svnDpmC 주관부서코드
      * @param svnDpmCNm 주관부서명
@@ -70,7 +70,7 @@ public class BudgetStatusDto {
                 "bzTpC",
                 "abusTc",
                 "abusNm",
-                "abusCone",
+                "abusPulConeInf",
                 "prlmHrkOgzCCone",
                 "svnDpmC",
                 "svnDpmCNm",
@@ -116,7 +116,7 @@ public class BudgetStatusDto {
             String bzTpC,
             String abusTc,
             String abusNm,
-            String abusCone,
+            String abusPulConeInf,
             String prlmHrkOgzCCone,
             String svnDpmC,
             @Schema(nullable = true) String svnDpmCNm,
@@ -251,7 +251,7 @@ public class BudgetStatusDto {
      * @param abusMngNo 사업관리번호
      * @param abusTc 사업구분코드
      * @param abusNm 사업명
-     * @param abusCone 사업내용
+     * @param abusPulConeInf 사업내용
      * @param machCur 기계장치 통화코드
      * @param machQtt 기계장치 수량
      * @param machUnitPrice 기계장치 단가
@@ -267,7 +267,7 @@ public class BudgetStatusDto {
             name = "BudgetStatusOrdinaryResponse",
             description = "예산 현황 - 경상사업 응답",
             requiredProperties = {
-                "abusMngNo", "abusTc", "abusNm", "abusCone", "machCur", "machQtt",
+                "abusMngNo", "abusTc", "abusNm", "abusPulConeInf", "machCur", "machQtt",
                 "machUnitPrice", "machAmt", "machAmtKrw", "intanCur", "intanQtt", "intanUnitPrice",
                 "intanAmt", "intanAmtKrw"
             })
@@ -275,7 +275,7 @@ public class BudgetStatusDto {
             String abusMngNo,
             String abusTc,
             String abusNm,
-            String abusCone,
+            String abusPulConeInf,
             // 기계장치
             @Schema(nullable = true) String machCur,
             BigDecimal machQtt,

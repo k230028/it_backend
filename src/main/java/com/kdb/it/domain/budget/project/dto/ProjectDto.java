@@ -94,16 +94,16 @@ public class ProjectDto {
         @Schema(description = "전결권")
         private String edrtTc;
 
-        @Schema(description = "사업설명")
-        private String abusCone;
+        @Schema(description = "사업추진내용정보")
+        private String abusPulConeInf;
 
         /** 현황 (현재 사업 진행 현황) */
         @Schema(description = "현황")
         private String cpnSafCone;
 
-        /** 필요성 (사업 추진 필요성) */
-        @Schema(description = "필요성")
-        private String abusNcsCone;
+        /** 사업 추진 필요성 */
+        @Schema(description = "사업추진필요성정보")
+        private String abusPulNcsInf;
 
         /** 운영 DB의 BYTE 시맨틱 사업 본문 컬럼 상한을 확인합니다. */
         @JsonIgnore
@@ -112,17 +112,17 @@ public class ProjectDto {
             return ProjectDtoSupport.isTextWithinByteLimit(this);
         }
 
-        /** 기대효과 (사업 완료 후 기대 효과) */
-        @Schema(description = "기대효과")
-        private String dgogPpoCone;
+        /** 사업 완료 후 기대 효과 */
+        @Schema(description = "사업기대효과정보")
+        private String abusXptEffInf;
 
         /** 문제 (현재 문제점 또는 이슈) */
         @Schema(description = "문제")
         private String plmDes;
 
-        /** 사업범위 (프로젝트 적용 범위) */
-        @Schema(description = "사업범위")
-        private String abusRngCone;
+        /** 사업 추진 방향 */
+        @Schema(description = "사업추진방향정보")
+        private String abusPulDrcnInf;
 
         /** 추진경과 (현재까지의 진행 경과) */
         @Schema(description = "추진경과")
@@ -268,17 +268,17 @@ public class ProjectDto {
         @Schema(description = "전결권")
         private String edrtTc;
 
-        /** 사업설명 */
-        @Schema(description = "사업설명")
-        private String abusCone;
+        /** 사업 추진 내용 */
+        @Schema(description = "사업추진내용정보")
+        private String abusPulConeInf;
 
         /** 현황 */
         @Schema(description = "현황")
         private String cpnSafCone;
 
-        /** 필요성 */
-        @Schema(description = "필요성")
-        private String abusNcsCone;
+        /** 사업 추진 필요성 */
+        @Schema(description = "사업추진필요성정보")
+        private String abusPulNcsInf;
 
         /** 운영 DB의 BYTE 시맨틱 사업 본문 컬럼 상한을 확인합니다. */
         @JsonIgnore
@@ -287,17 +287,17 @@ public class ProjectDto {
             return ProjectDtoSupport.isTextWithinByteLimit(this);
         }
 
-        /** 기대효과 */
-        @Schema(description = "기대효과")
-        private String dgogPpoCone;
+        /** 사업 기대 효과 */
+        @Schema(description = "사업기대효과정보")
+        private String abusXptEffInf;
 
         /** 문제 */
         @Schema(description = "문제")
         private String plmDes;
 
-        /** 사업범위 */
-        @Schema(description = "사업범위")
-        private String abusRngCone;
+        /** 사업 추진 방향 */
+        @Schema(description = "사업추진방향정보")
+        private String abusPulDrcnInf;
 
         /** 추진경과 */
         @Schema(description = "추진경과")
@@ -507,7 +507,7 @@ public class ProjectDto {
 
         /** 사업설명 */
         @Schema(description = "사업설명")
-        private String abusCone;
+        private String abusPulConeInf;
 
         /** 현황 */
         @Schema(description = "현황")
@@ -515,11 +515,11 @@ public class ProjectDto {
 
         /** 필요성 */
         @Schema(description = "필요성")
-        private String abusNcsCone;
+        private String abusPulNcsInf;
 
         /** 기대효과 */
         @Schema(description = "기대효과")
-        private String dgogPpoCone;
+        private String abusXptEffInf;
 
         /** 문제 */
         @Schema(description = "문제")
@@ -527,7 +527,7 @@ public class ProjectDto {
 
         /** 사업범위 */
         @Schema(description = "사업범위")
-        private String abusRngCone;
+        private String abusPulDrcnInf;
 
         /** 추진경과 */
         @Schema(description = "추진경과")

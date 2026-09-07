@@ -7,12 +7,17 @@ import com.kdb.it.domain.budget.project.service.ProjectQueryAssembler;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.budget.project.service.ProjectVersionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 정보화사업(프로젝트) 관리 REST 컨트롤러
@@ -251,18 +257,28 @@ public class ProjectController {
      *
      * <p>정보화사업과 관련 품목을 논리 삭제(DEL_YN='Y')합니다.
      *
-     * <p>⚠ 결재중/결재완료 상태인 경우 삭제 불가 (400 에러 반환)
+     * <p>임시저장 또는 작성완료 상태인 지정 순번의 사업과 품목만 삭제합니다.
      *
      * @param prjMngNo 삭제할 프로젝트 관리번호
      * @return HTTP 204 No Content
      */
     @DeleteMapping("/{prjMngNo}")
     @Operation(summary = "정보화사업 삭제", description = "정보화사업을 삭제합니다.")
+    @ApiResponses(
+            value = {
+                @ApiResponse(responseCode = "204", description = "삭제 성공", content = @Content),
+                @ApiResponse(responseCode = "400", description = "삭제 불가", content = @Content),
+                @ApiResponse(responseCode = "404", description = "존재하지 않는 사업", content = @Content)
+            })
     public ResponseEntity<Void> deleteProject(
             @PathVariable("prjMngNo") String prjMngNo,
-            @RequestParam(value = "sno", required = false) Integer sno) {
-        if (sno == null) projectService.deleteProject(prjMngNo);
-        else projectService.deleteProject(prjMngNo, sno);
+            @Parameter(description = "삭제할 사업 순번", required = true, example = "1")
+                    @RequestParam(value = "sno", required = false)
+                    Integer sno) {
+        if (sno == null || sno < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "삭제할 사업 순번이 필요합니다.");
+        }
+        projectService.deleteProject(prjMngNo, sno);
         return ResponseEntity.noContent().build();
     }
 

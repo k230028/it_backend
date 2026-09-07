@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -175,35 +176,40 @@ class ProjectControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/projects - 필요성 300Byte 초과 → 400, 서비스 미호출")
+    @DisplayName("POST /api/projects - CLOB 사업추진필요성은 기존 300Byte를 넘어도 허용")
     @WithMockUser(username = "10001")
-    void createProject_필요성300Byte초과_400반환() throws Exception {
+    void createProject_사업추진필요성300Byte초과_201반환() throws Exception {
         ProjectDto.CreateRequest request =
                 ProjectDto.CreateRequest.builder()
+                        .abusNm("긴 추진필요성 사업")
                         .abusTc("10")
-                        .abusNcsCone("가".repeat(101))
+                        .complete(true)
+                        .abusPulNcsInf("가".repeat(101))
                         .build();
+        given(projectService.createProject(any(ProjectDto.CreateRequest.class)))
+                .willReturn("PRJ-2026-0002");
 
         mockMvc.perform(
                         post("/api/projects")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isCreated());
 
-        verifyNoInteractions(projectService);
+        verify(projectService).createProject(any(ProjectDto.CreateRequest.class));
     }
 
     @Test
-    @DisplayName("DELETE /api/projects/{prjMngNo} - 결재중 프로젝트 삭제 → 500 반환")
+    @DisplayName("DELETE /api/projects/{prjMngNo} - 결재중 프로젝트 삭제 → 400 반환")
     @WithMockUser(username = "10001")
     void deleteProject_결재중_500반환() throws Exception {
         // given
         doThrow(new IllegalStateException("결재중이거나 결재완료된 프로젝트는 삭제할 수 없습니다."))
                 .when(projectService)
-                .deleteProject("PRJ-2026-0001");
+                .deleteProject("PRJ-2026-0001", 1);
 
         // when & then
-        mockMvc.perform(delete("/api/projects/PRJ-2026-0001")).andExpect(status().isBadRequest());
+        mockMvc.perform(delete("/api/projects/PRJ-2026-0001").param("sno", "1"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -304,10 +310,34 @@ class ProjectControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/projects/{prjMngNo} - 삭제 가능 프로젝트 → 204 반환")
+    @DisplayName("DELETE /api/projects/{prjMngNo} - 순번이 없으면 400을 반환한다")
     @WithMockUser(username = "10001")
-    void deleteProject_성공_204반환() throws Exception {
-        mockMvc.perform(delete("/api/projects/PRJ-2026-0001")).andExpect(status().isNoContent());
+    void deleteProject_순번누락_400반환() throws Exception {
+        mockMvc.perform(delete("/api/projects/PRJ-2026-0001")).andExpect(status().isBadRequest());
+
+        verifyNoInteractions(projectService);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/projects/{prjMngNo} - 유효하지 않은 순번은 400을 반환한다")
+    @WithMockUser(username = "10001")
+    void deleteProject_유효하지않은순번_400반환() throws Exception {
+        for (String sno : List.of("0", "-1", "invalid")) {
+            mockMvc.perform(delete("/api/projects/PRJ-2026-0001").param("sno", sno))
+                    .andExpect(status().isBadRequest());
+        }
+
+        verifyNoInteractions(projectService);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/projects/{prjMngNo}?sno=2 - 지정한 순번 1건을 삭제한다")
+    @WithMockUser(username = "10001")
+    void deleteProject_순번지정_204반환() throws Exception {
+        mockMvc.perform(delete("/api/projects/PRJ-2026-0001").param("sno", "2"))
+                .andExpect(status().isNoContent());
+
+        verify(projectService).deleteProject("PRJ-2026-0001", 2);
     }
 
     @Test

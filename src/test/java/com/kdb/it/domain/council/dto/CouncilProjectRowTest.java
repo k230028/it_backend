@@ -36,7 +36,7 @@ class CouncilProjectRowTest {
                 LocalDate.of(2026, 3, 1), // sttDt
                 LocalDate.of(2026, 12, 31), // endDt
                 "IT부문", // itDpm
-                "클라우드 전환", // abusCone
+                "클라우드 전환", // abusPulConeInf
                 "Y", // csfHeldYn
                 false // hasInfoSecResource
                 );
@@ -69,7 +69,7 @@ class CouncilProjectRowTest {
             assertThat(row.sttDt()).isEqualTo(LocalDate.of(2026, 3, 1));
             assertThat(row.endDt()).isEqualTo(LocalDate.of(2026, 12, 31));
             assertThat(row.itDpm()).isEqualTo("IT부문");
-            assertThat(row.abusCone()).isEqualTo("클라우드 전환");
+            assertThat(row.abusPulConeInf()).isEqualTo("클라우드 전환");
             assertThat(row.csfHeldYn()).isEqualTo("Y");
             assertThat(row.hasInfoSecResource()).isFalse();
         }
@@ -292,7 +292,7 @@ class CouncilProjectRowTest {
                 LocalDate.of(2026, 3, 1), // [13] sttDt
                 LocalDate.of(2026, 12, 31), // [14] endDt
                 "IT부문", // [15] itDpm
-                "클라우드 전환", // [16] abusCone
+                "클라우드 전환", // [16] abusPulConeInf
                 "Y", // [17] csfHeldYn
                 new BigDecimal("1") // [18] hasInfoSecResource (NUMBER 0/1)
             };

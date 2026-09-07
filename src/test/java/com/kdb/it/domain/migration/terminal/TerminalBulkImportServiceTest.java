@@ -13,6 +13,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.entity.CorgnI;
 import com.kdb.it.common.iam.entity.CuserI;
+import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.service.CostService;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -33,6 +35,48 @@ class TerminalBulkImportServiceTest {
     @Mock private CostRepository costRepository;
     @Mock private CodeService codeService;
     @Mock private OrgIdentityResolver orgIdentityResolver;
+
+    @Test
+    void 일괄업로드는_비목을_회선사용료로고정한다() {
+        TerminalBulkImportService service = configuredService();
+        when(costService.createCostForMigration(any(), anyInt()))
+                .thenReturn("COST-2025-0001", "COST-2026-0001");
+
+        service.commit(new TerminalBulkImportDto.Request(2026, List.of(row())), "999999");
+
+        ArgumentCaptor<CostDto.CreateRequest> requestCaptor =
+                ArgumentCaptor.forClass(CostDto.CreateRequest.class);
+        verify(costService, times(2)).createCostForMigration(requestCaptor.capture(), anyInt());
+        assertThat(requestCaptor.getAllValues())
+                .extracting(CostDto.CreateRequest::getIoeC)
+                .containsOnly("010");
+    }
+
+    @Test
+    void 당해연도_신규원장은_이번반영에서채번한_전년도관리번호를연결한다() {
+        TerminalBulkImportService service = configuredService();
+        when(costService.createCostForMigration(any(), eq(2025))).thenReturn("COST-2025-0099");
+        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0100");
+
+        service.commit(new TerminalBulkImportDto.Request(2026, List.of(row())), "999999");
+
+        ArgumentCaptor<CostDto.CreateRequest> currentRequest =
+                ArgumentCaptor.forClass(CostDto.CreateRequest.class);
+        verify(costService).createCostForMigration(currentRequest.capture(), eq(2026));
+        assertThat(currentRequest.getValue().getCncdRfrNo()).isEqualTo("COST-2025-0099");
+    }
+
+    @Test
+    void 확정반영한_모든원장을_업로드사용자의_수기등록신청서로표시한다() {
+        TerminalBulkImportService service = configuredService();
+        when(costService.createCostForMigration(any(), eq(2025))).thenReturn("COST-2025-0099");
+        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0100");
+
+        service.commit(new TerminalBulkImportDto.Request(2026, List.of(row())), "999999");
+
+        verify(costService).stampManualMigration("COST-2025-0099", "999999");
+        verify(costService).stampManualMigration("COST-2026-0100", "999999");
+    }
 
     @Test
     void 미리보기와확정은_기준연도에따른_이전과당해그룹을각각검증하고반영한다() {
@@ -130,6 +174,30 @@ class TerminalBulkImportServiceTest {
                 .containsExactly("COST-2025-0002", "COST-2026-0002");
         verify(costService).updateCostForMigration(eq("COST-2025-0002"), any());
         verify(costService).updateCostForMigration(eq("COST-2026-0002"), any());
+    }
+
+    @Test
+    void 기존_당해연도원장도_회선사용료와_전년도관리번호를갱신한다() {
+        TerminalBulkImportService service = configuredService();
+        Bcostm previous =
+                Bcostm.builder().costBgNo("COST-2025-0002").bgSno(1).bseYy("2025").build();
+        Bcostm current = Bcostm.builder().costBgNo("COST-2026-0002").bgSno(1).bseYy("2026").build();
+        when(costRepository.findCurrentVersionsForUpdate("COST-2025-0002"))
+                .thenReturn(List.of(previous));
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0002"))
+                .thenReturn(List.of(current));
+        when(costService.updateCostForMigration(any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        TerminalBulkImportDto.Row existingRow =
+                rowWithIds(row(), "COST-2025-0002", "COST-2026-0002");
+
+        service.commit(new TerminalBulkImportDto.Request(2026, List.of(existingRow)), "999999");
+
+        ArgumentCaptor<CostDto.UpdateRequest> currentRequest =
+                ArgumentCaptor.forClass(CostDto.UpdateRequest.class);
+        verify(costService).updateCostForMigration(eq("COST-2026-0002"), currentRequest.capture());
+        assertThat(currentRequest.getValue().getIoeC()).isEqualTo("010");
+        assertThat(currentRequest.getValue().getCncdRfrNo()).isEqualTo("COST-2025-0002");
     }
 
     @Test
@@ -257,6 +325,32 @@ class TerminalBulkImportServiceTest {
                 base.team(),
                 base.managerName(),
                 terminalName,
+                base.usageMethod(),
+                base.purpose(),
+                base.service(),
+                base.currency(),
+                base.previousForeignMonthly(),
+                base.previousKrwMonthly(),
+                base.previousAnnual(),
+                base.currentKind(),
+                base.increaseRate(),
+                base.currentForeignMonthly(),
+                base.currentKrwMonthly(),
+                base.currentAnnual(),
+                base.paymentCycle(),
+                base.note());
+    }
+
+    private static TerminalBulkImportDto.Row rowWithIds(
+            TerminalBulkImportDto.Row base, String previousCostId, String currentCostId) {
+        return new TerminalBulkImportDto.Row(
+                base.excelRow(),
+                previousCostId,
+                currentCostId,
+                base.department(),
+                base.team(),
+                base.managerName(),
+                base.terminalName(),
                 base.usageMethod(),
                 base.purpose(),
                 base.service(),

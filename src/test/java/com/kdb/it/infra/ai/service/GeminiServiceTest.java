@@ -199,6 +199,36 @@ class GeminiServiceTest {
                 .isEqualTo("image/png");
     }
 
+    @Test
+    @DisplayName("generate: 기존 한글 DB 경로로 이동된 영문 폴더의 파일을 첨부한다")
+    void generate_기존한글DB경로_영문폴더파일첨부(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir)
+            throws Exception {
+        String flMpnId = "FL_00000032";
+        java.nio.file.Path legacyStorageDir = tempDir.resolve("요구사항정의서");
+        java.nio.file.Path movedStorageDir = tempDir.resolve("requirement-documents");
+        java.nio.file.Files.createDirectories(movedStorageDir);
+        java.nio.file.Files.writeString(movedStorageDir.resolve("server.pdf"), "PDF");
+        com.kdb.it.infra.file.entity.Cfilem filem =
+                com.kdb.it.infra.file.entity.Cfilem.builder()
+                        .flMpnId(flMpnId)
+                        .flNm("요구사항정의서.pdf")
+                        .flPysNm("server.pdf")
+                        .flKpnPth(legacyStorageDir.toString())
+                        .build();
+        given(fileRepository.findByFlMpnIdAndDelYn(flMpnId, "N")).willReturn(Optional.of(filem));
+        stubApiResponse(buildSuccessResponse("응답"));
+
+        GeminiDto.Response result =
+                geminiService.generate(
+                        GeminiDto.Request.builder()
+                                .prompt("분석")
+                                .flMpnIds(List.of(flMpnId))
+                                .build());
+
+        assertThat(result.getAttachedFileCount()).isEqualTo(1);
+        assertThat(result.getSkippedFiles()).isEmpty();
+    }
+
     // ───────────────────────────────────────────────────────
     // generate — API 오류
     // ───────────────────────────────────────────────────────
