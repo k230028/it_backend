@@ -3023,6 +3023,8 @@ class CostServiceTest {
             Bcostm cost = locked();
             given(cost.getLstChgUsid()).willReturn("10002");
             given(cost.getLstChgDtm()).willReturn(java.time.LocalDateTime.of(2026, 9, 8, 10, 0));
+            given(cuserIRepository.findByEno("10002"))
+                    .willReturn(Optional.of(CuserI.builder().eno("10002").usrNm("김변경").build()));
             given(concurrencyStamper.stamp(eq(cost), anyList())).willReturn("b".repeat(64));
             given(costRepository.findByCostBgNoAndBgSnoAndDelYn(COST_BG_NO, 1, "N"))
                     .willReturn(Optional.of(cost));
@@ -3046,9 +3048,38 @@ class CostServiceTest {
                                                 assertThat(conflict.currentStamp())
                                                         .isEqualTo("b".repeat(64));
                                                 assertThat(conflict.changedAt()).isNotNull();
+                                                assertThat(conflict.changedBy()).isEqualTo("김변경");
                                                 assertThat(conflict.current()).isNotNull();
                                             }));
             verify(cost, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("변경자 사번을 이름으로 해석하지 못하면 사번을 그대로 알려준다")
+        void unresolvableModifierFallsBackToEmployeeNumber() {
+            Bcostm cost = locked();
+            // 퇴직·미등록 사번: UserNameResolver는 사번 형태 값을 이름으로 오인하지 않으려고 null을 돌려준다.
+            given(cost.getLstChgUsid()).willReturn("K999999");
+            given(cuserIRepository.findByEno("K999999")).willReturn(Optional.empty());
+            given(concurrencyStamper.stamp(eq(cost), anyList())).willReturn("b".repeat(64));
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(Optional.of(cost));
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("a".repeat(64)).build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e -> {
+                                                CostConflictException conflict =
+                                                        (CostConflictException) e;
+                                                assertThat(conflict.code())
+                                                        .isEqualTo("COST_SOURCE_CHANGED");
+                                                assertThat(conflict.changedBy())
+                                                        .isEqualTo("K999999");
+                                            }));
         }
 
         @Test

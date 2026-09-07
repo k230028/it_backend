@@ -13,13 +13,17 @@ import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.exception.CostConflictException;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
 import com.kdb.it.support.AbstractOracleRepositoryTest;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -104,6 +108,57 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
         assertThat(queryService.getCost(costBgNo).getCttNm()).isEqualTo("첫 번째 저장");
     }
 
+    @Test
+    @DisplayName("단말기가 있는 건도 조회 스탬프로 저장되고, 단말기만 바뀌어도 충돌로 잡힌다")
+    void terminalStampRoundTripsAndDetectsTerminalOnlyChange() {
+        authenticateAsAdmin();
+        String costBgNo = seedUnsubmittedCost();
+        seedTerminal(costBgNo, "TER-IT-0001", 1, "단말A", "1000");
+        seedTerminal(costBgNo, "TER-IT-0002", 2, "단말B", "2000");
+
+        CostDto.Response loaded = queryService.getCost(costBgNo);
+        assertThat(loaded.getTerminals()).hasSize(2);
+        String stamp = loaded.getConcurrencyStamp();
+        assertThat(stamp).matches("[a-f0-9]{64}");
+
+        // (a) 단말기를 그대로 둔 저장이 조회 스탬프로 통과해야 한다.
+        //     여기서 409가 나면 단말기가 있는 모든 건의 저장이 막히는 장애다.
+        CostDto.UpdateRequest unchanged = updateRequestFrom(loaded);
+        unchanged.setConcurrencyStamp(stamp);
+        costService.updateCost(costBgNo, unchanged);
+
+        // 내용이 그대로면 스탬프도 그대로여야 한다 — 읽는 쪽과 쓰는 쪽이 같은 단말기 집합을 본다는 뜻이다.
+        CostDto.Response afterNoop = queryService.getCost(costBgNo);
+        assertThat(afterNoop.getConcurrencyStamp()).isEqualTo(stamp);
+        assertThat(afterNoop.getTerminals()).hasSize(2);
+
+        // (c) 부모 필드는 그대로 두고 단말기 한 건만 바꾼다. 부모만 보는 스탬프였다면 놓쳤을 변경이다.
+        CostDto.UpdateRequest terminalOnly = updateRequestFrom(afterNoop);
+        terminalOnly.setConcurrencyStamp(stamp);
+        terminalOnly.getTerminals().get(0).setSpfTmnNm("단말A-수정");
+        costService.updateCost(costBgNo, terminalOnly);
+        assertThat(queryService.getCost(costBgNo).getCttNm()).isEqualTo(loaded.getCttNm());
+
+        // (b) 단말기가 바뀐 뒤 예전 스탬프를 다시 쓰면 409여야 한다.
+        CostDto.UpdateRequest stale = updateRequestFrom(loaded);
+        stale.setConcurrencyStamp(stamp);
+        stale.getTerminals().get(0).setSpfTmnNm("단말A-덮어쓰기");
+
+        assertThatThrownBy(() -> costService.updateCost(costBgNo, stale))
+                .isInstanceOf(CostConflictException.class)
+                .satisfies(
+                        e -> {
+                            CostConflictException conflict = (CostConflictException) e;
+                            assertThat(conflict.code()).isEqualTo("COST_SOURCE_CHANGED");
+                            assertThat(conflict.currentStamp()).isNotEqualTo(stamp);
+                            assertThat(conflict.current()).isNotNull();
+                            assertThat(conflict.current().getTerminals()).hasSize(2);
+                        });
+        assertThat(queryService.getCost(costBgNo).getTerminals())
+                .extracting(CostDto.TerminalDto::getSpfTmnNm)
+                .containsExactlyInAnyOrder("단말A-수정", "단말B");
+    }
+
     /**
      * 신청서가 연결되지 않은(미상신) 전산업무비 한 건을 만들고 관리번호를 돌려준다.
      *
@@ -135,6 +190,41 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
         entityManager.flush();
         entityManager.clear();
         return costBgNo;
+    }
+
+    /**
+     * 대상 개정본에 활성 단말기 한 건을 만든다.
+     *
+     * <p>원화·환율 없음·담당자 없음으로 두어 저장 경로의 금액 보정·이름 스냅샷이 값을 바꾸지 않게 한다. 스탬프가 바뀌는 원인을 테스트가 의도한 변경으로만 한정하기
+     * 위함이다.
+     *
+     * @param costBgNo 부모 전산업무비 관리번호
+     * @param tmnMngNo 단말관리번호
+     * @param sno 단말 일련번호
+     * @param name 단말기명
+     * @param amount 단말기 금액
+     */
+    private void seedTerminal(
+            String costBgNo, String tmnMngNo, int sno, String name, String amount) {
+        LocalDateTime now = LocalDateTime.of(2026, 9, 8, 12, 0);
+        entityManager.persist(
+                Btermm.builder()
+                        .tmnMngNo(tmnMngNo)
+                        .sno(sno)
+                        .termBgNo(costBgNo)
+                        .termBgSno(1)
+                        .spfTmnNm(name)
+                        .termRqmBgAmt(new BigDecimal(amount))
+                        .curC("KRW")
+                        .dfrCleC("0")
+                        .delYn("N")
+                        .fstEnrDtm(now)
+                        .fstEnrUsid("10001")
+                        .lstChgDtm(now)
+                        .lstChgUsid("10001")
+                        .build());
+        entityManager.flush();
+        entityManager.clear();
     }
 
     /** 관리자 인증 컨텍스트를 설정한다. 저장 경로의 소유권·결재 가드가 인증 주체를 요구한다. */
@@ -175,7 +265,47 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
                 .abusTc(loaded.getAbusTc())
                 .bseYy(loaded.getBseYy())
                 .cncdRfrNo(loaded.getCncdRfrNo())
-                .terminals(List.of())
+                .terminals(copyTerminals(loaded.getTerminals()))
                 .build();
+    }
+
+    /**
+     * 조회된 단말기 목록을 수정 요청용으로 복사한다.
+     *
+     * <p>조회 응답 DTO를 그대로 넘기면 저장 경로가 그 객체를 수정해 원본 스냅샷이 오염되므로, 테스트가 "예전에 조회한 화면"을 재사용할 수 없게 된다.
+     *
+     * @param terminals 조회된 단말기 목록 (null 허용)
+     * @return 같은 값을 가진 새 목록
+     */
+    private List<CostDto.TerminalDto> copyTerminals(List<CostDto.TerminalDto> terminals) {
+        if (terminals == null) {
+            return new ArrayList<>();
+        }
+        return terminals.stream()
+                .map(
+                        terminal ->
+                                CostDto.TerminalDto.builder()
+                                        .tmnMngNo(terminal.getTmnMngNo())
+                                        .sno(terminal.getSno())
+                                        .spfTmnNm(terminal.getSpfTmnNm())
+                                        .tmnKdTc(terminal.getTmnKdTc())
+                                        .nsfUsgCone(terminal.getNsfUsgCone())
+                                        .tmnClsfC(terminal.getTmnClsfC())
+                                        .termRqmBgAmt(terminal.getTermRqmBgAmt())
+                                        .fcAmt(terminal.getFcAmt())
+                                        .curC(terminal.getCurC())
+                                        .xcr(terminal.getXcr())
+                                        .xcrBseDt(terminal.getXcrBseDt())
+                                        .dfrCleC(terminal.getDfrCleC())
+                                        .indRsn(terminal.getIndRsn())
+                                        .cgprId(terminal.getCgprId())
+                                        .cgprNm(terminal.getCgprNm())
+                                        .termSvnTemC(terminal.getTermSvnTemC())
+                                        .termSvnTemNm(terminal.getTermSvnTemNm())
+                                        .termSvnDpmC(terminal.getTermSvnDpmC())
+                                        .termSvnDpmNm(terminal.getTermSvnDpmNm())
+                                        .rmk(terminal.getRmk())
+                                        .build())
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 }
