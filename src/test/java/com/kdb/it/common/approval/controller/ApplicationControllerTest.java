@@ -102,10 +102,7 @@ class ApplicationControllerTest {
     void getApplications_일반사용자전체요청_부서범위() throws Exception {
         given(applicationService.getApplications(USER, true)).willReturn(List.of());
 
-        mockMvc.perform(
-                        get("/api/applications")
-                                .with(user(USER))
-                                .param("allDepartments", "true"))
+        mockMvc.perform(get("/api/applications").with(user(USER)).param("allDepartments", "true"))
                 .andExpect(status().isOk());
 
         verify(applicationService).getApplications(USER, true);

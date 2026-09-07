@@ -47,8 +47,7 @@ class ApplicationInfoMigratedTest {
     @Test
     @DisplayName("요약 view 변환: 수기등록 상태는 과거 표식 문구가 없어도 migrated=true")
     void migrated_whenManualStatusWithoutMigrationNote() {
-        ApplicationInfoDto info =
-                ApplicationInfoDto.fromReadViews(view("9", null), List.of());
+        ApplicationInfoDto info = ApplicationInfoDto.fromReadViews(view("9", null), List.of());
 
         assertThat(info.isMigrated()).isTrue();
     }

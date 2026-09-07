@@ -100,9 +100,8 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
             Collection<String> itPtlApfPrgStsCs);
 
     /** 지정 부서가 작성한 결재함 대상 신청서를 최신순 상한 500건으로 조회합니다. */
-    List<ApplicationReadView>
-            findTop500ByDcdReqBbrCAndItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
-                    String dcdReqBbrC, Collection<String> itPtlApfPrgStsCs);
+    List<ApplicationReadView> findTop500ByDcdReqBbrCAndItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+            String dcdReqBbrC, Collection<String> itPtlApfPrgStsCs);
 
     /**
      * 특정 결재자가 지금 처리해야 할 신청서 식별번호를 최신순으로 조회합니다.

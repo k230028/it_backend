@@ -153,8 +153,7 @@ public class ApplicationInfoDto {
                 .rqsOpnn(application.getRgprDcdReqCone())
                 .migrated(
                         MigrationApprovalMarker.isMigrated(
-                                application.getItPtlApfPrgStsC(),
-                                application.getRgprDcdReqCone()))
+                                application.getItPtlApfPrgStsC(), application.getRgprDcdReqCone()))
                 .approvers(decisions.stream().map(ApproverDto::fromReadView).toList())
                 .build();
     }

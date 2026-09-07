@@ -427,9 +427,8 @@ public class ApplicationService {
 
         List<ApplicationRepository.ApplicationReadView> views =
                 departmentCode == null
-                        ? applicationRepository
-                                .findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
-                                        INBOX_EXCLUDED_STATUS_CODES)
+                        ? applicationRepository.findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                                INBOX_EXCLUDED_STATUS_CODES)
                         : applicationRepository
                                 .findTop500ByDcdReqBbrCAndItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
                                         departmentCode, INBOX_EXCLUDED_STATUS_CODES);
@@ -476,8 +475,7 @@ public class ApplicationService {
     }
 
     /** 인증 사용자와 관리자 전체 조회 선택으로 적용할 작성 부서 범위를 결정합니다. */
-    private static String resolveDepartmentScope(
-            CustomUserDetails user, boolean allDepartments) {
+    private static String resolveDepartmentScope(CustomUserDetails user, boolean allDepartments) {
         if (user == null) throw new AccessDeniedException("인증 정보가 필요합니다.");
         if (allDepartments && user.isAdmin()) return null;
         return user.getBbrC() == null ? "" : user.getBbrC().trim();
@@ -517,9 +515,7 @@ public class ApplicationService {
                         .map(
                                 v ->
                                         new DetailRead(
-                                                v.getApfMngNo(),
-                                                v.getApfStsC(),
-                                                v.getApfDtlCone()))
+                                                v.getApfMngNo(), v.getApfStsC(), v.getApfDtlCone()))
                         .toList());
         if (!response.failedIds().isEmpty()) {
             log.warn("bulk-get 누락: type=application, failedIds={}", response.failedIds());

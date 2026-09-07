@@ -78,9 +78,7 @@ class ApprovalHomeInboxServiceTest {
                         () ->
                                 approvalHomeInboxService.getHomeInbox(
                                         new CustomUserDetails(
-                                                " ",
-                                                List.of(CustomUserDetails.ATH_USER),
-                                                "D001")))
+                                                " ", List.of(CustomUserDetails.ATH_USER), "D001")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("사번");
     }

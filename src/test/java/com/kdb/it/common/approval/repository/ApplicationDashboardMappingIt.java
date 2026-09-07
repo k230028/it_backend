@@ -126,19 +126,16 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
 
         String otherPending = "APF-HOME-OTHER-PENDING";
         entityManager.persist(
-                application(
-                        otherPending, "1", "EOTHERREQ01", "D002", "타 부서 결재 대기", auditAt));
+                application(otherPending, "1", "EOTHERREQ01", "D002", "타 부서 결재 대기", auditAt));
         entityManager.persist(decision(otherPending, 1, eno, "1", auditAt));
 
         String otherCompleted = "APF-HOME-OTHER-COMPLETED";
         entityManager.persist(
-                application(
-                        otherCompleted, "2", "EOTHERREQ02", "D002", "타 부서 결재 완료", auditAt));
+                application(otherCompleted, "2", "EOTHERREQ02", "D002", "타 부서 결재 완료", auditAt));
         entityManager.persist(decision(otherCompleted, 1, eno, "2", auditAt));
 
         String otherDraft = "APF-HOME-OTHER-DRAFT";
-        entityManager.persist(
-                application(otherDraft, "3", eno, "D002", "타 부서 본인 기안", auditAt));
+        entityManager.persist(application(otherDraft, "3", eno, "D002", "타 부서 본인 기안", auditAt));
         entityManager.flush();
         entityManager.clear();
 
@@ -189,11 +186,7 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
     }
 
     private Cdecim decision(
-            String apfMngNo,
-            int sequence,
-            String eno,
-            String status,
-            LocalDateTime auditAt) {
+            String apfMngNo, int sequence, String eno, String status, LocalDateTime auditAt) {
         return Cdecim.builder()
                 .dcdMngNo(apfMngNo)
                 .dcrSqnSno(sequence)

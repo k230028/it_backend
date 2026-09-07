@@ -804,9 +804,8 @@ class ApplicationServiceTest {
     @DisplayName("getApplications: 시스템관리자가 전체를 선택한 경우에만 전체 부서를 조회한다")
     void getApplications_관리자전체선택_전체범위() {
         given(
-                        applicationRepository
-                                .findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
-                                        ApplicationService.INBOX_EXCLUDED_STATUS_CODES))
+                        applicationRepository.findTop500ByItPtlApfPrgStsCNotInOrderByApfMngNoDesc(
+                                ApplicationService.INBOX_EXCLUDED_STATUS_CODES))
                 .willReturn(List.of());
 
         applicationService.getApplications(LIST_ADMIN, true);
@@ -887,7 +886,8 @@ class ApplicationServiceTest {
                                         .organization(CorgnI.builder().bbrNm("기획팀").build())
                                         .build()));
 
-        ApplicationDto.Response response = applicationService.getApplications(LIST_ADMIN, true).getFirst();
+        ApplicationDto.Response response =
+                applicationService.getApplications(LIST_ADMIN, true).getFirst();
 
         assertThat(response.getApprovers())
                 .extracting(ApplicationDto.ApproverResponse::getUsrNm)
@@ -1001,9 +1001,7 @@ class ApplicationServiceTest {
                         () ->
                                 applicationService.getPendingApplications(
                                         new CustomUserDetails(
-                                                "  ",
-                                                List.of(CustomUserDetails.ATH_USER),
-                                                "D001"),
+                                                "  ", List.of(CustomUserDetails.ATH_USER), "D001"),
                                         false))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(applicationRepository, never()).findPendingApfMngNosByEno(any());
