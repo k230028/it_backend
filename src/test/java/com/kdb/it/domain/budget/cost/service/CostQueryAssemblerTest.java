@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.domain.ApprovalStatus;
+import com.kdb.it.common.approval.itbudget.service.ItBudgetCanonicalJson;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
@@ -170,25 +173,32 @@ class CostQueryAssemblerTest {
     @Mock private BbugtmRepository budgetRepository;
     @Mock private CostRepository costRepository;
     @Mock private BtermmRepository terminalRepository;
+    @Mock private CostConcurrencyStamper concurrencyStamper;
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     private CostQueryAssembler assembler;
 
     @BeforeEach
     void setUp() {
+        assembler = assemblerWith(concurrencyStamper);
+    }
+
+    /** 스탬프 계산기만 바꿔 끼운 조립기를 만든다. 배치·상세 스탬프 동등성 검증은 실제 계산기를 넣는다. */
+    private CostQueryAssembler assemblerWith(CostConcurrencyStamper stamper) {
         CodeNameMapBuilder codeNameMapBuilder = new CodeNameMapBuilder(codeRepository);
-        assembler =
-                new CostQueryAssembler(
-                        applicationMapRepository,
-                        applicationRepository,
-                        organizationRepository,
-                        userRepository,
-                        approverRepository,
-                        codeRepository,
-                        budgetRepository,
-                        costRepository,
-                        codeNameMapBuilder,
-                        new CostTerminalAssembler(
-                                terminalRepository, userRepository, codeNameMapBuilder));
+        return new CostQueryAssembler(
+                applicationMapRepository,
+                applicationRepository,
+                organizationRepository,
+                userRepository,
+                approverRepository,
+                codeRepository,
+                budgetRepository,
+                costRepository,
+                codeNameMapBuilder,
+                new CostTerminalAssembler(terminalRepository, userRepository, codeNameMapBuilder),
+                stamper);
     }
 
     @Test
@@ -258,6 +268,20 @@ class CostQueryAssemblerTest {
                             assertThat(value.getTmnKdTcNm()).isEqualTo("전용");
                             assertThat(value.getDfrCleCNm()).isEqualTo("매월");
                         });
+    }
+
+    @Test
+    @DisplayName("상세 조립은 활성 단말로 계산한 동시성 스탬프를 응답에 싣는다")
+    void assembleDetailAttachesConcurrencyStamp() {
+        Bcostm cost = Bcostm.builder().costBgNo("COST_2026_0001").bgSno(2).build();
+        List<Btermm> terminals = List.of(Btermm.builder().tmnMngNo("TMN-1").sno(1).build());
+        given(terminalRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST_2026_0001", 2, "N"))
+                .willReturn(terminals);
+        given(concurrencyStamper.stamp(cost, terminals)).willReturn("a".repeat(64));
+
+        CostDto.Response response = assembler.assembleDetail(cost);
+
+        assertThat(response.getConcurrencyStamp()).isEqualTo("a".repeat(64));
     }
 
     @Test
@@ -472,6 +496,123 @@ class CostQueryAssemblerTest {
                 .allSatisfy(value -> assertThat(value).isEqualByComparingTo("1000"));
         assertThat(bulk.getAssetDupBg()).isEqualByComparingTo("600");
         assertThat(bulk.getCostDupBg()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("목록·일괄·이력 조립도 활성 단말로 계산한 동시성 스탬프를 응답에 싣는다")
+    void assembleBatchAttachesConcurrencyStamp() {
+        Bcostm cost = Bcostm.builder().costBgNo("COST-BATCH").bgSno(2).tmnYn("Y").build();
+        Btermm terminal =
+                Btermm.builder()
+                        .tmnMngNo("TMN-1")
+                        .sno(1)
+                        .termBgNo("COST-BATCH")
+                        .termBgSno(2)
+                        .build();
+        given(terminalRepository.findByTermBgNoInAndDelYn(List.of("COST-BATCH"), "N"))
+                .willReturn(List.of(terminal));
+        given(concurrencyStamper.stamp(cost, List.of(terminal))).willReturn("b".repeat(64));
+        stubCodes();
+
+        assertThat(assembler.assembleList(List.of(cost)).getFirst().getConcurrencyStamp())
+                .isEqualTo("b".repeat(64));
+        assertThat(assembler.assembleBulk(List.of(cost), "2027").getFirst().getConcurrencyStamp())
+                .isEqualTo("b".repeat(64));
+        assertThat(assembler.assembleHistory(List.of(cost)).getFirst().getConcurrencyStamp())
+                .isEqualTo("b".repeat(64));
+    }
+
+    @Test
+    @DisplayName("배치 조립은 단말을 IN 조회 한 번만 하고 행마다 조회하지 않는다")
+    void assembleBatchLoadsTerminalsInOneQuery() {
+        List<Bcostm> costs =
+                List.of(
+                        Bcostm.builder().costBgNo("COST-N1").bgSno(1).tmnYn("Y").build(),
+                        Bcostm.builder().costBgNo("COST-N2").bgSno(1).tmnYn("Y").build(),
+                        Bcostm.builder().costBgNo("COST-N3").bgSno(1).tmnYn("Y").build());
+        given(
+                        terminalRepository.findByTermBgNoInAndDelYn(
+                                List.of("COST-N1", "COST-N2", "COST-N3"), "N"))
+                .willReturn(List.of());
+        stubCodes();
+
+        assembler.assembleList(costs);
+
+        verify(terminalRepository, times(1))
+                .findByTermBgNoInAndDelYn(List.of("COST-N1", "COST-N2", "COST-N3"), "N");
+        verify(terminalRepository, never()).findByTermBgNoAndTermBgSnoAndDelYn(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("단말 보유 표시가 N이어도 남아 있는 활성 단말을 스탬프에 포함한다")
+    void assembleBatchStampsUseActiveTerminalsEvenWhenTerminalFlagIsNo() {
+        Bcostm cost = Bcostm.builder().costBgNo("COST-FLAG").bgSno(1).tmnYn("N").build();
+        Btermm orphan =
+                Btermm.builder()
+                        .tmnMngNo("TMN-9")
+                        .sno(1)
+                        .termBgNo("COST-FLAG")
+                        .termBgSno(1)
+                        .build();
+        given(terminalRepository.findByTermBgNoInAndDelYn(List.of("COST-FLAG"), "N"))
+                .willReturn(List.of(orphan));
+        given(concurrencyStamper.stamp(cost, List.of(orphan))).willReturn("c".repeat(64));
+        stubCodes();
+
+        assertThat(assembler.assembleList(List.of(cost)).getFirst().getConcurrencyStamp())
+                .isEqualTo("c".repeat(64));
+    }
+
+    @Test
+    @DisplayName("같은 개정본이면 단건·목록·일괄·이력 스탬프가 모두 같다")
+    void detailAndBatchProduceIdenticalStamp() {
+        CostQueryAssembler realStampAssembler =
+                assemblerWith(new CostConcurrencyStamper(new ItBudgetCanonicalJson(mapper)));
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-SAME")
+                        .bgSno(2)
+                        .tmnYn("Y")
+                        .cttNm("계약")
+                        .costTotXpAmt(new BigDecimal("1000"))
+                        .build();
+        List<Btermm> terminals =
+                List.of(
+                        Btermm.builder()
+                                .tmnMngNo("TMN-2")
+                                .sno(1)
+                                .termBgNo("COST-SAME")
+                                .termBgSno(2)
+                                .spfTmnNm("단말B")
+                                .termRqmBgAmt(new BigDecimal("500"))
+                                .build(),
+                        Btermm.builder()
+                                .tmnMngNo("TMN-1")
+                                .sno(1)
+                                .termBgNo("COST-SAME")
+                                .termBgSno(2)
+                                .spfTmnNm("단말A")
+                                .termRqmBgAmt(new BigDecimal("300"))
+                                .build());
+        given(terminalRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-SAME", 2, "N"))
+                .willReturn(terminals);
+        given(terminalRepository.findByTermBgNoInAndDelYn(List.of("COST-SAME"), "N"))
+                .willReturn(terminals);
+        stubCodes();
+
+        String detail = realStampAssembler.assembleDetail(cost).getConcurrencyStamp();
+        String list =
+                realStampAssembler.assembleList(List.of(cost)).getFirst().getConcurrencyStamp();
+        String bulk =
+                realStampAssembler
+                        .assembleBulk(List.of(cost), "2027")
+                        .getFirst()
+                        .getConcurrencyStamp();
+        String history =
+                realStampAssembler.assembleHistory(List.of(cost)).getFirst().getConcurrencyStamp();
+
+        assertThat(detail).matches("[a-f0-9]{64}");
+        assertThat(List.of(list, bulk, history)).containsOnly(detail);
     }
 
     private Bcostm enrichedCost(String costBgNo, int bgSno) {

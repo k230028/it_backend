@@ -5,7 +5,9 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,65 +26,108 @@ public class CostTerminalAssembler {
     private final CodeNameMapBuilder codeNameMapBuilder;
 
     /**
-     * 단건 응답에 활성 단말기와 표시명을 조립합니다.
+     * 단건 개정본의 활성 단말기를 조회합니다.
      *
-     * @param response 단말기를 연결할 전산업무비 응답
+     * <p>동시성 스탬프 계산과 응답 조립이 같은 집합({@code DEL_YN='N'})을 쓰도록 조회 지점을 이 메서드 하나로 모읍니다.
+     *
+     * @param costBgNo 전산업무비 관리번호
+     * @param bgSno 개정본 순번
+     * @return 활성 단말기 엔티티 목록. 없으면 빈 목록입니다.
      */
-    public void attach(CostDto.Response response) {
-        List<CostDto.TerminalDto> terminals =
-                terminalRepository
-                        .findByTermBgNoAndTermBgSnoAndDelYn(
-                                response.getCostBgNo(), response.getBgSno(), "N")
-                        .stream()
-                        .map(CostDto.TerminalDto::fromEntity)
-                        .toList();
-        enrichNames(terminals);
-        response.setTerminals(terminals);
+    public List<Btermm> loadActiveTerminals(String costBgNo, Integer bgSno) {
+        return terminalRepository.findByTermBgNoAndTermBgSnoAndDelYn(costBgNo, bgSno, "N");
     }
 
     /**
-     * 목록 응답에 활성 단말기를 한 번에 조회해 조립합니다.
+     * 여러 개정본의 활성 단말기를 IN 조회 한 번으로 읽어 개정본별로 묶습니다.
+     *
+     * <p>행마다 조회하지 않습니다. 목록 페이지 크기만큼 N+1이 생기는 것을 막기 위한 계약입니다. 단말기 보유 여부({@code TMN_YN})로 대상을 좁히지
+     * 않습니다. 스탬프는 실제 활성 단말 집합으로 계산해야 하고, {@code TMN_YN='N'}인데 활성 단말이 남아 있는 행을 빼면 상세 조회 스탬프와 값이 갈려
+     * 저장이 무조건 409가 됩니다.
+     *
+     * @param costs 조회 대상 비용 행
+     * @return {@link #revisionKey(String, Integer)} 키의 활성 단말기 목록 맵. 입력이 비면 빈 맵입니다.
+     */
+    public Map<String, List<Btermm>> loadActiveTerminals(List<Bcostm> costs) {
+        List<String> costBgNos = costs.stream().map(Bcostm::getCostBgNo).distinct().toList();
+        if (costBgNos.isEmpty()) {
+            return Map.of();
+        }
+        return terminalRepository.findByTermBgNoInAndDelYn(costBgNos, "N").stream()
+                .collect(
+                        Collectors.groupingBy(
+                                terminal ->
+                                        revisionKey(
+                                                terminal.getTermBgNo(), terminal.getTermBgSno())));
+    }
+
+    /**
+     * 개정본을 식별하는 단말기 그룹 키를 만듭니다.
+     *
+     * @param costBgNo 전산업무비 관리번호
+     * @param bgSno 개정본 순번
+     * @return 관리번호와 순번을 결합한 키
+     */
+    public static String revisionKey(String costBgNo, Integer bgSno) {
+        return costBgNo + "_" + bgSno;
+    }
+
+    /**
+     * 단건 응답에 이미 조회한 활성 단말기와 표시명을 조립합니다.
+     *
+     * @param response 단말기를 연결할 전산업무비 응답
+     * @param terminals {@link #loadActiveTerminals(String, Integer)}로 읽은 활성 단말기
+     */
+    public void attach(CostDto.Response response, List<Btermm> terminals) {
+        List<CostDto.TerminalDto> dtos =
+                terminals.stream().map(CostDto.TerminalDto::fromEntity).toList();
+        enrichNames(dtos);
+        response.setTerminals(dtos);
+    }
+
+    /**
+     * 목록 응답에 단말기 보유 행만 골라 조립합니다.
      *
      * @param costs 응답의 원본 비용 행
      * @param responses 원본과 같은 순서의 응답
+     * @param terminalsByRevision {@link #loadActiveTerminals(List)} 결과
      */
-    public void attachList(List<Bcostm> costs, List<CostDto.Response> responses) {
-        attachBatch(costs, responses, cost -> "Y".equals(cost.getTmnYn()));
+    public void attachList(
+            List<Bcostm> costs,
+            List<CostDto.Response> responses,
+            Map<String, List<Btermm>> terminalsByRevision) {
+        attachBatch(costs, responses, terminalsByRevision, cost -> "Y".equals(cost.getTmnYn()));
     }
 
     /**
-     * 일괄 조회 응답에 관리번호별 활성 단말기를 한 번에 조회해 조립합니다.
+     * 일괄 조회 응답에 관리번호별 활성 단말기를 조립합니다.
      *
      * @param costs 일괄 조회에서 선택된 대표 비용 행
      * @param responses 원본과 같은 순서의 응답
+     * @param terminalsByRevision {@link #loadActiveTerminals(List)} 결과
      */
-    public void attachBulk(List<Bcostm> costs, List<CostDto.Response> responses) {
-        attachBatch(costs, responses, cost -> true);
+    public void attachBulk(
+            List<Bcostm> costs,
+            List<CostDto.Response> responses,
+            Map<String, List<Btermm>> terminalsByRevision) {
+        attachBatch(costs, responses, terminalsByRevision, cost -> true);
     }
 
     private void attachBatch(
             List<Bcostm> costs,
             List<CostDto.Response> responses,
+            Map<String, List<Btermm>> terminalsByRevision,
             java.util.function.Predicate<Bcostm> terminalTarget) {
-        List<String> terminalCostNos =
-                costs.stream().filter(terminalTarget).map(Bcostm::getCostBgNo).distinct().toList();
-        if (terminalCostNos.isEmpty()) {
+        if (terminalsByRevision.isEmpty()) {
             return;
         }
-        Map<String, List<CostDto.TerminalDto>> terminalsByKey =
-                terminalRepository.findByTermBgNoInAndDelYn(terminalCostNos, "N").stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        terminal ->
-                                                key(
-                                                        terminal.getTermBgNo(),
-                                                        terminal.getTermBgSno()),
-                                        Collectors.mapping(
-                                                CostDto.TerminalDto::fromEntity,
-                                                Collectors.toList())));
-        List<CostDto.TerminalDto> allTerminals =
-                terminalsByKey.values().stream().flatMap(List::stream).toList();
-        enrichNames(allTerminals);
+        Map<String, List<CostDto.TerminalDto>> dtosByKey = new LinkedHashMap<>();
+        terminalsByRevision.forEach(
+                (key, terminals) ->
+                        dtosByKey.put(
+                                key,
+                                terminals.stream().map(CostDto.TerminalDto::fromEntity).toList()));
+        enrichNames(dtosByKey.values().stream().flatMap(List::stream).toList());
         for (int index = 0; index < costs.size(); index++) {
             Bcostm cost = costs.get(index);
             if (!terminalTarget.test(cost)) {
@@ -91,8 +136,8 @@ public class CostTerminalAssembler {
             responses
                     .get(index)
                     .setTerminals(
-                            terminalsByKey.getOrDefault(
-                                    key(cost.getCostBgNo(), cost.getBgSno()), List.of()));
+                            dtosByKey.getOrDefault(
+                                    revisionKey(cost.getCostBgNo(), cost.getBgSno()), List.of()));
         }
     }
 
@@ -149,9 +194,5 @@ public class CostTerminalAssembler {
                 .map(extractor)
                 .filter(value -> value != null && !value.isEmpty())
                 .collect(Collectors.toSet());
-    }
-
-    private static String key(String costBgNo, Integer bgSno) {
-        return costBgNo + "_" + bgSno;
     }
 }

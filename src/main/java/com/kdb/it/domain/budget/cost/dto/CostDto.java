@@ -309,6 +309,13 @@ public class CostDto extends CostTerminalDto {
                 description = "작성완료 여부 (true=저장, false=임시저장)",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private Boolean complete;
+
+        /** 조회 응답에서 받은 개정본 동시성 스탬프. 사용자 저장 경로에서 필수다. */
+        @Schema(
+                description = "조회 시 받은 개정본 동시성 스탬프",
+                example = "9f2c1d0ab34e5f6789012345678901234567890123456789012345678901abcd",
+                nullable = true)
+        private String concurrencyStamp;
     }
 
     /**
@@ -595,6 +602,13 @@ public class CostDto extends CostTerminalDto {
         /** 최종변경일시 (BaseEntity LST_CHG_DTM — 목록 기본 정렬(최근 수정순)에 사용) */
         @Schema(description = "최종변경일시", example = "2026-07-01T10:30:00", nullable = true)
         private LocalDateTime lstChgDtm;
+
+        /** 개정본 동시성 스탬프. 상세 조회에서만 채우며, 저장 요청에 그대로 되돌려 보낸다. */
+        @Schema(
+                description = "개정본 동시성 스탬프 (저장 요청에 그대로 되돌려 보낸다)",
+                example = "9f2c1d0ab34e5f6789012345678901234567890123456789012345678901abcd",
+                nullable = true)
+        private String concurrencyStamp;
 
         /**
          * {@link Bcostm} 엔티티를 응답 DTO로 변환하는 정적 팩토리 메서드

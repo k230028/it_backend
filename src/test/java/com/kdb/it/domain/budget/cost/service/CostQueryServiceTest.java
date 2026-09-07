@@ -52,7 +52,8 @@ class CostQueryServiceTest {
                         mock(BbugtmRepository.class),
                         costRepository,
                         new CodeNameMapBuilder(codeRepository),
-                        terminalAssembler);
+                        terminalAssembler,
+                        mock(CostConcurrencyStamper.class));
         queryService = new CostQueryService(costRepository, assembler);
     }
 

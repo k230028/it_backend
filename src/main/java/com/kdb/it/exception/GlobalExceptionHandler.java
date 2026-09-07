@@ -3,6 +3,8 @@ package com.kdb.it.exception;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ErrorResponse;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.common.mfa.exception.MfaException;
+import com.kdb.it.domain.budget.cost.dto.CostConflictResponse;
+import com.kdb.it.domain.budget.cost.exception.CostConflictException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -64,6 +66,23 @@ public class GlobalExceptionHandler {
                         e.code(),
                         e.getMessage(),
                         e.changedSources());
+        return ResponseEntity.status(e.status()).body(body);
+    }
+
+    /** 전산업무비 저장 충돌을 코드와 현재 원장 상태로 반환한다. */
+    @ExceptionHandler(CostConflictException.class)
+    public ResponseEntity<CostConflictResponse> handleCostConflict(CostConflictException e) {
+        log.warn("전산업무비 저장 충돌: code={}, status={}", e.code(), e.status().value());
+        CostConflictResponse body =
+                new CostConflictResponse(
+                        LocalDateTime.now(),
+                        e.status().value(),
+                        e.code(),
+                        e.getMessage(),
+                        e.changedBy(),
+                        e.changedAt(),
+                        e.currentStamp(),
+                        e.current());
         return ResponseEntity.status(e.status()).body(body);
     }
 
