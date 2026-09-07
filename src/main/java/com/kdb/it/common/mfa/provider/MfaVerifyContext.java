@@ -5,7 +5,8 @@ import java.util.Objects;
 /**
  * MFA challenge의 명시적 검증 요청 정보이다.
  *
- * @param providerTransactionId OnePass 서비스 거래 식별자(svcTrId). FIDO만 값이 있고 다른 수단은 null이다.
+ * @param providerTransactionId 공급자 거래 식별자. FIDO는 OnePass svcTrId, 지정맥은 검증 재계산용 6자리 랜덤키, 그 외 수단은
+ *     null이다.
  */
 public record MfaVerifyContext(
         MfaStartContext startContext,

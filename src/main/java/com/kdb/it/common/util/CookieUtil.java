@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
  *   <li>{@code httpOnly}: true — JavaScript 접근 차단 (XSS 방어)
  *   <li>{@code secure}: 프로파일별 분기 (운영=true, 개발=false)
  *   <li>{@code sameSite}: Lax — CSRF 방어 + 외부 링크 네비게이션 허용
- *   <li>{@code path}: Access Token="/", Refresh Token="/api/auth"
+ *   <li>{@code path}: Access Token="/", Refresh Token="/api/auth", SSO 검증 완료="/api/auth/sso"
  * </ul>
  */
 @Component
@@ -60,6 +60,15 @@ public class CookieUtil {
 
     /** SSO 복귀 상태 쿠키 만료 시간 (10분, 초 단위) — SSO 왕복 동안만 유지 */
     private static final long SSO_STATE_MAX_AGE = 10 * 60;
+
+    /** SSO 검증 완료 쿠키 이름 — checkauth가 검증한 사번을 담은 단기 JWT를 complete까지 운반 */
+    public static final String SSO_VERIFIED_COOKIE = "sso-verified";
+
+    /** SSO 검증 완료 쿠키 전송 경로 — {@code /api/auth/sso/complete}에만 전송되도록 제한 */
+    private static final String SSO_VERIFIED_PATH = "/api/auth/sso";
+
+    /** SSO 검증 완료 쿠키 만료 시간 (60초) — JwtUtil.DEFAULT_SSO_VERIFIED_VALIDITY_MS와 같은 길이 */
+    private static final long SSO_VERIFIED_MAX_AGE = 60;
 
     /** 쿠키 Secure 플래그 개발 환경: false (HTTP 허용), 운영 환경: true (HTTPS만 허용) */
     @Value("${app.cookie.secure:false}")
@@ -199,6 +208,37 @@ public class CookieUtil {
                 .secure(secureCookie)
                 .path("/")
                 .maxAge(SSO_STATE_MAX_AGE)
+                .sameSite("Lax")
+                .build();
+    }
+
+    /**
+     * SSO 검증 완료 쿠키를 생성합니다.
+     *
+     * <p>ESSO 검증을 통과한 사번을 담은 단기 JWT({@code JwtUtil.generateSsoVerifiedToken})를 서버 세션 대신 httpOnly
+     * 쿠키로 운반합니다. 경로를 {@code /api/auth/sso}로 제한해 완료 엔드포인트 외에는 전송되지 않게 하고, 60초 뒤 만료됩니다. 완료 처리 후에는
+     * {@link #deleteSsoVerifiedCookie()}로 즉시 제거합니다.
+     *
+     * @param token 서명된 SSO 검증 완료 JWT
+     * @return {@code sso-verified} 쿠키
+     */
+    public ResponseCookie createSsoVerifiedCookie(String token) {
+        return ResponseCookie.from(SSO_VERIFIED_COOKIE, token)
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path(SSO_VERIFIED_PATH)
+                .maxAge(SSO_VERIFIED_MAX_AGE)
+                .sameSite("Lax")
+                .build();
+    }
+
+    /** SSO 검증 완료 쿠키 삭제용 쿠키(Max-Age=0)를 생성합니다. 발급 경로와 같은 경로로 내려야 브라우저가 지웁니다. */
+    public ResponseCookie deleteSsoVerifiedCookie() {
+        return ResponseCookie.from(SSO_VERIFIED_COOKIE, "")
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path(SSO_VERIFIED_PATH)
+                .maxAge(0)
                 .sameSite("Lax")
                 .build();
     }

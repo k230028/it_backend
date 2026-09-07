@@ -90,7 +90,7 @@ public class MfaTransactionEntity extends BaseEntity {
      * @param methodCode IT포탈추가인증수단구분코드
      * @param endDtm 만료 시각
      * @param tryTokenHash 공급자 challenge 해시. 없으면 null
-     * @param svcTrNo OnePass 서비스 거래 식별자 원문. FIDO가 아니면 null
+     * @param svcTrNo 공급자 거래 식별자 원문. FIDO는 OnePass svcTrId, 지정맥은 6자리 랜덤키, 그 외 수단은 null
      * @return 소유자 사번이 감사자로 기록된 PENDING 상태 신규 엔티티
      */
     public static MfaTransactionEntity create(

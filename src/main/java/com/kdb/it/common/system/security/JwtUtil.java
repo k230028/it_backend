@@ -7,10 +7,12 @@ import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +35,7 @@ import org.springframework.stereotype.Component;
  *   <li>{@code jwt.secret}: HMAC-SHA 서명 비밀키 (최소 256비트 = 32자 이상 권장)
  *   <li>{@code jwt.access-token-validity}: Access Token 유효시간 (밀리초)
  *   <li>{@code jwt.refresh-token-validity}: Refresh Token 유효시간 (밀리초)
+ *   <li>{@code jwt.sso-verified-validity}: SSO 검증 완료 토큰 유효시간 (밀리초, 기본 60000)
  * </ul>
  *
  * <p>사용 라이브러리: {@code io.jsonwebtoken:jjwt} (JJWT)
@@ -52,6 +55,17 @@ public class JwtUtil {
     public static final String TOKEN_USE_REFRESH = "refresh";
 
     /**
+     * SSO 검증 완료 토큰 용도 값.
+     *
+     * <p>ESSO 콜백({@code checkauth}) 또는 모의 모드({@code business})가 검증한 사번을 {@code
+     * /api/auth/sso/complete}까지 서버 세션 없이 운반하는 단기 토큰이다. 인증·갱신 경로에서는 절대 허용되지 않는다.
+     */
+    public static final String TOKEN_USE_SSO_VERIFIED = "sso-verified";
+
+    /** SSO 검증 완료 토큰 기본 유효시간 (밀리초, 60초) — checkauth → loginProc → complete 리다이렉트 왕복만 버티면 된다. */
+    public static final long DEFAULT_SSO_VERIFIED_VALIDITY_MS = 60_000L;
+
+    /**
      * HMAC-SHA256 서명에 사용할 비밀키 {@code application.properties}의 {@code jwt.secret} 값을 UTF-8 바이트로 변환하여
      * 생성
      */
@@ -63,6 +77,24 @@ public class JwtUtil {
     /** Refresh Token 유효시간 (밀리초, 예: 604800000 = 7일) */
     private final long refreshTokenValidityMs;
 
+    /** SSO 검증 완료 토큰 유효시간 (밀리초, 기본 60000 = 60초) */
+    private final long ssoVerifiedValidityMs;
+
+    /**
+     * 생성자: SSO 검증 완료 토큰 유효시간을 기본값(60초)으로 두는 축약형입니다.
+     *
+     * @param secret JWT 서명용 비밀키 문자열
+     * @param accessTokenValidityMs Access Token 유효시간 (밀리초)
+     * @param refreshTokenValidityMs Refresh Token 유효시간 (밀리초)
+     */
+    public JwtUtil(String secret, long accessTokenValidityMs, long refreshTokenValidityMs) {
+        this(
+                secret,
+                accessTokenValidityMs,
+                refreshTokenValidityMs,
+                DEFAULT_SSO_VERIFIED_VALIDITY_MS);
+    }
+
     /**
      * 생성자: Spring이 설정 파일의 값을 주입하여 유틸리티를 초기화합니다.
      *
@@ -71,15 +103,19 @@ public class JwtUtil {
      * @param secret JWT 서명용 비밀키 문자열
      * @param accessTokenValidityMs Access Token 유효시간 (밀리초)
      * @param refreshTokenValidityMs Refresh Token 유효시간 (밀리초)
+     * @param ssoVerifiedValidityMs SSO 검증 완료 토큰 유효시간 (밀리초, 미설정 시 60초)
      */
+    @Autowired
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-validity}") long accessTokenValidityMs,
-            @Value("${jwt.refresh-token-validity}") long refreshTokenValidityMs) {
+            @Value("${jwt.refresh-token-validity}") long refreshTokenValidityMs,
+            @Value("${jwt.sso-verified-validity:60000}") long ssoVerifiedValidityMs) {
         // 비밀키 문자열을 HMAC-SHA용 SecretKey 객체로 변환
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenValidityMs = accessTokenValidityMs;
         this.refreshTokenValidityMs = refreshTokenValidityMs;
+        this.ssoVerifiedValidityMs = ssoVerifiedValidityMs;
     }
 
     /**
@@ -151,6 +187,53 @@ public class JwtUtil {
                 .expiration(expiryDate)
                 .signWith(secretKey)
                 .compact();
+    }
+
+    /**
+     * SSO 검증 완료 토큰 생성
+     *
+     * <p>ESSO 검증을 통과한 사번을 {@code /api/auth/sso/complete}까지 운반하는 단기 토큰입니다. WAS 인스턴스 메모리(세션) 대신 서명된
+     * httpOnly 쿠키로 전달하므로 시작 요청과 완료 요청이 다른 인스턴스에 떨어져도 검증됩니다. {@code jti}로 발급마다 문자열을 고유하게 만듭니다.
+     *
+     * @param eno 검증된 사번
+     * @return 서명된 SSO 검증 완료 JWT 문자열
+     */
+    public String generateSsoVerifiedToken(String eno) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(eno)
+                .claim(TOKEN_USE_CLAIM, TOKEN_USE_SSO_VERIFIED)
+                .id(UUID.randomUUID().toString())
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + ssoVerifiedValidityMs))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
+     * SSO 검증 완료 토큰에서 사번을 복원합니다.
+     *
+     * <p>서명·만료를 검증하고 {@code tokenUse}가 {@link #TOKEN_USE_SSO_VERIFIED}일 때만 subject를 돌려줍니다.
+     * Access·Refresh 토큰, 다른 키로 서명한 토큰, 손상된 문자열, 빈 subject는 모두 빈 결과입니다. 토큰 본문은 로그에 남기지 않습니다.
+     *
+     * @param token 쿠키에서 읽은 토큰 문자열 (null 허용)
+     * @return 검증된 사번. 검증 실패 시 {@link Optional#empty()}
+     */
+    public Optional<String> resolveSsoVerifiedEno(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            Claims claims = getClaims(token);
+            if (!TOKEN_USE_SSO_VERIFIED.equals(claims.get(TOKEN_USE_CLAIM))) {
+                return Optional.empty();
+            }
+            String eno = claims.getSubject();
+            return eno == null || eno.isBlank() ? Optional.empty() : Optional.of(eno);
+        } catch (JwtException | IllegalArgumentException exception) {
+            log.warn("SSO 검증 토큰 검증에 실패했습니다: {}", exception.getMessage());
+            return Optional.empty();
+        }
     }
 
     /**

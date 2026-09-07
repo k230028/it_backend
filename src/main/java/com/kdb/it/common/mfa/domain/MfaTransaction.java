@@ -79,7 +79,7 @@ public final class MfaTransaction {
     /**
      * 공급자 challenge 해시와 서비스 거래 식별자를 결속한 대기 상태 MFA 거래를 생성한다.
      *
-     * @param svcTrId OnePass 서비스 거래 식별자(svcTrId). FIDO만 값이 있고 다른 수단은 null이다.
+     * @param svcTrId 공급자 거래 식별자. FIDO는 OnePass svcTrId, 지정맥은 6자리 랜덤키, 그 외 수단은 null이다.
      */
     public static MfaTransaction pending(
             String tokenHash,
@@ -180,7 +180,7 @@ public final class MfaTransaction {
         return providerChallengeHash;
     }
 
-    /** OnePass 서비스 거래 식별자(svcTrId) 원문이다. FIDO만 값이 있고 다른 수단은 null이다. */
+    /** 공급자 거래 식별자 원문이다. FIDO는 OnePass svcTrId, 지정맥은 6자리 랜덤키, 그 외 수단은 null이다. */
     public String svcTrId() {
         return svcTrId;
     }
@@ -222,7 +222,7 @@ public final class MfaTransaction {
      * @param method MFA 수단
      * @param expiresAt 만료 시각
      * @param providerChallengeHash 공급자 challenge 해시. 없으면 null
-     * @param svcTrId OnePass 서비스 거래 식별자 원문. FIDO가 아니면 null
+     * @param svcTrId 공급자 거래 식별자 원문. FIDO는 OnePass svcTrId, 지정맥은 6자리 랜덤키, 그 외 수단은 null
      * @param proofHash 증표 해시. 없으면 null
      * @param status 저장된 상태
      * @param verifiedAt 검증 시각. 없으면 null

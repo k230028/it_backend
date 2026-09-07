@@ -338,4 +338,73 @@ class JwtUtilTest {
         assertThatThrownBy(() -> jwtUtil.validateToken(token, "sso", true))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("SSO 검증 토큰 - 발급한 토큰에서 사번을 되돌려 받는다")
+    void generateSsoVerifiedToken_사번복원() {
+        String token = jwtUtil.generateSsoVerifiedToken("K150024");
+
+        assertThat(jwtUtil.resolveSsoVerifiedEno(token)).contains("K150024");
+    }
+
+    @Test
+    @DisplayName("SSO 검증 토큰 - 같은 사번이라도 발급마다 토큰 문자열이 다르다")
+    void generateSsoVerifiedToken_발급마다고유() {
+        String first = jwtUtil.generateSsoVerifiedToken("K150024");
+        String second = jwtUtil.generateSsoVerifiedToken("K150024");
+
+        assertThat(first).isNotEqualTo(second);
+    }
+
+    @Test
+    @DisplayName("SSO 검증 토큰 - Access·Refresh 토큰은 SSO 검증 사번으로 인정하지 않는다")
+    void resolveSsoVerifiedEno_다른용도토큰_거부() {
+        String access = jwtUtil.generateAccessToken("K150024", TEST_ATH_IDS, TEST_BBR_C);
+        String refresh = jwtUtil.generateRefreshToken("K150024");
+
+        assertThat(jwtUtil.resolveSsoVerifiedEno(access)).isEmpty();
+        assertThat(jwtUtil.resolveSsoVerifiedEno(refresh)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SSO 검증 토큰 - 만료된 토큰은 거부한다")
+    void resolveSsoVerifiedEno_만료토큰_거부() throws InterruptedException {
+        JwtUtil shortLived = new JwtUtil(TEST_SECRET, ACCESS_VALIDITY_MS, REFRESH_VALIDITY_MS, 1L);
+        String token = shortLived.generateSsoVerifiedToken("K150024");
+        Thread.sleep(5);
+
+        assertThat(jwtUtil.resolveSsoVerifiedEno(token)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SSO 검증 토큰 - 다른 키로 서명한 토큰과 손상된 문자열은 거부한다")
+    void resolveSsoVerifiedEno_위조및손상_거부() {
+        SecretKey otherKey =
+                Keys.hmacShaKeyFor(
+                        "another-secret-key-for-junit-test-minimum-256-bits-length-ok"
+                                .getBytes(StandardCharsets.UTF_8));
+        String forged =
+                Jwts.builder()
+                        .subject("K150024")
+                        .claim(JwtUtil.TOKEN_USE_CLAIM, JwtUtil.TOKEN_USE_SSO_VERIFIED)
+                        .expiration(new Date(System.currentTimeMillis() + 60_000L))
+                        .signWith(otherKey)
+                        .compact();
+
+        assertThat(jwtUtil.resolveSsoVerifiedEno(forged)).isEmpty();
+        assertThat(jwtUtil.resolveSsoVerifiedEno("not-a-jwt")).isEmpty();
+        assertThat(jwtUtil.resolveSsoVerifiedEno(null)).isEmpty();
+        assertThat(jwtUtil.resolveSsoVerifiedEno("")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SSO 검증 토큰 - 기본 유효시간은 60초다")
+    void generateSsoVerifiedToken_기본유효시간_60초() {
+        String token = jwtUtil.generateSsoVerifiedToken("K150024");
+        SecretKey key = Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8));
+        var claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+
+        long lifetimeMs = claims.getExpiration().getTime() - claims.getIssuedAt().getTime();
+        assertThat(lifetimeMs).isEqualTo(60_000L);
+    }
 }

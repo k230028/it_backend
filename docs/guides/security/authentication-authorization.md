@@ -10,7 +10,7 @@
 - Refresh Token 원문은 DB에 저장하지 않습니다. `TPRMPP_CRTOKM.ECY_RNW_PUB_TOK_CONE`에는 조회용 소문자 SHA-256 HEX 값만 저장합니다.
 - Access Token이 만료되어도 Refresh 쿠키로 로그아웃하면 해당 토큰 소유자의 패밀리를 폐기합니다.
 - 운영에서는 Bearer 헤더 폴백을 비활성화하고 쿠키 인증을 기본으로 합니다.
-- SSO 검증 사번과 결과는 JWT와 분리된 서버 세션에 보관합니다. 운영 `JSESSIONID`는 `Path=/`, `Secure`, `HttpOnly`, `SameSite=Lax`를 모두 유지하며 `EnvironmentValidator`가 누락·override를 기동 시 차단합니다.
+- SSO 검증 사번은 서버 세션이 아니라 `tokenUse=sso-verified` 클레임을 가진 60초 서명 JWT를 담은 `sso-verified` httpOnly 쿠키(`Path=/api/auth/sso`)로 운반합니다. 이 용도 토큰은 인증·갱신 경로에서 인정되지 않으며 `complete`가 사용 직후 삭제합니다. 애플리케이션은 `HttpSession`을 만들지 않지만, 운영 `JSESSIONID` 속성(`Path=/`, `Secure`, `HttpOnly`, `SameSite=Lax`)은 세션이 우발적으로 생겨도 안전하도록 `EnvironmentValidator`가 계속 검사합니다.
 
 ## 운영 인증 안전장치
 
@@ -57,15 +57,15 @@ SSO 인증 성공 경계에서는 기존 HTTP 세션 ID를 교체하여 세션 �
 | `POST/PUT/PATCH/DELETE /api/**` | Access 쿠키(`/`) | 업무 데이터 변경 | SameSite=Lax, 명시 Origin, 인증·인가 | 교차 사이트 SPA/iframe 도입 시 보강 필요 |
 | `GET /api/boards/{blbMngNo}/posts/{nacMngNo}` | Access 쿠키(`/`) | 없음(순수 상세 조회) | read-only 서비스, 조회수 변경 미호출 회귀 테스트 | GET에 DB 변경을 다시 결합하지 않음 |
 | `POST /api/boards/{blbMngNo}/posts/{nacMngNo}/views` | Access 쿠키(`/`) | 조회수 1 증가 | SameSite=Lax, 명시 Origin, 게시판-게시물 소속·읽기 권한 검증, 비관적 쓰기 잠금과 managed entity 변경으로 감사 로그 유지 | 조회수 실패는 상세 조회와 분리 |
-| `GET/POST /sso/{business,checkauth,loginProc,agentProc}` | SSO 상태 `JSESSIONID`; 같은 사이트에서는 `Path=/` Access 쿠키도 전송 가능 | 외부 인증 콜백 | SSO 상태를 JWT와 분리된 서버 검증 세션에 보관, Agent 결과 원자적 1회 소비, `JSESSIONID` Secure/HttpOnly/SameSite=Lax, CORS `allowCredentials=false` | Access 쿠키를 SSO 검증 상태로 사용하지 않으며 예외를 `/api/**`로 확대 금지 |
-| `POST /sso/logout` | SSO 상태 `JSESSIONID` | 서버 세션 무효화 | POST 전용, SameSite=Lax, SSO CORS `allowCredentials=false` | `GET /sso/logout`은 `Allow: POST`와 함께 405를 반환하며 세션을 변경하지 않음 |
-| `GET /api/auth/sso/complete` | 검증된 `JSESSIONID`/SSO 상태 쿠키 | JWT 쿠키 발급 후 SSO 세션 무효화 | 검증 사번 원자적 1회 소비, origin allowlist, safe next, 성공·실패 세션 종료 | SSO 완료 전용 예외이며 일반 상태 변경 GET의 선례로 확대 금지 |
+| `GET/POST /sso/{business,checkauth,loginProc,agentProc}` | `sso-next`/`sso-origin` 상태 쿠키; 같은 사이트에서는 `Path=/` Access 쿠키도 전송 가능 | 외부 인증 콜백, `sso-verified` 쿠키 발급 | 검증 사번을 Access/Refresh와 용도가 다른 60초 서명 JWT 쿠키로 운반, 서버 세션 미생성, CORS `allowCredentials=false` | Access 쿠키를 SSO 검증 상태로 사용하지 않으며 예외를 `/api/**`로 확대 금지 |
+| `POST /sso/logout` | 없음 | ESSO 통합 로그아웃 페이지로 리다이렉트 | POST 전용, SameSite=Lax, SSO CORS `allowCredentials=false` | `GET /sso/logout`은 `Allow: POST`와 함께 405를 반환 |
+| `GET /api/auth/sso/complete` | `sso-verified` 쿠키(`Path=/api/auth/sso`) + `sso-next`/`sso-origin` | JWT 쿠키 발급 후 SSO 상태 쿠키 3종 삭제 | 서명·만료·용도 검증, origin allowlist, safe next, 성공·실패 모두 상태 쿠키 삭제. 서버 저장소가 없어 60초 내 재전송은 서버가 막지 못하며 httpOnly 쿠키 탈취 위협 모델은 Refresh 쿠키와 같음 | SSO 완료 전용 예외이며 일반 상태 변경 GET의 선례로 확대 금지 |
 
 ### CSRF 보강 트리거와 목표 구현
 
 다음 중 하나라도 발생하면 현재 `csrf.disable()` 유지는 금지됩니다. 해당 변경과 같은 배포 단위에서 CSRF 토큰 또는 동등한 서버 검증 Origin/nonce 방어를 활성화해야 합니다.
 
-1. Access/Refresh/User/SSO 상태 쿠키 또는 `JSESSIONID` 중 하나를 `SameSite=None`으로 변경한다.
+1. Access/Refresh/User/SSO 상태(`sso-next`/`sso-origin`/`sso-verified`) 쿠키 또는 `JSESSIONID` 중 하나를 `SameSite=None`으로 변경한다.
 2. credentialed `/api/**`에 새 교차 사이트 Origin을 추가하거나 wildcard/pattern으로 완화한다.
 3. 프론트를 cross-site iframe에 임베드하거나 별도 사이트의 SPA가 쿠키 API를 호출한다.
 4. 모든 GET은 순수 조회로 유지합니다. GET 상태 변경은 금지하며, 발견하면 unsafe method로 분리하기 전까지 배포하지 않습니다.

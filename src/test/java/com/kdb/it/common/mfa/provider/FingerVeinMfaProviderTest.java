@@ -55,6 +55,32 @@ class FingerVeinMfaProviderTest {
     }
 
     @Test
+    @DisplayName("start는 랜덤키를 공급자 거래 식별자로도 실어 거래 저장소에 남길 수 있게 한다")
+    void start_carriesRandomKeyAsProviderTransactionId() {
+        MfaChallengeData challenge = provider().start(context("tx-1"));
+
+        assertThat(challenge.providerTransactionId()).isEqualTo(challenge.randomKey());
+    }
+
+    @Test
+    @DisplayName("다른 인스턴스가 start한 거래도 저장된 랜덤키만 있으면 검증한다")
+    void verify_onFreshInstance_withStoredRandomKey_isVerified() {
+        MfaChallengeData challenge = provider().start(context("tx-hash"));
+        String hash = expectedHash("20260811", ENO, challenge.randomKey(), "SUCC");
+
+        MfaVerificationResult result =
+                provider()
+                        .verify(
+                                new MfaVerifyContext(
+                                        context("tx-hash"),
+                                        challenge.challengeId(),
+                                        hash,
+                                        challenge.providerTransactionId()));
+
+        assertThat(result.verified()).isTrue();
+    }
+
+    @Test
     @DisplayName("거래마다 다른 랜덤키를 발급한다")
     void start_issuesDistinctRandomKeysPerTransaction() {
         FingerVeinMfaProvider provider = provider();
@@ -80,7 +106,10 @@ class FingerVeinMfaProviderTest {
         MfaVerificationResult result =
                 provider.verify(
                         new MfaVerifyContext(
-                                context("tx-hash"), challenge.challengeId(), hash, null));
+                                context("tx-hash"),
+                                challenge.challengeId(),
+                                hash,
+                                challenge.providerTransactionId()));
 
         assertThat(result.verified()).isTrue();
     }
@@ -95,7 +124,10 @@ class FingerVeinMfaProviderTest {
         MfaVerificationResult result =
                 provider.verify(
                         new MfaVerifyContext(
-                                context("tx-hash"), challenge.challengeId(), hash, null));
+                                context("tx-hash"),
+                                challenge.challengeId(),
+                                hash,
+                                challenge.providerTransactionId()));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -109,7 +141,10 @@ class FingerVeinMfaProviderTest {
         MfaVerificationResult result =
                 provider.verify(
                         new MfaVerifyContext(
-                                context("tx-hash"), challenge.challengeId(), "FE00", null));
+                                context("tx-hash"),
+                                challenge.challengeId(),
+                                "FE00",
+                                challenge.providerTransactionId()));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
@@ -125,14 +160,17 @@ class FingerVeinMfaProviderTest {
         MfaVerificationResult result =
                 provider.verify(
                         new MfaVerifyContext(
-                                context("tx-target"), target.challengeId(), foreignHash, null));
+                                context("tx-target"),
+                                target.challengeId(),
+                                foreignHash,
+                                target.providerTransactionId()));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
 
     @Test
-    @DisplayName("시작하지 않은 거래의 해시는 통과시키지 않는다")
-    void verify_withoutStart_isRejected() {
+    @DisplayName("저장된 랜덤키가 없는 거래의 해시는 통과시키지 않는다")
+    void verify_withoutStoredRandomKey_isRejected() {
         MfaVerificationResult result =
                 provider()
                         .verify(
@@ -146,20 +184,21 @@ class FingerVeinMfaProviderTest {
     }
 
     @Test
-    @DisplayName("같은 해시를 다시 제출해도 통과시키지 않는다")
-    void verify_replayedHash_isRejected() {
-        FingerVeinMfaProvider provider = provider();
-        MfaChallengeData challenge = provider.start(context("tx-hash"));
+    @DisplayName("challenge 식별자가 거래와 다르면 통과시키지 않는다")
+    void verify_challengeIdMismatch_isRejected() {
+        MfaChallengeData challenge = provider().start(context("tx-hash"));
         String hash = expectedHash("20260811", ENO, challenge.randomKey(), "SUCC");
-        provider.verify(
-                new MfaVerifyContext(context("tx-hash"), challenge.challengeId(), hash, null));
 
-        MfaVerificationResult replayed =
-                provider.verify(
-                        new MfaVerifyContext(
-                                context("tx-hash"), challenge.challengeId(), hash, null));
+        MfaVerificationResult result =
+                provider()
+                        .verify(
+                                new MfaVerifyContext(
+                                        context("tx-hash"),
+                                        "tx-other",
+                                        hash,
+                                        challenge.providerTransactionId()));
 
-        assertThat(replayed.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
+        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
     }
 
     @Test
@@ -172,30 +211,14 @@ class FingerVeinMfaProviderTest {
         String hash = expectedHash("20260811", ENO, challenge.randomKey(), "SUCC");
 
         MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(expired, challenge.challengeId(), hash, null));
+                provider.verify(
+                        new MfaVerifyContext(
+                                expired,
+                                challenge.challengeId(),
+                                hash,
+                                challenge.providerTransactionId()));
 
         assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
-    }
-
-    @Test
-    @DisplayName("용량을 넘기면 오래된 거래를 밀어내고 그 해시를 거부한다")
-    void verify_evictedTransaction_isRejected() {
-        FingerVeinMfaProvider provider = new FingerVeinMfaProvider(FIXED_KEY, CLOCK, 1);
-        MfaChallengeData first = provider.start(context("tx-first"));
-        String hash = expectedHash("20260811", ENO, first.randomKey(), "SUCC");
-        provider.start(context("tx-second"));
-
-        MfaVerificationResult result =
-                provider.verify(new MfaVerifyContext(context("tx-first"), "tx-first", hash, null));
-
-        assertThat(result.outcome()).isEqualTo(MfaVerificationResult.Outcome.FAILED);
-    }
-
-    @Test
-    @DisplayName("대기 거래 상한은 1 이상이어야 한다")
-    void constructor_rejectsCapacityBelowOne() {
-        assertThatThrownBy(() -> new FingerVeinMfaProvider(FIXED_KEY, CLOCK, 0))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

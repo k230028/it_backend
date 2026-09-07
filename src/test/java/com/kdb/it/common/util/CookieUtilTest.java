@@ -752,5 +752,46 @@ class CookieUtilTest {
         assertThat(CookieUtil.REFRESH_TOKEN_COOKIE).isEqualTo("refreshToken");
         assertThat(CookieUtil.SSO_NEXT_COOKIE).isEqualTo("sso-next");
         assertThat(CookieUtil.SSO_ORIGIN_COOKIE).isEqualTo("sso-origin");
+        assertThat(CookieUtil.SSO_VERIFIED_COOKIE).isEqualTo("sso-verified");
+    }
+
+    @Nested
+    @DisplayName("createSsoVerifiedCookie / deleteSsoVerifiedCookie")
+    class SsoVerifiedCookieTest {
+
+        @Test
+        @DisplayName("SSO 검증 쿠키는 httpOnly·Lax·60초이며 complete 경로에만 전송된다")
+        void 검증쿠키_속성() {
+            ResponseCookie cookie = cookieUtil().createSsoVerifiedCookie("signed-token");
+
+            assertThat(cookie.getName()).isEqualTo(CookieUtil.SSO_VERIFIED_COOKIE);
+            assertThat(cookie.getValue()).isEqualTo("signed-token");
+            assertThat(cookie.isHttpOnly()).isTrue();
+            assertThat(cookie.getPath()).isEqualTo("/api/auth/sso");
+            assertThat(cookie.getSameSite()).isEqualTo("Lax");
+            assertThat(cookie.getMaxAge().getSeconds()).isEqualTo(60L);
+            assertThat(cookie.isSecure()).isFalse();
+        }
+
+        @Test
+        @DisplayName("secure=true이면 Secure 플래그를 설정한다")
+        void 검증쿠키_secureTrue() {
+            ResponseCookie cookie = cookieUtil(true).createSsoVerifiedCookie("signed-token");
+
+            assertThat(cookie.isSecure()).isTrue();
+        }
+
+        @Test
+        @DisplayName("삭제 쿠키는 같은 경로에 Max-Age=0으로 발급된다")
+        void 삭제쿠키_즉시만료() {
+            ResponseCookie cookie = cookieUtil(true).deleteSsoVerifiedCookie();
+
+            assertThat(cookie.getName()).isEqualTo(CookieUtil.SSO_VERIFIED_COOKIE);
+            assertThat(cookie.getValue()).isEmpty();
+            assertThat(cookie.getPath()).isEqualTo("/api/auth/sso");
+            assertThat(cookie.getMaxAge().getSeconds()).isZero();
+            assertThat(cookie.isHttpOnly()).isTrue();
+            assertThat(cookie.isSecure()).isTrue();
+        }
     }
 }
