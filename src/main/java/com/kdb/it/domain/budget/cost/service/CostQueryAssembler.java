@@ -14,6 +14,7 @@ import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
+import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import java.math.BigDecimal;
@@ -46,6 +47,8 @@ public class CostQueryAssembler {
     private final CostRepository costRepository;
     private final CodeNameMapBuilder codeNameMapBuilder;
     private final CostTerminalAssembler terminalAssembler;
+    private final BtermmRepository btermmRepository;
+    private final CostConcurrencyStamper concurrencyStamper;
 
     /**
      * 대표 비용 행에 신청서·조직·사용자·코드·단말기·전년도 예산을 조립합니다.
@@ -61,6 +64,12 @@ public class CostQueryAssembler {
         applyBudgetCategory(response);
         applyPreviousBudget(response);
         terminalAssembler.attach(response);
+        // 저장 검증과 같은 함수로 계산해야 사용자가 바꾸지 않은 문서에서 충돌이 나지 않는다.
+        response.setConcurrencyStamp(
+                concurrencyStamper.stamp(
+                        cost,
+                        btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(
+                                cost.getCostBgNo(), cost.getBgSno(), "N")));
         return response;
     }
 

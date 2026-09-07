@@ -426,7 +426,7 @@ class ApiResponseOpenApiContractTest {
     void costResponsesExposeRequiredNullableAndEnumContracts() {
         assertPropertiesRequiredExcept(
                 CostDto.Response.class,
-                fields("applicationInfo"),
+                fields("applicationInfo", "concurrencyStamp"),
                 "costBgNo",
                 "bgSno",
                 "lstYn",

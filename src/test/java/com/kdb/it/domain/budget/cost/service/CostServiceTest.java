@@ -249,6 +249,9 @@ class CostServiceTest {
     /** 작성완료 신청서 스탬프 (저장 시 결재선 없는 신청서 0 생성) */
     @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
 
+    /** 개정본 동시성 스탬프 (Task 2: 조회 응답 부착 전용, 검증은 아직 하지 않음) */
+    @Mock private CostConcurrencyStamper concurrencyStamper;
+
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
 
@@ -272,7 +275,9 @@ class CostServiceTest {
                         bbugtmRepository,
                         costRepository,
                         codeNameMapBuilder,
-                        terminalAssembler);
+                        terminalAssembler,
+                        btermmRepository,
+                        concurrencyStamper);
         CostQueryService queryService = new CostQueryService(costRepository, queryAssembler);
         costService =
                 new CostService(

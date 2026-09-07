@@ -170,6 +170,8 @@ class CostQueryAssemblerTest {
     @Mock private BbugtmRepository budgetRepository;
     @Mock private CostRepository costRepository;
     @Mock private BtermmRepository terminalRepository;
+    @Mock private BtermmRepository btermmRepository;
+    @Mock private CostConcurrencyStamper concurrencyStamper;
 
     private CostQueryAssembler assembler;
 
@@ -188,7 +190,9 @@ class CostQueryAssemblerTest {
                         costRepository,
                         codeNameMapBuilder,
                         new CostTerminalAssembler(
-                                terminalRepository, userRepository, codeNameMapBuilder));
+                                terminalRepository, userRepository, codeNameMapBuilder),
+                        btermmRepository,
+                        concurrencyStamper);
     }
 
     @Test
@@ -258,6 +262,20 @@ class CostQueryAssemblerTest {
                             assertThat(value.getTmnKdTcNm()).isEqualTo("전용");
                             assertThat(value.getDfrCleCNm()).isEqualTo("매월");
                         });
+    }
+
+    @Test
+    @DisplayName("상세 조립은 활성 단말로 계산한 동시성 스탬프를 응답에 싣는다")
+    void assembleDetailAttachesConcurrencyStamp() {
+        Bcostm cost = Bcostm.builder().costBgNo("COST_2026_0001").bgSno(2).build();
+        List<Btermm> terminals = List.of(Btermm.builder().tmnMngNo("TMN-1").sno(1).build());
+        given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST_2026_0001", 2, "N"))
+                .willReturn(terminals);
+        given(concurrencyStamper.stamp(cost, terminals)).willReturn("a".repeat(64));
+
+        CostDto.Response response = assembler.assembleDetail(cost);
+
+        assertThat(response.getConcurrencyStamp()).isEqualTo("a".repeat(64));
     }
 
     @Test
