@@ -13,6 +13,7 @@ import com.kdb.it.common.approval.service.ApplicationPersistenceService.Applicat
 import com.kdb.it.common.approval.service.ApplicationPersistenceService.SourceLink;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.system.exception.LockTimeouts;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
@@ -91,7 +92,7 @@ public class ItBudgetApprovalFacade {
         try {
             aggregates = loader.loadForSubmission(refs);
         } catch (RuntimeException exception) {
-            if (isLockTimeout(exception))
+            if (LockTimeouts.isLockTimeout(exception))
                 throw conflict("IT_BUDGET_CONCURRENT_UPDATE", "다른 작업이 신청 대상을 변경 중입니다.");
             throw exception;
         }
@@ -621,18 +622,6 @@ public class ItBudgetApprovalFacade {
     private static ItBudgetApprovalException conflict(String code, String message) {
         return new ItBudgetApprovalException(
                 org.springframework.http.HttpStatus.CONFLICT, code, message, List.of());
-    }
-
-    private static boolean isLockTimeout(Throwable failure) {
-        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (var cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
-            if (cause instanceof jakarta.persistence.LockTimeoutException
-                    || cause instanceof org.springframework.dao.CannotAcquireLockException
-                    || cause instanceof java.sql.SQLException sql
-                            && (sql.getErrorCode() == 30006 || sql.getErrorCode() == 54))
-                return true;
-        }
-        return false;
     }
 
     private void recordPreview(String outcome) {
