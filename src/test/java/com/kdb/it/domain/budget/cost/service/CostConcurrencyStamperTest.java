@@ -53,6 +53,12 @@ class CostConcurrencyStamperTest {
     }
 
     @Test
+    @DisplayName("단말 목록이 null이면 빈 목록과 같은 스탬프를 낸다")
+    void nullTerminalsAreTreatedAsEmpty() {
+        assertThat(stamper.stamp(cost(), null)).isEqualTo(stamper.stamp(cost(), List.of()));
+    }
+
+    @Test
     @DisplayName("금액 스케일 차이는 충돌이 아니다")
     void moneyScaleDoesNotChangeStamp() {
         String scaled =

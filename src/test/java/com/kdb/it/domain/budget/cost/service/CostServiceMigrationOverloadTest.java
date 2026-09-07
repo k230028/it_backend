@@ -37,6 +37,10 @@ class CostServiceMigrationOverloadTest {
 
     @Mock private com.kdb.it.domain.budget.common.security.ApprovalWriteGuard approvalWriteGuard;
     @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
+
+    /** 동시성 스탬프 계산기 (이 테스트가 다루는 생성·이관 경로는 스탬프를 검증하지 않는다) */
+    @Mock private com.kdb.it.domain.budget.cost.service.CostConcurrencyStamper concurrencyStamper;
+
     private CostService costService;
 
     @org.junit.jupiter.api.BeforeEach
@@ -52,7 +56,9 @@ class CostServiceMigrationOverloadTest {
                         xcrLookupService,
                         queryService,
                         approvalWriteGuard,
-                        approvalStamper);
+                        approvalStamper,
+                        new CostConcurrencyGuard(
+                                concurrencyStamper, btermmRepository, queryService));
     }
 
     /**

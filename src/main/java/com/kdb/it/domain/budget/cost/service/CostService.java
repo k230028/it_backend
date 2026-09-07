@@ -14,6 +14,7 @@ import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
+import com.kdb.it.domain.budget.cost.exception.CostConflictException;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.util.BudgetAmountCalculator;
@@ -50,6 +51,9 @@ public class CostService {
     private final ApprovalWriteGuard approvalWriteGuard;
 
     private final ApprovalStamper approvalStamper;
+
+    /** 저장 경로의 스탬프 대조와 잠금 대기 초과 변환을 담당합니다. */
+    private final CostConcurrencyGuard concurrencyGuard;
 
     private static final int SERVICE_NAME_LOOKBACK_YEARS = 3;
 
@@ -397,19 +401,25 @@ public class CostService {
      * @param request 수정 요청
      * @return 수정된 관리번호
      * @throws IllegalArgumentException 활성 비용이 없는 경우
+     * @throws CostConflictException 동시성 스탬프가 없거나(400) 현재 상태와 다르거나(409) 잠금 대기를 넘긴 경우(409)
      */
     @Transactional
     public String updateCost(String itMngcNo, CostDto.UpdateRequest request) {
-        return updateCost(itMngcNo, null, request, false);
+        return concurrencyGuard.runUserUpdate(() -> updateCost(itMngcNo, null, request, false));
     }
 
     /** 정확한 예산일련번호의 미상신 개정본을 수정합니다. */
     @Transactional
     public String updateCost(String itMngcNo, Integer bgSno, CostDto.UpdateRequest request) {
-        return updateCost(itMngcNo, bgSno, request, false);
+        return concurrencyGuard.runUserUpdate(() -> updateCost(itMngcNo, bgSno, request, false));
     }
 
-    /** 관리자 금융정보단말기 일괄업로드용 수정 진입점입니다. */
+    /**
+     * 관리자 금융정보단말기 일괄업로드용 수정 진입점입니다.
+     *
+     * <p>사람이 보는 화면이 없으므로 동시성 스탬프를 요구하지 않고, 잠금 대기 초과도 409로 바꾸지 않고 원래 예외를 그대로 전파합니다. 행 잠금은 사용자 경로와
+     * 동일하게 유지합니다.
+     */
     @Transactional
     public String updateCostForMigration(String itMngcNo, CostDto.UpdateRequest request) {
         return updateCost(itMngcNo, null, request, true);
@@ -451,6 +461,11 @@ public class CostService {
         // 이관도 잠근 정확한 개정본의 결재 상태를 확인한 뒤에만 원장과 단말기를 수정한다.
         approvalWriteGuard.verifyWritable(
                 COST_TABLE, target.getCostBgNo(), target.getBgSno(), "수정");
+
+        // 원장을 만지기 전에 검사해야 한다. 아래 블록부터 target과 request가 수정되므로 이 지점이 유일하게 안전하다.
+        if (!preserveSubmittedAmounts) {
+            concurrencyGuard.verifyStamp(request, target, this::resolveCgprName);
+        }
 
         if (!preserveSubmittedAmounts) {
             request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));

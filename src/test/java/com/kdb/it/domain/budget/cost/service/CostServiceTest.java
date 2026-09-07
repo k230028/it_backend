@@ -26,6 +26,7 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
+import com.kdb.it.domain.budget.cost.exception.CostConflictException;
 import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
@@ -249,8 +250,22 @@ class CostServiceTest {
     /** 작성완료 신청서 스탬프 (저장 시 결재선 없는 신청서 0 생성) */
     @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
 
-    /** 개정본 동시성 스탬프 (Task 2: 조회 응답 부착 전용, 검증은 아직 하지 않음) */
+    /** 개정본 동시성 스탬프 (조회 응답 부착과 저장 검증에 공통 사용) */
     @Mock private CostConcurrencyStamper concurrencyStamper;
+
+    /** 저장 검증을 통과하는 기본 스탬프. 실제 해시가 아니라 형식만 맞춘 고정값이다. */
+    private static final String VALID_STAMP = "a".repeat(64);
+
+    /**
+     * 저장 검증을 통과하는 스탬프를 실은 빈 수정 요청을 만든다.
+     *
+     * @return concurrencyStamp만 채워진 수정 요청
+     */
+    private static CostDto.UpdateRequest stampedRequest() {
+        CostDto.UpdateRequest request = new CostDto.UpdateRequest();
+        request.setConcurrencyStamp(VALID_STAMP);
+        return request;
+    }
 
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
@@ -291,7 +306,9 @@ class CostServiceTest {
                         queryService,
                         new com.kdb.it.domain.budget.common.security.ApprovalWriteGuard(
                                 capplaRepository),
-                        approvalStamper);
+                        approvalStamper,
+                        new CostConcurrencyGuard(
+                                concurrencyStamper, btermmRepository, queryService));
     }
 
     @Nested
@@ -361,6 +378,11 @@ class CostServiceTest {
         org.mockito.Mockito.lenient()
                 .when(orgNameResolver.resolveName(org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(null);
+        // 저장 검증의 기본값: 잠근 개정본의 현재 스탬프를 VALID_STAMP로 본다. 요청에 같은 값을 실은 테스트만 통과하며,
+        // 스탬프를 싣지 않은 요청은 그대로 400으로 차단된다(검증을 우회하지 않는다).
+        org.mockito.Mockito.lenient()
+                .when(concurrencyStamper.stamp(any(), any()))
+                .thenReturn(VALID_STAMP);
     }
 
     // ───────────────────────────────────────────────────────
@@ -779,7 +801,7 @@ class CostServiceTest {
                     .willReturn(List.of());
 
             // when
-            String result = costService.updateCost(IT_MNGC_NO, new CostDto.UpdateRequest());
+            String result = costService.updateCost(IT_MNGC_NO, stampedRequest());
 
             // then
             assertThat(result).isEqualTo(IT_MNGC_NO);
@@ -824,7 +846,7 @@ class CostServiceTest {
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 5, "N"))
                     .willReturn(List.of());
 
-            CostDto.UpdateRequest request = new CostDto.UpdateRequest();
+            CostDto.UpdateRequest request = stampedRequest();
             request.setComplete(true);
 
             // when
@@ -864,9 +886,9 @@ class CostServiceTest {
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 5, "N"))
                     .willReturn(List.of());
 
-            CostDto.UpdateRequest draftRequest = new CostDto.UpdateRequest();
+            CostDto.UpdateRequest draftRequest = stampedRequest();
             draftRequest.setComplete(false);
-            CostDto.UpdateRequest unsetRequest = new CostDto.UpdateRequest();
+            CostDto.UpdateRequest unsetRequest = stampedRequest();
 
             // when
             costService.updateCost(IT_MNGC_NO, draftRequest);
@@ -1346,6 +1368,7 @@ class CostServiceTest {
                             .build();
             CostDto.UpdateRequest request =
                     CostDto.UpdateRequest.builder()
+                            .concurrencyStamp(VALID_STAMP)
                             .cttNm("수정 계약")
                             .terminals(List.of(newTerminal))
                             .build();
@@ -1410,7 +1433,11 @@ class CostServiceTest {
                             .termRqmBgAmt(BigDecimal.valueOf(3000))
                             .build();
             CostDto.UpdateRequest request =
-                    CostDto.UpdateRequest.builder().cttNm("수정 계약").terminals(List.of(tDto)).build();
+                    CostDto.UpdateRequest.builder()
+                            .concurrencyStamp(VALID_STAMP)
+                            .cttNm("수정 계약")
+                            .terminals(List.of(tDto))
+                            .build();
 
             given(costRepository.findCurrentVersionsForUpdate(IT_MNGC_NO))
                     .willReturn(List.of(cost));
@@ -1936,11 +1963,12 @@ class CostServiceTest {
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
 
-            String result =
-                    costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build());
+            String result = costService.updateCost(IT_MNGC_NO, stampedRequest());
 
             assertThat(result).isEqualTo(IT_MNGC_NO);
-            verify(btermmRepository).findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N");
+            // 저장 검증(스탬프 재계산)과 단말기 동기화가 각각 같은 범위로 자식 행을 조회한다.
+            verify(btermmRepository, org.mockito.Mockito.times(2))
+                    .findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N");
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
@@ -1972,8 +2000,7 @@ class CostServiceTest {
             given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                     .willReturn(List.of());
 
-            String result =
-                    costService.updateCost(IT_MNGC_NO, CostDto.UpdateRequest.builder().build());
+            String result = costService.updateCost(IT_MNGC_NO, stampedRequest());
 
             assertThat(result).isEqualTo(IT_MNGC_NO);
         } finally {
@@ -2475,6 +2502,7 @@ class CostServiceTest {
 
             CostDto.UpdateRequest request =
                     CostDto.UpdateRequest.builder()
+                            .concurrencyStamp(VALID_STAMP)
                             .ioeC("IOE001")
                             .cttNm("계약명")
                             .cttOppNm("계약상대")
@@ -2587,6 +2615,7 @@ class CostServiceTest {
                             .curC("KRW")
                             .costSvnDpmC("BBR001")
                             .terminals(List.of(terminalRequest))
+                            .concurrencyStamp(VALID_STAMP)
                             .build();
 
             costService.updateCost(IT_MNGC_NO, 2, request);
@@ -2628,6 +2657,7 @@ class CostServiceTest {
 
             CostDto.UpdateRequest request =
                     CostDto.UpdateRequest.builder()
+                            .concurrencyStamp(VALID_STAMP)
                             .curC("USD")
                             .fcAmt(new BigDecimal("1000.000"))
                             .xcr(new BigDecimal("1300.5000"))
@@ -2771,7 +2801,7 @@ class CostServiceTest {
             Bcostm draft = revision(3, "N");
             given(costRepository.findVersionForUpdate(IT_MNGC_NO, 3))
                     .willReturn(Optional.of(draft));
-            asUser(true, () -> costService.updateCost(IT_MNGC_NO, 3, new CostDto.UpdateRequest()));
+            asUser(true, () -> costService.updateCost(IT_MNGC_NO, 3, stampedRequest()));
             var ordered =
                     org.mockito.Mockito.inOrder(
                             costRepository, capplaRepository, draft, btermmRepository);
@@ -2905,6 +2935,178 @@ class CostServiceTest {
                                     .isInstanceOf(IllegalStateException.class));
 
             verify(approved, never()).update(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("저장 동시성 검증")
+    class ConcurrencyStampChecks {
+
+        private static final String COST_BG_NO = "COST-1";
+
+        /** 관리자 인증 컨텍스트에서 본문을 실행한다. */
+        private void asAdmin(Runnable body) {
+            CustomUserDetails admin =
+                    new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+            Authentication auth = mock(Authentication.class);
+            SecurityContext ctx = mock(SecurityContext.class);
+            given(auth.getPrincipal()).willReturn(admin);
+            given(ctx.getAuthentication()).willReturn(auth);
+            SecurityContextHolder.setContext(ctx);
+            try {
+                body.run();
+            } finally {
+                SecurityContextHolder.clearContext();
+            }
+        }
+
+        /** 잠금 대상 개정본 하나와 빈 단말 목록을 준비한다. */
+        private Bcostm locked() {
+            Bcostm cost = mock(Bcostm.class);
+            given(cost.getCostBgNo()).willReturn(COST_BG_NO);
+            given(cost.getBgSno()).willReturn(1);
+            given(cost.getLstYn()).willReturn("Y");
+            given(cost.getFstEnrUsid()).willReturn("10001");
+            given(cost.getCostSvnDpmC()).willReturn("BBR001");
+            given(costRepository.findCurrentVersionsForUpdate(COST_BG_NO))
+                    .willReturn(List.of(cost));
+            given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(List.of());
+            return cost;
+        }
+
+        @Test
+        @DisplayName("스탬프가 없으면 400으로 차단한다")
+        void missingStampIsRejected() {
+            Bcostm cost = locked();
+            CostDto.UpdateRequest request = CostDto.UpdateRequest.builder().build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e -> {
+                                                CostConflictException conflict =
+                                                        (CostConflictException) e;
+                                                assertThat(conflict.code())
+                                                        .isEqualTo("COST_STAMP_REQUIRED");
+                                                assertThat(conflict.status())
+                                                        .isEqualTo(
+                                                                org.springframework.http.HttpStatus
+                                                                        .BAD_REQUEST);
+                                            }));
+            verify(cost, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("형식이 어긋난 스탬프도 400으로 차단한다")
+        void malformedStampIsRejected() {
+            Bcostm cost = locked();
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("ZZZ").build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e ->
+                                                    assertThat(((CostConflictException) e).code())
+                                                            .isEqualTo("COST_STAMP_REQUIRED")));
+            verify(cost, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("스탬프가 다르면 409와 현재 상태를 돌려준다")
+        void staleStampIsConflict() {
+            Bcostm cost = locked();
+            given(cost.getLstChgUsid()).willReturn("10002");
+            given(cost.getLstChgDtm()).willReturn(java.time.LocalDateTime.of(2026, 9, 8, 10, 0));
+            given(concurrencyStamper.stamp(eq(cost), anyList())).willReturn("b".repeat(64));
+            given(costRepository.findByCostBgNoAndBgSnoAndDelYn(COST_BG_NO, 1, "N"))
+                    .willReturn(Optional.of(cost));
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("a".repeat(64)).build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e -> {
+                                                CostConflictException conflict =
+                                                        (CostConflictException) e;
+                                                assertThat(conflict.code())
+                                                        .isEqualTo("COST_SOURCE_CHANGED");
+                                                assertThat(conflict.status())
+                                                        .isEqualTo(
+                                                                org.springframework.http.HttpStatus
+                                                                        .CONFLICT);
+                                                assertThat(conflict.currentStamp())
+                                                        .isEqualTo("b".repeat(64));
+                                                assertThat(conflict.changedAt()).isNotNull();
+                                                assertThat(conflict.current()).isNotNull();
+                                            }));
+            verify(cost, never()).update(any());
+        }
+
+        @Test
+        @DisplayName("스탬프가 같으면 저장을 진행한다")
+        void matchingStampProceeds() {
+            Bcostm cost = locked();
+            given(concurrencyStamper.stamp(eq(cost), anyList())).willReturn("a".repeat(64));
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("a".repeat(64)).build();
+
+            asAdmin(
+                    () ->
+                            assertThat(costService.updateCost(COST_BG_NO, request))
+                                    .isEqualTo(COST_BG_NO));
+            verify(cost).update(any());
+        }
+
+        @Test
+        @DisplayName("이관 경로는 스탬프 없이도 저장한다")
+        void migrationPathIsExempt() {
+            Bcostm cost = locked();
+
+            assertThat(
+                            costService.updateCostForMigration(
+                                    COST_BG_NO, CostDto.UpdateRequest.builder().build()))
+                    .isEqualTo(COST_BG_NO);
+            verify(concurrencyStamper, never()).stamp(eq(cost), anyList());
+        }
+
+        @Test
+        @DisplayName("잠금 대기 초과는 재시도 가능한 409로 바꾼다")
+        void lockTimeoutBecomesConcurrentUpdate() {
+            given(costRepository.findCurrentVersionsForUpdate(COST_BG_NO))
+                    .willThrow(new org.springframework.dao.CannotAcquireLockException("locked"));
+            CostDto.UpdateRequest request =
+                    CostDto.UpdateRequest.builder().concurrencyStamp("a".repeat(64)).build();
+
+            asAdmin(
+                    () ->
+                            assertThatThrownBy(() -> costService.updateCost(COST_BG_NO, request))
+                                    .isInstanceOf(CostConflictException.class)
+                                    .satisfies(
+                                            e ->
+                                                    assertThat(((CostConflictException) e).code())
+                                                            .isEqualTo("COST_CONCURRENT_UPDATE")));
+        }
+
+        @Test
+        @DisplayName("이관 경로의 잠금 대기 초과는 그대로 전파한다")
+        void migrationLockTimeoutIsNotTranslated() {
+            given(costRepository.findCurrentVersionsForUpdate(COST_BG_NO))
+                    .willThrow(new org.springframework.dao.CannotAcquireLockException("locked"));
+
+            assertThatThrownBy(
+                            () ->
+                                    costService.updateCostForMigration(
+                                            COST_BG_NO, CostDto.UpdateRequest.builder().build()))
+                    .isInstanceOf(org.springframework.dao.CannotAcquireLockException.class);
         }
     }
 }
