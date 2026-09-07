@@ -291,7 +291,6 @@ class CostServiceTest {
                         costRepository,
                         codeNameMapBuilder,
                         terminalAssembler,
-                        btermmRepository,
                         concurrencyStamper);
         CostQueryService queryService = new CostQueryService(costRepository, queryAssembler);
         costService =

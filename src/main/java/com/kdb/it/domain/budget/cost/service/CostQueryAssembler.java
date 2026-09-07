@@ -14,7 +14,7 @@ import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
-import com.kdb.it.domain.budget.cost.repository.BtermmRepository;
+import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import java.math.BigDecimal;
@@ -47,7 +47,6 @@ public class CostQueryAssembler {
     private final CostRepository costRepository;
     private final CodeNameMapBuilder codeNameMapBuilder;
     private final CostTerminalAssembler terminalAssembler;
-    private final BtermmRepository btermmRepository;
     private final CostConcurrencyStamper concurrencyStamper;
 
     /**
@@ -63,13 +62,11 @@ public class CostQueryAssembler {
         applyNames(response);
         applyBudgetCategory(response);
         applyPreviousBudget(response);
-        terminalAssembler.attach(response);
-        // 저장 검증과 같은 함수로 계산해야 사용자가 바꾸지 않은 문서에서 충돌이 나지 않는다.
-        response.setConcurrencyStamp(
-                concurrencyStamper.stamp(
-                        cost,
-                        btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(
-                                cost.getCostBgNo(), cost.getBgSno(), "N")));
+        List<Btermm> terminals =
+                terminalAssembler.loadActiveTerminals(cost.getCostBgNo(), cost.getBgSno());
+        terminalAssembler.attach(response, terminals);
+        // 저장 검증과 같은 함수를 같은 단말 집합으로 호출해야 사용자가 바꾸지 않은 문서에서 충돌이 나지 않는다.
+        response.setConcurrencyStamp(concurrencyStamper.stamp(cost, terminals));
         return response;
     }
 
@@ -104,13 +101,42 @@ public class CostQueryAssembler {
         for (int index = 0; index < costs.size(); index++) {
             applyBatch(costs.get(index), responses.get(index), data);
         }
+        /* 단말기는 페이지 전체를 IN 조회 한 번으로 읽고, 그 결과를 응답 조립과 스탬프 계산이 함께 쓴다.
+        행마다 조회하면 목록 크기만큼 N+1이 되고, 두 곳이 서로 다른 집합을 쓰면 저장이 무조건 409가 된다. */
+        Map<String, List<Btermm>> terminalsByRevision =
+                terminalAssembler.loadActiveTerminals(costs);
         if (terminalPolicy == TerminalPolicy.LIST) {
-            terminalAssembler.attachList(costs, responses);
+            terminalAssembler.attachList(costs, responses, terminalsByRevision);
         } else {
-            terminalAssembler.attachBulk(costs, responses);
+            terminalAssembler.attachBulk(costs, responses, terminalsByRevision);
         }
+        applyConcurrencyStamps(costs, responses, terminalsByRevision);
         applyPreviousBudgets(responses);
         return responses;
+    }
+
+    /**
+     * 목록·일괄·이력 응답의 모든 행에 동시성 스탬프를 싣습니다.
+     *
+     * <p>목록 인라인 편집과 일괄 작성 화면은 이 응답의 행을 그대로 저장 요청으로 보내므로, 스탬프가 없으면 서버가 {@code COST_STAMP_REQUIRED}
+     * 400으로 차단합니다. 상세 조회와 저장 검증이 쓰는 {@link CostConcurrencyStamper#stamp}를 같은 활성 단말 집합으로 호출합니다.
+     */
+    private void applyConcurrencyStamps(
+            List<Bcostm> costs,
+            List<CostDto.Response> responses,
+            Map<String, List<Btermm>> terminalsByRevision) {
+        for (int index = 0; index < costs.size(); index++) {
+            Bcostm cost = costs.get(index);
+            responses
+                    .get(index)
+                    .setConcurrencyStamp(
+                            concurrencyStamper.stamp(
+                                    cost,
+                                    terminalsByRevision.getOrDefault(
+                                            CostTerminalAssembler.revisionKey(
+                                                    cost.getCostBgNo(), cost.getBgSno()),
+                                            List.of())));
+        }
     }
 
     /**

@@ -53,7 +53,6 @@ class CostQueryServiceTest {
                         costRepository,
                         new CodeNameMapBuilder(codeRepository),
                         terminalAssembler,
-                        terminalRepository,
                         mock(CostConcurrencyStamper.class));
         queryService = new CostQueryService(costRepository, assembler);
     }
