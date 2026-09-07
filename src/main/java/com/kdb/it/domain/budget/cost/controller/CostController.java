@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.controller;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.ListPageParams;
+import com.kdb.it.domain.budget.cost.dto.CostConflictResponse;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
@@ -141,7 +142,27 @@ public class CostController {
                 @ApiResponse(
                         responseCode = "404",
                         description = "존재하지 않는 전산관리비",
-                        content = @Content)
+                        content = @Content),
+                @ApiResponse(
+                        responseCode = "409",
+                        description = "다른 사용자가 원장을 변경했거나 잠금 대기를 초과함",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        schema =
+                                                @Schema(
+                                                        implementation =
+                                                                CostConflictResponse.class))),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "동시성 스탬프 누락 또는 형식 오류",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        schema =
+                                                @Schema(
+                                                        implementation =
+                                                                CostConflictResponse.class)))
             })
     @PutMapping("/{itMngcNo}")
     public ResponseEntity<String> updateCost(
