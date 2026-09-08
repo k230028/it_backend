@@ -65,11 +65,11 @@ class ProjectFileTargetWriteAuthorizerTest {
     }
 
     @Test
-    @DisplayName("주관부서가 같은 기획통할담당자는 첨부 대상에 쓸 수 있다")
-    void sameDepartmentManagerCanWrite() {
+    @DisplayName("주관부서가 같은 일반 사용자는 첨부 대상에 쓸 수 있다")
+    void sameDepartmentUserCanWrite() {
         givenActiveProject("E001", "18001");
 
-        assertThat(authorizer.canWrite(PRJ, deptManager("E002", "18001"))).isTrue();
+        assertThat(authorizer.canWrite(PRJ, user("E002", "18001"))).isTrue();
     }
 
     @Test
@@ -81,11 +81,11 @@ class ProjectFileTargetWriteAuthorizerTest {
     }
 
     @Test
-    @DisplayName("사업과 무관한 일반 사용자는 첨부 대상에 쓸 수 없다")
+    @DisplayName("주관부서가 다른 일반 사용자는 첨부 대상에 쓸 수 없다")
     void unrelatedUserCannotWrite() {
         givenActiveProject("E001", "18001");
 
-        assertThat(authorizer.canWrite(PRJ, user("E999", "18001"))).isFalse();
+        assertThat(authorizer.canWrite(PRJ, user("E999", "29001"))).isFalse();
     }
 
     @Test

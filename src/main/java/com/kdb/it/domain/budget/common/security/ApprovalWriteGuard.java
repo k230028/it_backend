@@ -23,8 +23,9 @@ public class ApprovalWriteGuard {
     /**
      * 결재 상태 때문에 쓰기가 막히는지 판정합니다.
      *
-     * <p>결재중(1)은 결재선이 지금 검토 중인 내용이라 누구도 바꿀 수 없습니다. 결재완료(2)는 확정 기록이지만 사후 정정이 필요한 경우가 있어 시스템관리자에게만 열어
-     * 둡니다 — 관리자 판정은 {@link OwnershipVerifier#isCurrentUserAdmin()}에 위임합니다.
+     * <p>결재중(1)은 결재선이 지금 검토 중인 내용이라 누구도 바꿀 수 없습니다. 결재완료(2)·수기등록(9)은 시스템관리자에게만 사후 정정을 허용합니다.
+     * 반려(3)·회수(4)는 수정 후 재상신해야 하므로 모든 사용자에게 열어 둡니다 — 관리자 판정은 {@link
+     * OwnershipVerifier#isCurrentUserAdmin()}에 위임합니다.
      *
      * @param fntTbNm 원본 테이블명 ({@code "BPROJM"} 또는 {@code "BCOSTM"})
      * @param pkColNm 관리번호 (CAPPLA.PK_COL_NM)
@@ -46,7 +47,10 @@ public class ApprovalWriteGuard {
     public static List<String> blockingStatuses() {
         return OwnershipVerifier.isCurrentUserAdmin()
                 ? List.of(ApprovalStatus.IN_PROGRESS.code())
-                : List.of(ApprovalStatus.IN_PROGRESS.code(), ApprovalStatus.COMPLETED.code());
+                : List.of(
+                        ApprovalStatus.IN_PROGRESS.code(),
+                        ApprovalStatus.COMPLETED.code(),
+                        ApprovalStatus.MANUAL.code());
     }
 
     /**
@@ -95,6 +99,6 @@ public class ApprovalWriteGuard {
     public static String blockMessage(String action) {
         return OwnershipVerifier.isCurrentUserAdmin()
                 ? "결재중인 문서는 " + action + "할 수 없습니다."
-                : "결재중이거나 결재완료된 문서는 " + action + "할 수 없습니다.";
+                : "결재중·결재완료·수기등록 문서는 " + action + "할 수 없습니다.";
     }
 }

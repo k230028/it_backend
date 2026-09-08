@@ -25,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class QnaRegisteredEventListenerTest {
 
+    private static final String FRONTEND_URL = "https://itp.example/";
+
     @Mock private RoleRepository roleRepository;
     @Mock private NotificationOutboxService outboxService;
     @Mock private NotificationDispatchService dispatchService;
@@ -33,7 +35,11 @@ class QnaRegisteredEventListenerTest {
     void sendsAnInAppAndGweNotificationToEveryDistinctSystemAdmin() throws Exception {
         QnaRegisteredEventListener listener =
                 new QnaRegisteredEventListener(
-                        roleRepository, outboxService, dispatchService, new ObjectMapper());
+                        roleRepository,
+                        outboxService,
+                        dispatchService,
+                        new ObjectMapper(),
+                        FRONTEND_URL);
         given(roleRepository.findActiveUserEnosByAthId("ITPAD001"))
                 .willReturn(List.of("K100", "K100", "K200"));
         given(outboxService.enqueue(any())).willReturn("INF-2026-0142");
@@ -79,6 +85,40 @@ class QnaRegisteredEventListenerTest {
                         "background:#f3f4f6",
                         "border-color:#d1d5db",
                         "font-size:13px;line-height:1.9");
+    }
+
+    @Test
+    void 그룹웨어_메일의_문의_확인_링크는_포탈_절대_URL을_사용한다() throws Exception {
+        QnaRegisteredEventListener listener = listener(new ObjectMapper());
+        given(roleRepository.findActiveUserEnosByAthId("ITPAD001")).willReturn(List.of("K100"));
+        given(outboxService.enqueue(any())).willReturn("OUT-1");
+
+        listener.onQnaRegistered(event("문의", "기능"));
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(outboxService).enqueue(captor.capture());
+        MailPayload payload =
+                new ObjectMapper().readValue(captor.getValue().sdPayload(), MailPayload.class);
+        assertThat(payload.html())
+                .contains("href=\"https://itp.example/board/qna?postId=NAC-1\"")
+                .doesNotContain("href=\"/board/qna?postId=NAC-1\"");
+    }
+
+    @Test
+    void 그룹웨어_메일의_표_셀은_인라인_여백을_사용한다() throws Exception {
+        QnaRegisteredEventListener listener = listener(new ObjectMapper());
+        given(roleRepository.findActiveUserEnosByAthId("ITPAD001")).willReturn(List.of("K100"));
+        given(outboxService.enqueue(any())).willReturn("OUT-1");
+
+        listener.onQnaRegistered(event("문의", "기능"));
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(outboxService).enqueue(captor.capture());
+        MailPayload payload =
+                new ObjectMapper().readValue(captor.getValue().sdPayload(), MailPayload.class);
+        assertThat(payload.html())
+                .contains("<th style=\"background:#f3f4f6;padding:8px 10px;\"")
+                .contains("<td style=\"padding:8px 10px;\"");
     }
 
     @Test
@@ -141,7 +181,7 @@ class QnaRegisteredEventListenerTest {
 
     private QnaRegisteredEventListener listener(ObjectMapper mapper) {
         return new QnaRegisteredEventListener(
-                roleRepository, outboxService, dispatchService, mapper);
+                roleRepository, outboxService, dispatchService, mapper, FRONTEND_URL);
     }
 
     private QnaRegisteredEvent event(String title, String categoryName) {

@@ -16,6 +16,7 @@ public record CostConflictResponse(
         String code,
         String message,
         String changedBy,
+        String changedByEno,
         LocalDateTime changedAt,
         String currentStamp,
         CostDto.Response current) {}

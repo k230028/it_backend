@@ -1339,8 +1339,8 @@ class ProjectServiceTest {
     }
 
     @Test
-    @DisplayName("updateProject: 관리자가 아니면 결재완료도 차단 상태에 포함한다")
-    void updateProject_비관리자_결재완료포함() {
+    @DisplayName("updateProject: 관리자가 아니면 결재완료와 수기등록을 차단 상태에 포함한다")
+    void updateProject_비관리자_결재완료_수기등록포함() {
         String prjMngNo = "PRJ-2026-0001";
         CustomUserDetails owner =
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_USER), "101");
@@ -1367,7 +1367,7 @@ class ProjectServiceTest {
                                         prjMngNo,
                                         ProjectDto.UpdateRequest.builder().abusNm("수정 시도").build()))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("결재중이거나 결재완료된 프로젝트는 수정할 수 없습니다");
+                .hasMessageContaining("결재중·결재완료·수기등록 프로젝트는 수정할 수 없습니다");
 
         verify(capplaRepository)
                 .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -1376,7 +1376,8 @@ class ProjectServiceTest {
                         1,
                         List.of(
                                 ApprovalStatus.IN_PROGRESS.code(),
-                                ApprovalStatus.COMPLETED.code()));
+                                ApprovalStatus.COMPLETED.code(),
+                                ApprovalStatus.MANUAL.code()));
     }
 
     @Test

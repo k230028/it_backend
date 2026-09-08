@@ -366,8 +366,8 @@ public class ProjectService {
     /**
      * 연결된 신청서의 결재 상태 때문에 쓰기(수정·삭제)가 막히는지 판정합니다.
      *
-     * <p>결재중(01)은 결재선이 지금 검토 중인 내용이라 누구도 바꿀 수 없습니다. 결재완료(02)는 확정 기록이지만 사후 정정이 필요한 경우가 있어 시스템관리자에게만
-     * 열어 둡니다 — 관리자 판정은 {@link OwnershipVerifier#isCurrentUserAdmin()}에 위임합니다.
+     * <p>결재중(1)은 누구도 수정할 수 없고, 결재완료(2)·수기등록(9)은 시스템관리자만 정정할 수 있습니다. 반려(3)·회수(4)는 재상신을 위해 수정할 수
+     * 있습니다.
      *
      * @param prjMngNo 프로젝트관리번호 (CAPPLA.PK_COL_NM)
      * @param sno 원본 테이블 일련번호 (CAPPLA.FNT_TB_CRY_SNO)
@@ -379,7 +379,7 @@ public class ProjectService {
     }
 
     /**
-     * 결재 상태 차단 안내 문구를 만듭니다. 관리자는 결재완료가 차단 사유에서 빠지므로 사유를 결재중으로만 알립니다.
+     * 결재 상태 차단 안내 문구를 만듭니다. 관리자는 결재완료·수기등록이 차단 사유에서 빠집니다.
      *
      * @param action 막힌 동작 이름 ("수정" 또는 "삭제")
      * @return 사용자에게 보일 안내 문구
@@ -387,7 +387,7 @@ public class ProjectService {
     private static String approvalBlockMessage(String action) {
         return OwnershipVerifier.isCurrentUserAdmin()
                 ? "결재중인 프로젝트는 " + action + "할 수 없습니다."
-                : "결재중이거나 결재완료된 프로젝트는 " + action + "할 수 없습니다.";
+                : "결재중·결재완료·수기등록 프로젝트는 " + action + "할 수 없습니다.";
     }
 
     /**

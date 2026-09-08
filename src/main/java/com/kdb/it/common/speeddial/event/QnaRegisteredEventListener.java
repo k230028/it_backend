@@ -10,8 +10,8 @@ import com.kdb.it.common.notification.service.NotificationDispatchService;
 import com.kdb.it.common.notification.service.NotificationOutboxService;
 import com.kdb.it.common.notification.util.NotificationMessageFormatter;
 import java.util.LinkedHashSet;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +21,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 /** 문의 등록 후 활성 시스템관리자에게 인앱 알림과 GWE 메일을 적재·발송합니다. */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class QnaRegisteredEventListener {
 
     private static final String SYSTEM_ADMIN_AUTH_ID = "ITPAD001";
@@ -33,6 +32,20 @@ public class QnaRegisteredEventListener {
     private final NotificationOutboxService outboxService;
     private final NotificationDispatchService dispatchService;
     private final ObjectMapper objectMapper;
+    private final String frontendUrl;
+
+    public QnaRegisteredEventListener(
+            RoleRepository roleRepository,
+            NotificationOutboxService outboxService,
+            NotificationDispatchService dispatchService,
+            ObjectMapper objectMapper,
+            @Value("${app.frontend-url}") String frontendUrl) {
+        this.roleRepository = roleRepository;
+        this.outboxService = outboxService;
+        this.dispatchService = dispatchService;
+        this.objectMapper = objectMapper;
+        this.frontendUrl = frontendUrl;
+    }
 
     /** 문의 저장 트랜잭션이 커밋된 뒤에만 관리자별 알림 아웃박스를 생성합니다. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -94,7 +107,7 @@ public class QnaRegisteredEventListener {
                 + ";font-size:13px;line-height:1.9;\">"
                 + rows
                 + "</table><div style=\"margin:0 0 18px;text-align:right;\"><a href=\""
-                + escape(event.qnaUrl())
+                + escape(toFrontendUrl(event.qnaUrl()))
                 + "\" style=\"display:inline-block;background:"
                 + MAIL_PRIMARY
                 + ";color:#fff;text-decoration:none;font-size:13px;font-weight:600;padding:8px 14px;border-radius:4px;\">문의 확인 ↗</a></div></div>";
@@ -103,11 +116,16 @@ public class QnaRegisteredEventListener {
     private String row(String label, String value) {
         return "<tr><th style=\"background:"
                 + MAIL_HEADER_BG
-                + ";\">"
+                + ";padding:8px 10px;\">"
                 + escape(label)
-                + "</th><td>"
+                + "</th><td style=\"padding:8px 10px;\">"
                 + escape(value)
                 + "</td></tr>";
+    }
+
+    private String toFrontendUrl(String path) {
+        String base = safe(frontendUrl).replaceAll("/+$", "");
+        return base + safe(path);
     }
 
     private String writeMailPayload(String subject, String html) {

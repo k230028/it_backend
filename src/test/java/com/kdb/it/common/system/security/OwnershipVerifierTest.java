@@ -158,25 +158,25 @@ class OwnershipVerifierTest {
     }
 
     @Test
-    @DisplayName("부서관리자는 같은 부서 리소스를 수정할 수 있다")
-    void verifyModifiable_부서관리자_같은부서_허용() {
-        setUser("10002", "D001", false, true);
+    @DisplayName("일반 사용자도 같은 부서 리소스를 수정할 수 있다")
+    void verifyModifiable_일반사용자_같은부서_허용() {
+        setUser("10002", "D001", false, false);
 
         assertThatCode(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("일반 사용자는 같은 부서라도 타인 리소스를 수정할 수 없다")
-    void verifyModifiable_일반사용자_같은부서_거부() {
-        setUser("10002", "D001", false, false);
+    @DisplayName("일반 사용자는 다른 부서의 타인 리소스를 수정할 수 없다")
+    void verifyModifiable_일반사용자_다른부서_거부() {
+        setUser("10002", "D002", false, false);
 
         assertThatThrownBy(() -> OwnershipVerifier.verifyModifiable("10001", "D001"))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
-    @DisplayName("생성자도 관리자도 같은 부서의 부서관리자도 아니면 거부한다")
+    @DisplayName("생성자도 관리자도 같은 부서 사용자도 아니면 거부한다")
     void verifyModifiable_권한없음_거부() {
         setUser("10002", "D002", false, false);
 

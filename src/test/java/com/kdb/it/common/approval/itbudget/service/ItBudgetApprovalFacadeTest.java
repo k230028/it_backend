@@ -398,7 +398,7 @@ class ItBudgetApprovalFacadeTest {
     }
 
     @Test
-    void readableButNotModifiableCostAlsoFailsClosed() {
+    void sameDepartmentNonOwnerCostCanBeSubmitted() {
         when(costs.findVersions(anyCollection(), anyCollection()))
                 .thenReturn(
                         List.of(
@@ -407,12 +407,11 @@ class ItBudgetApprovalFacadeTest {
                                         .bgSno(2)
                                         .costSvnDpmC("D1")
                                         .fstEnrUsid("other")
+                                        .cgprId("U1")
                                         .delYn("N")
                                         .build()));
-        assertThatThrownBy(() -> facade.preview(actor, request()))
-                .isInstanceOf(AccessDeniedException.class);
-        verifyNoInteractions(users, codes, tokens);
-        verify(builder, never()).buildDocuments(anyList(), anyList());
+
+        assertThat(facade.preview(actor, request()).documents()).hasSize(1);
     }
 
     @Test

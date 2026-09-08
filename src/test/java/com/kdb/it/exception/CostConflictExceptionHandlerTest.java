@@ -27,6 +27,7 @@ class CostConflictExceptionHandlerTest {
                         "COST_SOURCE_CHANGED",
                         "다른 사용자가 이 전산업무비를 수정했습니다.",
                         "홍길동",
+                        "10002",
                         changedAt,
                         "b".repeat(64),
                         current);
@@ -38,6 +39,7 @@ class CostConflictExceptionHandlerTest {
         assertThat(response.getBody().status()).isEqualTo(409);
         assertThat(response.getBody().code()).isEqualTo("COST_SOURCE_CHANGED");
         assertThat(response.getBody().changedBy()).isEqualTo("홍길동");
+        assertThat(response.getBody().changedByEno()).isEqualTo("10002");
         assertThat(response.getBody().changedAt()).isEqualTo(changedAt);
         assertThat(response.getBody().currentStamp()).isEqualTo("b".repeat(64));
         assertThat(response.getBody().current()).isSameAs(current);
@@ -51,6 +53,7 @@ class CostConflictExceptionHandlerTest {
                         HttpStatus.BAD_REQUEST,
                         "COST_STAMP_REQUIRED",
                         "동시성 스탬프가 필요합니다.",
+                        null,
                         null,
                         null,
                         null,

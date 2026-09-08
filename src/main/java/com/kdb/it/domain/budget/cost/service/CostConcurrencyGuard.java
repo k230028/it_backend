@@ -55,6 +55,7 @@ public class CostConcurrencyGuard {
                     null,
                     null,
                     null,
+                    null,
                     null);
         }
         List<Btermm> terminals =
@@ -70,6 +71,7 @@ public class CostConcurrencyGuard {
                 "COST_SOURCE_CHANGED",
                 "다른 사용자가 이 전산업무비를 수정했습니다.",
                 changedBy(lastChange.usid(), nameResolver),
+                lastChange.usid(),
                 lastChange.at(),
                 current,
                 queryService.getCost(target.getCostBgNo(), target.getBgSno()));
@@ -135,6 +137,7 @@ public class CostConcurrencyGuard {
                         HttpStatus.CONFLICT,
                         "COST_CONCURRENT_UPDATE",
                         "다른 작업이 이 전산업무비를 수정 중입니다. 잠시 후 다시 시도하세요.",
+                        null,
                         null,
                         null,
                         null,

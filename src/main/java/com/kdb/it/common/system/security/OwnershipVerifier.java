@@ -62,7 +62,7 @@ public final class OwnershipVerifier {
     /**
      * 명시적으로 전달된 사용자 기준으로 수정 가능 여부를 판정합니다.
      *
-     * <p>판정 규칙은 최초 작성자 본인, 같은 부서의 부서관리자, 시스템관리자입니다. 서비스·권한자처럼 SecurityContext 밖에서 같은 규칙이 필요할 때
+     * <p>판정 규칙은 최초 작성자 본인, 같은 부서 사용자, 시스템관리자입니다. 서비스·권한자처럼 SecurityContext 밖에서 같은 규칙이 필요할 때
      * 사용합니다.
      *
      * @param creatorEno 리소스 최초 작성자 사번
@@ -77,11 +77,10 @@ public final class OwnershipVerifier {
         }
 
         boolean createdByUser = Objects.equals(creatorEno, user.getEno());
-        boolean sameDepartmentManager =
-                user.isDeptManager()
-                        && StringUtils.hasText(resourceBbrC)
+        boolean sameDepartment =
+                StringUtils.hasText(resourceBbrC)
                         && Objects.equals(resourceBbrC, user.getBbrC());
-        return user.isAdmin() || createdByUser || sameDepartmentManager;
+        return user.isAdmin() || createdByUser || sameDepartment;
     }
 
     /**

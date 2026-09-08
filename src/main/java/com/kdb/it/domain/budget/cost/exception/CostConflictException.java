@@ -15,6 +15,7 @@ public final class CostConflictException extends RuntimeException {
     private final HttpStatus status;
     private final String code;
     private final String changedBy;
+    private final String changedByEno;
     private final LocalDateTime changedAt;
     private final String currentStamp;
     private final transient CostDto.Response current;
@@ -24,6 +25,7 @@ public final class CostConflictException extends RuntimeException {
             String code,
             String message,
             String changedBy,
+            String changedByEno,
             LocalDateTime changedAt,
             String currentStamp,
             CostDto.Response current) {
@@ -31,6 +33,7 @@ public final class CostConflictException extends RuntimeException {
         this.status = status;
         this.code = code;
         this.changedBy = changedBy;
+        this.changedByEno = changedByEno;
         this.changedAt = changedAt;
         this.currentStamp = currentStamp;
         this.current = current;
@@ -46,6 +49,10 @@ public final class CostConflictException extends RuntimeException {
 
     public String changedBy() {
         return changedBy;
+    }
+
+    public String changedByEno() {
+        return changedByEno;
     }
 
     public LocalDateTime changedAt() {

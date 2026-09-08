@@ -80,6 +80,7 @@ public class GlobalExceptionHandler {
                         e.code(),
                         e.getMessage(),
                         e.changedBy(),
+                        e.changedByEno(),
                         e.changedAt(),
                         e.currentStamp(),
                         e.current());

@@ -1937,15 +1937,15 @@ class CostServiceTest {
     }
 
     @Test
-    @DisplayName("updateCost: 부서관리자는 같은 부서 전산업무비를 수정할 수 있다")
-    void updateCost_부서관리자_동일부서허용() {
-        CustomUserDetails manager =
-                new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_DEPT_MGR), "101");
+    @DisplayName("updateCost: 일반사용자도 같은 부서 전산업무비를 수정할 수 있다")
+    void updateCost_일반사용자_동일부서허용() {
+        CustomUserDetails user =
+                new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "101");
         org.springframework.security.core.Authentication auth =
                 mock(org.springframework.security.core.Authentication.class);
         org.springframework.security.core.context.SecurityContext ctx =
                 mock(org.springframework.security.core.context.SecurityContext.class);
-        given(auth.getPrincipal()).willReturn(manager);
+        given(auth.getPrincipal()).willReturn(user);
         given(ctx.getAuthentication()).willReturn(auth);
         org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
         try {
@@ -2042,10 +2042,10 @@ class CostServiceTest {
     }
 
     @Test
-    @DisplayName("updateCost: 일반사용자는 같은 부서 전산업무비라도 타인 건을 수정할 수 없다")
-    void updateCost_일반사용자_동일부서_타인수정거부() {
+    @DisplayName("updateCost: 일반사용자는 다른 부서의 타인 전산업무비를 수정할 수 없다")
+    void updateCost_일반사용자_타부서_타인수정거부() {
         CustomUserDetails user =
-                new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "101");
+                new CustomUserDetails("20001", List.of(CustomUserDetails.ATH_USER), "999");
         org.springframework.security.core.Authentication auth =
                 mock(org.springframework.security.core.Authentication.class);
         org.springframework.security.core.context.SecurityContext ctx =
@@ -3048,6 +3048,7 @@ class CostServiceTest {
                                                         .isEqualTo("b".repeat(64));
                                                 assertThat(conflict.changedAt()).isNotNull();
                                                 assertThat(conflict.changedBy()).isEqualTo("김변경");
+                                                assertThat(conflict.changedByEno()).isEqualTo("10002");
                                                 assertThat(conflict.current()).isNotNull();
                                             }));
             verify(cost, never()).update(any());
@@ -3110,6 +3111,7 @@ class CostServiceTest {
                                                 CostConflictException conflict =
                                                         (CostConflictException) e;
                                                 assertThat(conflict.changedBy()).isEqualTo("박단말");
+                                                assertThat(conflict.changedByEno()).isEqualTo("10003");
                                                 assertThat(conflict.changedAt())
                                                         .isEqualTo(
                                                                 java.time.LocalDateTime.of(
