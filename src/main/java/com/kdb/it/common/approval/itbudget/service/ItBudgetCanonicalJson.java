@@ -93,14 +93,20 @@ public final class ItBudgetCanonicalJson {
     /**
      * canonical JSON의 UTF-8 SHA-256을 64자리 소문자 hexadecimal으로 계산한다.
      *
+     * <p>이 값은 비밀번호나 비밀값을 보호하는 해시가 아니라 저장 문서의 동일성과 훼손 여부를 확인하는 결정적 체크섬입니다. 호출마다 달라지는 솔트를 넣으면 기존 문서
+     * 검증과 동시성 스탬프 계약이 깨지므로 사용하지 않습니다.
+     *
      * @param value 해시할 값
      * @return 64자리 소문자 SHA-256 다이제스트
      * @throws IllegalStateException SHA-256 알고리즘을 사용할 수 없는 경우
      */
+    @SuppressWarnings({"USING_HASH_WITHOUT_SALT", "java:S4790", "java:S2053"})
     public String digest(Object value) {
         try {
             byte[] bytes = write(value).getBytes(StandardCharsets.UTF_8);
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+            MessageDigest checksum = MessageDigest.getInstance("SHA-256");
+            checksum.update(bytes);
+            return HexFormat.of().formatHex(checksum.digest());
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", ex);
         }

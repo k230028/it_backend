@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -64,7 +65,9 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
                 itemsByBranch.put(branch, items);
             }
             firstExcelRowByBranch.putIfAbsent(branch, row.excelRow());
-            String currency = AdapterSupport.cellOf(sheet, row, "currency", ctx);
+            String currency =
+                    Objects.requireNonNullElse(
+                            AdapterSupport.cellOf(sheet, row, "currency", ctx), "");
             String itemName = AdapterSupport.cellOf(sheet, row, "itemName", ctx);
             addItem(items, sheet, row, ctx, currency, itemName, "hw");
             addItem(items, sheet, row, ctx, currency, itemName, "sw");

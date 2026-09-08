@@ -258,7 +258,8 @@ class ProjectQueryAssemblerTest {
                         new ProjectBudgetSummaryService(codeService, new ProjectAmountCalculator()),
                         bprojaRepository,
                         new CodeNameMapBuilder(codeRepository),
-                        projectRepository);
+                        projectRepository,
+                        org.mockito.Mockito.mock(ProjectConcurrencyStamper.class));
     }
 
     @Test

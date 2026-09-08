@@ -289,12 +289,10 @@ public class ItBudgetSnapshotBuilder {
         var c = (Bcostm) aggregate.parent();
         BigDecimal total = canonical.money(c.getCostTotXpAmt());
         var code = display.catalog().get(new CodeKey(CommonCodeGroups.IOE, c.getIoeC()));
-        BigDecimal asset =
-                canonical.money(
-                        code != null && IoeCategories.isCapitalCTp(code.getCTp())
-                                ? orZero(total)
-                                : BigDecimal.ZERO);
-        BigDecimal expense = canonical.money(orZero(total).subtract(asset));
+        boolean capital = code != null && IoeCategories.isCapitalCTp(code.getCTp());
+        BigDecimal normalizedTotal = orZero(total);
+        BigDecimal asset = canonical.money(capital ? normalizedTotal : BigDecimal.ZERO);
+        BigDecimal expense = canonical.money(capital ? BigDecimal.ZERO : normalizedTotal);
         var terminalRows =
                 aggregate.children().stream()
                         .filter(t -> "N".equals(t.getDelYn()))

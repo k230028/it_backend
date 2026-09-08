@@ -3,6 +3,7 @@ package com.kdb.it.common.system;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -168,7 +169,8 @@ public class EnvironmentValidator {
         }
         if (hasPreviousSigningKey) {
             validateTokenKeyId("app.approval.it-budget.preview.previous-key-id");
-            if (previousKeyId.equals(
+            if (Objects.equals(
+                    previousKeyId,
                     environment.getProperty("app.approval.it-budget.preview.active-key-id"))) {
                 throw new IllegalStateException(
                         "운영 보안 위반: app.approval.it-budget.preview.active-key-id와 "

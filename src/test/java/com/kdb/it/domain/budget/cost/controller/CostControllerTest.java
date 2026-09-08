@@ -324,4 +324,42 @@ class CostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value("네트워크 서비스"));
     }
+
+    @Test
+    @DisplayName("POST /api/cost/{itMngcNo}/linked-costs - 단말 생성과 부모 표시를 한 요청으로 처리한다 → 201")
+    @WithMockUser(username = "10001")
+    void createLinkedCost_인증_201() throws Exception {
+        given(terminalLinkService.createLinkedCost(eq("COST_2026_0001"), any()))
+                .willReturn("COST_2026_0009");
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder().cttNm("단말").curC("KRW").complete(true).build();
+
+        mockMvc.perform(
+                        post("/api/cost/COST_2026_0001/linked-costs")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/cost/COST_2026_0009"))
+                .andExpect(
+                        org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                                .string("COST_2026_0009"));
+        verify(terminalLinkService).createLinkedCost(eq("COST_2026_0001"), any());
+        verifyNoInteractions(costService);
+    }
+
+    @Test
+    @DisplayName("POST /api/cost/{itMngcNo}/linked-costs - 부모가 결재 진행 중이면 400")
+    @WithMockUser(username = "10001")
+    void createLinkedCost_결재진행중_400() throws Exception {
+        given(terminalLinkService.createLinkedCost(eq("COST_2026_0001"), any()))
+                .willThrow(new IllegalStateException("결재중인 전산업무비는 수정할 수 없습니다."));
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder().cttNm("단말").curC("KRW").complete(true).build();
+
+        mockMvc.perform(
+                        post("/api/cost/COST_2026_0001/linked-costs")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
 }

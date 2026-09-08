@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.project.controller;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.ListPageParams;
+import com.kdb.it.domain.budget.project.dto.ProjectConflictResponse;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.service.ProjectQueryAssembler;
 import com.kdb.it.domain.budget.project.service.ProjectService;
@@ -9,6 +10,7 @@ import com.kdb.it.domain.budget.project.service.ProjectVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -235,12 +237,42 @@ public class ProjectController {
      *
      * <p>⚠ 결재중/결재완료 상태인 경우 수정 불가 (400 에러 반환)
      *
+     * <p>사용자 저장 경로는 조회 응답의 {@code concurrencyStamp}를 함께 보내야 하며, 누락되면 400, 다른 사용자가 먼저 저장했으면 현재 상태를
+     * 담은 409로 병합을 유도합니다.
+     *
      * @param prjMngNo 수정할 프로젝트 관리번호
      * @param request 수정 요청 데이터 ({@link ProjectDto.UpdateRequest})
      * @return HTTP 200 + 수정된 프로젝트 관리번호
      */
     @PutMapping("/{prjMngNo}")
     @Operation(summary = "정보화사업 수정", description = "정보화사업을 수정합니다.")
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "수정 성공 (반환값: 프로젝트관리번호)",
+                        content = @Content(schema = @Schema(implementation = String.class))),
+                @ApiResponse(
+                        responseCode = "409",
+                        description = "다른 사용자가 원장을 변경했거나 잠금 대기를 초과함",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        schema =
+                                                @Schema(
+                                                        implementation =
+                                                                ProjectConflictResponse.class))),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "동시성 스탬프 누락 또는 형식 오류, 결재 진행 중",
+                        content =
+                                @Content(
+                                        mediaType = "application/json",
+                                        schema =
+                                                @Schema(
+                                                        implementation =
+                                                                ProjectConflictResponse.class)))
+            })
     public ResponseEntity<String> updateProject(
             @PathVariable("prjMngNo") String prjMngNo,
             @RequestParam(value = "sno", required = false) Integer sno,

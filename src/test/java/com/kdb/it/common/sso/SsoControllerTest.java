@@ -659,6 +659,24 @@ class SsoControllerTest {
     }
 
     @Test
+    @DisplayName("complete: 허용 origin 설정이 null이면 기본 프론트 URL로 이동한다")
+    void complete_nullAllowedOrigins_기본프론트URL로이동() throws Exception {
+        SsoController controller = directEnoController();
+        ReflectionTestUtils.setField(controller, "allowedOrigins", null);
+        stubSsoTokenIssue();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        controller.complete(
+                "K150024",
+                "/info/projects",
+                "http://untrusted.example",
+                new MockHttpServletRequest(),
+                response);
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:3000/info/projects");
+    }
+
+    @Test
     @DisplayName("complete: 안전하지 않은 next 파라미터는 안전한 쿠키 next로 재폴백하지 않는다")
     void complete_안전하지않은파라미터next_안전한쿠키로재폴백안함() throws Exception {
         SsoController controller = directEnoController();

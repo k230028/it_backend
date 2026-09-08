@@ -23,6 +23,7 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
+import com.kdb.it.domain.budget.project.exception.ProjectConflictException;
 import com.kdb.it.domain.budget.project.service.ProjectQueryAssembler;
 import com.kdb.it.domain.budget.project.service.ProjectService;
 import com.kdb.it.domain.budget.project.service.ProjectVersionService;
@@ -383,5 +384,72 @@ class ProjectControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"prjMngNos\":[\" \"]}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /api/projects/{prjMngNo} - 다른 사용자가 먼저 저장했으면 409와 현재 상태를 돌려준다")
+    @WithMockUser(username = "10001")
+    void updateProject_충돌_409와현재상태() throws Exception {
+        ProjectDto.Response current =
+                ProjectDto.Response.builder().abusMngNo("PRJ-2026-0001").abusNm("상대 값").build();
+        given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
+                .willThrow(
+                        new ProjectConflictException(
+                                org.springframework.http.HttpStatus.CONFLICT,
+                                "PROJECT_SOURCE_CHANGED",
+                                "다른 사용자가 이 사업을 수정했습니다.",
+                                "홍길동",
+                                "10002",
+                                java.time.LocalDateTime.of(2026, 9, 8, 14, 25),
+                                "b".repeat(64),
+                                current));
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("내 값")
+                        .abusTc("20")
+                        .complete(true)
+                        .concurrencyStamp("a".repeat(64))
+                        .build();
+
+        mockMvc.perform(
+                        put("/api/projects/PRJ-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PROJECT_SOURCE_CHANGED"))
+                .andExpect(jsonPath("$.changedBy").value("홍길동"))
+                .andExpect(jsonPath("$.changedByEno").value("10002"))
+                .andExpect(jsonPath("$.currentStamp").value("b".repeat(64)))
+                .andExpect(jsonPath("$.current.abusNm").value("상대 값"));
+    }
+
+    @Test
+    @DisplayName("PUT /api/projects/{prjMngNo} - 스탬프가 없으면 400 PROJECT_STAMP_REQUIRED")
+    @WithMockUser(username = "10001")
+    void updateProject_스탬프누락_400() throws Exception {
+        given(projectService.updateProject(any(String.class), any(ProjectDto.UpdateRequest.class)))
+                .willThrow(
+                        new ProjectConflictException(
+                                org.springframework.http.HttpStatus.BAD_REQUEST,
+                                "PROJECT_STAMP_REQUIRED",
+                                "동시성 스탬프가 필요합니다.",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null));
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("내 값")
+                        .abusTc("20")
+                        .complete(true)
+                        .build();
+
+        mockMvc.perform(
+                        put("/api/projects/PRJ-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PROJECT_STAMP_REQUIRED"));
     }
 }

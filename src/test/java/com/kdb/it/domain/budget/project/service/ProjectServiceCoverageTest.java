@@ -187,6 +187,9 @@ class ProjectServiceCoverageTest {
     /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
     @Mock private com.kdb.it.common.iam.service.OrgNameResolver orgNameResolver;
 
+    /** 저장 동시성 가드 (스탬프 검증은 mock으로 통과, 래퍼는 실제 로직 실행) */
+    @Mock private ProjectConcurrencyGuard concurrencyGuard;
+
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
 
@@ -200,6 +203,10 @@ class ProjectServiceCoverageTest {
         given(securityContext.getAuthentication()).willReturn(authentication);
         given(authentication.getPrincipal()).willReturn(adminUser);
         SecurityContextHolder.setContext(securityContext);
+        // 동시성 가드는 mock이므로 스탬프 검증은 통과시키되, 잠금 대기 변환 래퍼는 실제 수정 로직을 그대로 실행한다.
+        org.mockito.Mockito.lenient()
+                .when(concurrencyGuard.runUserUpdate(any()))
+                .thenAnswer(inv -> inv.<java.util.function.Supplier<String>>getArgument(0).get());
 
         // projectRepository.save mock: 인자로 받은 엔티티를 그대로 반환(실제 JPA merge/persist 동작 흉내).
         // createProject가 이제 반환값을 project 변수에 재대입하므로(managed 인스턴스 캡처), 스텁하지
@@ -248,7 +255,8 @@ class ProjectServiceCoverageTest {
                         projectBudgetSummaryService,
                         bprojaRepository,
                         codeNameMapBuilder,
-                        projectRepository);
+                        projectRepository,
+                        org.mockito.Mockito.mock(ProjectConcurrencyStamper.class));
         org.springframework.test.util.ReflectionTestUtils.setField(
                 projectService,
                 "projectQueryService",

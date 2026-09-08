@@ -2,15 +2,19 @@ package com.kdb.it.domain.budget.cost.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
+import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import java.util.Optional;
@@ -18,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -27,7 +32,8 @@ import org.mockito.quality.Strictness;
  * CostTerminalLinkService 단위 테스트
  *
  * <p>연결 단말기 등록 표시가 부모의 {@code TMN_YN}만 바꾸는지, 행을 잠근 뒤 결재 상태를 확인하는지 검증합니다. 전체 치환 수정 경로를 쓰면 부모의 업무 필드가
- * null이 되고 단말기 행이 모두 논리 삭제되므로, 그 경로를 타지 않는다는 사실 자체가 이 테스트의 핵심입니다. DB 없이 실행됩니다.
+ * null이 되고 단말기 행이 모두 논리 삭제되므로, 그 경로를 타지 않는다는 사실 자체가 이 테스트의 핵심입니다. 신규 연결 등록은 부모 잠금·결재 확인 → 단말 생성 →
+ * 부모 표시 순서를 한 트랜잭션에서 지키는지 검증합니다. DB 없이 실행됩니다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -37,6 +43,7 @@ class CostTerminalLinkServiceTest {
 
     @Mock private CostRepository costRepository;
     @Mock private ApplicationMapRepository capplaRepository;
+    @Mock private CostService costService;
 
     private CostTerminalLinkService terminalLinkService;
 
@@ -44,7 +51,7 @@ class CostTerminalLinkServiceTest {
     void setUp() {
         terminalLinkService =
                 new CostTerminalLinkService(
-                        costRepository, new ApprovalWriteGuard(capplaRepository));
+                        costRepository, new ApprovalWriteGuard(capplaRepository), costService);
     }
 
     private Bcostm locked() {
@@ -62,7 +69,8 @@ class CostTerminalLinkServiceTest {
         terminalLinkService.markTerminalLinked(COST_BG_NO);
 
         verify(cost).markTerminalLinked();
-        verify(cost, never()).update(org.mockito.ArgumentMatchers.any());
+        verify(cost, never()).update(any());
+        verifyNoInteractions(costService);
     }
 
     @Test
@@ -72,7 +80,7 @@ class CostTerminalLinkServiceTest {
 
         terminalLinkService.markTerminalLinked(COST_BG_NO);
 
-        var ordered = org.mockito.Mockito.inOrder(costRepository, capplaRepository);
+        InOrder ordered = inOrder(costRepository, capplaRepository);
         ordered.verify(costRepository).findCurrentVersionForUpdate(COST_BG_NO);
         ordered.verify(capplaRepository)
                 .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
@@ -112,5 +120,69 @@ class CostTerminalLinkServiceTest {
         terminalLinkService.markTerminalLinked(COST_BG_NO);
 
         assertThat(cost.getTmnYn()).isEqualTo("Y");
+    }
+
+    @Test
+    @DisplayName("연결 생성은 부모를 잠그고 결재 상태를 확인한 뒤 단말을 만들고 부모를 표시한다")
+    void createLinkedCost_locksParentThenCreatesThenMarks() {
+        Bcostm parent = locked();
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder().cttNm("단말").build();
+        given(costService.createCost(request)).willReturn("COST-CHILD");
+
+        String created = terminalLinkService.createLinkedCost(COST_BG_NO, request);
+
+        assertThat(created).isEqualTo("COST-CHILD");
+        InOrder ordered = inOrder(costRepository, capplaRepository, costService, parent);
+        ordered.verify(costRepository).findCurrentVersionForUpdate(COST_BG_NO);
+        ordered.verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        eq("BCOSTM"), eq(COST_BG_NO), eq(3), anyList());
+        ordered.verify(costService).createCost(request);
+        ordered.verify(parent).markTerminalLinked();
+        verify(parent, never()).update(any());
+    }
+
+    @Test
+    @DisplayName("부모가 결재 진행 중이면 단말을 만들지 않는다 — 반쯤 적용된 상태가 남지 않는다")
+    void createLinkedCost_blockedParentCreatesNothing() {
+        Bcostm parent = locked();
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BCOSTM"), eq(COST_BG_NO), eq(3), anyList()))
+                .willReturn(true);
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder().cttNm("단말").build();
+
+        assertThatThrownBy(() -> terminalLinkService.createLinkedCost(COST_BG_NO, request))
+                .isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(costService);
+        verify(parent, never()).markTerminalLinked();
+    }
+
+    @Test
+    @DisplayName("단말 생성이 실패하면 부모를 표시하지 않는다")
+    void createLinkedCost_failedCreateDoesNotMarkParent() {
+        Bcostm parent = locked();
+        CostDto.CreateRequest request = CostDto.CreateRequest.builder().cttNm("단말").build();
+        given(costService.createCost(request)).willThrow(new IllegalStateException("기간 아님"));
+
+        assertThatThrownBy(() -> terminalLinkService.createLinkedCost(COST_BG_NO, request))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(parent, never()).markTerminalLinked();
+    }
+
+    @Test
+    @DisplayName("부모 전산업무비가 없으면 단말을 만들지 않는다")
+    void createLinkedCost_requiresExistingParent() {
+        given(costRepository.findCurrentVersionForUpdate("COST-NONE")).willReturn(Optional.empty());
+
+        assertThatThrownBy(
+                        () ->
+                                terminalLinkService.createLinkedCost(
+                                        "COST-NONE", new CostDto.CreateRequest()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("COST-NONE");
+        verifyNoInteractions(costService);
     }
 }

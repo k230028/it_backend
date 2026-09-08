@@ -45,12 +45,12 @@ class CostServiceMigrationOverloadTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
+        CostNameSnapshotResolver nameResolver = new CostNameSnapshotResolver(cuserIRepository);
         costService =
                 new CostService(
                         costRepository,
                         new CostWriteTargetLoader(costRepository),
                         btermmRepository,
-                        cuserIRepository,
                         orgNameResolver,
                         codeService,
                         xcrLookupService,
@@ -58,7 +58,14 @@ class CostServiceMigrationOverloadTest {
                         approvalWriteGuard,
                         approvalStamper,
                         new CostConcurrencyGuard(
-                                concurrencyStamper, btermmRepository, queryService));
+                                concurrencyStamper, btermmRepository, queryService),
+                        new CostTerminalSynchronizer(
+                                btermmRepository,
+                                cuserIRepository,
+                                orgNameResolver,
+                                xcrLookupService,
+                                nameResolver),
+                        nameResolver);
     }
 
     /**

@@ -304,6 +304,9 @@ class ProjectServiceTest {
     /** 작성완료 신청서 스탬프 (저장 시 결재선 없는 신청서 0 생성) */
     @Mock private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
 
+    /** 저장 동시성 가드 (스탬프 검증은 mock으로 통과, 래퍼는 실제 로직 실행) */
+    @Mock private ProjectConcurrencyGuard concurrencyGuard;
+
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;
 
@@ -336,6 +339,10 @@ class ProjectServiceTest {
         given(authentication.getPrincipal()).willReturn(adminUser);
         given(authentication.getName()).willReturn("10001");
         SecurityContextHolder.setContext(securityContext);
+        // 동시성 가드는 mock이므로 스탬프 검증은 통과시키되, 잠금 대기 변환 래퍼는 실제 수정 로직을 그대로 실행한다.
+        org.mockito.Mockito.lenient()
+                .when(concurrencyGuard.runUserUpdate(any()))
+                .thenAnswer(inv -> inv.<java.util.function.Supplier<String>>getArgument(0).get());
         // projectRepository.save mock: 인자로 받은 엔티티를 그대로 반환(실제 JPA merge/persist 동작 흉내).
         // createProject가 이제 반환값을 project 변수에 재대입하므로(managed 인스턴스 캡처), 스텁하지
         // 않으면 Mockito 기본값(null)이 대입되어 이후 모든 사용처에서 NPE가 난다.
@@ -381,7 +388,8 @@ class ProjectServiceTest {
                         projectBudgetSummaryService,
                         bprojaRepository,
                         codeNameMapBuilder,
-                        projectRepository);
+                        projectRepository,
+                        org.mockito.Mockito.mock(ProjectConcurrencyStamper.class));
         org.springframework.test.util.ReflectionTestUtils.setField(
                 projectService,
                 "projectQueryService",
@@ -3991,5 +3999,103 @@ class ProjectServiceTest {
                         bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(
                                 anyString(), any(), anyString()))
                 .willReturn(List.of(items));
+    }
+
+    // ───────────────────────────────────────────────────────
+    // updateProject — 동시성 스탬프 검증 위치 (BE-102)
+    // ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateProject: 행 잠금·결재 확인 뒤, 원장을 수정하기 전에 스탬프를 검증한다")
+    void updateProject_verifiesStampAfterLockBeforeMutation() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
+        given(project.getAbusMngNo()).willReturn(prjMngNo);
+        given(project.getSno()).willReturn(1);
+        given(project.getLstYn()).willReturn("Y");
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn(prjMngNo, 1, "N"))
+                .willReturn(List.of());
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("수정")
+                        .concurrencyStamp("a".repeat(64))
+                        .build();
+
+        projectService.updateProject(prjMngNo, request);
+
+        org.mockito.InOrder ordered =
+                org.mockito.Mockito.inOrder(
+                        projectRepository, capplaRepository, concurrencyGuard, project);
+        ordered.verify(projectRepository).findCurrentVersionForUpdate(prjMngNo);
+        ordered.verify(capplaRepository)
+                .existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                        eq("BPROJM"), eq(prjMngNo), eq(1), anyList());
+        ordered.verify(concurrencyGuard).verifyStamp(eq(request), eq(project), any());
+        ordered.verify(project).update(any(Bprojm.UpdateCommand.class));
+    }
+
+    @Test
+    @DisplayName("updateProject: 스탬프 검증이 실패하면 원장과 품목을 건드리지 않는다")
+    void updateProject_conflictAbortsBeforeMutation() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project = org.mockito.Mockito.mock(Bprojm.class);
+        given(project.getAbusMngNo()).willReturn(prjMngNo);
+        given(project.getSno()).willReturn(1);
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
+        org.mockito.Mockito.doThrow(
+                        new com.kdb.it.domain.budget.project.exception.ProjectConflictException(
+                                org.springframework.http.HttpStatus.CONFLICT,
+                                "PROJECT_SOURCE_CHANGED",
+                                "충돌",
+                                null,
+                                null,
+                                null,
+                                "b".repeat(64),
+                                null))
+                .when(concurrencyGuard)
+                .verifyStamp(any(), eq(project), any());
+        ProjectDto.UpdateRequest request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("수정")
+                        .concurrencyStamp("a".repeat(64))
+                        .items(List.of())
+                        .build();
+
+        assertThatThrownBy(() -> projectService.updateProject(prjMngNo, request))
+                .isInstanceOf(
+                        com.kdb.it.domain.budget.project.exception.ProjectConflictException.class);
+
+        verify(project, never()).update(any(Bprojm.UpdateCommand.class));
+        verify(bitemmRepository, never()).save(any());
+        verify(bitemmRepository, never())
+                .findByAbusMngNoAndFntTbCrySnoAndDelYn(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("updateProject: 반입 경로(assignImportedPersonNames 등)는 스탬프를 검증하지 않는다")
+    void importPathsSkipStamp() {
+        String prjMngNo = "PRJ-2026-0001";
+        Bprojm project = Bprojm.builder().abusMngNo(prjMngNo).sno(1).abusTc("10").build();
+        given(projectRepository.findCurrentVersionForUpdate(prjMngNo))
+                .willReturn(Optional.of(project));
+        given(
+                        capplaRepository.existsByFntTbNmAndPkColNmAndFntTbCrySnoAndApfStsIn(
+                                eq("BPROJM"), eq(prjMngNo), eq(1), anyList()))
+                .willReturn(false);
+
+        projectService.assignImportedPersonNames(prjMngNo, "팀장", "담당자");
+
+        verify(concurrencyGuard, never()).verifyStamp(any(), any(), any());
     }
 }

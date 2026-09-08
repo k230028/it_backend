@@ -73,12 +73,12 @@ class CostServiceXcrLookupTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUpAuthorOrgDefault() {
+        CostNameSnapshotResolver nameResolver = new CostNameSnapshotResolver(cuserIRepository);
         costService =
                 new CostService(
                         costRepository,
                         new CostWriteTargetLoader(costRepository),
                         btermmRepository,
-                        cuserIRepository,
                         orgNameResolver,
                         codeService,
                         xcrLookupService,
@@ -86,7 +86,14 @@ class CostServiceXcrLookupTest {
                         approvalWriteGuard,
                         approvalStamper,
                         new CostConcurrencyGuard(
-                                concurrencyStamper, btermmRepository, queryService));
+                                concurrencyStamper, btermmRepository, queryService),
+                        new CostTerminalSynchronizer(
+                                btermmRepository,
+                                cuserIRepository,
+                                orgNameResolver,
+                                xcrLookupService,
+                                nameResolver),
+                        nameResolver);
         org.mockito.Mockito.lenient()
                 .when(authorOrgResolver.resolveCurrent())
                 .thenReturn(com.kdb.it.common.iam.service.AuthorOrg.empty());

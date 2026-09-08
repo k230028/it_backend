@@ -41,7 +41,9 @@ import org.springframework.test.web.servlet.MockMvc;
     TestSecurityConfig.class,
     JacksonConfig.class,
     CostService.class,
-    CostWriteTargetLoader.class
+    CostWriteTargetLoader.class,
+    com.kdb.it.domain.budget.cost.service.CostNameSnapshotResolver.class,
+    com.kdb.it.domain.budget.cost.service.CostTerminalSynchronizer.class
 })
 class CostDetailAccessControllerTest {
 
