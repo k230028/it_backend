@@ -54,7 +54,8 @@ class ProjectQueryServiceTest {
                         new ProjectBudgetSummaryService(codeService, new ProjectAmountCalculator()),
                         mock(BprojaRepository.class),
                         new CodeNameMapBuilder(codeRepository),
-                        projectRepository);
+                        projectRepository,
+                        org.mockito.Mockito.mock(ProjectConcurrencyStamper.class));
         queryService = new ProjectQueryService(projectRepository, assembler);
     }
 

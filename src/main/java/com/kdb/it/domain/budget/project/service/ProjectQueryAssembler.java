@@ -44,6 +44,7 @@ public class ProjectQueryAssembler {
     private final ProjectBudgetSummaryService budgetSummaryService;
     private final BprojaRepository bprojaRepository;
     private final ProjectBatchAssembler batchAssembler;
+    private final ProjectConcurrencyStamper concurrencyStamper;
 
     public ProjectQueryAssembler(
             ApplicationMapRepository applicationMapRepository,
@@ -58,7 +59,8 @@ public class ProjectQueryAssembler {
             ProjectBudgetSummaryService budgetSummaryService,
             BprojaRepository bprojaRepository,
             CodeNameMapBuilder codeNameMapBuilder,
-            ProjectRepository projectRepository) {
+            ProjectRepository projectRepository,
+            ProjectConcurrencyStamper concurrencyStamper) {
         this.applicationMapRepository = applicationMapRepository;
         this.applicationRepository = applicationRepository;
         this.itemRepository = itemRepository;
@@ -82,6 +84,7 @@ public class ProjectQueryAssembler {
                         bprojaRepository,
                         codeNameMapBuilder,
                         projectRepository);
+        this.concurrencyStamper = concurrencyStamper;
     }
 
     /**
@@ -124,6 +127,8 @@ public class ProjectQueryAssembler {
         budgetSummaryService.applyBudgetSummary(response, items);
         budgetSummaryService.applyStoredAmountSnapshot(
                 response, project.getTotRqmAmt(), project.getMplAmt(), project.getDfrAmt());
+        // 저장 검증과 같은 함수를 같은 품목 집합으로 호출해야 사용자가 바꾸지 않은 문서에서 충돌이 나지 않는다.
+        response.setConcurrencyStamp(concurrencyStamper.stamp(project, items));
         return response;
     }
 

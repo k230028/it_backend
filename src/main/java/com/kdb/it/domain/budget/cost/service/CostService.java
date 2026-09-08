@@ -1,14 +1,13 @@
 package com.kdb.it.domain.budget.cost.service;
 
+import static com.kdb.it.domain.budget.cost.service.CostNameSnapshotResolver.snapshotOrResolved;
+
 import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.service.ApprovalStamper;
-import com.kdb.it.common.iam.entity.CuserI;
-import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.OrgNameResolver;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.OwnershipVerifier;
 import com.kdb.it.common.util.DateFormatUtil;
-import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.common.security.ApprovalWriteGuard;
 import com.kdb.it.domain.budget.common.security.BudgetDetailAccessVerifier;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
@@ -23,16 +22,18 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-/** 전산업무비 변경 로직과 기존 공개 조회 진입점을 제공하는 호환 파사드입니다. */
+/**
+ * 전산업무비 변경 로직과 기존 공개 조회 진입점을 제공하는 호환 파사드입니다.
+ *
+ * <p>원장(BCOSTM)의 검증·권한·스냅샷·결재 스탬프를 맡고, 금융정보단말기(BTERMM)의 생성·동기화는 {@link CostTerminalSynchronizer},
+ * 담당자·조직 스냅샷 해석은 {@link CostNameSnapshotResolver}, 저장 동시성 방어는 {@link CostConcurrencyGuard}에 위임합니다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -43,7 +44,6 @@ public class CostService {
     private final CostRepository costRepository;
     private final CostWriteTargetLoader writeTargetLoader;
     private final BtermmRepository btermmRepository;
-    private final UserRepository cuserIRepository;
     private final OrgNameResolver orgNameResolver;
     private final com.kdb.it.common.code.service.CodeService codeService;
     private final XcrLookupService xcrLookupService;
@@ -54,6 +54,12 @@ public class CostService {
 
     /** 저장 경로의 스탬프 대조와 잠금 대기 초과 변환을 담당합니다. */
     private final CostConcurrencyGuard concurrencyGuard;
+
+    /** 금융정보단말기 행의 생성·동기화를 담당합니다. */
+    private final CostTerminalSynchronizer terminalSynchronizer;
+
+    /** 담당자 이름과 소속 조직 스냅샷을 해석합니다. */
+    private final CostNameSnapshotResolver nameResolver;
 
     private static final int SERVICE_NAME_LOOKBACK_YEARS = 3;
 
@@ -304,15 +310,7 @@ public class CostService {
             nextSno = 1;
         }
         if (!preserveSubmittedAmounts) {
-            request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
-            BigDecimal[] reconciled =
-                    BudgetAmountCalculator.reconcileAmount(
-                            request.getFcAmt(),
-                            request.getCostTotXpAmt(),
-                            request.getCurC(),
-                            request.getXcr());
-            request.setCostTotXpAmt(reconciled[0]);
-            request.setFcAmt(reconciled[1]);
+            reconcileParentAmount(request);
         }
 
         if (preserveSubmittedAmounts) {
@@ -320,51 +318,47 @@ public class CostService {
             request.setCgprId(null);
         }
         Bcostm cost = request.toEntity(nextSno);
-        CostOrgSnapshot orgSnapshot = resolveAuthorOrgNames(cost.getCgprId());
-        cost.assignPrlmHrkOgzCCone(orgSnapshot.prlmHrkOgzCNm());
-        cost.assignSvnOrgNames(
-                snapshotOrResolved(
-                        request.getCostSvnDpmNm(),
-                        orgNameResolver.resolveName(cost.getCostSvnDpmC())),
-                snapshotOrResolved(request.getSvnTemNm(), orgSnapshot.svnTemNm()));
-        cost.assignCgprName(resolveCgprName(cost.getCgprId()));
+        assignParentSnapshots(cost, request.getCostSvnDpmNm(), request.getSvnTemNm());
         cost.assignCgprName(request.getCgprNm());
         costRepository.save(cost);
 
-        applyTerminalOrgCodes(request.getTerminals());
-        if (request.getTerminals() != null) {
-            for (CostDto.TerminalDto terminal : request.getTerminals()) {
-                if (preserveSubmittedAmounts
-                        && (terminal.getCgprId() == null || terminal.getCgprId().isBlank())) {
-                    terminal.setCgprId(cost.getCgprId());
-                }
-                if (preserveSubmittedAmounts) {
-                    terminal.setCgprId(null);
-                }
-                if (terminal.getTmnMngNo() == null || terminal.getTmnMngNo().isEmpty()) {
-                    terminal.setTmnMngNo(
-                            preserveSubmittedAmounts
-                                    ? generateTmnMngNo(idYear)
-                                    : generateTmnMngNo());
-                }
-                if (terminal.getSno() == null) {
-                    terminal.setSno(1);
-                }
-                if (!preserveSubmittedAmounts) {
-                    reconcileTerminalAmount(terminal);
-                }
-                Btermm entity = terminal.toEntity();
-                entity.setBcostmInfo(cost.getCostBgNo(), cost.getBgSno());
-                entity.assignCgprName(resolveCgprName(entity.getCgprId()));
-                entity.assignCgprName(terminal.getCgprNm());
-                assignTerminalOrgNames(entity, terminal);
-                btermmRepository.save(entity);
-            }
-        }
+        terminalSynchronizer.createAll(
+                cost, request.getTerminals(), preserveSubmittedAmounts, idYear);
         if (!preserveSubmittedAmounts) {
             stampDraftedIfCompleted(request.getComplete(), cost);
         }
         return cost.getCostBgNo();
+    }
+
+    /** 서버 환율로 원화·외화 금액을 다시 맞춥니다. 사용자 화면 경로에서만 호출합니다. */
+    private void reconcileParentAmount(CostDto.CreateRequest request) {
+        request.setXcr(xcrLookupService.resolveXcr(request.getCurC(), LocalDate.now()));
+        BigDecimal[] reconciled =
+                BudgetAmountCalculator.reconcileAmount(
+                        request.getFcAmt(),
+                        request.getCostTotXpAmt(),
+                        request.getCurC(),
+                        request.getXcr());
+        request.setCostTotXpAmt(reconciled[0]);
+        request.setFcAmt(reconciled[1]);
+    }
+
+    /**
+     * 원장의 담당자·조직 스냅샷 컬럼을 채웁니다.
+     *
+     * @param cost 대상 원장 (담당자 사번과 담당부서 코드가 이미 반영된 상태)
+     * @param requestedDpmNm 요청이 보낸 담당부서명 스냅샷 (공백이면 조직 조회 결과 사용)
+     * @param requestedTemNm 요청이 보낸 담당팀명 스냅샷 (공백이면 담당자 소속 팀명 사용)
+     */
+    private void assignParentSnapshots(Bcostm cost, String requestedDpmNm, String requestedTemNm) {
+        CostNameSnapshotResolver.AuthorOrg orgSnapshot =
+                nameResolver.resolveAuthorOrgNames(cost.getCgprId());
+        cost.assignPrlmHrkOgzCCone(orgSnapshot.prlmHrkOgzCNm());
+        cost.assignCgprName(nameResolver.resolveCgprName(cost.getCgprId()));
+        cost.assignSvnOrgNames(
+                snapshotOrResolved(
+                        requestedDpmNm, orgNameResolver.resolveName(cost.getCostSvnDpmC())),
+                snapshotOrResolved(requestedTemNm, orgSnapshot.svnTemNm()));
     }
 
     private void stampDraftedIfCompleted(Boolean complete, Bcostm cost) {
@@ -464,7 +458,7 @@ public class CostService {
 
         // 원장을 만지기 전에 검사해야 한다. 아래 블록부터 target과 request가 수정되므로 이 지점이 유일하게 안전하다.
         if (!preserveSubmittedAmounts) {
-            concurrencyGuard.verifyStamp(request, target, this::resolveCgprName);
+            concurrencyGuard.verifyStamp(request, target, nameResolver::resolveCgprName);
         }
 
         if (!preserveSubmittedAmounts) {
@@ -486,124 +480,14 @@ public class CostService {
             request.setCttOppNm(target.getCttOppNm());
         }
         target.update(toUpdateCommand(request));
-
-        CostOrgSnapshot orgSnapshot = resolveAuthorOrgNames(target.getCgprId());
-        target.assignPrlmHrkOgzCCone(orgSnapshot.prlmHrkOgzCNm());
-        target.assignCgprName(resolveCgprName(target.getCgprId()));
+        assignParentSnapshots(target, request.getCostSvnDpmNm(), request.getSvnTemNm());
         target.assignCgprName(request.getCgprNm());
-        target.assignSvnOrgNames(
-                snapshotOrResolved(
-                        request.getCostSvnDpmNm(),
-                        orgNameResolver.resolveName(target.getCostSvnDpmC())),
-                snapshotOrResolved(request.getSvnTemNm(), orgSnapshot.svnTemNm()));
 
-        List<Btermm> existingTerminals =
-                btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(
-                        target.getCostBgNo(), target.getBgSno(), "N");
-        Map<String, Btermm> existingByPk =
-                existingTerminals.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        terminal ->
-                                                terminalPk(
-                                                        terminal.getTmnMngNo(), terminal.getSno()),
-                                        terminal -> terminal,
-                                        (first, second) -> first));
-        List<CostDto.TerminalDto> requestedTerminals =
-                request.getTerminals() != null ? request.getTerminals() : List.of();
-        applyTerminalOrgCodes(requestedTerminals);
-        Set<String> keptPks = new java.util.HashSet<>();
-        for (CostDto.TerminalDto terminal : requestedTerminals) {
-            if (!preserveSubmittedAmounts) {
-                reconcileTerminalAmount(terminal);
-            }
-            Btermm existing =
-                    terminal.getTmnMngNo() != null && terminal.getSno() != null
-                            ? existingByPk.get(
-                                    terminalPk(terminal.getTmnMngNo(), terminal.getSno()))
-                            : null;
-            if (existing == null && preserveSubmittedAmounts) {
-                existing =
-                        existingTerminals.stream()
-                                .filter(
-                                        candidate ->
-                                                !keptPks.contains(
-                                                        terminalPk(
-                                                                candidate.getTmnMngNo(),
-                                                                candidate.getSno())))
-                                .filter(candidate -> matchesMigrationTerminal(candidate, terminal))
-                                .findFirst()
-                                .orElse(null);
-            }
-            if (existing != null) {
-                updateTerminal(existing, terminal, preserveSubmittedAmounts);
-                existing.assignCgprName(resolveCgprName(existing.getCgprId()));
-                existing.assignCgprName(terminal.getCgprNm());
-                keptPks.add(terminalPk(existing.getTmnMngNo(), existing.getSno()));
-            } else {
-                if (terminal.getTmnMngNo() == null || terminal.getTmnMngNo().isEmpty()) {
-                    terminal.setTmnMngNo(
-                            preserveSubmittedAmounts
-                                    ? generateTmnMngNo(Integer.parseInt(request.getBseYy()))
-                                    : generateTmnMngNo());
-                }
-                if (terminal.getSno() == null) {
-                    terminal.setSno(1);
-                }
-                Btermm entity = terminal.toEntity();
-                entity.setBcostmInfo(target.getCostBgNo(), target.getBgSno());
-                entity.assignCgprName(resolveCgprName(entity.getCgprId()));
-                entity.assignCgprName(terminal.getCgprNm());
-                assignTerminalOrgNames(entity, terminal);
-                btermmRepository.save(entity);
-                keptPks.add(terminalPk(terminal.getTmnMngNo(), terminal.getSno()));
-            }
-        }
-        if (!preserveSubmittedAmounts) {
-            existingTerminals.stream()
-                    .filter(
-                            terminal ->
-                                    !keptPks.contains(
-                                            terminalPk(terminal.getTmnMngNo(), terminal.getSno())))
-                    .forEach(Btermm::delete);
-        }
+        terminalSynchronizer.sync(target, request, preserveSubmittedAmounts);
         if (!preserveSubmittedAmounts) {
             stampDraftedIfCompleted(request.getComplete(), target);
         }
         return target.getCostBgNo();
-    }
-
-    private static boolean matchesMigrationTerminal(
-            Btermm existing, CostDto.TerminalDto requested) {
-        return java.util.Objects.equals(existing.getSpfTmnNm(), requested.getSpfTmnNm())
-                && java.util.Objects.equals(existing.getTmnKdTc(), requested.getTmnKdTc())
-                && java.util.Objects.equals(existing.getTmnClsfC(), requested.getTmnClsfC())
-                && matchesNullableIdentity(
-                        requested.getCgprId(),
-                        existing.getCgprId(),
-                        requested.getCgprNm(),
-                        existing.getCgprNm())
-                && matchesNullableIdentity(
-                        requested.getTermSvnDpmC(),
-                        existing.getTermSvnDpmC(),
-                        requested.getTermSvnDpmNm(),
-                        existing.getSvnDpmNm())
-                && matchesNullableIdentity(
-                        requested.getTermSvnTemC(),
-                        existing.getTermSvnTemC(),
-                        requested.getTermSvnTemNm(),
-                        existing.getSvnTemNm());
-    }
-
-    private static boolean matchesNullableIdentity(
-            String requestedCode, String existingCode, String requestedName, String existingName) {
-        if (StringUtils.hasText(requestedCode)) {
-            return java.util.Objects.equals(requestedCode, existingCode);
-        }
-        if (StringUtils.hasText(requestedName) && StringUtils.hasText(existingName)) {
-            return requestedName.trim().equals(existingName.trim());
-        }
-        return true;
     }
 
     /** 지정한 전산업무비 개정본과 그 순번에 연결된 단말기만 논리 삭제합니다. */
@@ -652,138 +536,5 @@ public class CostService {
                 .cncdRfrNo(request.getCncdRfrNo())
                 .fcAmt(request.getFcAmt())
                 .build();
-    }
-
-    private void reconcileTerminalAmount(CostDto.TerminalDto terminal) {
-        terminal.setXcr(xcrLookupService.resolveXcr(terminal.getCurC(), LocalDate.now()));
-        BigDecimal[] reconciled =
-                BudgetAmountCalculator.reconcileAmount(
-                        terminal.getFcAmt(),
-                        terminal.getTermRqmBgAmt(),
-                        terminal.getCurC(),
-                        terminal.getXcr());
-        terminal.setTermRqmBgAmt(reconciled[0]);
-        terminal.setFcAmt(reconciled[1]);
-    }
-
-    private void updateTerminal(
-            Btermm existing, CostDto.TerminalDto terminal, boolean preserveSubmittedAmounts) {
-        if (preserveSubmittedAmounts) {
-            if (!StringUtils.hasText(terminal.getCgprId())) {
-                terminal.setCgprId(existing.getCgprId());
-            }
-            if (!StringUtils.hasText(terminal.getTermSvnDpmC())) {
-                terminal.setTermSvnDpmC(existing.getTermSvnDpmC());
-            }
-            if (!StringUtils.hasText(terminal.getTermSvnTemC())) {
-                terminal.setTermSvnTemC(existing.getTermSvnTemC());
-            }
-        }
-        existing.update(toTerminalUpdateCommand(terminal));
-        assignTerminalOrgNames(existing, terminal);
-    }
-
-    private void assignTerminalOrgNames(Btermm entity, CostDto.TerminalDto terminal) {
-        entity.assignSvnOrgNames(
-                snapshotOrResolved(
-                        terminal.getTermSvnDpmNm(),
-                        orgNameResolver.resolveName(entity.getTermSvnDpmC())),
-                snapshotOrResolved(
-                        terminal.getTermSvnTemNm(),
-                        orgNameResolver.resolveName(entity.getTermSvnTemC())));
-    }
-
-    private static String snapshotOrResolved(String snapshot, String resolved) {
-        return StringUtils.hasText(snapshot) ? snapshot.trim() : resolved;
-    }
-
-    private static Btermm.UpdateCommand toTerminalUpdateCommand(CostDto.TerminalDto terminal) {
-        return Btermm.UpdateCommand.builder()
-                .spfTmnNm(terminal.getSpfTmnNm())
-                .tmnKdTc(terminal.getTmnKdTc())
-                .nsfUsgCone(terminal.getNsfUsgCone())
-                .tmnClsfC(terminal.getTmnClsfC())
-                .termRqmBgAmt(terminal.getTermRqmBgAmt())
-                .curC(terminal.getCurC())
-                .xcr(terminal.getXcr())
-                .xcrBseDt(DateFormatUtil.toYmd8(terminal.getXcrBseDt()))
-                .dfrCleC(terminal.getDfrCleC())
-                .indRsn(terminal.getIndRsn())
-                .cgprId(terminal.getCgprId())
-                .termSvnTemC(terminal.getTermSvnTemC())
-                .svnTemNm(terminal.getTermSvnTemNm())
-                .termSvnDpmC(terminal.getTermSvnDpmC())
-                .svnDpmNm(terminal.getTermSvnDpmNm())
-                .rmk(terminal.getRmk())
-                .fcAmt(terminal.getFcAmt())
-                .build();
-    }
-
-    /**
-     * 담당자 표시명을 해석한다. 해석 실패 시 null이며, 그 경우 스냅샷은 기존 값을 유지한다(BE-63).
-     *
-     * @param cgprId 담당자 컬럼 저장값 — 사번 또는 이름
-     * @return 표시명. 해석 실패 시 null
-     */
-    private String resolveCgprName(String cgprId) {
-        if (cgprId == null || cgprId.isBlank()) {
-            return null;
-        }
-        String lookedUp =
-                cuserIRepository.findByEno(cgprId).map(user -> user.getUsrNm()).orElse(null);
-        return UserNameResolver.resolve(cgprId, lookedUp);
-    }
-
-    private CostOrgSnapshot resolveAuthorOrgNames(String cgprId) {
-        if (cgprId == null || cgprId.isBlank()) {
-            return CostOrgSnapshot.EMPTY;
-        }
-        return cuserIRepository
-                .findByEno(cgprId)
-                .map(user -> new CostOrgSnapshot(user.getTemNm(), user.getPrlmHrkOgzCNm()))
-                .orElse(CostOrgSnapshot.EMPTY);
-    }
-
-    private void applyTerminalOrgCodes(List<CostDto.TerminalDto> terminals) {
-        if (terminals == null || terminals.isEmpty()) {
-            return;
-        }
-        Set<String> userIds =
-                terminals.stream()
-                        .map(CostDto.TerminalDto::getCgprId)
-                        .filter(userId -> userId != null && !userId.isBlank())
-                        .collect(Collectors.toSet());
-        if (userIds.isEmpty()) {
-            return;
-        }
-        Map<String, CuserI> usersById =
-                cuserIRepository.findByEnoIn(userIds).stream()
-                        .collect(
-                                Collectors.toMap(
-                                        CuserI::getEno, user -> user, (first, second) -> first));
-        for (CostDto.TerminalDto terminal : terminals) {
-            CuserI user = usersById.get(terminal.getCgprId());
-            if (user != null) {
-                terminal.setTermSvnTemC(user.getTemC());
-                terminal.setTermSvnDpmC(user.getBbrC());
-            }
-        }
-    }
-
-    private String generateTmnMngNo() {
-        return generateTmnMngNo(LocalDate.now().getYear());
-    }
-
-    private String generateTmnMngNo(int idYear) {
-        Long sequence = btermmRepository.getNextSequenceValue();
-        return String.format("TER-%s-%04d", idYear, sequence);
-    }
-
-    private static String terminalPk(String terminalNo, Integer sno) {
-        return terminalNo + "_" + sno;
-    }
-
-    private record CostOrgSnapshot(String svnTemNm, String prlmHrkOgzCNm) {
-        private static final CostOrgSnapshot EMPTY = new CostOrgSnapshot(null, null);
     }
 }

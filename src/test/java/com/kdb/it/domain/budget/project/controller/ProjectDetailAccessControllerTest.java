@@ -63,6 +63,10 @@ class ProjectDetailAccessControllerTest {
     @MockitoBean private ProjectQueryAssembler projectQueryAssembler;
     @MockitoBean private ProjectVersionService projectVersionService;
 
+    /** ProjectService의 저장 동시성 방어 의존성 (이 슬라이스는 조회만 다룬다) */
+    @MockitoBean
+    private com.kdb.it.domain.budget.project.service.ProjectConcurrencyGuard concurrencyGuard;
+
     /** 작성완료 신청서 스탬프 (Task 6) — 이 테스트는 조회 경로만 검증하므로 스텁 없이 존재만 필요 */
     @MockitoBean private com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
 

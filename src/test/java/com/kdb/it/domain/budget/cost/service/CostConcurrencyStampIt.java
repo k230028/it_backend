@@ -48,6 +48,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
     CostTerminalAssembler.class,
     CostConcurrencyStamper.class,
     CostConcurrencyGuard.class,
+    CostTerminalSynchronizer.class,
+    CostNameSnapshotResolver.class,
     ItBudgetCanonicalJson.class,
     CodeNameMapBuilder.class,
     ApprovalWriteGuard.class

@@ -186,6 +186,9 @@ public class CostController {
      * <p>부모 전산업무비의 {@code TMN_YN}만 'Y'로 바꿉니다. 이 표시 하나를 위해 수정 API를 쓰면 전체 치환 의미론 때문에 요청에 담기지 않은 부모 업무
      * 필드가 null이 되고 부모의 단말 행이 모두 논리 삭제되므로, 좁은 전용 경로를 둡니다.
      *
+     * <p>화면은 더 이상 이 경로를 쓰지 않고 {@link #createLinkedCost}로 생성과 표시를 한 번에 요청합니다. 구버전 프론트 번들이 만료될 때까지
+     * 호환용으로만 남겨 두며, 이후 제거 대상입니다.
+     *
      * @param itMngcNo 부모 전산업무비 관리번호
      * @return HTTP 204 (본문 없음)
      */
@@ -209,6 +212,45 @@ public class CostController {
                     String itMngcNo) {
         terminalLinkService.markTerminalLinked(itMngcNo);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 연결 단말 전산업무비 생성
+     *
+     * <p>부모 전산업무비에 연결되는 단말 전산업무비를 생성하고 부모의 단말기 보유 여부({@code TMN_YN})를 한 트랜잭션에서 함께 표시합니다. 생성과 표시를 따로
+     * 호출하면 두 번째 호출이 결재 상태로 실패했을 때 단말 생성만 적용된 상태가 남으므로 단일 경로로 제공합니다.
+     *
+     * @param itMngcNo 부모 전산업무비 관리번호
+     * @param request 단말 전산업무비 생성 요청 ({@link CostDto.CreateRequest})
+     * @return HTTP 201 Created + Location 헤더 + 생성된 단말 전산업무비 관리번호
+     */
+    @Operation(
+            summary = "연결 단말 전산업무비 생성",
+            description = "부모 전산업무비에 연결되는 단말 전산업무비를 생성하고 부모의 단말기 보유 여부(TMN_YN)를 같은 트랜잭션에서 표시합니다.")
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "201",
+                        description = "생성 성공 (반환값: 생성된 관리번호)",
+                        content = @Content(schema = @Schema(implementation = String.class))),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "부모가 결재 진행 중이거나 예산 신청 기간이 아님",
+                        content = @Content),
+                @ApiResponse(
+                        responseCode = "404",
+                        description = "존재하지 않는 부모 전산업무비",
+                        content = @Content)
+            })
+    @PostMapping("/{itMngcNo}/linked-costs")
+    public ResponseEntity<String> createLinkedCost(
+            @Parameter(description = "부모 전산업무비 관리번호", required = true, example = "COST_2026_0001")
+                    @PathVariable("itMngcNo")
+                    String itMngcNo,
+            @Valid @RequestBody CostDto.CreateRequest request) {
+        String createdCostBgNo = terminalLinkService.createLinkedCost(itMngcNo, request);
+        return ResponseEntity.created(URI.create("/api/cost/" + createdCostBgNo))
+                .body(createdCostBgNo);
     }
 
     /**

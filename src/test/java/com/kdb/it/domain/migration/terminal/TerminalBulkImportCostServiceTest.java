@@ -66,13 +66,14 @@ class TerminalBulkImportCostServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
+        var nameResolver =
+                new com.kdb.it.domain.budget.cost.service.CostNameSnapshotResolver(userRepository);
         costService =
                 new CostService(
                         costRepository,
                         new com.kdb.it.domain.budget.cost.service.CostWriteTargetLoader(
                                 costRepository),
                         btermmRepository,
-                        userRepository,
                         orgNameResolver,
                         codeService,
                         xcrLookupService,
@@ -80,7 +81,14 @@ class TerminalBulkImportCostServiceTest {
                         approvalWriteGuard,
                         approvalStamper,
                         new com.kdb.it.domain.budget.cost.service.CostConcurrencyGuard(
-                                concurrencyStamper, btermmRepository, costQueryService));
+                                concurrencyStamper, btermmRepository, costQueryService),
+                        new com.kdb.it.domain.budget.cost.service.CostTerminalSynchronizer(
+                                btermmRepository,
+                                userRepository,
+                                orgNameResolver,
+                                xcrLookupService,
+                                nameResolver),
+                        nameResolver);
     }
 
     @Test

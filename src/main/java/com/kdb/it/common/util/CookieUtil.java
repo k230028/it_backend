@@ -3,12 +3,15 @@ package com.kdb.it.common.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.system.dto.AuthDto;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
@@ -73,6 +76,31 @@ public class CookieUtil {
     /** 쿠키 Secure 플래그 개발 환경: false (HTTP 허용), 운영 환경: true (HTTPS만 허용) */
     @Value("${app.cookie.secure:false}")
     private boolean secureCookie;
+
+    /**
+     * Spring 응답 쿠키를 Servlet 쿠키 API로 안전하게 출력합니다.
+     *
+     * <p>쿠키 문자열을 {@code Set-Cookie} 헤더에 직접 전달하지 않고 컨테이너의 RFC 6265 검증과 직렬화를 사용합니다.
+     *
+     * @param response 쿠키를 추가할 응답
+     * @param source 출력할 Spring 응답 쿠키
+     * @throws NullPointerException 응답 또는 쿠키가 null인 경우
+     */
+    public static void addResponseCookie(HttpServletResponse response, ResponseCookie source) {
+        Objects.requireNonNull(response, "응답");
+        Objects.requireNonNull(source, "응답 쿠키");
+
+        Cookie cookie = new Cookie(source.getName(), source.getValue());
+        cookie.setHttpOnly(source.isHttpOnly());
+        cookie.setSecure(source.isSecure());
+        cookie.setPath(source.getPath());
+        cookie.setDomain(source.getDomain());
+        cookie.setMaxAge(Math.toIntExact(source.getMaxAge().getSeconds()));
+        if (source.getSameSite() != null) {
+            cookie.setAttribute("SameSite", source.getSameSite());
+        }
+        response.addCookie(cookie);
+    }
 
     /**
      * Access Token httpOnly 쿠키 생성

@@ -74,6 +74,7 @@ class ProjectServiceCacheEvictTest {
     @MockitoBean private BprojaSyncService bprojaSyncService;
     @MockitoBean private CodeNameMapBuilder codeNameMapBuilder;
     @MockitoBean private ProjectQueryService projectQueryService;
+    @MockitoBean private ProjectConcurrencyGuard concurrencyGuard;
     @MockitoBean private com.kdb.it.common.iam.service.AuthorOrgResolver authorOrgResolver;
 
     /** 조직코드→조직명 해석기 (mock 기본값 null 반환 = 미등록 코드 폴백 경로) */
@@ -102,6 +103,9 @@ class ProjectServiceCacheEvictTest {
                 .when(projectBudgetSummaryService)
                 .calculateAmountSnapshot(anyList(), any());
 
+        // 동시성 가드는 mock이므로 래퍼가 실제 수정 로직을 실행하도록 넘겨준다 (evict 발화 조건은 정상 반환)
+        given(concurrencyGuard.runUserUpdate(any()))
+                .willAnswer(inv -> inv.<java.util.function.Supplier<String>>getArgument(0).get());
         tiptapCache = caffeineCacheManager.getCache("tiptapMetadata");
         assertThat(tiptapCache).isNotNull();
         // evict 검증을 위해 임의 엔트리를 미리 적재

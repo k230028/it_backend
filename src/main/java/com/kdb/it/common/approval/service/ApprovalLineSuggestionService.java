@@ -102,10 +102,13 @@ public class ApprovalLineSuggestionService {
         List<CuserI> eligible =
                 candidates.stream()
                         .filter(
-                                user ->
-                                        user.getEno() != null
-                                                && user.getEno().startsWith(APPROVER_ENO_PREFIX))
-                        .filter(user -> !user.getEno().equals(drafterEno))
+                                user -> {
+                                    if (user == null) return false;
+                                    String eno = user.getEno();
+                                    return eno != null
+                                            && eno.startsWith(APPROVER_ENO_PREFIX)
+                                            && !eno.equals(drafterEno);
+                                })
                         .toList();
         if (eligible.isEmpty()) {
             return new Pick(null, SuggestionReason.NONE);

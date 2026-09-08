@@ -238,12 +238,12 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
             List<BigDecimal> generalExpenseAmounts,
             BigDecimal declaredRaw,
             BigDecimal declaredCurrent) {
-        BigDecimal baseCapitalTotal = capitalTotal == null ? BigDecimal.ZERO : capitalTotal;
+        BigDecimal baseCapitalTotal = Objects.requireNonNullElse(capitalTotal, BigDecimal.ZERO);
         BigDecimal candidate = baseCapitalTotal;
         if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
         for (BigDecimal amount : generalExpenseAmounts) {
             if (amount == null) continue;
-            candidate = candidate.add(amount);
+            candidate = Objects.requireNonNull(candidate, "누계 기준액").add(amount);
             if (AmountUnitResolver.inferUnit(declaredRaw, candidate).isPresent()) return candidate;
         }
         BigDecimal best = baseCapitalTotal;
@@ -254,7 +254,7 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
         candidate = baseCapitalTotal;
         for (BigDecimal amount : generalExpenseAmounts) {
             if (amount == null) continue;
-            candidate = candidate.add(amount);
+            candidate = Objects.requireNonNull(candidate, "누계 기준액").add(amount);
             BigDecimal gap = declaredCurrent.subtract(candidate).abs();
             if (gap.compareTo(bestGap) < 0) {
                 best = candidate;

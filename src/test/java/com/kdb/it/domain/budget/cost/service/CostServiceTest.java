@@ -293,12 +293,12 @@ class CostServiceTest {
                         terminalAssembler,
                         concurrencyStamper);
         CostQueryService queryService = new CostQueryService(costRepository, queryAssembler);
+        CostNameSnapshotResolver nameResolver = new CostNameSnapshotResolver(cuserIRepository);
         costService =
                 new CostService(
                         costRepository,
                         new CostWriteTargetLoader(costRepository),
                         btermmRepository,
-                        cuserIRepository,
                         orgNameResolver,
                         codeService,
                         xcrLookupService,
@@ -307,7 +307,14 @@ class CostServiceTest {
                                 capplaRepository),
                         approvalStamper,
                         new CostConcurrencyGuard(
-                                concurrencyStamper, btermmRepository, queryService));
+                                concurrencyStamper, btermmRepository, queryService),
+                        new CostTerminalSynchronizer(
+                                btermmRepository,
+                                cuserIRepository,
+                                orgNameResolver,
+                                xcrLookupService,
+                                nameResolver),
+                        nameResolver);
     }
 
     @Nested
@@ -3048,7 +3055,8 @@ class CostServiceTest {
                                                         .isEqualTo("b".repeat(64));
                                                 assertThat(conflict.changedAt()).isNotNull();
                                                 assertThat(conflict.changedBy()).isEqualTo("김변경");
-                                                assertThat(conflict.changedByEno()).isEqualTo("10002");
+                                                assertThat(conflict.changedByEno())
+                                                        .isEqualTo("10002");
                                                 assertThat(conflict.current()).isNotNull();
                                             }));
             verify(cost, never()).update(any());
@@ -3111,7 +3119,8 @@ class CostServiceTest {
                                                 CostConflictException conflict =
                                                         (CostConflictException) e;
                                                 assertThat(conflict.changedBy()).isEqualTo("박단말");
-                                                assertThat(conflict.changedByEno()).isEqualTo("10003");
+                                                assertThat(conflict.changedByEno())
+                                                        .isEqualTo("10003");
                                                 assertThat(conflict.changedAt())
                                                         .isEqualTo(
                                                                 java.time.LocalDateTime.of(

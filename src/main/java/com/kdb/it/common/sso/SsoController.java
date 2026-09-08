@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -117,19 +116,17 @@ public class SsoController {
             HttpServletResponse response)
             throws IOException {
         // 이전 시도의 복귀 상태를 먼저 지워, 새 next가 안전하지 않을 때 옛 경로로 복귀하지 않게 한다.
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoNextCookie().toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
+        CookieUtil.addResponseCookie(response, cookieUtil.deleteSsoNextCookie());
+        CookieUtil.addResponseCookie(response, cookieUtil.deleteSsoOriginCookie());
 
         // next/origin은 쿠키로만 운반한다. ESSO 교차 출처 왕복(특히 CS 모드 POST 콜백)을 거쳐도 마지막 same-site
         // complete 내비게이션에는 전달되므로 원본 요청 URL을 복원할 수 있다.
         String safeNext = SsoNextPathValidator.safePath(next).orElse(null);
         if (safeNext != null) {
-            response.addHeader(
-                    HttpHeaders.SET_COOKIE, cookieUtil.createSsoNextCookie(safeNext).toString());
+            CookieUtil.addResponseCookie(response, cookieUtil.createSsoNextCookie(safeNext));
         }
         if (origin != null && !origin.isBlank()) {
-            response.addHeader(
-                    HttpHeaders.SET_COOKIE, cookieUtil.createSsoOriginCookie(origin).toString());
+            CookieUtil.addResponseCookie(response, cookieUtil.createSsoOriginCookie(origin));
         }
 
         // 모의 모드: ESSO 통신 없이 mock 사번의 검증 쿠키를 발급 (외부망 개발용)
@@ -184,9 +181,8 @@ public class SsoController {
             log.warn(
                     "SSO checkauth 비정상 호출 - resultCode: {} → 수동 로그인으로 폴백(루프 차단)",
                     SsoLogSanitizer.resultCode(resultCode));
-            response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoNextCookie().toString());
-            response.addHeader(
-                    HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
+            CookieUtil.addResponseCookie(response, cookieUtil.deleteSsoNextCookie());
+            CookieUtil.addResponseCookie(response, cookieUtil.deleteSsoOriginCookie());
             response.sendRedirect(loginErrorUrl(origin));
             return;
         }
@@ -354,9 +350,9 @@ public class SsoController {
                     cookieUtil.createRefreshTokenCookie(loginResponse.getRefreshToken());
             ResponseCookie userCookie = cookieUtil.createUserInfoCookie(loginResponse);
 
-            response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-            response.addHeader(HttpHeaders.SET_COOKIE, userCookie.toString());
+            CookieUtil.addResponseCookie(response, accessCookie);
+            CookieUtil.addResponseCookie(response, refreshCookie);
+            CookieUtil.addResponseCookie(response, userCookie);
             // SSO 상태 쿠키는 1회용이므로 사용 후 제거한다.
             addSsoStateDeletionCookies(response);
 
@@ -402,7 +398,8 @@ public class SsoController {
         if (origin == null || origin.isBlank()) {
             return null;
         }
-        for (String configuredOrigin : allowedOrigins.split(",")) {
+        String configuredOrigins = allowedOrigins == null ? "" : allowedOrigins;
+        for (String configuredOrigin : configuredOrigins.split(",")) {
             String allowedOrigin = configuredOrigin.trim();
             if (allowedOrigin.equals(origin)) {
                 return allowedOrigin;
@@ -435,15 +432,14 @@ public class SsoController {
      */
     private void issueVerifiedCookie(HttpServletResponse response, String eno) {
         String token = jwtUtil.generateSsoVerifiedToken(eno);
-        response.addHeader(
-                HttpHeaders.SET_COOKIE, cookieUtil.createSsoVerifiedCookie(token).toString());
+        CookieUtil.addResponseCookie(response, cookieUtil.createSsoVerifiedCookie(token));
     }
 
     /** SSO 왕복 상태 쿠키(검증·next·origin) 삭제 헤더를 응답에 추가합니다. */
     private void addSsoStateDeletionCookies(HttpServletResponse response) {
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoVerifiedCookie().toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoNextCookie().toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteSsoOriginCookie().toString());
+        CookieUtil.addResponseCookie(response, cookieUtil.deleteSsoVerifiedCookie());
+        CookieUtil.addResponseCookie(response, cookieUtil.deleteSsoNextCookie());
+        CookieUtil.addResponseCookie(response, cookieUtil.deleteSsoOriginCookie());
     }
 
     /**

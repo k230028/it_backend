@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.system.dto.AuthDto;
+import jakarta.servlet.http.Cookie;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseCookie;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -739,6 +741,31 @@ class CookieUtilTest {
                         util.deleteSsoOriginCookie());
 
         assertThat(cookies).allSatisfy(cookie -> assertThat(cookie.getSameSite()).isEqualTo("Lax"));
+    }
+
+    @Test
+    @DisplayName("응답 쿠키 출력은 Servlet 쿠키 API로 보안 속성을 보존한다")
+    void addResponseCookie_preservesSecurityAttributes() {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        ResponseCookie source =
+                ResponseCookie.from("accessToken", "signed-token")
+                        .httpOnly(true)
+                        .secure(true)
+                        .path("/api")
+                        .maxAge(60)
+                        .sameSite("Lax")
+                        .build();
+
+        CookieUtil.addResponseCookie(response, source);
+
+        Cookie emitted = response.getCookie("accessToken");
+        assertThat(emitted).isNotNull();
+        assertThat(emitted.getValue()).isEqualTo("signed-token");
+        assertThat(emitted.getPath()).isEqualTo("/api");
+        assertThat(emitted.getMaxAge()).isEqualTo(60);
+        assertThat(emitted.getSecure()).isTrue();
+        assertThat(emitted.isHttpOnly()).isTrue();
+        assertThat(emitted.getAttribute("SameSite")).isEqualTo("Lax");
     }
 
     // ─────────────────────────────────────────────────────────────────

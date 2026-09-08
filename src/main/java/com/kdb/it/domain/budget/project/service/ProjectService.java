@@ -81,6 +81,9 @@ public class ProjectService {
     /** 작성완료 신청서 스탬프 — [저장] 시 결재선 없는 신청서 0을 만든다 */
     private final com.kdb.it.common.approval.service.ApprovalStamper approvalStamper;
 
+    /** 사용자 저장 경로의 동시성 스탬프 대조와 잠금 대기 초과 변환 */
+    private final ProjectConcurrencyGuard concurrencyGuard;
+
     /**
      * 삭제되지 않은 모든 정보화사업을 조회합니다.
      *
@@ -414,6 +417,8 @@ public class ProjectService {
      * @return 수정된 프로젝트관리번호
      * @throws IllegalArgumentException 해당 관리번호의 프로젝트가 없는 경우
      * @throws IllegalStateException 결재중(또는 비관리자의 결재완료) 상태여서 수정 불가한 경우
+     * @throws com.kdb.it.domain.budget.project.exception.ProjectConflictException 동시성 스탬프가 없거나(400)
+     *     현재 상태와 다르거나(409) 잠금 대기를 넘긴 경우(409)
      */
     // 프로젝트 수정 시 Tiptap 변수 카탈로그가 stale → 전체 evict (P5/T13).
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
@@ -434,6 +439,14 @@ public class ProjectService {
     @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
     @Transactional
     public String updateProject(String prjMngNo, Integer sno, ProjectDto.UpdateRequest request) {
+        return concurrencyGuard.runUserUpdate(() -> applyUserUpdate(prjMngNo, sno, request));
+    }
+
+    /**
+     * 사용자 화면의 수정 요청을 실제로 적용합니다. 잠금 대기 초과 변환은 호출자인 {@link #updateProject(String, Integer,
+     * ProjectDto.UpdateRequest)}가 맡습니다.
+     */
+    private String applyUserUpdate(String prjMngNo, Integer sno, ProjectDto.UpdateRequest request) {
         // 예산 신청 기간 검증 (기간 외 → 400 Bad Request)
         codeService.validateBudgetPeriod();
 
@@ -454,6 +467,9 @@ public class ProjectService {
         if (isBlockedByApproval(prjMngNo, project.getSno())) {
             throw new IllegalStateException(approvalBlockMessage("수정"));
         }
+
+        // 원장을 만지기 전에 검사해야 한다. 아래 블록부터 project와 request가 수정되므로 이 지점이 유일하게 안전하다.
+        concurrencyGuard.verifyStamp(request, project, this::resolvePersonName);
 
         // Rich Text 필드 XSS 새니타이징 (서버 측 방어)
         request.setAbusPulConeInf(HtmlSanitizer.sanitize(request.getAbusPulConeInf()));
