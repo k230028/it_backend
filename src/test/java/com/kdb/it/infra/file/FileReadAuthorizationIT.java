@@ -450,6 +450,23 @@ class FileReadAuthorizationIT {
     @Test
     @DisplayName("격리 행(read-only): 활성 격리 파일은 일반 사용자에게 모두 거부된다")
     void quarantineRows_notExposedToNormalUser() {
+        String isolatedFileId = NS + "QUAR" + uid;
+        insertFile(isolatedFileId, KIND_UNREGISTERED, NS + "P" + uid, NS + "A" + uid);
+        List<Cfilem> isolatedFiles =
+                jdbcTemplate.query(
+                        "SELECT FL_MPN_ID, APG_FL_KD_NM, APG_FL_LNK_CTZ_NM FROM TPRMPP_CFILEM WHERE FL_MPN_ID = ? AND DEL_YN = 'N'",
+                        (rs, rowNum) ->
+                                Cfilem.builder()
+                                        .flMpnId(rs.getString("FL_MPN_ID"))
+                                        .apgFlKdNm(rs.getString("APG_FL_KD_NM"))
+                                        .apgFlLnkCtzNm(rs.getString("APG_FL_LNK_CTZ_NM"))
+                                        .build(),
+                        isolatedFileId);
+        assertThat(isolatedFiles).as("격리 판정은 항상 독립 픽스처 한 건을 검사한다").hasSize(1);
+        assertThat(registry.canRead(isolatedFiles.getFirst(), user(NS + "U" + uid, NS + "D" + uid)))
+                .as("등록되지 않은 종류의 독립 픽스처는 일반 사용자에게 거부된다")
+                .isFalse();
+
         // 정규화 기준의 격리 형태: APG_FL_KD_NM null, APG_FL_LNK_CTZ_NM null, 또는 등록 allowlist에 없는 활성 파일.
         // 운영/격리 행만 대상으로 하고(SEC05 제외), 조회만 한다(수정·삭제 금지).
         List<QuarantineRow> quarantined =
