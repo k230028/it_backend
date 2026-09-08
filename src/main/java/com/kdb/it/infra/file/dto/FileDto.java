@@ -88,7 +88,7 @@ public class FileDto {
                 example = "SVR1_20260315143022_550e8400e29b41d4a716446655440000.pdf")
         private String flPysNm;
 
-        @Schema(description = "파일저장경로", example = "/dat/springitp/requirement-documents/2026/03")
+        @Schema(description = "파일저장경로", example = "{저장루트}/requirement-documents/2026/03")
         private String flKpnPth;
 
         @Schema(description = "파일유형내용 ('이미지' 또는 '첨부파일')", example = "첨부파일")

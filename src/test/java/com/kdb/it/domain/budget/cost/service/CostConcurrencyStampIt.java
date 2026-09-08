@@ -62,7 +62,10 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
     /** 예산 신청 기간 검증은 이 테스트의 관심사가 아니므로 통과시킨다. */
     @MockitoBean CodeService codeService;
 
-    /** 원화 시나리오라 환율 조회는 사용하지 않는다. */
+    /**
+     * 저장 경로는 매번 환율을 다시 조회해 외화 단말기의 환율·금액을 덮어쓴다(스탬프 대조 이후에 일어난다). 이 테스트의 관심사는 스탬프의 읽기·쓰기 일치이므로, 시드와
+     * 같은 환율을 돌려주게 고정해 환율 갱신이 무변경 저장을 무변경이 아니게 만드는 것을 배제한다.
+     */
     @MockitoBean XcrLookupService xcrLookupService;
 
     /** 작성완료 신청서 스탬프는 complete 플래그가 없으면 호출되지 않는다. */
@@ -112,12 +115,20 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
     @DisplayName("단말기가 있는 건도 조회 스탬프로 저장되고, 단말기만 바뀌어도 충돌로 잡힌다")
     void terminalStampRoundTripsAndDetectsTerminalOnlyChange() {
         authenticateAsAdmin();
+        org.mockito.BDDMockito.given(
+                        xcrLookupService.resolveXcr(
+                                org.mockito.ArgumentMatchers.eq("USD"),
+                                org.mockito.ArgumentMatchers.any()))
+                .willReturn(new BigDecimal("1350"));
         String costBgNo = seedUnsubmittedCost();
         seedTerminal(costBgNo, "TER-IT-0001", 1, "단말A", "1000");
         seedTerminal(costBgNo, "TER-IT-0002", 2, "단말B", "2000");
+        // 외화 단말: 스탬퍼가 금액(scale 3)·환율(scale 4)을 정규화하므로, 읽기와 쓰기의 스케일이
+        // 어긋나면 외화 단말이 있는 예산은 저장할 때마다 409가 난다. 실 DB 왕복으로만 드러난다.
+        seedFxTerminal(costBgNo, "TER-IT-0003", 3, "단말C(USD)", "1350000", "1000", "1350");
 
         CostDto.Response loaded = queryService.getCost(costBgNo);
-        assertThat(loaded.getTerminals()).hasSize(2);
+        assertThat(loaded.getTerminals()).hasSize(3);
         String stamp = loaded.getConcurrencyStamp();
         assertThat(stamp).matches("[a-f0-9]{64}");
 
@@ -130,7 +141,7 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
         // 내용이 그대로면 스탬프도 그대로여야 한다 — 읽는 쪽과 쓰는 쪽이 같은 단말기 집합을 본다는 뜻이다.
         CostDto.Response afterNoop = queryService.getCost(costBgNo);
         assertThat(afterNoop.getConcurrencyStamp()).isEqualTo(stamp);
-        assertThat(afterNoop.getTerminals()).hasSize(2);
+        assertThat(afterNoop.getTerminals()).hasSize(3);
 
         // (c) 부모 필드는 그대로 두고 단말기 한 건만 바꾼다. 부모만 보는 스탬프였다면 놓쳤을 변경이다.
         CostDto.UpdateRequest terminalOnly = updateRequestFrom(afterNoop);
@@ -152,11 +163,11 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
                             assertThat(conflict.code()).isEqualTo("COST_SOURCE_CHANGED");
                             assertThat(conflict.currentStamp()).isNotEqualTo(stamp);
                             assertThat(conflict.current()).isNotNull();
-                            assertThat(conflict.current().getTerminals()).hasSize(2);
+                            assertThat(conflict.current().getTerminals()).hasSize(3);
                         });
         assertThat(queryService.getCost(costBgNo).getTerminals())
                 .extracting(CostDto.TerminalDto::getSpfTmnNm)
-                .containsExactlyInAnyOrder("단말A-수정", "단말B");
+                .containsExactlyInAnyOrder("단말A-수정", "단말B", "단말C(USD)");
     }
 
     /**
@@ -216,6 +227,49 @@ class CostConcurrencyStampIt extends AbstractOracleRepositoryTest {
                         .spfTmnNm(name)
                         .termRqmBgAmt(new BigDecimal(amount))
                         .curC("KRW")
+                        .dfrCleC("0")
+                        .delYn("N")
+                        .fstEnrDtm(now)
+                        .fstEnrUsid("10001")
+                        .lstChgDtm(now)
+                        .lstChgUsid("10001")
+                        .build());
+        entityManager.flush();
+        entityManager.clear();
+    }
+
+    /**
+     * 외화 단말기를 시드한다.
+     *
+     * @param costBgNo 부모 전산업무비 관리번호
+     * @param tmnMngNo 단말기 관리번호
+     * @param sno 단말기 순번
+     * @param name 단말기명
+     * @param amount 원화 환산 금액
+     * @param fcAmount 외화 금액
+     * @param rate 환율
+     */
+    private void seedFxTerminal(
+            String costBgNo,
+            String tmnMngNo,
+            int sno,
+            String name,
+            String amount,
+            String fcAmount,
+            String rate) {
+        LocalDateTime now = LocalDateTime.of(2026, 9, 8, 12, 0);
+        entityManager.persist(
+                Btermm.builder()
+                        .tmnMngNo(tmnMngNo)
+                        .sno(sno)
+                        .termBgNo(costBgNo)
+                        .termBgSno(1)
+                        .spfTmnNm(name)
+                        .termRqmBgAmt(new BigDecimal(amount))
+                        .fcAmt(new BigDecimal(fcAmount))
+                        .curC("USD")
+                        .xcr(new BigDecimal(rate))
+                        .xcrBseDt("20260901")
                         .dfrCleC("0")
                         .delYn("N")
                         .fstEnrDtm(now)
