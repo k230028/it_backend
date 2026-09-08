@@ -16,6 +16,7 @@ public final class FileStoragePathPolicy {
                     Map.entry("사용자가이드", "user-guides"),
                     Map.entry("요구사항정의서", "requirement-documents"),
                     Map.entry("정보화사업", "it-projects"),
+                    Map.entry("전산업무비", "it-costs"),
                     Map.entry("편성요청서반입", "request-form-imports"),
                     Map.entry("사업계획서", "business-plans"),
                     Map.entry("타당성검토표", "feasibility-reviews"),

@@ -79,7 +79,8 @@ class FileReadAuthorizationIT {
     private static final String KIND_COUNCIL_DOC = "협의회관련자료";
     private static final String KIND_BOARD = "공통게시판";
     private static final String KIND_REVIEW_COMMENT = "검토의견";
-    private static final String KIND_UNREGISTERED = "정보화사업";
+    private static final String KIND_COST = "전산업무비";
+    private static final String KIND_UNREGISTERED = "미등록종류";
 
     /** 모든 픽스처 네임스페이스 접두부 — 운영 키(FL_/DOC-/ASCT-/NAC- 등)와 충돌하지 않는다. */
     private static final String NS = "SEC05";
@@ -113,6 +114,7 @@ class FileReadAuthorizationIT {
     /** SEC05 네임스페이스 픽스처를 자식(파일) → 부모 순으로 삭제한다(운영/격리 행 불변). */
     private void cleanup() {
         jdbcTemplate.update("DELETE FROM TPRMPP_CFILEM WHERE FL_MPN_ID LIKE '" + NS + "%'");
+        jdbcTemplate.update("DELETE FROM TPRMPP_BCOSTM WHERE BG_NO LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BCMMTM WHERE IT_PTL_ASCT_ID LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BASCTM WHERE IT_PTL_ASCT_ID LIKE '" + NS + "%'");
         jdbcTemplate.update("DELETE FROM TPRMPP_BPROJM WHERE ABUS_MNG_NO LIKE '" + NS + "%'");
@@ -142,6 +144,27 @@ class FileReadAuthorizationIT {
         assertThat(registry.canRead(file, user(NS + "Z" + uid, dept))).isTrue();
         // 타인 + 타부서 — 거부
         assertThat(registry.canRead(file, user(NS + "O" + uid, otherDept))).isFalse();
+    }
+
+    // ═════════════════════════════════════════
+    // 전산업무비 — 예산 상세와 같은 부서·IT 조직 조회 범위
+    // ═════════════════════════════════════════
+
+    @Test
+    @DisplayName("전산업무비: 같은 부서·IT 조직은 허용하고 무관한 부서는 거부")
+    void cost_sameDepartmentAndItOrganization_allowed_otherDepartmentDenied() {
+        String costBgNo = NS + "C" + uid;
+        String owner = NS + "A" + uid;
+        String owningDept = NS + "D" + uid;
+        insertCurrentCost(costBgNo, owningDept, owner);
+
+        Cfilem file = fileOfKind(KIND_COST, costBgNo);
+
+        assertThat(registry.canRead(file, user(owner, owningDept))).as("같은 부서 허용").isTrue();
+        assertThat(registry.canRead(file, user(NS + "I" + uid, "180"))).as("IT 조직 허용").isTrue();
+        assertThat(registry.canRead(file, user(NS + "O" + uid, NS + "X" + uid)))
+                .as("무관한 부서 거부")
+                .isFalse();
     }
 
     // ═════════════════════════════════════════
@@ -427,7 +450,7 @@ class FileReadAuthorizationIT {
     @Test
     @DisplayName("격리 행(read-only): 활성 격리 파일은 일반 사용자에게 모두 거부된다")
     void quarantineRows_notExposedToNormalUser() {
-        // 정규화 기준의 격리 형태: APG_FL_KD_NM null, APG_FL_LNK_CTZ_NM null, 또는 종류가 6종에 없는 활성 파일.
+        // 정규화 기준의 격리 형태: APG_FL_KD_NM null, APG_FL_LNK_CTZ_NM null, 또는 등록 allowlist에 없는 활성 파일.
         // 운영/격리 행만 대상으로 하고(SEC05 제외), 조회만 한다(수정·삭제 금지).
         List<QuarantineRow> quarantined =
                 jdbcTemplate.query(
@@ -436,15 +459,14 @@ class FileReadAuthorizationIT {
                                 + NS
                                 + "%' "
                                 + "AND (APG_FL_KD_NM IS NULL OR APG_FL_LNK_CTZ_NM IS NULL OR APG_FL_KD_NM NOT IN "
-                                + "('요구사항정의서','가이드문서','사업계획서','타당성검토표','협의회관련자료','공통게시판','검토의견'))",
+                                + "('가이드문서','공통게시판','배너','사용자가이드','요구사항정의서','정보화사업','편성요청서반입','사업계획서','타당성검토표','협의회관련자료','검토의견','다이어그램','전산업무비'))",
                         (rs, rowNum) ->
                                 new QuarantineRow(
                                         rs.getString("FL_MPN_ID"),
                                         rs.getString("APG_FL_KD_NM"),
                                         rs.getString("APG_FL_LNK_CTZ_NM")));
 
-        // 정규화 직후 기준(50 정상 + 7 격리)으로 격리 행이 존재해야 하며, 그 어느 것도 일반 사용자에게 노출되면 안 된다.
-        assertThat(quarantined).isNotEmpty();
+        // 운영 데이터에 격리 대상이 있으면 그 어느 것도 일반 사용자에게 노출되면 안 된다.
         CustomUserDetails normal = user(NS + "U" + uid, NS + "D" + uid);
         for (QuarantineRow row : quarantined) {
             Cfilem file =
@@ -525,6 +547,19 @@ class FileReadAuthorizationIT {
                 guid(),
                 fstEnrUsid);
         return commentId;
+    }
+
+    /** 현재 최종 전산업무비(BCOSTM) — 주관부서와 최초 작성자를 통제한다. */
+    private void insertCurrentCost(String costBgNo, String svnDpmC, String fstEnrUsid) {
+        jdbcTemplate.update(
+                "INSERT INTO TPRMPP_BCOSTM (BG_NO, BG_SNO, ABUS_TC, DFR_CLE_C, LST_YN, SVN_DPM_C, "
+                        + "FST_ENR_USID, FST_ENR_DTM, DEL_YN, GUID, GUID_PRG_SNO, LST_CHG_USID, LST_CHG_DTM) "
+                        + "VALUES (?, 1, '01', '1', 'Y', ?, ?, SYSDATE, 'N', ?, 1, ?, SYSDATE)",
+                costBgNo,
+                svnDpmC,
+                fstEnrUsid,
+                guid(),
+                fstEnrUsid);
     }
 
     /** 협의회 사업(BPROJM) — 주관부서(SVN_DPM_C)를 통제. */

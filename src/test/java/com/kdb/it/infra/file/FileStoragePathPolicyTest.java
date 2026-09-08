@@ -23,6 +23,7 @@ class FileStoragePathPolicyTest {
                 Arguments.of("사용자가이드", "user-guides"),
                 Arguments.of("요구사항정의서", "requirement-documents"),
                 Arguments.of("정보화사업", "it-projects"),
+                Arguments.of("전산업무비", "it-costs"),
                 Arguments.of("편성요청서반입", "request-form-imports"),
                 Arguments.of("사업계획서", "business-plans"),
                 Arguments.of("타당성검토표", "feasibility-reviews"),
