@@ -6,6 +6,7 @@ import com.kdb.it.domain.budget.cost.dto.CostConflictResponse;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.cost.service.CostTerminalLinkService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -56,6 +57,8 @@ public class CostController {
     private final CostService costService;
 
     private final CostVersionService costVersionService;
+
+    private final CostTerminalLinkService terminalLinkService;
     private final CostQueryAssembler costQueryAssembler;
 
     /**
@@ -175,6 +178,37 @@ public class CostController {
                 bgSno == null
                         ? costService.updateCost(itMngcNo, request)
                         : costService.updateCost(itMngcNo, bgSno, request));
+    }
+
+    /**
+     * 연결 단말기 등록 표시
+     *
+     * <p>부모 전산업무비의 {@code TMN_YN}만 'Y'로 바꿉니다. 이 표시 하나를 위해 수정 API를 쓰면 전체 치환 의미론 때문에 요청에 담기지 않은 부모 업무
+     * 필드가 null이 되고 부모의 단말 행이 모두 논리 삭제되므로, 좁은 전용 경로를 둡니다.
+     *
+     * @param itMngcNo 부모 전산업무비 관리번호
+     * @return HTTP 204 (본문 없음)
+     */
+    @Operation(summary = "연결 단말기 등록 표시", description = "부모 전산업무비의 단말기 보유 여부(TMN_YN)만 'Y'로 표시합니다.")
+    @ApiResponses(
+            value = {
+                @ApiResponse(responseCode = "204", description = "표시 완료", content = @Content),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "결재 진행 중이라 수정 불가",
+                        content = @Content),
+                @ApiResponse(
+                        responseCode = "404",
+                        description = "존재하지 않는 전산업무비",
+                        content = @Content)
+            })
+    @PostMapping("/{itMngcNo}/terminal-link")
+    public ResponseEntity<Void> markTerminalLinked(
+            @Parameter(description = "부모 전산업무비 관리번호", required = true, example = "COST_2026_0001")
+                    @PathVariable("itMngcNo")
+                    String itMngcNo) {
+        terminalLinkService.markTerminalLinked(itMngcNo);
+        return ResponseEntity.noContent().build();
     }
 
     /**

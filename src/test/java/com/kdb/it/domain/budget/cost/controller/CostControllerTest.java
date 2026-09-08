@@ -25,6 +25,7 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
+import com.kdb.it.domain.budget.cost.service.CostTerminalLinkService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +48,7 @@ class CostControllerTest {
 
     @MockitoBean private CostService costService;
     @MockitoBean private CostVersionService costVersionService;
+    @MockitoBean private CostTerminalLinkService terminalLinkService;
     @MockitoBean private CostQueryAssembler costQueryAssembler;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;

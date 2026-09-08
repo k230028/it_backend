@@ -275,6 +275,16 @@ public class Bcostm extends BaseEntity {
      *
      * @param prlmHrkOgzCCone 작성자 소속 인사상위조직코드내용
      */
+    /**
+     * 연결 단말기가 생겼음을 표시합니다.
+     *
+     * <p>{@link #update(UpdateCommand)}는 요청에 없는 필드를 null로 덮는 전체 치환이므로, 플래그 하나만 바꾸려고 그 경로를 쓰면 부모의 업무
+     * 필드와 단말 행이 함께 사라집니다. 이 메서드는 {@code TMN_YN}만 바꿉니다.
+     */
+    public void markTerminalLinked() {
+        this.tmnYn = "Y";
+    }
+
     public void assignPrlmHrkOgzCCone(String prlmHrkOgzCCone) {
         this.prlmHrkOgzCCone = prlmHrkOgzCCone;
     }
