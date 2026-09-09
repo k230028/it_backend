@@ -10,12 +10,14 @@ import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.iam.repository.RoleRepository;
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.notification.dispatcher.MailPayload;
 import com.kdb.it.common.notification.dispatcher.NotificationDispatcherRouter;
 import com.kdb.it.common.notification.event.NotificationEvent;
 import com.kdb.it.common.notification.service.NotificationDispatchService;
 import com.kdb.it.common.notification.service.NotificationOutboxService;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,20 +30,41 @@ class QnaRegisteredEventListenerTest {
     private static final String FRONTEND_URL = "https://itp.example/";
 
     @Mock private RoleRepository roleRepository;
+    @Mock private UserRepository userRepository;
     @Mock private NotificationOutboxService outboxService;
     @Mock private NotificationDispatchService dispatchService;
+
+    private record NameView(String eno, String usrNm) implements UserRepository.UserNameView {
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
+
+        @Override
+        public String getPtCNm() {
+            return null;
+        }
+    }
 
     @Test
     void sendsAnInAppAndGweNotificationToEveryDistinctSystemAdmin() throws Exception {
         QnaRegisteredEventListener listener =
                 new QnaRegisteredEventListener(
                         roleRepository,
+                        new QnaRegistrantNameResolver(userRepository),
                         outboxService,
                         dispatchService,
                         new ObjectMapper(),
                         FRONTEND_URL);
         given(roleRepository.findActiveUserEnosByAthId("ITPAD001"))
                 .willReturn(List.of("K100", "K100", "K200"));
+        given(userRepository.findNameViewByEno("K900"))
+                .willReturn(Optional.of(new NameView("K900", "홍길동")));
         given(outboxService.enqueue(any())).willReturn("INF-2026-0142");
 
         listener.onQnaRegistered(
@@ -78,6 +101,8 @@ class QnaRegisteredEventListenerTest {
                         .readValue(captor.getAllValues().getFirst().sdPayload(), MailPayload.class);
         assertThat(payload.subject()).isEqualTo("[IT정보화포탈] (기능 개선) 검색 조건 저장");
         assertThat(payload.html()).contains("문의 등록", "문의 개요", "등록자", "등록 화면", "문의 확인 ↗");
+        assertThat(payload.html()).contains(">홍길동</td>").doesNotContain(">K900</td>");
+        verify(userRepository).findNameViewByEno("K900");
         assertThat(payload.html())
                 .contains(
                         "background:#1e3a8a",
@@ -85,6 +110,62 @@ class QnaRegisteredEventListenerTest {
                         "background:#f3f4f6",
                         "border-color:#d1d5db",
                         "font-size:13px;line-height:1.9");
+    }
+
+    @Test
+    void 등록자_사용자가_미등록이면_사번을_표시한다() throws Exception {
+        QnaRegisteredEventListener listener = listener(new ObjectMapper());
+        given(roleRepository.findActiveUserEnosByAthId("ITPAD001")).willReturn(List.of("K100"));
+        given(userRepository.findNameViewByEno("K900")).willReturn(Optional.empty());
+        given(outboxService.enqueue(any())).willReturn("OUT-1");
+
+        listener.onQnaRegistered(eventWithAuthor("K900"));
+
+        MailPayload payload = capturedMailPayload();
+        assertThat(payload.html()).contains(">K900</td>");
+    }
+
+    @Test
+    void 등록자_이름_조회가_실패해도_사번으로_알림을_계속_발송한다() throws Exception {
+        QnaRegisteredEventListener listener = listener(new ObjectMapper());
+        given(roleRepository.findActiveUserEnosByAthId("ITPAD001"))
+                .willReturn(List.of("K100", "K200"));
+        given(userRepository.findNameViewByEno("K900"))
+                .willThrow(new IllegalStateException("사용자 조회 실패"));
+        given(outboxService.enqueue(any())).willReturn("OUT-1");
+
+        listener.onQnaRegistered(eventWithAuthor("K900"));
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(outboxService, times(2)).enqueue(captor.capture());
+        verify(dispatchService, times(2)).dispatch("OUT-1");
+        verify(userRepository).findNameViewByEno("K900");
+        for (NotificationEvent notification : captor.getAllValues()) {
+            MailPayload payload =
+                    new ObjectMapper().readValue(notification.sdPayload(), MailPayload.class);
+            assertThat(payload.html()).contains(">K900</td>");
+        }
+    }
+
+    @Test
+    void 등록자_이름이_null이거나_공백이면_사번을_표시한다() throws Exception {
+        QnaRegisteredEventListener listener = listener(new ObjectMapper());
+        given(roleRepository.findActiveUserEnosByAthId("ITPAD001")).willReturn(List.of("K100"));
+        given(userRepository.findNameViewByEno("K900"))
+                .willReturn(Optional.of(new NameView("K900", null)))
+                .willReturn(Optional.of(new NameView("K900", " ")));
+        given(outboxService.enqueue(any())).willReturn("OUT-1");
+
+        listener.onQnaRegistered(eventWithAuthor("K900"));
+        listener.onQnaRegistered(eventWithAuthor("K900"));
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(outboxService, times(2)).enqueue(captor.capture());
+        for (NotificationEvent notification : captor.getAllValues()) {
+            MailPayload payload =
+                    new ObjectMapper().readValue(notification.sdPayload(), MailPayload.class);
+            assertThat(payload.html()).contains(">K900</td>");
+        }
     }
 
     @Test
@@ -181,7 +262,30 @@ class QnaRegisteredEventListenerTest {
 
     private QnaRegisteredEventListener listener(ObjectMapper mapper) {
         return new QnaRegisteredEventListener(
-                roleRepository, outboxService, dispatchService, mapper, FRONTEND_URL);
+                roleRepository,
+                new QnaRegistrantNameResolver(userRepository),
+                outboxService,
+                dispatchService,
+                mapper,
+                FRONTEND_URL);
+    }
+
+    private MailPayload capturedMailPayload() throws Exception {
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(outboxService).enqueue(captor.capture());
+        return new ObjectMapper().readValue(captor.getValue().sdPayload(), MailPayload.class);
+    }
+
+    private QnaRegisteredEvent eventWithAuthor(String authorEno) {
+        return new QnaRegisteredEvent(
+                "NAC-1",
+                "문의",
+                "기능",
+                "질문",
+                authorEno,
+                "Q&A",
+                "/board/qna",
+                "/board/qna?postId=NAC-1");
     }
 
     private QnaRegisteredEvent event(String title, String categoryName) {

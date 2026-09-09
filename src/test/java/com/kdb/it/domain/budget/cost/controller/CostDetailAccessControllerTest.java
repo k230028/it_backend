@@ -20,6 +20,7 @@ import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostQueryService;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostTerminalLinkService;
+import com.kdb.it.domain.budget.cost.service.CostTerminalUpdateService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import com.kdb.it.domain.budget.cost.service.CostWriteTargetLoader;
 import com.kdb.it.domain.budget.cost.util.XcrLookupService;
@@ -70,6 +71,7 @@ class CostDetailAccessControllerTest {
 
     @MockitoBean private CostVersionService costVersionService;
     @MockitoBean private CostTerminalLinkService terminalLinkService;
+    @MockitoBean private CostTerminalUpdateService terminalUpdateService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 

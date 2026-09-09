@@ -9,6 +9,7 @@ import com.kdb.it.domain.budget.project.entity.QBitemm;
 import com.kdb.it.domain.budget.project.entity.QBprojm;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto;
 import com.kdb.it.domain.budget.status.dto.BudgetStatusDto.AggregatedAmount;
+import com.kdb.it.domain.budget.status.repository.ProjectDescriptionQuery.ProjectRevisionKey;
 import com.kdb.it.domain.budget.work.entity.QBbugtm;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -22,20 +23,22 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 /**
  * 예산 현황 QueryDSL 쿼리 구현체
  *
- * <p>3개 탭(정보화사업/전산업무비/경상사업)별 QueryDSL 피벗 쿼리를 구현합니다. CASE WHEN + SUM + GROUP BY 패턴으로 DB 레벨에서 피벗 처리하여
- * 단일 쿼리로 정제된 데이터를 반환합니다. QueryDSL 집계 결과를 탭별 응답 DTO로 변환합니다.
+ * <p>3개 탭(정보화사업/전산업무비/경상사업)별 QueryDSL 피벗 쿼리를 구현합니다. CASE WHEN + SUM + GROUP BY 패턴으로 DB 레벨에서 피벗
+ * 처리하고, Oracle에서 GROUP BY가 불가능한 CLOB 본문은 별도 조회하여 프로젝트 복합키로 결합합니다. QueryDSL 집계 결과를 탭별 응답 DTO로 변환합니다.
  */
 @Repository
 @RequiredArgsConstructor
 public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryRepository {
 
     private final JPAQueryFactory queryFactory;
+    private final ProjectDescriptionQuery projectDescriptionQuery;
 
     /** IOE 공통코드 코드ID */
     private static final String C_ID_IOE = CommonCodeGroups.IOE;
@@ -106,10 +109,10 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                 queryFactory
                         .select(
                                 p.abusMngNo,
+                                p.sno,
                                 p.bzTpC,
                                 p.abusTc,
                                 p.abusNm,
-                                p.abusPulConeInf,
                                 p.prlmHrkOgzCCone,
                                 p.svnDpmC,
                                 svnOrg.bbrNm,
@@ -182,7 +185,6 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                 p.bzTpC,
                                 p.abusTc,
                                 p.abusNm,
-                                p.abusPulConeInf,
                                 p.prlmHrkOgzCCone,
                                 p.svnDpmC,
                                 svnOrg.bbrNm,
@@ -200,6 +202,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                 p.edrtTc)
                         .orderBy(p.abusMngNo.asc())
                         .fetch();
+
+        Map<ProjectRevisionKey, String> descriptions =
+                projectDescriptionQuery.findByAggregateRows(tuples);
 
         return tuples.stream()
                 .map(
@@ -234,7 +239,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                     t.get(p.bzTpC),
                                     t.get(p.abusTc),
                                     t.get(p.abusNm),
-                                    t.get(p.abusPulConeInf),
+                                    descriptions.get(
+                                            new ProjectRevisionKey(
+                                                    t.get(p.abusMngNo), t.get(p.sno))),
                                     // prlmHrkOgzCCone, svnDpmC, svnDpmCNm
                                     t.get(p.prlmHrkOgzCCone),
                                     t.get(p.svnDpmC),
@@ -465,9 +472,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                 queryFactory
                         .select(
                                 p.abusMngNo,
+                                p.sno,
                                 p.abusTc,
                                 p.abusNm,
-                                p.abusPulConeInf,
                                 machCur,
                                 machQtt,
                                 machAmt,
@@ -489,9 +496,12 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                 itemCode.cdva.eq(i.ioeC),
                                 codeIsActive(itemCode))
                         .where(p.bseYy.eq(bgYy), p.odnYn.eq("Y"), p.delYn.eq("N"), p.lstYn.eq("Y"))
-                        .groupBy(p.abusMngNo, p.sno, p.abusTc, p.abusNm, p.abusPulConeInf)
+                        .groupBy(p.abusMngNo, p.sno, p.abusTc, p.abusNm)
                         .orderBy(p.abusMngNo.asc())
                         .fetch();
+
+        Map<ProjectRevisionKey, String> descriptions =
+                projectDescriptionQuery.findByAggregateRows(tuples);
 
         return tuples.stream()
                 .map(
@@ -515,7 +525,9 @@ public class BudgetStatusQueryRepositoryImpl implements BudgetStatusQueryReposit
                                     t.get(p.abusMngNo),
                                     t.get(p.abusTc),
                                     t.get(p.abusNm),
-                                    t.get(p.abusPulConeInf),
+                                    descriptions.get(
+                                            new ProjectRevisionKey(
+                                                    t.get(p.abusMngNo), t.get(p.sno))),
                                     t.get(machCur),
                                     mQtt,
                                     mUnitPrice,

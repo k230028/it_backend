@@ -18,7 +18,7 @@ public final class CommonPopupDto {
     public record Response(
             @Schema(description = "가이드 문서관리번호") String docMngNo,
             @Schema(description = "정화된 공통 안내 팝업 HTML 본문") String contentHtml,
-            @Schema(description = "다시 보지 않기 비교에 사용하는 불투명 콘텐츠 버전") String contentVersion) {}
+            @Schema(description = "오늘 숨김 비교에 사용하는 불투명 콘텐츠 버전") String contentVersion) {}
 
     /** 관리자 화면에 제공하는 현재 팝업 등록 상태입니다. */
     @Schema(name = "CommonPopupAdminResponse", description = "공통 안내 팝업 관리자 응답")

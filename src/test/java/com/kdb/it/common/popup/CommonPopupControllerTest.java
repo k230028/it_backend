@@ -64,4 +64,27 @@ class CommonPopupControllerTest {
                         jsonPath("$.contentVersion")
                                 .value("GDOC-2026-0100:2026-09-02T10:20:30.123456"));
     }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("화면별 안내 유형으로 활성 팝업을 조회한다")
+    void getActivePopup_byType_returnsPopup() throws Exception {
+        given(service.getActivePopup(CommonPopupType.INFO))
+                .willReturn(
+                        Optional.of(
+                                new CommonPopupDto.Response(
+                                        "IPOP-2026-0101", "<p>정보화사업 안내</p>", "info:v1")));
+
+        mockMvc.perform(get("/api/common-popup/info"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.docMngNo").value("IPOP-2026-0101"))
+                .andExpect(jsonPath("$.contentHtml").value("<p>정보화사업 안내</p>"));
+    }
+
+    @Test
+    @WithMockUser(username = "10001")
+    @DisplayName("지원하지 않는 안내 유형은 400으로 거부한다")
+    void getActivePopup_unknownType_returns400() throws Exception {
+        mockMvc.perform(get("/api/common-popup/unknown")).andExpect(status().isBadRequest());
+    }
 }

@@ -29,6 +29,7 @@ public class QnaRegisteredEventListener {
     private static final String MAIL_BORDER = "#d1d5db";
 
     private final RoleRepository roleRepository;
+    private final QnaRegistrantNameResolver registrantNameResolver;
     private final NotificationOutboxService outboxService;
     private final NotificationDispatchService dispatchService;
     private final ObjectMapper objectMapper;
@@ -36,11 +37,13 @@ public class QnaRegisteredEventListener {
 
     public QnaRegisteredEventListener(
             RoleRepository roleRepository,
+            QnaRegistrantNameResolver registrantNameResolver,
             NotificationOutboxService outboxService,
             NotificationDispatchService dispatchService,
             ObjectMapper objectMapper,
             @Value("${app.frontend-url}") String frontendUrl) {
         this.roleRepository = roleRepository;
+        this.registrantNameResolver = registrantNameResolver;
         this.outboxService = outboxService;
         this.dispatchService = dispatchService;
         this.objectMapper = objectMapper;
@@ -53,10 +56,12 @@ public class QnaRegisteredEventListener {
     public void onQnaRegistered(QnaRegisteredEvent event) {
         LinkedHashSet<String> recipients =
                 new LinkedHashSet<>(roleRepository.findActiveUserEnosByAthId(SYSTEM_ADMIN_AUTH_ID));
+        String authorName = resolveAuthorName(event.authorEno());
         for (String recipient : recipients) {
             if (recipient == null || recipient.isBlank()) continue;
             try {
-                String outboxId = outboxService.enqueue(toNotification(event, recipient));
+                String outboxId =
+                        outboxService.enqueue(toNotification(event, recipient, authorName));
                 if (outboxId != null) {
                     dispatchService.dispatch(outboxId);
                 }
@@ -70,7 +75,8 @@ public class QnaRegisteredEventListener {
         }
     }
 
-    private NotificationEvent toNotification(QnaRegisteredEvent event, String recipient) {
+    private NotificationEvent toNotification(
+            QnaRegisteredEvent event, String recipient, String authorName) {
         String title =
                 NotificationMessageFormatter.abbreviate("문의 등록: " + safe(event.title()), 100);
         String subject =
@@ -84,15 +90,15 @@ public class QnaRegisteredEventListener {
                                 "새 문의가 등록되었습니다: " + safe(event.title()), 4000))
                 .infmRcdUrl(event.qnaUrl())
                 .itPtlSdTc(NotificationDispatcherRouter.CHANNEL_EAI_GWE)
-                .sdPayload(writeMailPayload(subject, mailBody(event)))
+                .sdPayload(writeMailPayload(subject, mailBody(event, authorName)))
                 .build();
     }
 
-    private String mailBody(QnaRegisteredEvent event) {
+    private String mailBody(QnaRegisteredEvent event, String authorName) {
         String rows =
                 row("문의 제목", event.questionTitle())
                         + row("문의 구분", event.categoryName())
-                        + row("등록자", event.authorEno())
+                        + row("등록자", authorName)
                         + row("등록 화면", event.screenName())
                         + row("화면 URL", event.screenUrl());
         return "<div style=\"font-family:'Malgun Gothic',sans-serif;color:#111827;max-width:720px;\">"
@@ -121,6 +127,15 @@ public class QnaRegisteredEventListener {
                 + "</th><td style=\"padding:8px 10px;\">"
                 + escape(value)
                 + "</td></tr>";
+    }
+
+    private String resolveAuthorName(String authorEno) {
+        try {
+            return registrantNameResolver.resolve(authorEno);
+        } catch (RuntimeException ex) {
+            log.warn("문의 등록자 이름 조회에 실패해 사번으로 표시합니다.", ex);
+            return authorEno;
+        }
     }
 
     private String toFrontendUrl(String path) {

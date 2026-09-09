@@ -89,8 +89,8 @@ public final class HtmlSanitizer {
                 .addAttributes("h4", "style", "id")
                 .addAttributes("h5", "style", "id")
                 .addAttributes("h6", "style", "id")
-                // ul: data-type 허용 (FR-02: taskList 구분용 data-type="taskList")
-                .addAttributes("ul", "data-type")
+                // ul: taskList 구분과 검증된 글머리기호 종류만 보존 (sanitizeBulletListStyles 참조)
+                .addAttributes("ul", "data-type", "style")
                 // li: data-type, data-checked 허용 (FR-02: taskItem 구분 및 체크 상태)
                 .addAttributes("li", "data-type", "data-checked")
 
@@ -199,8 +199,40 @@ public final class HtmlSanitizer {
         if (!html.contains("<")) {
             return html;
         }
+        String normalizedHtml = sanitizeBulletListStyles(html);
         // prettyPrint=false: Jsoup 자동 줄바꿈/공백 삽입 방지 (표 구조 및 공백 보존)
         Document.OutputSettings outputSettings = new Document.OutputSettings().prettyPrint(false);
-        return Jsoup.clean(html, RELATIVE_URL_BASE_URI, QUILL_SAFELIST, outputSettings);
+        return Jsoup.clean(normalizedHtml, RELATIVE_URL_BASE_URI, QUILL_SAFELIST, outputSettings);
+    }
+
+    /** ul의 style에서 허용한 글머리기호 선언만 정규화하고 나머지 CSS를 제거합니다. */
+    private static String sanitizeBulletListStyles(String html) {
+        Document document = Jsoup.parseBodyFragment(html, RELATIVE_URL_BASE_URI);
+        document.outputSettings().prettyPrint(false);
+        document.select("ul[style]")
+                .forEach(
+                        list -> {
+                            String safeType = null;
+                            for (String declaration : list.attr("style").split(";")) {
+                                String[] parts = declaration.split(":", 2);
+                                if (parts.length != 2
+                                        || !"list-style-type".equalsIgnoreCase(parts[0].trim())) {
+                                    continue;
+                                }
+                                String candidate =
+                                        parts[1].trim().toLowerCase(java.util.Locale.ROOT);
+                                if (candidate.equals("disc")
+                                        || candidate.equals("circle")
+                                        || candidate.equals("square")) {
+                                    safeType = candidate;
+                                }
+                            }
+                            if (safeType == null) {
+                                list.removeAttr("style");
+                            } else {
+                                list.attr("style", "list-style-type: " + safeType);
+                            }
+                        });
+        return document.body().html();
     }
 }

@@ -108,4 +108,31 @@ class AdminCommonPopupControllerTest {
 
         verify(service).stopPublishing();
     }
+
+    @Test
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    @DisplayName("관리자는 화면별 안내를 조회하고 저장하고 게시 중지한다")
+    void manageRoutePopup_admin_usesRequestedType() throws Exception {
+        given(service.getAdminPopup(CommonPopupType.COST))
+                .willReturn(new CommonPopupDto.AdminResponse(null, null, null));
+        given(service.save(CommonPopupType.COST, "<p>전산업무비 안내</p>"))
+                .willReturn(
+                        new CommonPopupDto.AdminResponse(
+                                "CPOP-2026-0102", "<p>전산업무비 안내</p>", "cost:v1"));
+
+        mockMvc.perform(get("/api/admin/common-popup/cost"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.docMngNo").doesNotExist());
+        mockMvc.perform(
+                        put("/api/admin/common-popup/cost")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                new CommonPopupDto.SaveRequest("<p>전산업무비 안내</p>"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.docMngNo").value("CPOP-2026-0102"));
+        mockMvc.perform(delete("/api/admin/common-popup/cost")).andExpect(status().isNoContent());
+
+        verify(service).stopPublishing(CommonPopupType.COST);
+    }
 }

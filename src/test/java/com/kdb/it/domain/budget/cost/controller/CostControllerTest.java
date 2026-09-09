@@ -22,10 +22,12 @@ import com.kdb.it.common.system.service.CustomUserDetailsService;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.dto.CostTerminalDto;
 import com.kdb.it.domain.budget.cost.entity.Bcostm;
 import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostTerminalLinkService;
+import com.kdb.it.domain.budget.cost.service.CostTerminalUpdateService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -49,6 +51,7 @@ class CostControllerTest {
     @MockitoBean private CostService costService;
     @MockitoBean private CostVersionService costVersionService;
     @MockitoBean private CostTerminalLinkService terminalLinkService;
+    @MockitoBean private CostTerminalUpdateService terminalUpdateService;
     @MockitoBean private CostQueryAssembler costQueryAssembler;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
@@ -212,6 +215,32 @@ class CostControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/cost/{itMngcNo}/terminals - 부모 개정본의 단말기만 치환한다 → 204")
+    void replaceTerminals_부모개정본_204() throws Exception {
+        CostTerminalDto.TerminalUpdateRequest body =
+                CostTerminalDto.TerminalUpdateRequest.builder()
+                        .concurrencyStamp("a".repeat(64))
+                        .terminals(
+                                List.of(
+                                        CostDto.TerminalDto.builder()
+                                                .curC("KRW")
+                                                .termRqmBgAmt(java.math.BigDecimal.TEN)
+                                                .build()))
+                        .build();
+
+        mockMvc.perform(
+                        put("/api/cost/COST_2026_0001/terminals")
+                                .param("sno", "3")
+                                .with(authentication(adminAuthentication()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isNoContent());
+
+        verify(terminalUpdateService)
+                .replaceTerminals(eq("COST_2026_0001"), eq(3), any());
     }
 
     @Test

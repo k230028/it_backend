@@ -47,6 +47,24 @@ class CommonPopupOpenApiContractTest {
         assertThat(responses.has("200")).isFalse();
     }
 
+    @Test
+    @DisplayName("화면별 사용자 조회는 204 응답을 OpenAPI에 공개한다")
+    void routePopupDocumentsNoContentResponse() throws Exception {
+        JsonNode responses = responsesAt("/paths/~1api~1common-popup~1{type}/get/responses");
+
+        assertThat(responses.has("204")).isTrue();
+    }
+
+    @Test
+    @DisplayName("화면별 관리자 게시 중지는 204 응답만 OpenAPI에 공개한다")
+    void routePopupStopDocumentsNoContentResponse() throws Exception {
+        JsonNode responses =
+                responsesAt("/paths/~1api~1admin~1common-popup~1{type}/delete/responses");
+
+        assertThat(responses.has("204")).isTrue();
+        assertThat(responses.has("200")).isFalse();
+    }
+
     private JsonNode responsesAt(String pointer) throws Exception {
         String document =
                 mockMvc.perform(get("/v3/api-docs"))

@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class CommonPopupCreationService {
 
-    private static final String DOCUMENT_NUMBER_PREFIX = "PDOC-";
     private static final String DOCUMENT_TYPE = BgdocDocumentType.NOTICE_POPUP.code();
 
     private final GuideDocRepository guideDocRepository;
@@ -23,12 +22,25 @@ class CommonPopupCreationService {
     /** 동시 최초 저장의 유일 제약 실패가 호출자 트랜잭션을 오염시키지 않도록 독립 실행합니다. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     Bgdocm createPopup(String sanitizedContent) {
-        return createPopup(CommonPopupService.DOCUMENT_IDENTIFIER, sanitizedContent);
+        return createPopup(CommonPopupType.POPUP, sanitizedContent);
     }
 
     /** 지정된 PDOC 문서를 독립 트랜잭션에서 최초 생성합니다. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     Bgdocm createPopup(String identifier, String sanitizedContent) {
+        return createPopup(identifier, "PDOC-", sanitizedContent);
+    }
+
+    /** 지정된 안내 유형을 독립 트랜잭션에서 최초 생성합니다. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    Bgdocm createPopup(CommonPopupType type, String sanitizedContent) {
+        return createPopup(
+                type.documentIdentifier(), type.documentNumberPrefix(), sanitizedContent);
+    }
+
+    /** 지정된 식별자와 관리번호 접두사로 문서를 독립 트랜잭션에서 최초 생성합니다. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    Bgdocm createPopup(String identifier, String documentNumberPrefix, String sanitizedContent) {
         return guideDocRepository
                 .findByDocTtlConeAndDocDtlItmCAndDelYn(identifier, DOCUMENT_TYPE, "N")
                 .map(
@@ -36,11 +48,13 @@ class CommonPopupCreationService {
                             document.update(identifier, sanitizedContent);
                             return guideDocRepository.saveAndFlush(document);
                         })
-                .orElseGet(() -> createDocument(identifier, sanitizedContent));
+                .orElseGet(
+                        () -> createDocument(identifier, documentNumberPrefix, sanitizedContent));
     }
 
-    private Bgdocm createDocument(String identifier, String sanitizedContent) {
-        String documentNumber = bgdocNumberAllocator.next(DOCUMENT_NUMBER_PREFIX);
+    private Bgdocm createDocument(
+            String identifier, String documentNumberPrefix, String sanitizedContent) {
+        String documentNumber = bgdocNumberAllocator.next(documentNumberPrefix);
         Bgdocm document =
                 Bgdocm.builder()
                         .docMngNo(documentNumber)

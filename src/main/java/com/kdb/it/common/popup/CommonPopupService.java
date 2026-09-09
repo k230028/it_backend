@@ -23,7 +23,6 @@ public class CommonPopupService {
     public static final String APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER =
             "project.approval-authority";
 
-    private static final String DOCUMENT_NUMBER_PREFIX = "PDOC-";
     private static final String DOCUMENT_TYPE = BgdocDocumentType.NOTICE_POPUP.code();
 
     private final GuideDocRepository guideDocRepository;
@@ -31,7 +30,12 @@ public class CommonPopupService {
 
     /** 인증 사용자에게 게시 중인 팝업을 반환합니다. */
     public Optional<CommonPopupDto.Response> getActivePopup() {
-        return findActiveDocument(DOCUMENT_IDENTIFIER).map(this::toResponse);
+        return getActivePopup(CommonPopupType.POPUP);
+    }
+
+    /** 인증 사용자에게 지정된 유형의 게시 중인 팝업을 반환합니다. */
+    public Optional<CommonPopupDto.Response> getActivePopup(CommonPopupType type) {
+        return findActiveDocument(type.documentIdentifier()).map(this::toResponse);
     }
 
     /** 인증 사용자에게 게시 중인 전결권 안내를 반환합니다. */
@@ -41,7 +45,12 @@ public class CommonPopupService {
 
     /** 관리자에게 현재 등록 상태를 반환합니다. */
     public CommonPopupDto.AdminResponse getAdminPopup() {
-        return getAdminDocument(DOCUMENT_IDENTIFIER);
+        return getAdminPopup(CommonPopupType.POPUP);
+    }
+
+    /** 관리자에게 지정된 유형의 현재 등록 상태를 반환합니다. */
+    public CommonPopupDto.AdminResponse getAdminPopup(CommonPopupType type) {
+        return getAdminDocument(type.documentIdentifier());
     }
 
     /** 관리자에게 현재 전결권 안내 등록 상태를 반환합니다. */
@@ -58,17 +67,30 @@ public class CommonPopupService {
     /** 팝업 본문을 최초 생성하거나 현재 활성 문서에 저장합니다. */
     @Transactional
     public CommonPopupDto.AdminResponse save(String contentHtml) {
-        return saveDocument(DOCUMENT_IDENTIFIER, contentHtml, "공통 안내 팝업");
+        return save(CommonPopupType.POPUP, contentHtml);
+    }
+
+    /** 지정된 유형의 팝업 본문을 최초 생성하거나 현재 활성 문서에 저장합니다. */
+    @Transactional
+    public CommonPopupDto.AdminResponse save(CommonPopupType type, String contentHtml) {
+        return saveDocument(
+                type.documentIdentifier(),
+                type.documentNumberPrefix(),
+                contentHtml,
+                type.documentName());
     }
 
     /** 전결권 안내 본문을 최초 생성하거나 현재 활성 문서에 저장합니다. */
     @Transactional
     public CommonPopupDto.AdminResponse saveApprovalAuthorityNotice(String contentHtml) {
-        return saveDocument(APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER, contentHtml, "전결권 안내");
+        return saveDocument(APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER, "PDOC-", contentHtml, "전결권 안내");
     }
 
     private CommonPopupDto.AdminResponse saveDocument(
-            String identifier, String contentHtml, String documentName) {
+            String identifier,
+            String documentNumberPrefix,
+            String contentHtml,
+            String documentName) {
         String sanitizedContent = HtmlSanitizer.sanitize(contentHtml);
         if (!hasMeaningfulContent(sanitizedContent)) {
             throw new IllegalArgumentException(documentName + " 본문은 비어 있을 수 없습니다.");
@@ -76,13 +98,22 @@ public class CommonPopupService {
 
         return findActiveDocument(identifier)
                 .map(document -> update(document, identifier, sanitizedContent))
-                .orElseGet(() -> createOrUpdateAfterConcurrentSave(identifier, sanitizedContent));
+                .orElseGet(
+                        () ->
+                                createOrUpdateAfterConcurrentSave(
+                                        identifier, documentNumberPrefix, sanitizedContent));
     }
 
     /** 현재 팝업이 있으면 논리 삭제하여 게시를 중지합니다. */
     @Transactional
     public void stopPublishing() {
-        findActiveDocument(DOCUMENT_IDENTIFIER)
+        stopPublishing(CommonPopupType.POPUP);
+    }
+
+    /** 지정된 유형의 현재 팝업이 있으면 논리 삭제하여 게시를 중지합니다. */
+    @Transactional
+    public void stopPublishing(CommonPopupType type) {
+        findActiveDocument(type.documentIdentifier())
                 .ifPresent(
                         document -> {
                             document.delete();
@@ -103,9 +134,10 @@ public class CommonPopupService {
     }
 
     private CommonPopupDto.AdminResponse createOrUpdateAfterConcurrentSave(
-            String identifier, String sanitizedContent) {
+            String identifier, String documentNumberPrefix, String sanitizedContent) {
         try {
-            Bgdocm created = creationService.createPopup(identifier, sanitizedContent);
+            Bgdocm created =
+                    creationService.createPopup(identifier, documentNumberPrefix, sanitizedContent);
             return toAdminResponse(created, sanitizedContent);
         } catch (DataIntegrityViolationException conflict) {
             return findActiveDocument(identifier)

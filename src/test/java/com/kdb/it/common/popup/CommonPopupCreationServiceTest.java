@@ -80,4 +80,19 @@ class CommonPopupCreationServiceTest {
         assertThat(created.getDocTtlCone()).isEqualTo(identifier);
         assertThat(created.getNacTxtInf()).isEqualTo("<p>전결권 안내</p>");
     }
+
+    @Test
+    @DisplayName("화면별 안내는 지정한 전용 관리번호 접두사로 생성한다")
+    void createPopup_usesDedicatedPrefix() {
+        given(guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn("common.info", "05", "N"))
+                .willReturn(Optional.empty());
+        given(bgdocNumberAllocator.next("IPOP-")).willReturn("IPOP-2026-0019");
+        given(guideDocRepository.saveAndFlush(any(Bgdocm.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        Bgdocm created = creationService.createPopup("common.info", "IPOP-", "<p>정보화사업 안내</p>");
+
+        assertThat(created.getDocMngNo()).isEqualTo("IPOP-2026-0019");
+        assertThat(created.getDocTtlCone()).isEqualTo("common.info");
+    }
 }

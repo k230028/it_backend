@@ -144,6 +144,32 @@ class HtmlSanitizerTest {
     }
 
     @Test
+    @DisplayName("목록의 안전한 글머리기호 스타일만 보존하고 다른 CSS와 이벤트 속성은 제거한다.")
+    void shouldPreserveOnlySafeBulletListStyle() {
+        String html =
+                """
+                <ul style="color: red; list-style-type: square; position: fixed" onclick="alert(1)">
+                    <li>안내</li>
+                </ul>
+                <ul style="list-style-type: disclosure-open; background: url(javascript:alert(1))">
+                    <li>위험한 스타일</li>
+                </ul>
+                """;
+
+        String sanitized = HtmlSanitizer.sanitize(html);
+
+        assertThat(sanitized).contains("style=\"list-style-type: square\"");
+        assertThat(sanitized)
+                .doesNotContain(
+                        "onclick",
+                        "color:",
+                        "position:",
+                        "disclosure-open",
+                        "background:",
+                        "javascript:");
+    }
+
+    @Test
     @DisplayName("유틸리티 클래스 생성자는 예외를 던진다.")
     void constructor_ShouldThrowUnsupportedOperationException() throws Exception {
         var constructor = HtmlSanitizer.class.getDeclaredConstructor();

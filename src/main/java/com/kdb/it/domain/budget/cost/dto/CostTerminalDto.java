@@ -4,7 +4,9 @@ import com.kdb.it.common.code.CodeDefaults;
 import com.kdb.it.common.util.DateFormatUtil;
 import com.kdb.it.domain.budget.cost.entity.Btermm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,6 +15,27 @@ import lombok.Setter;
 
 /** 전산업무비 DTO 중 금융정보단말기 계약과 엔티티 변환을 분리한 기반 타입입니다. */
 public class CostTerminalDto {
+
+    /** 기존 전산업무비 개정본의 금융정보단말기 목록만 치환하는 요청입니다. */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(
+            name = "CostTerminalDto.TerminalUpdateRequest",
+            description = "전산업무비 개정본의 금융정보단말기 목록 치환 요청")
+    public static class TerminalUpdateRequest {
+        @NotNull(message = "금융정보단말기 목록은 필수입니다.")
+        @Schema(description = "금융정보단말기 목록", requiredMode = Schema.RequiredMode.REQUIRED)
+        private List<CostDto.TerminalDto> terminals;
+
+        @NotNull(message = "동시성 스탬프는 필수입니다.")
+        @Schema(
+                description = "조회 시 받은 개정본 동시성 스탬프",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        private String concurrencyStamp;
+    }
 
     /** 금융정보단말기 정보 DTO. {@link CostDto.TerminalDto} 이름으로 공개됩니다. */
     @Getter

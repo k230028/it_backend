@@ -285,6 +285,18 @@ public class Bcostm extends BaseEntity {
         this.tmnYn = "Y";
     }
 
+    /**
+     * 금융정보단말기 상세 합계를 부모 전산업무비의 원화 예산으로 반영합니다.
+     *
+     * @param totalKrwAmount 서버에서 환산한 활성 단말기 금액 합계
+     */
+    public void replaceTerminalSummary(BigDecimal totalKrwAmount) {
+        this.tmnYn = "Y";
+        this.curC = "KRW";
+        this.costTotXpAmt = totalKrwAmount;
+        this.fcAmt = null;
+    }
+
     public void assignPrlmHrkOgzCCone(String prlmHrkOgzCCone) {
         this.prlmHrkOgzCCone = prlmHrkOgzCCone;
     }

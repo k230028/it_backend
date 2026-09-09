@@ -4,9 +4,11 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.util.ListPageParams;
 import com.kdb.it.domain.budget.cost.dto.CostConflictResponse;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
+import com.kdb.it.domain.budget.cost.dto.CostTerminalDto;
 import com.kdb.it.domain.budget.cost.service.CostQueryAssembler;
 import com.kdb.it.domain.budget.cost.service.CostService;
 import com.kdb.it.domain.budget.cost.service.CostTerminalLinkService;
+import com.kdb.it.domain.budget.cost.service.CostTerminalUpdateService;
 import com.kdb.it.domain.budget.cost.service.CostVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -59,6 +61,7 @@ public class CostController {
     private final CostVersionService costVersionService;
 
     private final CostTerminalLinkService terminalLinkService;
+    private final CostTerminalUpdateService terminalUpdateService;
     private final CostQueryAssembler costQueryAssembler;
 
     /**
@@ -178,6 +181,24 @@ public class CostController {
                 bgSno == null
                         ? costService.updateCost(itMngcNo, request)
                         : costService.updateCost(itMngcNo, bgSno, request));
+    }
+
+    /**
+     * 부모 전산업무비의 업무 필드를 보존하면서 같은 개정본의 금융정보단말기 목록만 치환합니다.
+     *
+     * @param itMngcNo 부모 전산업무비 관리번호
+     * @param bgSno 부모 전산업무비 순번. 생략하면 현재 대표 개정본
+     * @param request 단말기 목록과 동시성 스탬프
+     * @return HTTP 204
+     */
+    @Operation(summary = "금융정보단말기 목록 치환", description = "부모 전산업무비의 같은 개정본에 단말기 목록을 저장합니다.")
+    @PutMapping("/{itMngcNo}/terminals")
+    public ResponseEntity<Void> replaceTerminals(
+            @PathVariable("itMngcNo") String itMngcNo,
+            @RequestParam(value = "sno", required = false) Integer bgSno,
+            @Valid @RequestBody CostTerminalDto.TerminalUpdateRequest request) {
+        terminalUpdateService.replaceTerminals(itMngcNo, bgSno, request);
+        return ResponseEntity.noContent().build();
     }
 
     /**
