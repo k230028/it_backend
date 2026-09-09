@@ -50,8 +50,7 @@ public class CostConcurrencyGuard {
     }
 
     /** 부모 전체가 아닌 좁은 수정 요청도 같은 개정본 스탬프 규칙으로 검증합니다. */
-    public void verifyStamp(
-            String submitted, Bcostm target, UnaryOperator<String> nameResolver) {
+    public void verifyStamp(String submitted, Bcostm target, UnaryOperator<String> nameResolver) {
         if (submitted == null || !STAMP_FORMAT.matcher(submitted).matches()) {
             throw new CostConflictException(
                     HttpStatus.BAD_REQUEST,

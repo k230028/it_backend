@@ -31,9 +31,7 @@ public class CostTerminalDto {
         private List<CostDto.TerminalDto> terminals;
 
         @NotNull(message = "동시성 스탬프는 필수입니다.")
-        @Schema(
-                description = "조회 시 받은 개정본 동시성 스탬프",
-                requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "조회 시 받은 개정본 동시성 스탬프", requiredMode = Schema.RequiredMode.REQUIRED)
         private String concurrencyStamp;
     }
 

@@ -105,7 +105,12 @@ public class CostDto extends CostQueryDto {
         @Schema(description = "담당자명 스냅샷", nullable = true)
         private String cgprNm;
 
-        /** 담당부서 (부서코드) */
+        /**
+         * 담당부서 (부서코드)
+         *
+         * <p>목록·건수 조회가 담당부서 범위로 거르므로, 부서가 빈 행은 등록에 성공해도 어느 부서 목록에도 나타나지 않는다. 등록 시점에 막는다 (BE-106).
+         */
+        @NotBlank(message = "담당부서는 필수입니다.")
         @Schema(description = "담당부서", example = "001")
         private String costSvnDpmC;
 

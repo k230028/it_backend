@@ -55,7 +55,9 @@ class CostTerminalUpdateServiceTest {
         when(concurrencyGuard.runUserUpdate(any()))
                 .thenAnswer(
                         invocation ->
-                                invocation.<java.util.function.Supplier<String>>getArgument(0).get());
+                                invocation
+                                        .<java.util.function.Supplier<String>>getArgument(0)
+                                        .get());
         CustomUserDetails admin =
                 new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
         SecurityContextHolder.getContext()

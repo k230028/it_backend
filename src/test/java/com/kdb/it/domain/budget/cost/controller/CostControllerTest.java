@@ -150,6 +150,7 @@ class CostControllerTest {
         given(costService.createCost(any())).willReturn("COST_2026_0001");
         var body = new CostDto.CreateRequest();
         body.setCurC("KRW");
+        body.setCostSvnDpmC("D001");
         body.setComplete(true);
 
         mockMvc.perform(
@@ -202,6 +203,40 @@ class CostControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/cost - 담당부서가 비면 400이고 생성하지 않는다 (BE-106)")
+    @WithMockUser(username = "10001")
+    void createCost_담당부서누락_400() throws Exception {
+        var body = new CostDto.CreateRequest();
+        body.setCurC("KRW");
+        body.setComplete(true);
+        body.setCostSvnDpmC("   ");
+
+        mockMvc.perform(
+                        post("/api/cost")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(costService);
+    }
+
+    @Test
+    @DisplayName("POST /api/cost/{itMngcNo}/linked-costs - 담당부서가 비면 400 (BE-106)")
+    @WithMockUser(username = "10001")
+    void createLinkedCost_담당부서누락_400() throws Exception {
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder().cttNm("단말").curC("KRW").complete(true).build();
+
+        mockMvc.perform(
+                        post("/api/cost/COST_2026_0001/linked-costs")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(terminalLinkService);
+    }
+
+    @Test
     @DisplayName("PUT /api/cost/{itMngcNo} - 인증된 사용자 → 200 OK")
     @WithMockUser(username = "10001")
     void updateCost_인증_200() throws Exception {
@@ -239,8 +274,7 @@ class CostControllerTest {
                                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isNoContent());
 
-        verify(terminalUpdateService)
-                .replaceTerminals(eq("COST_2026_0001"), eq(3), any());
+        verify(terminalUpdateService).replaceTerminals(eq("COST_2026_0001"), eq(3), any());
     }
 
     @Test
@@ -361,7 +395,12 @@ class CostControllerTest {
         given(terminalLinkService.createLinkedCost(eq("COST_2026_0001"), any()))
                 .willReturn("COST_2026_0009");
         CostDto.CreateRequest request =
-                CostDto.CreateRequest.builder().cttNm("단말").curC("KRW").complete(true).build();
+                CostDto.CreateRequest.builder()
+                        .cttNm("단말")
+                        .curC("KRW")
+                        .costSvnDpmC("D001")
+                        .complete(true)
+                        .build();
 
         mockMvc.perform(
                         post("/api/cost/COST_2026_0001/linked-costs")
@@ -383,7 +422,12 @@ class CostControllerTest {
         given(terminalLinkService.createLinkedCost(eq("COST_2026_0001"), any()))
                 .willThrow(new IllegalStateException("결재중인 전산업무비는 수정할 수 없습니다."));
         CostDto.CreateRequest request =
-                CostDto.CreateRequest.builder().cttNm("단말").curC("KRW").complete(true).build();
+                CostDto.CreateRequest.builder()
+                        .cttNm("단말")
+                        .curC("KRW")
+                        .costSvnDpmC("D001")
+                        .complete(true)
+                        .build();
 
         mockMvc.perform(
                         post("/api/cost/COST_2026_0001/linked-costs")

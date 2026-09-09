@@ -35,9 +35,7 @@ public class CostTerminalUpdateService {
      */
     @Transactional
     public String replaceTerminals(
-            String costBgNo,
-            Integer bgSno,
-            CostTerminalDto.TerminalUpdateRequest request) {
+            String costBgNo, Integer bgSno, CostTerminalDto.TerminalUpdateRequest request) {
         return concurrencyGuard.runUserUpdate(
                 () -> {
                     codeService.validateBudgetPeriod();
