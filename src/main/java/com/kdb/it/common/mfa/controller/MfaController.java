@@ -38,7 +38,7 @@ public class MfaController {
     private final boolean secureCookie;
 
     public MfaController(
-            MfaService mfaService, @Value("${app.cookie.secure:false}") boolean secureCookie) {
+            MfaService mfaService, @Value("${app.cookie.secure:true}") boolean secureCookie) {
         this.mfaService = mfaService;
         this.secureCookie = secureCookie;
     }

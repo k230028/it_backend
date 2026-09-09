@@ -197,7 +197,12 @@ public class ProjectBudgetSummaryService {
         warnSnapshotDiff(response, "tyyBgAmt", response.getTyyBgAmt(), storedCurrentRequestAmt);
         warnSnapshotDiff(response, "prjBgAmt", response.getPrjBgAmt(), totRqmAmt);
         warnSnapshotDiff(response, "mplAmt", response.getMplAmt(), storedPlannedAmt);
-        warnSnapshotDiff(response, "dfrAmt", nvl(response.getDfrAmt()), storedPaidAmt);
+        BigDecimal derivedPaidAmt = response.getDfrAmt();
+        if (derivedPaidAmt != null) {
+            warnSnapshotDiff(response, "dfrAmt", derivedPaidAmt, storedPaidAmt);
+        } else {
+            warnSnapshotDiff(response, "dfrAmt", BigDecimal.ZERO, storedPaidAmt);
+        }
 
         response.setPrjBgAmt(totRqmAmt);
         response.setMplAmt(storedPlannedAmt);

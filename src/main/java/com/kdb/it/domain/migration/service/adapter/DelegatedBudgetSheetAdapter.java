@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -65,10 +64,16 @@ public class DelegatedBudgetSheetAdapter implements SheetAdapter {
                 itemsByBranch.put(branch, items);
             }
             firstExcelRowByBranch.putIfAbsent(branch, row.excelRow());
-            String currency =
-                    Objects.requireNonNullElse(
-                            AdapterSupport.cellOf(sheet, row, "currency", ctx), "");
+            // cellOf는 빈 셀을 ""로 돌려주지만, 두 값 모두 아래 addItem 호출 두 번에 그대로 넘어가므로
+            // 빈 값을 여기서 확정한다(Sparrow UNCHECKED_NULL은 두 번째 호출을 미검사 사용으로 본다).
+            String currency = AdapterSupport.cellOf(sheet, row, "currency", ctx);
+            if (currency == null) {
+                currency = "";
+            }
             String itemName = AdapterSupport.cellOf(sheet, row, "itemName", ctx);
+            if (itemName == null) {
+                itemName = "";
+            }
             addItem(items, sheet, row, ctx, currency, itemName, "hw");
             addItem(items, sheet, row, ctx, currency, itemName, "sw");
             krwTotalByBranch.merge(branch, rowKrwTotal(sheet, row, ctx), BigDecimal::add);

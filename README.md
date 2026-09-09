@@ -206,6 +206,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `EAI_ENABLED`           | EAI 전송 활성화 여부. 공통 기본값 `false`, `prod` 기본값 `true`     |
 | `EAI_URL`               | EAI 전송 URL. `prod`에서 EAI가 활성화되면 기동 시 필수 검증         |
 | `EAI_GWE_IF_ID`         | 그룹웨어 EAI 인터페이스 ID                                          |
+| `EAI_SYS_ENV_TC`        | 전문 시스템환경구분코드(1자리). 공통 기본값 `L`, `prod` 기본값 `P`. 운영 게이트웨이는 `L` 전문을 거부하므로 운영에서는 바꾸지 않습니다 |
 | `MFA_SITE_ID`           | OnePass 기관 식별자. 기본값 `SIT01KDBBANK00000000`                  |
 | `MFA_SVC_ID`            | OnePass 서비스 식별자. 기본값 `SVC12SIT01KDBBANK000`                |
 | `MFA_FINGER_VEIN_FIXED_KEY` | 지정맥 해시 검증용 고정키. 모의 공급자를 끈 프로파일에서 필수 |

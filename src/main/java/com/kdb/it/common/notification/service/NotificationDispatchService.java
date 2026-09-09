@@ -5,7 +5,6 @@ import com.kdb.it.common.notification.dispatcher.NotificationDispatcher;
 import com.kdb.it.common.notification.entity.Cinfmm;
 import com.kdb.it.common.notification.repository.CinfmmRepository;
 import io.micrometer.core.instrument.MeterRegistry;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,9 +34,11 @@ public class NotificationDispatchService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void dispatch(String infmMsgNo) {
-        Cinfmm row =
-                Objects.requireNonNull(
-                        repository.findByIdForUpdate(infmMsgNo).orElseThrow(), "잠금 조회한 알림 행");
+        Cinfmm row = repository.findByIdForUpdate(infmMsgNo).orElseThrow();
+        // 잠금 조회 결과를 이후 상태 전이·계측에서 계속 역참조하므로 여기서 한 번만 확인한다.
+        if (row == null) {
+            throw new IllegalStateException("잠금 조회한 알림 행이 비어 있습니다: " + infmMsgNo);
+        }
         // 재시도 상한 검사는 스케줄러 조회 조건에만 있어 이벤트 경로와 동시 실행을 막지 못한다.
         // 잠금 구간에서 다시 확인해 상한을 넘긴 발송을 차단한다.
         if (!row.canRetry(maxAttempts)) {

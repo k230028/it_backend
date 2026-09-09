@@ -12,6 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -744,7 +745,7 @@ class CookieUtilTest {
     }
 
     @Test
-    @DisplayName("응답 쿠키 출력은 Servlet 쿠키 API로 보안 속성을 보존한다")
+    @DisplayName("응답 쿠키 출력은 ResponseCookie의 보안 속성을 보존한다")
     void addResponseCookie_preservesSecurityAttributes() {
         MockHttpServletResponse response = new MockHttpServletResponse();
         ResponseCookie source =
@@ -766,6 +767,24 @@ class CookieUtilTest {
         assertThat(emitted.getSecure()).isTrue();
         assertThat(emitted.isHttpOnly()).isTrue();
         assertThat(emitted.getAttribute("SameSite")).isEqualTo("Lax");
+    }
+
+    @Test
+    @DisplayName("응답 쿠키 출력은 ResponseCookie의 Partitioned 속성을 보존한다")
+    void addResponseCookie_preservesPartitionedAttribute() {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        ResponseCookie source =
+                ResponseCookie.from("session", "signed-token")
+                        .httpOnly(true)
+                        .secure(true)
+                        .path("/")
+                        .sameSite("None")
+                        .partitioned(true)
+                        .build();
+
+        CookieUtil.addResponseCookie(response, source);
+
+        assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).contains("Partitioned");
     }
 
     // ─────────────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ public class ProjectAmountCalculator {
      */
     public BigDecimal restoreCurrentRequestAmount(
             BigDecimal totalRequiredAmt, BigDecimal plannedAmt, BigDecimal paidAmt) {
-        return java.util.Objects.requireNonNull(totalRequiredAmt, "저장 총소요금액")
+        return Objects.requireNonNull(totalRequiredAmt, "저장 총소요금액")
                 .subtract(orZero(plannedAmt))
                 .subtract(orZero(paidAmt));
     }
@@ -43,16 +43,26 @@ public class ProjectAmountCalculator {
             plannedAmt = plannedAmt.add(toPlannedKrw(item));
         }
 
+        BigDecimal resolvedPaidAmt = orZero(paidAmt);
+        // 누적 금액과 orZero의 반환 계약을 정적분석 경계에서 명시적으로 확정한다.
+        // 아래 분기는 런타임에는 도달하지 않지만 Sparrow가 이후 호출 인자의 안전성을 추적하는 기준이다.
+        if (currentRequestAmt == null) {
+            throw new IllegalStateException("당해 요청금액 합계가 null입니다.");
+        }
+        if (plannedAmt == null) {
+            throw new IllegalStateException("예정금액 합계가 null입니다.");
+        }
+        if (resolvedPaidAmt == null) {
+            throw new IllegalStateException("지급금액이 null입니다.");
+        }
+
         BigDecimal normalizedCurrentRequestAmt =
-                Objects.requireNonNull(ProjectAmountPolicy.normalize(currentRequestAmt, "당해 요청금액"));
-        BigDecimal normalizedPlannedAmt =
-                Objects.requireNonNull(ProjectAmountPolicy.normalize(plannedAmt, "예정금액"));
-        BigDecimal normalizedPaidAmt =
-                Objects.requireNonNull(ProjectAmountPolicy.normalize(paidAmt, "지급금액"));
+                ProjectAmountPolicy.normalize(currentRequestAmt, "당해 요청금액");
+        BigDecimal normalizedPlannedAmt = ProjectAmountPolicy.normalize(plannedAmt, "예정금액");
+        BigDecimal normalizedPaidAmt = ProjectAmountPolicy.normalize(resolvedPaidAmt, "지급금액");
         BigDecimal totalRequiredAmt =
-                Objects.requireNonNull(
-                        ProjectAmountPolicy.sumNormalized(
-                                currentRequestAmt, plannedAmt, paidAmt, "총소요금액"));
+                ProjectAmountPolicy.sumNormalized(
+                        currentRequestAmt, plannedAmt, resolvedPaidAmt, "총소요금액");
         return new ProjectAmountSummary(
                 normalizedCurrentRequestAmt,
                 normalizedPlannedAmt,

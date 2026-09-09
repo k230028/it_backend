@@ -226,6 +226,43 @@ class DelegatedBudgetSheetAdapterTest {
         assertThat(out.allocations()).singleElement();
     }
 
+    @Test
+    @DisplayName("위임예산 시트만 처리한다")
+    void 위임예산_시트를_지원한다() {
+        assertThat(adapter.supports()).isEqualTo(SheetKind.DELEGATED_BUDGET);
+    }
+
+    @Test
+    @DisplayName("부점 담당자를 고르면 그룹 첫 행의 보정값 사번을 담당자·IT담당자로 쓴다 (MIG-03)")
+    void 담당자_보정값을_쓴다() {
+        AdapterOutput out =
+                adapter.adapt(sheet(londonRows()), contextWith(ownerOverride(2, "123456")));
+
+        ProjectDto.CreateRequest london = out.projects().get(0);
+        assertThat(london.getUsid()).isEqualTo("123456");
+        assertThat(london.getDvmUsid()).isEqualTo("123456");
+        // 보정을 걸지 않은 다른 부점은 종전대로 업로드 사용자로 채운다
+        assertThat(out.projects().get(1).getUsid()).isEqualTo("999999");
+    }
+
+    @Test
+    @DisplayName("담당자 보정값이 공백이면 지정하지 않은 것으로 보고 업로드 사용자로 채운다")
+    void 담당자_보정값이_공백이면_업로드_사용자를_쓴다() {
+        AdapterOutput out =
+                adapter.adapt(sheet(londonRows()), contextWith(ownerOverride(2, "   ")));
+
+        assertThat(out.projects().get(0).getUsid()).isEqualTo("999999");
+    }
+
+    private static Map<String, String> ownerOverride(int excelRow, String eno) {
+        return Map.of(
+                com.kdb.it.domain.migration.service.MigrationValidator.overrideKey(
+                        SheetKind.DELEGATED_BUDGET,
+                        excelRow,
+                        com.kdb.it.domain.migration.dto.MigrationColumns.DELEGATED_OWNER_OVERRIDE),
+                eno);
+    }
+
     private static MigrationDto.NormalizedRow row(int excelRow, Map<String, String> cells) {
         return new MigrationDto.NormalizedRow(excelRow, cells);
     }

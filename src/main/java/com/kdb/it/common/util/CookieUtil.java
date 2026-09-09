@@ -3,7 +3,6 @@ package com.kdb.it.common.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.system.dto.AuthDto;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
@@ -73,14 +73,18 @@ public class CookieUtil {
     /** SSO 검증 완료 쿠키 만료 시간 (60초) — JwtUtil.DEFAULT_SSO_VERIFIED_VALIDITY_MS와 같은 길이 */
     private static final long SSO_VERIFIED_MAX_AGE = 60;
 
-    /** 쿠키 Secure 플래그 개발 환경: false (HTTP 허용), 운영 환경: true (HTTPS만 허용) */
-    @Value("${app.cookie.secure:false}")
+    /**
+     * 쿠키 Secure 플래그. 개발 환경만 프로파일에서 false(HTTP 허용)로 내리고 그 밖에는 true(HTTPS 전용)입니다. 설정이 빠졌을 때 평문 전송으로
+     * 떨어지지 않도록 기본값도 true로 둡니다. 운영 프로파일은 {@code EnvironmentValidator}가 값 자체를 다시 강제합니다.
+     */
+    @Value("${app.cookie.secure:true}")
     private boolean secureCookie;
 
     /**
-     * Spring 응답 쿠키를 Servlet 쿠키 API로 안전하게 출력합니다.
+     * Spring 응답 쿠키를 {@code Set-Cookie} 헤더에 출력합니다.
      *
-     * <p>쿠키 문자열을 {@code Set-Cookie} 헤더에 직접 전달하지 않고 컨테이너의 RFC 6265 검증과 직렬화를 사용합니다.
+     * <p>{@link ResponseCookie}가 검증·직렬화한 값을 그대로 사용해 Secure, SameSite, Partitioned 같은 속성을 빠짐없이
+     * 보존합니다.
      *
      * @param response 쿠키를 추가할 응답
      * @param source 출력할 Spring 응답 쿠키
@@ -90,16 +94,7 @@ public class CookieUtil {
         Objects.requireNonNull(response, "응답");
         Objects.requireNonNull(source, "응답 쿠키");
 
-        Cookie cookie = new Cookie(source.getName(), source.getValue());
-        cookie.setHttpOnly(source.isHttpOnly());
-        cookie.setSecure(source.isSecure());
-        cookie.setPath(source.getPath());
-        cookie.setDomain(source.getDomain());
-        cookie.setMaxAge(Math.toIntExact(source.getMaxAge().getSeconds()));
-        if (source.getSameSite() != null) {
-            cookie.setAttribute("SameSite", source.getSameSite());
-        }
-        response.addCookie(cookie);
+        response.addHeader(HttpHeaders.SET_COOKIE, source.toString());
     }
 
     /**

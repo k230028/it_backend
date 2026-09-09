@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -266,9 +265,11 @@ public class MigrationMatchDiagnostics {
         if (sheet.kind() != SheetKind.CAPITAL_PROJECT) {
             return out;
         }
-        String rawRate =
-                Objects.requireNonNullElse(
-                        MigrationDiagnostics.cell(row, "adjustRate", overrides, sheet), "");
+        // cell은 빈 셀을 ""로 돌려주지만, 아래에서 파싱과 isBlank로 두 번 쓰므로 빈 값을 여기서 확정한다.
+        String rawRate = MigrationDiagnostics.cell(row, "adjustRate", overrides, sheet);
+        if (rawRate == null) {
+            rawRate = "";
+        }
         BigDecimal rate = AdapterSupport.rateFraction(rawRate);
         if (!rawRate.isBlank() && rate == null) {
             out.add(

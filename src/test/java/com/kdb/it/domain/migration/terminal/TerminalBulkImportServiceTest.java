@@ -201,6 +201,39 @@ class TerminalBulkImportServiceTest {
     }
 
     @Test
+    void 담당자성명이_조직사용자와일치해도_행번을해석해저장하지않는다() {
+        TerminalBulkImportService service = configuredService();
+        Bcostm previous =
+                Bcostm.builder().costBgNo("COST-2025-0002").bgSno(1).bseYy("2025").build();
+        Bcostm current = Bcostm.builder().costBgNo("COST-2026-0002").bgSno(1).bseYy("2026").build();
+        when(costRepository.findCurrentVersionsForUpdate("COST-2025-0002"))
+                .thenReturn(List.of(previous));
+        when(costRepository.findCurrentVersionsForUpdate("COST-2026-0002"))
+                .thenReturn(List.of(current));
+        when(costService.updateCostForMigration(any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        // row()의 담당자 "강동현"은 orgIndex()의 E001과 성명이 같다. 동명이인 문제로 성명→행번 해석은 금지된다.
+        TerminalBulkImportDto.Row existingRow =
+                rowWithIds(row(), "COST-2025-0002", "COST-2026-0002");
+
+        service.commit(new TerminalBulkImportDto.Request(2026, List.of(existingRow)), "999999");
+
+        ArgumentCaptor<CostDto.UpdateRequest> requests =
+                ArgumentCaptor.forClass(CostDto.UpdateRequest.class);
+        verify(costService, org.mockito.Mockito.times(2))
+                .updateCostForMigration(any(), requests.capture());
+        assertThat(requests.getAllValues())
+                .allSatisfy(
+                        request -> {
+                            assertThat(request.getCgprId()).isNull();
+                            assertThat(request.getCgprNm()).isEqualTo("강동현");
+                            assertThat(request.getTerminals())
+                                    .allSatisfy(
+                                            terminal -> assertThat(terminal.getCgprId()).isNull());
+                        });
+    }
+
+    @Test
     void 신규ID는_같은부서의블룸버그옵션을_연도별한건으로생성한다() {
         TerminalBulkImportService service = configuredService();
         TerminalBulkImportDto.Row first = rowFor("블룸버그", "KRW", "신규");

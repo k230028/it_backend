@@ -41,6 +41,9 @@ public record EaiProperties(
         if (bzCS3 == null || bzCS3.isBlank()) bzCS3 = "ITP";
         if (appC == null || appC.isBlank()) appC = "PRM";
         if (appBzLv1C == null || appBzLv1C.isBlank()) appBzLv1C = "PP";
+        /* 전문의 SYS_ENV_TC는 1자리 고정길이 필드다. 잘못된 값은 게이트웨이가 거부하므로 기동 시 막는다. */
+        if (sysEnvTc.length() != 1)
+            throw new IllegalStateException("eai.sys-env-tc must be 1 char (P or L): " + sysEnvTc);
         if (fwdiSysC.length() != 3)
             throw new IllegalStateException("eai.fwdi-sys-c must be 3 chars: " + fwdiSysC);
         if (bzCS3.length() != 3)

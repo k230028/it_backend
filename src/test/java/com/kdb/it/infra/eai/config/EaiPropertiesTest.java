@@ -1,5 +1,6 @@
 package com.kdb.it.infra.eai.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -10,7 +11,27 @@ import org.junit.jupiter.api.Test;
 class EaiPropertiesTest {
 
     private EaiProperties props(boolean enabled, String url) {
-        return new EaiProperties(enabled, url, "MS949", 3000, 3000, "L", "IPP", "IPP", "PRM", "PP");
+        return props(enabled, url, "L");
+    }
+
+    private EaiProperties props(boolean enabled, String url, String sysEnvTc) {
+        return new EaiProperties(
+                enabled, url, "MS949", 3000, 3000, sysEnvTc, "IPP", "IPP", "PRM", "PP");
+    }
+
+    @Test
+    @DisplayName("sysEnvTc가 비어 있으면 L로 보정하고 P는 그대로 유지한다")
+    void sysEnvTc_defaultsToLocalAndKeepsProduction() {
+        assertThat(props(false, "", " ").sysEnvTc()).isEqualTo("L");
+        assertThat(props(false, "", "P").sysEnvTc()).isEqualTo("P");
+    }
+
+    @Test
+    @DisplayName("sysEnvTc가 1자리가 아니면 기동 시 IllegalStateException")
+    void sysEnvTc_notOneChar_throws() {
+        assertThatThrownBy(() -> props(false, "", "PROD"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("eai.sys-env-tc");
     }
 
     @Test

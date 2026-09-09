@@ -157,9 +157,7 @@ public class TerminalBulkImportService {
             TerminalCodeCatalog codes) {
         String department = resolveOrg(org, row.department(), row.excelRow(), "부서");
         String team = resolveTeam(org, row.team(), department);
-        OrgIdentityResolver.Resolution managerResolution =
-                org.resolveUser(row.managerName(), department);
-        String manager = managerResolution.code();
+        // 담당자 성명은 동명이인을 구분할 수 없으므로 행번으로 해석하지 않고 성명 문자열만 보존한다.
         String currency =
                 codes.resolve(CommonCodeGroups.CURRENCY, row.currency(), row.excelRow(), "통화");
         String service =
@@ -188,7 +186,6 @@ public class TerminalBulkImportService {
                 row.department(),
                 team,
                 row.team(),
-                manager,
                 currency,
                 service,
                 method,
@@ -238,7 +235,8 @@ public class TerminalBulkImportService {
                 .curC("KRW")
                 .sectSysUtzYn("N")
                 .indRsn(first.row().note())
-                .cgprId(first.manager())
+                /* 성명→행번 해석은 동명이인 오지정 위험이 있어 하지 않는다. null은 기존 담당자ID를 유지한다. */
+                .cgprId(null)
                 .cgprNm(first.row().managerName())
                 .costSvnDpmC(first.department())
                 .svnTemC(first.team())
@@ -353,7 +351,6 @@ public class TerminalBulkImportService {
             String departmentName,
             String team,
             String teamName,
-            String manager,
             String currency,
             String service,
             String method,
