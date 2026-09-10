@@ -44,6 +44,26 @@ public interface ApproverRepository extends JpaRepository<Cdecim, CdecimId> {
         String getLstDcdYn();
     }
 
+    /** 기안자 요청 행(순번 0)에서 화면이 읽는 최소 필드입니다. */
+    interface RequesterDecisionView {
+        String getDcdMngNo();
+
+        String getDcrOpnnCone();
+    }
+
+    /**
+     * 신청서 목록의 기안자 요청 행(순번 0)을 일괄 조회합니다.
+     *
+     * <p>결재선 조회는 실제 결재자만 보도록 순번 0을 제외하므로, 기안자가 상신하며 남긴 결재의견은 이 경로로 따로 읽습니다. 기안자 요청 행을 남기지 않는 신청서는
+     * 결과에 없으며, 호출자는 이를 "의견 없음"으로 다룹니다.
+     *
+     * @param dcdMngNos 신청서 관리번호 목록
+     * @return 기안자 요청 행 read view 목록 (요청 행이 없는 신청서는 결과에 없음)
+     */
+    @Query("select c from Cdecim c where c.dcdMngNo in :dcdMngNos and c.dcrSqnSno = 0")
+    List<RequesterDecisionView> findRequesterDecisionViewsByDcdMngNoIn(
+            @Param("dcdMngNos") Collection<String> dcdMngNos);
+
     /**
      * 신청서 한 건의 결재선을 결재 순번 오름차순으로 조회합니다.
      *

@@ -499,6 +499,9 @@ class ApiResponseOpenApiContractTest {
                 "apfSts",
                 "apfStsC",
                 "rqsNm",
+                // 미등록 사번이면 직위명이 없고, 기안자 요청 행이 없는 신청서는 기안자 결재의견이 없다.
+                "rqsPtCNm",
+                "rqsDcdOpnn",
                 "rqsBbrC",
                 "rqsBbrNm",
                 "rqsOpnn");

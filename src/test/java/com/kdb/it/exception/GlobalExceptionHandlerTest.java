@@ -9,12 +9,17 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -24,6 +29,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * <p>GlobalExceptionHandler 를 직접 인스턴스화하여 각 @ExceptionHandler 메서드가 올바른 HTTP 상태코드와 JSON 오류 응답
  * 본문(timestamp/status/message)을 반환하는지 검증합니다. Spring 컨텍스트 없이 순수 단위 테스트로 동작합니다.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class GlobalExceptionHandlerTest {
 
     private GlobalExceptionHandler handler;
@@ -268,6 +274,36 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).containsEntry("status", 415);
         assertThat(response.getBody()).containsEntry("message", "지원하지 않는 Content-Type입니다.");
         assertThat(response.getBody()).containsKey("timestamp");
+    }
+
+    @Test
+    @DisplayName("handleMissingRequestParameter - 필수 쿼리 파라미터 누락 시 400 반환")
+    void handleMissingRequestParameter_필수파라미터누락_400반환() {
+        MissingServletRequestParameterException ex =
+                new MissingServletRequestParameterException("bbrC", "String");
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("GET", "/api/documents/badge-count");
+
+        ResponseEntity<Map<String, Object>> response =
+                handler.handleMissingRequestParameter(ex, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("status", 400);
+        assertThat(response.getBody()).containsEntry("message", "필수 요청 파라미터가 누락되었습니다: bbrC");
+    }
+
+    @Test
+    @DisplayName("handleMissingRequestParameter - 요청 경로를 스택트레이스 없이 기록")
+    void handleMissingRequestParameter_요청경로기록(CapturedOutput output) {
+        MissingServletRequestParameterException ex =
+                new MissingServletRequestParameterException("bbrC", "String");
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("GET", "/api/documents/badge-count");
+
+        handler.handleMissingRequestParameter(ex, request);
+
+        assertThat(output).contains("GET /api/documents/badge-count").contains("bbrC");
+        assertThat(output).doesNotContain("MissingServletRequestParameterException:");
     }
 
     // ---- 엣지 케이스 ----

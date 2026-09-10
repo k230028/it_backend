@@ -8,10 +8,15 @@ import com.kdb.it.common.approval.domain.MigrationApprovalMarker;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class ApplicationResponseMigratedTest {
+
+    /** 이 테스트가 보는 것은 migrated 판정뿐이라 신청자 표시 정보는 해석하지 않은 상태로 둡니다. */
+    private static final ApplicationRequesterInfo REQUESTER =
+            new ApplicationRequesterInfo(null, null, null, null);
 
     private ApplicationRepository.ApplicationReadView view(
             String statusCode, String rgprDcdReqCone) {
@@ -43,7 +48,8 @@ class ApplicationResponseMigratedTest {
     @DisplayName("수기등록 상태는 과거 표식 문구가 없어도 migrated=true")
     void migrated_whenManualStatusWithoutMigrationNote() {
         ApplicationDto.Response response =
-                ApplicationDto.Response.fromReadViews(view("9", null), List.of(), null, null);
+                ApplicationDto.Response.fromReadViews(
+                        view("9", null), List.of(), REQUESTER, Map.of());
 
         assertThat(response.isMigrated()).isTrue();
     }
@@ -62,7 +68,7 @@ class ApplicationResponseMigratedTest {
     void migrated_whenMigrationNote() {
         ApplicationDto.Response response =
                 ApplicationDto.Response.fromReadViews(
-                        view(MigrationApprovalMarker.NOTE), List.of(), null, null);
+                        view(MigrationApprovalMarker.NOTE), List.of(), REQUESTER, Map.of());
 
         assertThat(response.isMigrated()).isTrue();
     }
@@ -71,7 +77,8 @@ class ApplicationResponseMigratedTest {
     @DisplayName("일반 신청서는 migrated=false")
     void notMigrated_whenOrdinaryOpinion() {
         ApplicationDto.Response response =
-                ApplicationDto.Response.fromReadViews(view("검토 부탁드립니다."), List.of(), null, null);
+                ApplicationDto.Response.fromReadViews(
+                        view("검토 부탁드립니다."), List.of(), REQUESTER, Map.of());
 
         assertThat(response.isMigrated()).isFalse();
     }
@@ -80,7 +87,7 @@ class ApplicationResponseMigratedTest {
     @DisplayName("등록자결재요청내용이 null이어도 예외 없이 false")
     void notMigrated_whenNullOpinion() {
         ApplicationDto.Response response =
-                ApplicationDto.Response.fromReadViews(view(null), List.of(), null, null);
+                ApplicationDto.Response.fromReadViews(view(null), List.of(), REQUESTER, Map.of());
 
         assertThat(response.isMigrated()).isFalse();
     }

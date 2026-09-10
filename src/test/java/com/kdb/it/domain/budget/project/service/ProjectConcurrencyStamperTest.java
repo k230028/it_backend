@@ -68,6 +68,26 @@ class ProjectConcurrencyStamperTest {
     }
 
     @Test
+    @DisplayName("품목 목록 null은 빈 목록과 같은 스탬프다")
+    void nullItemsAreTreatedAsEmptyList() {
+        assertThat(stamper.stamp(project(), null)).isEqualTo(stamper.stamp(project(), List.of()));
+    }
+
+    @Test
+    @DisplayName("수량이 비어 있는 과거 품목도 스탬프를 만들고 수량 있는 품목과 구분된다")
+    void nullQuantityIsStampedWithoutFallback() {
+        Bitemm noQuantity = itemBuilder("GCL-1", 1, "서버", "500").qty(null).build();
+
+        assertThat(stamper.stamp(project(), List.of(noQuantity)))
+                .matches("[a-f0-9]{64}")
+                .isEqualTo(
+                        stamper.stamp(
+                                project(),
+                                List.of(itemBuilder("GCL-1", 1, "서버", "500").qty(null).build())))
+                .isNotEqualTo(stamper.stamp(project(), List.of(item("GCL-1", 1, "서버", "500"))));
+    }
+
+    @Test
     @DisplayName("품목 입력 순서가 달라도 스탬프는 같다")
     void itemOrderDoesNotChangeStamp() {
         Bitemm first = item("GCL-1", 1, "서버", "500");

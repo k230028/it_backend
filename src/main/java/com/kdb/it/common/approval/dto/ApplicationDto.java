@@ -343,6 +343,8 @@ public class ApplicationDto {
                 "apfStsC",
                 "rqsEno",
                 "rqsNm",
+                "rqsPtCNm",
+                "rqsDcdOpnn",
                 "rqsBbrC",
                 "rqsBbrNm",
                 "rqsDt",
@@ -378,6 +380,19 @@ public class ApplicationDto {
         /** 신청자명 */
         @Schema(description = "신청자명", nullable = true)
         private String rqsNm;
+
+        /** 신청자 직위명 (예: "차장"). 미등록 사번이면 null입니다. */
+        @Schema(description = "신청자 직위명", nullable = true)
+        private String rqsPtCNm;
+
+        /**
+         * 기안자 결재의견 (TPRMPP_CDECIM 순번 0행의 결재자의견내용)
+         *
+         * <p>기안자 요청 행을 남기지 않는 신청서는 null이며 "의견 없음"을 뜻합니다. 신청의견({@link #rqsOpnn})은 신청 내용 요약이라 의미가
+         * 다르므로 이 값이 없다고 해서 대체하지 않습니다.
+         */
+        @Schema(description = "기안자 결재의견", nullable = true)
+        private String rqsDcdOpnn;
 
         /** 신청부서코드 */
         @Schema(description = "신청부서코드", nullable = true)
@@ -446,44 +461,24 @@ public class ApplicationDto {
         }
 
         /**
-         * 신청서 마스터 read view와 결재선 read view를 응답 DTO로 변환합니다.
+         * 신청서 마스터 read view와 신청자·결재자 표시 정보를 응답 DTO로 변환합니다.
          *
          * <p>{@link #fromEntity(Capplm, List, String, String)}와 동일한 응답을 생성하되, 신청서 마스터 조회를 15컬럼 엔티티
          * 대신 응답이 실제 사용하는 8컬럼 read view로 대체합니다(BE-03).
          *
          * @param view 신청서 마스터 read view
          * @param approvers 결재 순번 오름차순 read view 목록
-         * @param requesterNm 신청자명
-         * @param requesterBbrNm 신청부서명
-         * @return 변환된 응답 DTO
-         */
-        public static Response fromReadViews(
-                ApplicationRepository.ApplicationReadView view,
-                List<ApproverRepository.ApproverReadView> approvers,
-                String requesterNm,
-                String requesterBbrNm) {
-            return ApplicationResponseAssembler.fromReadViews(
-                    view, approvers, requesterNm, requesterBbrNm, Map.of());
-        }
-
-        /**
-         * 신청서 마스터 read view와 결재자 표시 정보를 응답 DTO로 변환합니다.
-         *
-         * @param view 신청서 마스터 read view
-         * @param approvers 결재 순번 오름차순 read view 목록
-         * @param requesterNm 신청자명
-         * @param requesterBbrNm 신청부서명
+         * @param requester 신청자 표시 정보와 기안자 결재의견
          * @param approverDisplaysByEno 결재자 사번별 표시 정보
          * @return 변환된 응답 DTO
          */
         public static Response fromReadViews(
                 ApplicationRepository.ApplicationReadView view,
                 List<ApproverRepository.ApproverReadView> approvers,
-                String requesterNm,
-                String requesterBbrNm,
+                ApplicationRequesterInfo requester,
                 Map<String, ApplicationApproverDisplay> approverDisplaysByEno) {
             return ApplicationResponseAssembler.fromReadViews(
-                    view, approvers, requesterNm, requesterBbrNm, approverDisplaysByEno);
+                    view, approvers, requester, approverDisplaysByEno);
         }
     }
 

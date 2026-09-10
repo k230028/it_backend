@@ -2,6 +2,7 @@ package com.kdb.it.common.approval.service;
 
 import com.kdb.it.common.approval.dto.ApplicationApproverDisplay;
 import com.kdb.it.common.approval.dto.ApplicationDto;
+import com.kdb.it.common.approval.dto.ApplicationRequesterInfo;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -48,9 +49,12 @@ final class ApplicationBulkReadSupport {
                                         ApproverRepository.ApproverReadView::getDcdMngNo));
         Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
                 resolveApproverDisplays(approverViews, userRepository);
-        Map<String, String> requesterNamesByEno = resolveRequesterNames(foundViews, userRepository);
+        Map<String, UserRepository.UserNameView> requesterUsersByEno =
+                resolveRequesterUsers(foundViews, userRepository);
         Map<String, String> requesterDeptNamesByBbrC =
                 resolveRequesterDeptNames(foundViews, organizationRepository);
+        Map<String, String> requesterOpinionsByApf =
+                resolveRequesterOpinions(foundIds, approverRepository);
         List<ApplicationDto.Response> items =
                 foundIds.stream()
                         .map(viewsById::get)
@@ -60,11 +64,11 @@ final class ApplicationBulkReadSupport {
                                                 view,
                                                 approversByApf.getOrDefault(
                                                         view.getApfMngNo(), List.of()),
-                                                requesterName(
-                                                        requesterNamesByEno, view.getDcdReqUsid()),
-                                                requesterDeptName(
+                                                requesterInfo(
+                                                        requesterUsersByEno,
                                                         requesterDeptNamesByBbrC,
-                                                        view.getDcdReqBbrC()),
+                                                        requesterOpinionsByApf,
+                                                        view),
                                                 approverDisplaysByEno))
                         .toList();
         List<String> failedIds = new ArrayList<>();
@@ -105,18 +109,23 @@ final class ApplicationBulkReadSupport {
                                         ApproverRepository.ApproverReadView::getDcdMngNo));
         Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
                 resolveApproverDisplays(approverViews, userRepository);
-        Map<String, String> requesterNamesByEno = resolveRequesterNames(views, userRepository);
+        Map<String, UserRepository.UserNameView> requesterUsersByEno =
+                resolveRequesterUsers(views, userRepository);
         Map<String, String> requesterDeptNamesByBbrC =
                 resolveRequesterDeptNames(views, organizationRepository);
+        Map<String, String> requesterOpinionsByApf =
+                resolveRequesterOpinions(apfMngNos, approverRepository);
         return views.stream()
                 .map(
                         view ->
                                 ApplicationDto.Response.fromReadViews(
                                         view,
                                         approversByApf.getOrDefault(view.getApfMngNo(), List.of()),
-                                        requesterName(requesterNamesByEno, view.getDcdReqUsid()),
-                                        requesterDeptName(
-                                                requesterDeptNamesByBbrC, view.getDcdReqBbrC()),
+                                        requesterInfo(
+                                                requesterUsersByEno,
+                                                requesterDeptNamesByBbrC,
+                                                requesterOpinionsByApf,
+                                                view),
                                         approverDisplaysByEno))
                 .toList();
     }
@@ -131,15 +140,20 @@ final class ApplicationBulkReadSupport {
                 approverRepository.findReadViewsByDcdMngNoOrderByDcrSqnSnoAsc(view.getApfMngNo());
         Map<String, ApplicationApproverDisplay> approverDisplaysByEno =
                 resolveApproverDisplays(approvers, userRepository);
-        Map<String, String> requesterNamesByEno =
-                resolveRequesterNames(List.of(view), userRepository);
+        Map<String, UserRepository.UserNameView> requesterUsersByEno =
+                resolveRequesterUsers(List.of(view), userRepository);
         Map<String, String> requesterDeptNamesByBbrC =
                 resolveRequesterDeptNames(List.of(view), organizationRepository);
+        Map<String, String> requesterOpinionsByApf =
+                resolveRequesterOpinions(List.of(view.getApfMngNo()), approverRepository);
         return ApplicationDto.Response.fromReadViews(
                 view,
                 approvers,
-                requesterName(requesterNamesByEno, view.getDcdReqUsid()),
-                requesterDeptName(requesterDeptNamesByBbrC, view.getDcdReqBbrC()),
+                requesterInfo(
+                        requesterUsersByEno,
+                        requesterDeptNamesByBbrC,
+                        requesterOpinionsByApf,
+                        view),
                 approverDisplaysByEno);
     }
 
@@ -162,7 +176,8 @@ final class ApplicationBulkReadSupport {
                                 (left, right) -> left));
     }
 
-    private static Map<String, String> resolveRequesterNames(
+    /** 신청자 사번을 한 번에 해석해 성명·직위명 프로젝션 맵으로 변환합니다. */
+    private static Map<String, UserRepository.UserNameView> resolveRequesterUsers(
             List<ApplicationRepository.ApplicationReadView> views, UserRepository userRepository) {
         Set<String> requesterEnos =
                 views.stream()
@@ -174,12 +189,41 @@ final class ApplicationBulkReadSupport {
                 .collect(
                         Collectors.toMap(
                                 UserRepository.UserNameView::getEno,
-                                UserRepository.UserNameView::getUsrNm,
+                                view -> view,
                                 (left, right) -> left));
     }
 
-    private static String requesterName(Map<String, String> names, String eno) {
-        return eno == null || eno.isBlank() ? null : names.get(eno);
+    /**
+     * 신청서별 기안자 결재의견을 IN 배치 1회로 읽습니다.
+     *
+     * <p>기안자 요청 행(순번 0)이 없는 신청서는 결과에 없으므로 의견도 null이 됩니다. 신청의견으로 대신 채우지 않습니다 — 두 값은 서로 다른 정보입니다.
+     */
+    private static Map<String, String> resolveRequesterOpinions(
+            List<String> apfMngNos, ApproverRepository approverRepository) {
+        if (apfMngNos.isEmpty()) return Map.of();
+        return approverRepository.findRequesterDecisionViewsByDcdMngNoIn(apfMngNos).stream()
+                .filter(view -> view.getDcrOpnnCone() != null)
+                .collect(
+                        Collectors.toMap(
+                                ApproverRepository.RequesterDecisionView::getDcdMngNo,
+                                ApproverRepository.RequesterDecisionView::getDcrOpnnCone,
+                                (left, right) -> left));
+    }
+
+    /** 배치로 읽은 신청자 표시 정보와 기안자 의견을 한 신청서 기준으로 모읍니다. */
+    private static ApplicationRequesterInfo requesterInfo(
+            Map<String, UserRepository.UserNameView> requesterUsersByEno,
+            Map<String, String> requesterDeptNamesByBbrC,
+            Map<String, String> requesterOpinionsByApf,
+            ApplicationRepository.ApplicationReadView view) {
+        String eno = view.getDcdReqUsid();
+        UserRepository.UserNameView requester =
+                eno == null || eno.isBlank() ? null : requesterUsersByEno.get(eno);
+        return new ApplicationRequesterInfo(
+                requester == null ? null : requester.getUsrNm(),
+                requester == null ? null : requester.getPtCNm(),
+                requesterDeptName(requesterDeptNamesByBbrC, view.getDcdReqBbrC()),
+                requesterOpinionsByApf.get(view.getApfMngNo()));
     }
 
     private static Map<String, String> resolveRequesterDeptNames(

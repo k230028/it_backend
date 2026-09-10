@@ -15,8 +15,7 @@ final class ApplicationResponseAssembler {
     static ApplicationDto.Response fromReadViews(
             ApplicationRepository.ApplicationReadView view,
             List<ApproverRepository.ApproverReadView> approvers,
-            String requesterNm,
-            String requesterBbrNm,
+            ApplicationRequesterInfo requester,
             Map<String, ApplicationApproverDisplay> approverDisplaysByEno) {
         return ApplicationDto.Response.builder()
                 .apfMngNo(view.getApfMngNo())
@@ -30,9 +29,11 @@ final class ApplicationResponseAssembler {
                                         .label())
                 .apfStsC(view.getItPtlApfPrgStsC())
                 .rqsEno(view.getDcdReqUsid())
-                .rqsNm(requesterNm)
+                .rqsNm(requester.usrNm())
+                .rqsPtCNm(requester.ptCNm())
+                .rqsDcdOpnn(requester.decisionOpinion())
                 .rqsBbrC(view.getDcdReqBbrC())
-                .rqsBbrNm(requesterBbrNm)
+                .rqsBbrNm(requester.bbrNm())
                 .rqsDt(view.getDcdReqDtm())
                 .rqsOpnn(view.getRgprDcdReqCone())
                 .migrated(

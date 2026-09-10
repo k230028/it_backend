@@ -107,4 +107,57 @@ class ApplicationBulkReadSupportTest {
         assertThat(result.getRqsBbrNm()).isEqualTo("정보기획부");
         assertThat(result.getApprovers()).hasSize(1);
     }
+
+    @Test
+    @DisplayName("신청자 직위명과 기안자 요청 행(순번 0)의 결재의견을 응답에 채운다")
+    void assembleOne_resolvesRequesterRankAndDecisionOpinion() {
+        ApproverRepository approverRepository = mock(ApproverRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        OrganizationRepository organizationRepository = mock(OrganizationRepository.class);
+        ApplicationRepository.ApplicationReadView view =
+                mock(ApplicationRepository.ApplicationReadView.class);
+        UserRepository.UserNameView user = mock(UserRepository.UserNameView.class);
+        ApproverRepository.RequesterDecisionView requesterDecision =
+                mock(ApproverRepository.RequesterDecisionView.class);
+        given(view.getApfMngNo()).willReturn("APF-1");
+        given(view.getDcdReqUsid()).willReturn("E-1");
+        given(view.getRgprDcdReqCone()).willReturn("정보화사업 3건 상신");
+        given(user.getEno()).willReturn("E-1");
+        given(user.getUsrNm()).willReturn("홍길동");
+        given(user.getPtCNm()).willReturn("차장");
+        given(requesterDecision.getDcdMngNo()).willReturn("APF-1");
+        given(requesterDecision.getDcrOpnnCone()).willReturn("검토 부탁드립니다.");
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of(user));
+        given(approverRepository.findRequesterDecisionViewsByDcdMngNoIn(List.of("APF-1")))
+                .willReturn(List.of(requesterDecision));
+
+        ApplicationDto.Response result =
+                ApplicationBulkReadSupport.assembleOne(
+                        view, approverRepository, userRepository, organizationRepository);
+
+        assertThat(result.getRqsPtCNm()).isEqualTo("차장");
+        assertThat(result.getRqsDcdOpnn()).isEqualTo("검토 부탁드립니다.");
+    }
+
+    @Test
+    @DisplayName("기안자 요청 행이 없으면 기안자 결재의견은 신청의견으로 대체하지 않고 null이다")
+    void assembleOne_keepsDecisionOpinionNullWithoutRequesterRow() {
+        ApproverRepository approverRepository = mock(ApproverRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        OrganizationRepository organizationRepository = mock(OrganizationRepository.class);
+        ApplicationRepository.ApplicationReadView view =
+                mock(ApplicationRepository.ApplicationReadView.class);
+        given(view.getApfMngNo()).willReturn("APF-1");
+        given(view.getDcdReqUsid()).willReturn("E-1");
+        given(view.getRgprDcdReqCone()).willReturn("신청의견입니다.");
+        given(approverRepository.findRequesterDecisionViewsByDcdMngNoIn(List.of("APF-1")))
+                .willReturn(List.of());
+
+        ApplicationDto.Response result =
+                ApplicationBulkReadSupport.assembleOne(
+                        view, approverRepository, userRepository, organizationRepository);
+
+        assertThat(result.getRqsOpnn()).isEqualTo("신청의견입니다.");
+        assertThat(result.getRqsDcdOpnn()).isNull();
+    }
 }

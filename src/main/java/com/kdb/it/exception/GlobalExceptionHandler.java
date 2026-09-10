@@ -7,6 +7,7 @@ import com.kdb.it.domain.budget.cost.dto.CostConflictResponse;
 import com.kdb.it.domain.budget.cost.exception.CostConflictException;
 import com.kdb.it.domain.budget.project.dto.ProjectConflictResponse;
 import com.kdb.it.domain.budget.project.exception.ProjectConflictException;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,6 +22,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
@@ -287,6 +289,19 @@ public class GlobalExceptionHandler {
             HttpMediaTypeNotSupportedException e) {
         log.debug("지원하지 않는 Content-Type: {}", e.getContentType());
         return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 Content-Type입니다.");
+    }
+
+    /** 필수 쿼리 파라미터가 없는 요청을 클라이언트 오류로 처리하고 요청 경로를 기록합니다. */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingRequestParameter(
+            MissingServletRequestParameterException e, HttpServletRequest request) {
+        log.warn(
+                "필수 요청 파라미터 누락: {} {}, parameter={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                e.getParameterName());
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST, "필수 요청 파라미터가 누락되었습니다: " + e.getParameterName());
     }
 
     /**

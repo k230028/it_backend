@@ -61,7 +61,8 @@ public class AdminCommonPopupController {
     /** 지정된 유형의 현재 팝업 등록 상태를 조회합니다. */
     @GetMapping("/{type}")
     @Operation(summary = "화면별 안내 팝업 관리자 조회")
-    public ResponseEntity<CommonPopupDto.AdminResponse> getAdminPopup(@PathVariable String type) {
+    public ResponseEntity<CommonPopupDto.AdminResponse> getAdminPopup(
+            @PathVariable(name = "type") String type) {
         return ResponseEntity.ok(service.getAdminPopup(requireType(type)));
     }
 
@@ -69,7 +70,8 @@ public class AdminCommonPopupController {
     @PutMapping("/{type}")
     @Operation(summary = "화면별 안내 팝업 저장")
     public ResponseEntity<CommonPopupDto.AdminResponse> save(
-            @PathVariable String type, @Valid @RequestBody CommonPopupDto.SaveRequest request) {
+            @PathVariable(name = "type") String type,
+            @Valid @RequestBody CommonPopupDto.SaveRequest request) {
         return ResponseEntity.ok(service.save(requireType(type), request.contentHtml()));
     }
 
@@ -82,7 +84,7 @@ public class AdminCommonPopupController {
                             responseCode = "204",
                             description = "게시 중지 성공",
                             content = @Content))
-    public ResponseEntity<Void> stopPublishing(@PathVariable String type) {
+    public ResponseEntity<Void> stopPublishing(@PathVariable(name = "type") String type) {
         service.stopPublishing(requireType(type));
         return ResponseEntity.noContent().build();
     }

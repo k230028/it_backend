@@ -44,7 +44,8 @@ public class CommonPopupController {
         @ApiResponse(responseCode = "200", description = "게시 중인 안내 반환"),
         @ApiResponse(responseCode = "204", description = "게시 중인 안내 없음", content = @Content)
     })
-    public ResponseEntity<CommonPopupDto.Response> getActivePopup(@PathVariable String type) {
+    public ResponseEntity<CommonPopupDto.Response> getActivePopup(
+            @PathVariable(name = "type") String type) {
         return service.getActivePopup(requireType(type))
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
