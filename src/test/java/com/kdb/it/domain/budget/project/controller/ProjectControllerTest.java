@@ -131,12 +131,13 @@ class ProjectControllerTest {
                         .abusTc("10")
                         .complete(true)
                         .build();
-        given(projectService.createProject(any(ProjectDto.CreateRequest.class)))
+        given(projectService.createProject(any(ProjectDto.CreateRequest.class), any()))
                 .willReturn("PRJ-2026-0001");
 
         // when & then
         mockMvc.perform(
                         post("/api/projects")
+                                .with(authentication(adminAuthentication()))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -187,16 +188,17 @@ class ProjectControllerTest {
                         .complete(true)
                         .abusPulNcsInf("가".repeat(101))
                         .build();
-        given(projectService.createProject(any(ProjectDto.CreateRequest.class)))
+        given(projectService.createProject(any(ProjectDto.CreateRequest.class), any()))
                 .willReturn("PRJ-2026-0002");
 
         mockMvc.perform(
                         post("/api/projects")
+                                .with(authentication(adminAuthentication()))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
 
-        verify(projectService).createProject(any(ProjectDto.CreateRequest.class));
+        verify(projectService).createProject(any(ProjectDto.CreateRequest.class), any());
     }
 
     @Test

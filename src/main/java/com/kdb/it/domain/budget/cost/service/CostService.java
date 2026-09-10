@@ -256,6 +256,13 @@ public class CostService {
         return createCost(request, false);
     }
 
+    /** 인증 사용자의 부서와 요청 담당부서가 같은지 검증한 뒤 전산업무비를 생성합니다. */
+    @Transactional
+    public String createCost(CostDto.CreateRequest request, CustomUserDetails actor) {
+        OwnershipVerifier.verifySameDepartmentOrAdmin(request.getCostSvnDpmC(), actor);
+        return createCost(request, false);
+    }
+
     /**
      * 신규 전산업무비와 요청 단말기를 생성합니다.
      *

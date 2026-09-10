@@ -87,6 +87,7 @@ public class ItBudgetApprovalFacade {
         requireActor(actor);
         var claims = tokens.verify(request == null ? null : request.previewToken(), actor.getEno());
         var normalized = boundRequest(request, claims);
+        rejectRequesterOnlyApprovalLine(actor.getEno(), normalized.approvers());
         var refs = normalized.documents().stream().flatMap(d -> d.sourceRefs().stream()).toList();
         List<SourceAggregate> aggregates;
         try {
@@ -247,6 +248,7 @@ public class ItBudgetApprovalFacade {
     private PreviewResponse doPreview(CustomUserDetails actor, PreviewRequest request) {
         requireActor(actor);
         var normalized = normalize(request, false);
+        rejectRequesterOnlyApprovalLine(actor.getEno(), normalized.approvers());
         var refs = normalized.documents().stream().flatMap(d -> d.sourceRefs().stream()).toList();
         var aggregates = loader.load(refs);
         // 부모 데이터는 인가 판단에 필요하다. 모든 대상의 인가를 끝내기 전 표시정보·문서는 생성하지 않는다.
@@ -381,6 +383,15 @@ public class ItBudgetApprovalFacade {
                 new ItBudgetSnapshot.Requester(
                         requester.getEno(), requester.getUsrNm(), requester.getPtCNm()),
                 line);
+    }
+
+    /** 기안자 자신이 팀장·부점장 결재를 모두 맡아 즉시 완료되는 결재선만 차단합니다. */
+    private static void rejectRequesterOnlyApprovalLine(
+            String requesterEno, List<ApproverRef> approvers) {
+        if (approvers.size() == 2
+                && approvers.stream().allMatch(approver -> requesterEno.equals(approver.eno()))) {
+            throw invalid("기안자를 팀장과 부점장 결재자로 모두 지정할 수 없습니다.");
+        }
     }
 
     private CuserI requiredPerson(Map<String, CuserI> people, String eno, boolean requireRank) {

@@ -26,7 +26,21 @@ final class ApplicationBulkReadSupport {
             ApproverRepository approverRepository,
             UserRepository userRepository,
             OrganizationRepository organizationRepository) {
-        List<String> requestedIds = request.getApfMngNos();
+        return read(
+                request.getApfMngNos().stream().distinct().toList(),
+                applicationRepository,
+                approverRepository,
+                userRepository,
+                organizationRepository);
+    }
+
+    /** 검증·중복 제거가 끝난 신청관리번호로 일괄 응답을 조립합니다. */
+    static ApplicationDto.BulkResponse read(
+            List<String> requestedIds,
+            ApplicationRepository applicationRepository,
+            ApproverRepository approverRepository,
+            UserRepository userRepository,
+            OrganizationRepository organizationRepository) {
         List<ApplicationRepository.ApplicationReadView> views =
                 applicationRepository.findReadViewsByApfMngNoIn(requestedIds);
         Map<String, ApplicationRepository.ApplicationReadView> viewsById =

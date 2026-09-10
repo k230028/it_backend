@@ -5,8 +5,11 @@ import com.kdb.it.common.approval.entity.Cdecim;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
 import com.kdb.it.common.approval.repository.ApproverRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
@@ -165,14 +168,6 @@ public class ApplicationDto {
         /** 기본 생성자 — Jackson 역직렬화용. */
         public ApproveRequest() {}
 
-        /**
-         * 결재자 사원번호
-         *
-         * <p>실제 서비스에서는 JWT 토큰에서 추출한 현재 사용자 사번을 사용해야 합니다. 현재는 요청 Body에서 받도록 구현되어 있습니다.
-         */
-        @Schema(description = "결재자 사원번호 (실제로는 세션에서 가져와야 함)")
-        private String dcdEno;
-
         /** 결재의견 (승인/반려 사유) */
         @Schema(description = "결재의견")
         private String dcdOpnn;
@@ -213,9 +208,11 @@ public class ApplicationDto {
         /** 기본 생성자 — Jackson 역직렬화용. */
         public BulkApproveRequest() {}
 
-        /** 결재 처리할 신청서 목록 (각 항목에 결재자 정보 포함) */
+        /** 결재 처리할 신청서 목록 */
+        @NotEmpty
+        @Size(min = 1, max = 100)
         @Schema(description = "승인할 신청서 목록")
-        private List<ApprovalItem> approvals;
+        private List<@NotNull @Valid ApprovalItem> approvals;
     }
 
     /**
@@ -231,19 +228,22 @@ public class ApplicationDto {
         public ApprovalItem() {}
 
         /** 결재할 신청관리번호 */
+        @NotBlank
+        @Size(max = 64)
         @Schema(description = "신청관리번호")
         private String apfMngNo;
 
-        /** 결재자 사원번호 */
-        @Schema(description = "결재자 사원번호")
-        private String dcdEno;
-
         /** 결재의견 */
+        @Size(max = 2000)
         @Schema(description = "결재의견")
         private String dcdOpnn;
 
         /** 결재상태 (허용값: "승인" 또는 "반려") */
-        @Schema(description = "결재상태 (승인/반려)")
+        @NotBlank
+        @Pattern(regexp = "^(2|3|승인|반려)$")
+        @Schema(
+                description = "결재상태",
+                allowableValues = {"2", "3", "승인", "반려"})
         private String dcdSts;
     }
 
@@ -308,8 +308,10 @@ public class ApplicationDto {
         public BulkGetRequest() {}
 
         /** 조회할 신청관리번호 목록 (예: ["APF-2026-00000001", "APF-2026-00000002"]) */
+        @NotEmpty
+        @Size(min = 1, max = 100)
         @Schema(description = "조회할 신청관리번호 목록")
-        private List<String> apfMngNos;
+        private List<@NotBlank @Size(max = 64) String> apfMngNos;
     }
 
     /**

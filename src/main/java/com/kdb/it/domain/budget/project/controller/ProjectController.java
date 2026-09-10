@@ -216,8 +216,9 @@ public class ProjectController {
     @PostMapping
     @Operation(summary = "신규 정보화사업 생성", description = "신규 정보화사업을 생성합니다.")
     public ResponseEntity<String> createProject(
-            @Valid @RequestBody ProjectDto.CreateRequest request) {
-        String prjMngNo = projectService.createProject(request);
+            @Valid @RequestBody ProjectDto.CreateRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        String prjMngNo = projectService.createProject(request, user);
         // 201 Created 응답 + Location 헤더에 생성된 리소스 URL 포함
         return ResponseEntity.created(URI.create("/api/projects/" + prjMngNo)).body(prjMngNo);
     }

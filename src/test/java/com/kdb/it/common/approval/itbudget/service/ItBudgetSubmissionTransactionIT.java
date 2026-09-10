@@ -403,7 +403,7 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
     }
 
     @Test
-    void requesterInEveryApprovalSlotCompletesOnSubmissionWithOneDecisionDate() {
+    void requesterInEveryApprovalSlotIsRejectedBeforeSubmission() {
         var input =
                 new PreviewRequest(
                         List.of(
@@ -413,60 +413,14 @@ class ItBudgetSubmissionTransactionIT extends AbstractOracleRepositoryTest {
                                 new DocumentRequest(
                                         "project",
                                         List.of(new SourceRef(SourceKind.PROJECT, id, 3, 1)))));
-        var preview = facade.preview(actor, input);
-        var request =
-                new SubmissionRequest(
-                        preview.previewDigest(),
-                        preview.previewToken(),
-                        input.approvers(),
-                        preview.documents().stream()
-                                .map(
-                                        document ->
-                                                new SubmissionDocument(
-                                                        document.clientDocumentKey(),
-                                                        document.payloadDigest(),
-                                                        document.sources()))
-                                .toList());
-
-        var response = facade.submit(actor, request);
-
-        tx().executeWithoutResult(
-                        ignored -> {
-                            var stored =
-                                    em.find(
-                                            com.kdb.it.common.approval.entity.Capplm.class,
-                                            response.applicationNumbers().getFirst());
-                            assertThat(stored.getItPtlApfPrgStsC()).isEqualTo("2");
-                            var decisions =
-                                    em.createQuery(
-                                                    "select c from Cdecim c where c.dcdMngNo = :number order by c.dcrSqnSno",
-                                                    Cdecim.class)
-                                            .setParameter("number", stored.getApfMngNo())
-                                            .getResultList();
-                            assertThat(decisions).hasSize(3);
-                            assertThat(decisions)
-                                    .allSatisfy(
-                                            decision -> {
-                                                assertThat(decision.getItPtlDcdStsC())
-                                                        .isEqualTo(DecisionStatus.APPROVED.code());
-                                                assertThat(decision.getDcdDtm())
-                                                        .isEqualTo(LocalDate.now());
-                                            });
-                            var snapshot =
-                                    StoredSnapshotFixture.reader().read(stored.getDcdReqInf());
-                            assertThat(snapshot.approvalLine(true).at("/approvers/0/date").asText())
-                                    .isEqualTo(LocalDate.now().toString());
-                            assertThat(snapshot.approvalLine(true).at("/approvers/1/date").asText())
-                                    .isEqualTo(LocalDate.now().toString());
-                        });
-        assertThat(events.completed)
-                .singleElement()
-                .satisfies(
-                        event -> {
-                            assertThat(event.apfMngNo())
-                                    .isEqualTo(response.applicationNumbers().getFirst());
-                            assertThat(event.newStatus()).isEqualTo("결재완료");
-                        });
+        assertThatThrownBy(() -> facade.preview(actor, input))
+                .isInstanceOfSatisfying(
+                        com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException
+                                .class,
+                        exception ->
+                                assertThat(exception.code())
+                                        .isEqualTo("IT_BUDGET_PREVIEW_INVALID"));
+        assertThat(events.completed).isEmpty();
     }
 
     @Test

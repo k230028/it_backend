@@ -125,7 +125,8 @@ class ApprovalLineConcurrencyIT {
                                                                         await(approveNow, "승인 시작");
                                                                         applicationService.approve(
                                                                                 apfMngNo,
-                                                                                approveRequest());
+                                                                                approveRequest(),
+                                                                                APPROVER_ENO);
                                                                         approvalCompletedButUncommitted
                                                                                 .countDown();
                                                                         await(
@@ -191,7 +192,6 @@ class ApprovalLineConcurrencyIT {
 
     private ApplicationDto.ApproveRequest approveRequest() {
         ApplicationDto.ApproveRequest request = new ApplicationDto.ApproveRequest();
-        request.setDcdEno(APPROVER_ENO);
         request.setDcdOpnn("동시성 승인");
         request.setDcdSts("승인");
         return request;
@@ -215,7 +215,7 @@ class ApprovalLineConcurrencyIT {
                                         APPROVER_ENO,
                                         () ->
                                                 applicationService.approve(
-                                                        apfMngNo, approveRequest())))
+                                                        apfMngNo, approveRequest(), APPROVER_ENO)))
                 .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class)
                 .hasMessageContaining("payloadDigest");
         assertThat(

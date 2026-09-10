@@ -19,7 +19,6 @@ import com.kdb.it.domain.budget.cost.dto.CostDto;
 import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -158,19 +157,21 @@ public class ApplicationService {
      * </ol>
      *
      * @param apfMngNo 결재할 신청관리번호
-     * @param request 결재 요청 DTO (결재자 사번, 의견, 승인/반려 상태)
+     * @param request 결재 요청 DTO (의견, 승인/반려 상태)
+     * @param actorEno 인증 주체 사번
      * @throws IllegalArgumentException 신청서가 없거나 결재자가 아닌 경우
      * @throws IllegalStateException 결재 차례가 아닌 경우
      */
     @Transactional
-    public void approve(String apfMngNo, ApplicationDto.ApproveRequest request) {
-        approve(apfMngNo, request, null);
+    public void approve(String apfMngNo, ApplicationDto.ApproveRequest request, String actorEno) {
+        approve(apfMngNo, request, actorEno, null);
     }
 
     /** 일괄 결재에서는 원본 양식 분류 결과를 재사용한다. 마스터 잠금은 각 명령에서 유지한다. */
     private void approve(
             String apfMngNo,
             ApplicationDto.ApproveRequest request,
+            String actorEno,
             java.util.Set<String> jsonlessCouncilIds) {
         // 신청서 마스터 조회 (없으면 예외)
         Capplm capplm =
@@ -208,8 +209,8 @@ public class ApplicationService {
         }
 
         // 요청한 결재자가 현재 차례의 결재자인지 확인
-        if (!currentApprover.getDcrEno().equals(request.getDcdEno())) {
-            throw new IllegalArgumentException("현재 결재자가 아닙니다.");
+        if (actorEno == null || !currentApprover.getDcrEno().equals(actorEno)) {
+            throw new AccessDeniedException("현재 결재자가 아닙니다.");
         }
 
         // 결재 상태 유효성 검증 (승인 또는 반려만 허용)
@@ -297,38 +298,38 @@ public class ApplicationService {
     /**
      * 일괄 결재 (여러 신청서를 하나의 트랜잭션으로 처리)
      *
-     * <p>복수의 신청서에 대해 순차적으로 {@link #approve(String, ApplicationDto.ApproveRequest)}를 호출합니다. 하나라도
-     * 실패하면 전체 트랜잭션이 롤백됩니다.
+     * <p>복수의 신청서에 대해 순차적으로 {@link #approve(String, ApplicationDto.ApproveRequest, String)}를 호출합니다.
+     * 하나라도 실패하면 전체 트랜잭션이 롤백됩니다.
      *
      * <p>주의: 예외 발생 시 {@link RuntimeException}을 다시 던져 트랜잭션 롤백을 유발합니다.
      *
      * @param request 일괄 결재 요청 DTO (처리할 신청서 목록)
+     * @param actorEno 인증 주체 사번
      * @return 모든 항목이 성공한 경우의 일괄 결재 결과 DTO. 실패 항목이 있으면 반환되지 않는다.
      * @throws RuntimeException 개별 신청서 처리 실패 시 즉시 재발생하여 전체 롤백
      */
     @Transactional
     public ApplicationDto.BulkApproveResponse bulkApprove(
-            ApplicationDto.BulkApproveRequest request) {
+            ApplicationDto.BulkApproveRequest request, String actorEno) {
+        List<ApplicationDto.ApprovalItem> approvals =
+                ApplicationBulkRequestValidator.validateApproval(request);
         List<ApplicationDto.ApprovalResult> results = new java.util.ArrayList<>(); // 개별 결과 목록
         int successCount = 0; // 성공 건수
         int failureCount = 0; // 실패 건수
         var jsonlessCouncilIds =
                 detailPolicy.findJsonlessCouncilIds(
-                        request.getApprovals().stream()
-                                .map(ApplicationDto.ApprovalItem::getApfMngNo)
-                                .toList());
+                        approvals.stream().map(ApplicationDto.ApprovalItem::getApfMngNo).toList());
 
         // 모든 신청서를 순회하며 승인 처리
-        for (ApplicationDto.ApprovalItem item : request.getApprovals()) {
+        for (ApplicationDto.ApprovalItem item : approvals) {
             try {
                 // 개별 승인 요청 생성 (ApprovalItem → ApproveRequest 변환)
                 ApplicationDto.ApproveRequest approveRequest = new ApplicationDto.ApproveRequest();
-                approveRequest.setDcdEno(item.getDcdEno()); // 승인자 사원번호
                 approveRequest.setDcdOpnn(item.getDcdOpnn()); // 승인 의견
                 approveRequest.setDcdSts(item.getDcdSts()); // 승인 상태 (승인, 반려)
 
                 // 개별 승인 처리
-                approve(item.getApfMngNo(), approveRequest, jsonlessCouncilIds);
+                approve(item.getApfMngNo(), approveRequest, actorEno, jsonlessCouncilIds);
 
                 // 성공 결과 추가
                 results.add(
@@ -339,6 +340,8 @@ public class ApplicationService {
                                 .build());
                 successCount++;
 
+            } catch (AccessDeniedException e) {
+                throw e;
             } catch (RuntimeException e) {
                 // 실패 시 RuntimeException을 던져 전체 트랜잭션 롤백
                 throw new RuntimeException(
@@ -348,7 +351,7 @@ public class ApplicationService {
 
         // 최종 결과 응답 생성
         return ApplicationDto.BulkApproveResponse.builder()
-                .totalCount(request.getApprovals().size()) // 전체 요청 건수
+                .totalCount(approvals.size()) // 전체 요청 건수
                 .successCount(successCount) // 성공 건수
                 .failureCount(failureCount) // 실패 건수 (롤백 시 항상 0)
                 .results(results) // 개별 결과 목록
@@ -365,12 +368,14 @@ public class ApplicationService {
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
      * @throws com.kdb.it.exception.DataCorruptionException 저장 상세가 손상되었거나 필수 상세가 없는 경우
      */
-    public ApplicationDto.ApfDtlConeResponse getApfDtlCone(String apfMngNo) {
+    public ApplicationDto.ApfDtlConeResponse getApfDtlCone(
+            String apfMngNo, CustomUserDetails user) {
         ApplicationRepository.ApplicationReadView view =
                 applicationRepository
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+        verifyReadable(view, user);
         validateDetails(
                 List.of(
                         new DetailRead(
@@ -390,13 +395,14 @@ public class ApplicationService {
      * @throws IllegalArgumentException 해당 신청관리번호의 신청서가 없는 경우
      * @throws com.kdb.it.exception.DataCorruptionException 저장 상세가 손상되었거나 필수 상세가 없는 경우
      */
-    public ApplicationDto.Response getApplication(String apfMngNo) {
+    public ApplicationDto.Response getApplication(String apfMngNo, CustomUserDetails user) {
         // 신청서 마스터 read view 조회 (응답이 실제 사용하는 8컬럼만 조회)
         ApplicationRepository.ApplicationReadView view =
                 applicationRepository
                         .findReadViewByApfMngNo(apfMngNo)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("신청서를 찾을 수 없습니다: " + apfMngNo));
+        verifyReadable(view, user);
         validateDetails(
                 List.of(
                         new DetailRead(
@@ -502,14 +508,24 @@ public class ApplicationService {
      *
      * @throws com.kdb.it.exception.DataCorruptionException 반환 대상에 손상되거나 누락된 필수 상세가 있는 경우
      */
-    public ApplicationDto.BulkResponse getApplicationsByIds(ApplicationDto.BulkGetRequest request) {
+    public ApplicationDto.BulkResponse getApplicationsByIds(
+            ApplicationDto.BulkGetRequest request, CustomUserDetails user) {
+        List<String> requestedIds = ApplicationBulkRequestValidator.validateRead(request);
         ApplicationDto.BulkResponse response =
                 ApplicationBulkReadSupport.read(
-                        request,
+                        requestedIds,
                         applicationRepository,
                         approverRepository,
                         userRepository,
                         organizationRepository);
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 필요합니다.");
+        }
+        if (!user.isAdmin()
+                && response.items().stream()
+                        .anyMatch(item -> !sameDepartment(item.getRqsBbrC(), user.getBbrC()))) {
+            throw new AccessDeniedException("다른 부서 신청서는 조회할 수 없습니다.");
+        }
         validateDetails(
                 response.items().stream()
                         .map(
@@ -521,6 +537,23 @@ public class ApplicationService {
             log.warn("bulk-get 누락: type=application, failedIds={}", response.failedIds());
         }
         return response;
+    }
+
+    /** 시스템관리자가 아니면 신청서 작성 부서와 인증 사용자의 부서가 같아야 합니다. */
+    private static void verifyReadable(
+            ApplicationRepository.ApplicationReadView view, CustomUserDetails user) {
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 필요합니다.");
+        }
+        if (!user.isAdmin() && !sameDepartment(view.getDcdReqBbrC(), user.getBbrC())) {
+            throw new AccessDeniedException("다른 부서 신청서는 조회할 수 없습니다.");
+        }
+    }
+
+    private static boolean sameDepartment(String resourceDepartment, String actorDepartment) {
+        return resourceDepartment != null
+                && !resourceDepartment.isBlank()
+                && resourceDepartment.equals(actorDepartment);
     }
 
     /** 원문은 그대로 반환하되 본문이 없는 수기등록·협의회 신청서는 각 업무 계약에 따라 허용한다. */
@@ -548,80 +581,6 @@ public class ApplicationService {
     }
 
     /**
-     * 전자결재 대시보드 집계 조회
-     *
-     * <p>bbrC 기준 부서 통계와 eno 기준 본인 결재 대기 목록을 반환합니다.
-     *
-     * @param bbrC 부서코드 (TPRMPP_CUSERI.BBR_C)
-     * @param eno 사원번호 (본인 결재 대기 필터)
-     * @return 대시보드 집계 응답 DTO
-     * @throws org.springframework.dao.DataAccessException DB 조회 실패 시 (GlobalExceptionHandler에서 500
-     *     응답으로 처리)
-     */
-    public ApplicationDto.DashboardResponse getDashboard(String bbrC, String eno) {
-        int pendingCount = applicationRepository.countPendingByEno(eno);
-        int inProgressCount = applicationRepository.countInProgressByEno(eno);
-        int monthlyCompletedCount = applicationRepository.countMonthlyCompletedByBbrC(bbrC);
-        int rejectedCount = applicationRepository.countRejectedByEno(eno);
-
-        List<ApplicationDto.MonthlyCount> monthlyTrend =
-                applicationRepository.findMonthlyTrendRowsByBbrC(bbrC).stream()
-                        .map(
-                                row ->
-                                        ApplicationDto.MonthlyCount.builder()
-                                                .month(row.label())
-                                                .count(Math.toIntExact(row.count()))
-                                                .build())
-                        .toList();
-
-        LocalDate threeDaysAgo = LocalDate.now().minusDays(3);
-        List<ApplicationDto.PendingItem> pendingList =
-                applicationRepository.findPendingRowsByEno(eno).stream()
-                        .map(
-                                row -> {
-                                    String rqsDtStr = row.rqsDt();
-                                    LocalDate rqsDt =
-                                            rqsDtStr != null
-                                                    ? LocalDate.parse(rqsDtStr)
-                                                    : LocalDate.now();
-                                    String urgency =
-                                            rqsDt.isBefore(threeDaysAgo) ? "urgent" : "normal";
-                                    return ApplicationDto.PendingItem.builder()
-                                            .apfMngNo(row.apfDcmNo())
-                                            .title(row.title())
-                                            .requesterName(row.usrNm())
-                                            .requestedAt(rqsDtStr)
-                                            .urgency(urgency)
-                                            .build();
-                                })
-                        .toList();
-
-        return ApplicationDto.DashboardResponse.builder()
-                .pendingCount(pendingCount)
-                .inProgressCount(inProgressCount)
-                .monthlyCompletedCount(monthlyCompletedCount)
-                .rejectedCount(rejectedCount)
-                .monthlyTrend(monthlyTrend)
-                .pendingList(pendingList)
-                .build();
-    }
-
-    /**
-     * 사이드바 배지용 결재 현황 수 조회
-     *
-     * @param bbrC 부서코드 (향후 부서 기준 집계 확장용, 현재 미사용)
-     * @param eno 사원번호
-     * @return 배지 건수 응답 DTO
-     */
-    public ApplicationDto.ApprovalBadgeCountResponse getApprovalBadgeCount(
-            String bbrC, String eno) {
-        return ApplicationDto.ApprovalBadgeCountResponse.builder()
-                .pendingCount(applicationRepository.countPendingByEno(eno))
-                .inProgressCount(applicationRepository.countInProgressByEno(eno))
-                .build();
-    }
-
-    /**
      * 상신 대상(최신 신청서가 작성완료) 건수 집계
      *
      * <p>사이드바의 [결재 상신] 메뉴 옆 배지에서 사용됩니다. 전체 목록 대신 건수만 반환하여 데이터 전송량을 최소화합니다.
@@ -629,7 +588,7 @@ public class ApplicationService {
      * <p>집계 로직: 요청한 결재상태(기본값 작성완료 {@code 0} = 상신 대상) 조건으로 {@code ProjectRepository} 및 {@code
      * CostRepository}의 {@code countBySearchCondition} 집계 쿼리를 호출해 각각의 건수를 계산합니다.
      *
-     * <p>일반 사용자는 인증 주체의 소속 부서로 제한하고 시스템관리자만 전체 부서를 집계합니다.
+     * <p>역할과 관계없이 인증 주체의 소속 부서로 제한합니다.
      *
      * @param bgYy 기준연도 (공백이면 전체 연도)
      * @param apfSts 결재상태 (공백이면 작성완료(0) = 상신 대상)
@@ -645,7 +604,7 @@ public class ApplicationService {
         // 상신 대상 = 최신 신청서가 작성완료(0)인 원천. 사이드바 배지는 apfSts 없이 호출하므로 이 기본값이 곧 배지 기준이다.
         String status = apfSts == null || apfSts.isBlank() ? ApprovalStatus.DRAFTED.code() : apfSts;
         String departmentCode = user.getBbrC();
-        if (!user.isAdmin() && (departmentCode == null || departmentCode.isBlank())) {
+        if (departmentCode == null || departmentCode.isBlank()) {
             return ApplicationDto.PendingCountResponse.builder()
                     .projectCount(0L)
                     .costCount(0L)
@@ -656,14 +615,14 @@ public class ApplicationService {
         ProjectDto.SearchCondition projectCondition = new ProjectDto.SearchCondition();
         projectCondition.setApfSts(status);
         if (bgYy != null && !bgYy.isBlank()) projectCondition.setBseYy(bgYy);
-        if (!user.isAdmin()) projectCondition.setSvnDpmC(departmentCode);
+        projectCondition.setSvnDpmC(departmentCode);
         // 전체 엔티티 적재 대신 COUNT 쿼리로 건수만 산출 (동일 WHERE 조건 → 결과 동치)
         long projectCount = projectRepository.countBySearchCondition(projectCondition);
 
         CostDto.SearchCondition costCondition = new CostDto.SearchCondition();
         costCondition.setApfSts(status);
         if (bgYy != null && !bgYy.isBlank()) costCondition.setBseYy(bgYy);
-        if (!user.isAdmin()) costCondition.setCostSvnDpmC(departmentCode);
+        costCondition.setCostSvnDpmC(departmentCode);
         long costCount = costRepository.countBySearchCondition(costCondition);
 
         return ApplicationDto.PendingCountResponse.builder()

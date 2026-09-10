@@ -3,6 +3,7 @@ package com.kdb.it.common.admin.metrics.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.kdb.it.common.admin.metrics.config.ServerMetricsProperties;
 import com.kdb.it.common.admin.metrics.dto.ServerMetricsDto;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -70,5 +71,28 @@ class ServerMetricsHistoryTest {
                 .isInstanceOf(IllegalArgumentException.class);
         ServerMetricsHistory history = new ServerMetricsHistory(1);
         assertThatThrownBy(() -> history.record(null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("설정 생성자는 샘플링 주기와 이력 길이에서 계산한 용량을 그대로 쓴다")
+    void 설정생성자_용량계산() {
+        // 10초 주기로 60분을 보관하면 360개다. 이 값이 어긋나면 이력 그래프가
+        // 설정한 구간보다 짧거나 길게 잘린다.
+        ServerMetricsProperties properties = new ServerMetricsProperties(10_000L, 60);
+
+        ServerMetricsHistory history = new ServerMetricsHistory(properties);
+
+        assertThat(history.capacity()).isEqualTo(360);
+        assertThat(properties.historyCapacity()).isEqualTo(360);
+    }
+
+    @Test
+    @DisplayName("capacity()는 링버퍼가 실제로 유지하는 샘플 수와 일치한다")
+    void capacity_실제보관수와일치() {
+        ServerMetricsHistory history = new ServerMetricsHistory(3);
+        for (int i = 0; i < 10; i++) history.record(sample(i * 10, i));
+
+        assertThat(history.capacity()).isEqualTo(3);
+        assertThat(history.points()).hasSize(history.capacity());
     }
 }

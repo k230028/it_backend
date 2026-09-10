@@ -194,6 +194,14 @@ public class ProjectService {
         return createProject(request, false);
     }
 
+    /** 인증 사용자의 부서와 요청 주관부서가 같은지 검증한 뒤 정보화사업을 생성합니다. */
+    @CacheEvict(cacheNames = "tiptapMetadata", allEntries = true)
+    @Transactional
+    public String createProject(ProjectDto.CreateRequest request, CustomUserDetails actor) {
+        OwnershipVerifier.verifySameDepartmentOrAdmin(request.getSvnDpmC(), actor);
+        return createProject(request, false);
+    }
+
     /**
      * 신규 정보화사업 생성
      *

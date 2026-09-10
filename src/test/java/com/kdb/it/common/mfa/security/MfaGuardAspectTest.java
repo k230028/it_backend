@@ -197,7 +197,6 @@ class MfaGuardAspectTest {
 
     static Stream<Arguments> endpointInventory() {
         return Stream.of(
-                endpoint(ApplicationController.class, "submit", true),
                 endpoint(ApplicationController.class, "approve", true),
                 endpoint(ApplicationController.class, "bulkApprove", true),
                 endpoint(ApplicationController.class, "recall", true),

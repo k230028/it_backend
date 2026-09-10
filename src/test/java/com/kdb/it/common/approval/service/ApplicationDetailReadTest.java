@@ -48,7 +48,7 @@ class ApplicationDetailReadTest {
                         "{\"form\":{\"id\":\"council\"}}",
                         v2().toString())) {
             view(raw);
-            assertThat(service.getApfDtlCone("A1").getApfDtlCone()).isEqualTo(raw);
+            assertThat(service.getApfDtlCone("A1", ADMIN).getApfDtlCone()).isEqualTo(raw);
         }
         verifyNoInteractions(maps);
     }
@@ -58,7 +58,7 @@ class ApplicationDetailReadTest {
     void explicitCouncilMayHaveNullDetail(String table) {
         view(null);
         source(table);
-        assertThat(service.getApfDtlCone("A1").getApfDtlCone()).isNull();
+        assertThat(service.getApfDtlCone("A1", ADMIN).getApfDtlCone()).isNull();
         verify(maps).findDetailSourcesByApplicationIds(List.of("A1"));
     }
 
@@ -67,17 +67,17 @@ class ApplicationDetailReadTest {
     void otherSourcesCannotReturnNullDetail(String table) {
         view(null);
         source(table);
-        assertThatThrownBy(() -> service.getApfDtlCone("A1"))
+        assertThatThrownBy(() -> service.getApfDtlCone("A1", ADMIN))
                 .isInstanceOf(DataCorruptionException.class);
     }
 
     @Test
     void missingSourceAndBlankDetailFailClosed() {
         view(null);
-        assertThatThrownBy(() -> service.getApfDtlCone("A1"))
+        assertThatThrownBy(() -> service.getApfDtlCone("A1", ADMIN))
                 .isInstanceOf(DataCorruptionException.class);
         view(" ");
-        assertThatThrownBy(() -> service.getApfDtlCone("A1"))
+        assertThatThrownBy(() -> service.getApfDtlCone("A1", ADMIN))
                 .isInstanceOf(DataCorruptionException.class);
     }
 
@@ -86,7 +86,7 @@ class ApplicationDetailReadTest {
         var view = view(null);
         when(view.getItPtlApfPrgStsC()).thenReturn("9");
 
-        ApplicationDto.Response response = service.getApplication("A1");
+        ApplicationDto.Response response = service.getApplication("A1", ADMIN);
 
         assertThat(response.getApfMngNo()).isEqualTo("A1");
         assertThat(response.getApfDtlCone()).isNull();
@@ -135,11 +135,11 @@ class ApplicationDetailReadTest {
         request.setApfMngNos(List.of("A1"));
         for (org.assertj.core.api.ThrowableAssert.ThrowingCallable call :
                 List.<org.assertj.core.api.ThrowableAssert.ThrowingCallable>of(
-                        () -> service.getApfDtlCone("A1"),
-                        () -> service.getApplication("A1"),
+                        () -> service.getApfDtlCone("A1", ADMIN),
+                        () -> service.getApplication("A1", ADMIN),
                         () -> service.getApplications(ADMIN, true),
                         () -> service.getPendingApplications(ADMIN, true),
-                        () -> service.getApplicationsByIds(request))) {
+                        () -> service.getApplicationsByIds(request, ADMIN))) {
             assertThatThrownBy(call).isInstanceOf(DataCorruptionException.class).hasNoCause();
         }
         verifyNoInteractions(maps);

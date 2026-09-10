@@ -61,6 +61,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class CostServiceTest {
 
     @Test
+    void createCostRejectsAnotherDepartmentBeforePersistence() {
+        var actor = new CustomUserDetails("E10001", List.of(CustomUserDetails.ATH_USER), "D001");
+        var request = CostDto.CreateRequest.builder().costSvnDpmC("D999").build();
+
+        assertThatThrownBy(() -> costService.createCost(request, actor))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(codeService, costRepository);
+    }
+
+    @Test
     void importedCostNameCannotBypassApprovalGuard() {
         Bcostm cost = Bcostm.builder().costBgNo("COST-LOCK").bgSno(3).build();
         given(costRepository.findCurrentVersionForUpdate("COST-LOCK"))

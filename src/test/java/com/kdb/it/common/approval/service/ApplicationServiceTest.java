@@ -47,6 +47,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -226,6 +228,7 @@ class ApplicationServiceTest {
     @Mock private com.kdb.it.domain.budget.project.service.BprojaSyncService bprojaSyncService;
     @Mock private ApprovalRequestNotifier approvalRequestNotifier;
 
+    @InjectMocks private ApplicationDashboardService applicationDashboardService;
     @InjectMocks private ApplicationService applicationService;
     @InjectMocks private PendingApproverService pendingApproverService;
 
@@ -276,7 +279,6 @@ class ApplicationServiceTest {
     /** 결재 요청 DTO 생성 헬퍼 */
     private ApplicationDto.ApproveRequest approveRequest(String eno, String sts) {
         ApplicationDto.ApproveRequest req = new ApplicationDto.ApproveRequest();
-        req.setDcdEno(eno);
         req.setDcdOpnn("테스트의견");
         req.setDcdSts(sts);
         return req;
@@ -368,7 +370,7 @@ class ApplicationServiceTest {
         assertThatThrownBy(
                         () ->
                                 applicationService.approve(
-                                        APF_MNG_NO, approveRequest("E10001", "승인")))
+                                        APF_MNG_NO, approveRequest("E10001", "승인"), "E10001"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(APF_MNG_NO);
     }
@@ -394,13 +396,13 @@ class ApplicationServiceTest {
         assertThatThrownBy(
                         () ->
                                 applicationService.approve(
-                                        APF_MNG_NO, approveRequest("E10001", "승인")))
+                                        APF_MNG_NO, approveRequest("E10001", "승인"), "E10001"))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    @DisplayName("approve: 현재 결재자가 아닌 사번으로 요청하면 IllegalArgumentException을 던진다")
-    void approve_잘못된결재자_IllegalArgumentException발생() {
+    @DisplayName("approve: 인증 주체가 현재 결재자가 아니면 접근을 거부한다")
+    void approve_잘못된결재자_AccessDeniedException발생() {
         Capplm capplm = mockCapplm();
         given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(capplm));
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
@@ -409,8 +411,8 @@ class ApplicationServiceTest {
         assertThatThrownBy(
                         () ->
                                 applicationService.approve(
-                                        APF_MNG_NO, approveRequest("E99999", "승인")))
-                .isInstanceOf(IllegalArgumentException.class)
+                                        APF_MNG_NO, approveRequest("E99999", "승인"), "E99999"))
+                .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("현재 결재자가 아닙니다");
     }
 
@@ -425,7 +427,7 @@ class ApplicationServiceTest {
         assertThatThrownBy(
                         () ->
                                 applicationService.approve(
-                                        APF_MNG_NO, approveRequest("E10001", null)))
+                                        APF_MNG_NO, approveRequest("E10001", null), "E10001"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("결재 상태");
     }
@@ -441,7 +443,9 @@ class ApplicationServiceTest {
 
         // Act & Assert: 빈 문자열도 유효하지 않은 결재 상태
         assertThatThrownBy(
-                        () -> applicationService.approve(APF_MNG_NO, approveRequest("E10001", "")))
+                        () ->
+                                applicationService.approve(
+                                        APF_MNG_NO, approveRequest("E10001", ""), "E10001"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("결재 상태");
     }
@@ -458,7 +462,7 @@ class ApplicationServiceTest {
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
 
-        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"), "E10001");
 
         verify(capplm).updateStatus(ApprovalStatus.COMPLETED);
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
@@ -472,7 +476,7 @@ class ApplicationServiceTest {
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
 
-        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "반려"));
+        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "반려"), "E10001");
 
         verify(capplm).updateStatus(ApprovalStatus.REJECTED);
         verify(eventPublisher).publishEvent(any(ApprovalCompletedEvent.class));
@@ -489,7 +493,7 @@ class ApplicationServiceTest {
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of(mid, last));
 
-        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"), "E10001");
 
         verify(capplm, never()).updateStatus(any());
         verify(eventPublisher, never()).publishEvent(any());
@@ -519,7 +523,7 @@ class ApplicationServiceTest {
         assertThatThrownBy(
                         () ->
                                 applicationService.approve(
-                                        APF_MNG_NO, approveRequest("E10002", "승인")))
+                                        APF_MNG_NO, approveRequest("E10002", "승인"), "E10002"))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -545,7 +549,7 @@ class ApplicationServiceTest {
         try (MockedStatic<LocalDateTime> dates =
                 mockStatic(LocalDateTime.class, CALLS_REAL_METHODS)) {
             dates.when(LocalDateTime::now).thenReturn(decisionAt);
-            realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+            realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인"), "E10001");
         }
 
         assertThat(first.getItPtlDcdStsC())
@@ -571,7 +575,9 @@ class ApplicationServiceTest {
                 .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
 
         assertThatThrownBy(
-                        () -> realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
+                        () ->
+                                realMapperService.approve(
+                                        APF_MNG_NO, approveRequest("E10001", "승인"), "E10001"))
                 .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
         verify(eventPublisher, never()).publishEvent(any(ApprovalCompletedEvent.class));
     }
@@ -586,7 +592,9 @@ class ApplicationServiceTest {
                 .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
 
         assertThatThrownBy(
-                        () -> realMapperService.approve(APF_MNG_NO, approveRequest("E10001", "승인")))
+                        () ->
+                                realMapperService.approve(
+                                        APF_MNG_NO, approveRequest("E10001", "승인"), "E10001"))
                 .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
     }
 
@@ -600,9 +608,36 @@ class ApplicationServiceTest {
         given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> applicationService.getApplication(APF_MNG_NO))
+        assertThatThrownBy(() -> applicationService.getApplication(APF_MNG_NO, LIST_USER))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(APF_MNG_NO);
+    }
+
+    @Test
+    @DisplayName("getApplication: 일반 사용자는 다른 부서 신청서를 조회할 수 없다")
+    void getApplication_다른부서_AccessDeniedException발생() {
+        var view =
+                new ApplicationReadView(
+                        APF_MNG_NO, "9", "제목", null, "E20001", LocalDate.now(), null, "D999");
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
+
+        assertThatThrownBy(() -> applicationService.getApplication(APF_MNG_NO, LIST_USER))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(approverRepository);
+    }
+
+    @Test
+    @DisplayName("getApfDtlCone: 일반 사용자는 다른 부서 신청서 본문을 조회할 수 없다")
+    void getApfDtlCone_다른부서_AccessDeniedException발생() {
+        var view =
+                new ApplicationReadView(
+                        APF_MNG_NO, "9", "제목", null, "E20001", LocalDate.now(), null, "D999");
+        given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
+                .willReturn(Optional.of(view));
+
+        assertThatThrownBy(() -> applicationService.getApfDtlCone(APF_MNG_NO, LIST_USER))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     // ───────────────────────────────────────────────────────
@@ -690,6 +725,47 @@ class ApplicationServiceTest {
         assertThat(costCondition.getValue().getCostSvnDpmC()).isEqualTo("D001");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "1"})
+    @DisplayName("getPendingCount: 시스템관리자도 요청 상태와 소속 부서를 두 원장에 동일하게 적용한다")
+    void getPendingCount_adminAppliesAuthenticatedDepartmentAndStatus(String status) {
+        given(projectRepository.countBySearchCondition(any())).willReturn(1L);
+        given(costRepository.countBySearchCondition(any())).willReturn(1L);
+        CustomUserDetails admin =
+                new CustomUserDetails("K100001", List.of(CustomUserDetails.ATH_ADMIN), "D001");
+
+        applicationService.getPendingCount("2027", status, admin);
+
+        ArgumentCaptor<ProjectDto.SearchCondition> projectCondition =
+                ArgumentCaptor.forClass(ProjectDto.SearchCondition.class);
+        ArgumentCaptor<CostDto.SearchCondition> costCondition =
+                ArgumentCaptor.forClass(CostDto.SearchCondition.class);
+        verify(projectRepository).countBySearchCondition(projectCondition.capture());
+        verify(costRepository).countBySearchCondition(costCondition.capture());
+        assertThat(projectCondition.getValue().getApfSts()).isEqualTo(status);
+        assertThat(projectCondition.getValue().getSvnDpmC()).isEqualTo("D001");
+        assertThat(costCondition.getValue().getApfSts()).isEqualTo(status);
+        assertThat(costCondition.getValue().getCostSvnDpmC()).isEqualTo("D001");
+    }
+
+    @Test
+    @DisplayName("getPendingCount: 소속 부서가 없는 시스템관리자는 전체 집계하지 않는다")
+    void getPendingCount_adminWithoutDepartmentReturnsZeroWithoutRepositoryCalls() {
+        for (String departmentCode : new String[] {null, "   "}) {
+            CustomUserDetails admin =
+                    new CustomUserDetails(
+                            "K100001", List.of(CustomUserDetails.ATH_ADMIN), departmentCode);
+
+            ApplicationDto.PendingCountResponse result =
+                    applicationService.getPendingCount("2027", "none", admin);
+
+            assertThat(result.getProjectCount()).isZero();
+            assertThat(result.getCostCount()).isZero();
+            assertThat(result.getTotalCount()).isZero();
+        }
+        verifyNoInteractions(projectRepository, costRepository);
+    }
+
     // ───────────────────────────────────────────────────────
     @Test
     void detailReadRejectsCorruptV2InsteadOfReturningRawJson() throws Exception {
@@ -702,7 +778,8 @@ class ApplicationServiceTest {
                         APF_MNG_NO, null, null, root.toString(), null, null, null, null);
         given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
                 .willReturn(Optional.of(view));
-        assertThatThrownBy(() -> serviceWithRealObjectMapper().getApfDtlCone(APF_MNG_NO))
+        assertThatThrownBy(
+                        () -> serviceWithRealObjectMapper().getApfDtlCone(APF_MNG_NO, LIST_ADMIN))
                 .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
     }
 
@@ -715,7 +792,7 @@ class ApplicationServiceTest {
         given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> applicationService.getApfDtlCone(APF_MNG_NO))
+        assertThatThrownBy(() -> applicationService.getApfDtlCone(APF_MNG_NO, LIST_USER))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(APF_MNG_NO);
     }
@@ -730,7 +807,8 @@ class ApplicationServiceTest {
         given(applicationRepository.findReadViewByApfMngNo(APF_MNG_NO))
                 .willReturn(Optional.of(view));
 
-        ApplicationDto.ApfDtlConeResponse result = applicationService.getApfDtlCone(APF_MNG_NO);
+        ApplicationDto.ApfDtlConeResponse result =
+                applicationService.getApfDtlCone(APF_MNG_NO, LIST_ADMIN);
 
         assertThat(result).isNotNull();
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
@@ -1024,7 +1102,8 @@ class ApplicationServiceTest {
         ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
         request.setApfMngNos(List.of(APF_MNG_NO, "APF_NONE"));
 
-        ApplicationDto.BulkResponse result = applicationService.getApplicationsByIds(request);
+        ApplicationDto.BulkResponse result =
+                applicationService.getApplicationsByIds(request, LIST_ADMIN);
 
         // 존재하는 1건만 반환
         assertThat(result.items()).hasSize(1);
@@ -1041,10 +1120,27 @@ class ApplicationServiceTest {
         ApplicationDto.BulkGetRequest req = new ApplicationDto.BulkGetRequest();
         req.setApfMngNos(List.of("APF-1", "APF-X"));
 
-        ApplicationDto.BulkResponse result = applicationService.getApplicationsByIds(req);
+        ApplicationDto.BulkResponse result =
+                applicationService.getApplicationsByIds(req, LIST_ADMIN);
 
         assertThat(result.items()).hasSize(1);
         assertThat(result.failedIds()).containsExactly("APF-X");
+    }
+
+    @Test
+    @DisplayName("getApplicationsByIds: 다른 부서 신청서가 포함되면 전체 요청을 거부한다")
+    void getApplicationsByIds_다른부서포함_AccessDeniedException발생() {
+        var otherDepartment =
+                new ApplicationReadView("APF-OTHER", "9", "제목", null, "E20001", null, null, "D999");
+        given(applicationRepository.findReadViewsByApfMngNoIn(any()))
+                .willReturn(List.of(otherDepartment));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+                .willReturn(List.of());
+        var request = new ApplicationDto.BulkGetRequest();
+        request.setApfMngNos(List.of("APF-OTHER"));
+
+        assertThatThrownBy(() -> applicationService.getApplicationsByIds(request, LIST_USER))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -1070,7 +1166,7 @@ class ApplicationServiceTest {
 
         ApplicationDto.ApproverResponse approver =
                 applicationService
-                        .getApplicationsByIds(request)
+                        .getApplicationsByIds(request, LIST_ADMIN)
                         .items()
                         .getFirst()
                         .getApprovers()
@@ -1090,9 +1186,29 @@ class ApplicationServiceTest {
         ApplicationDto.BulkGetRequest request = new ApplicationDto.BulkGetRequest();
         request.setApfMngNos(List.of("APF_NONE1", "APF_NONE2"));
 
-        ApplicationDto.BulkResponse result = applicationService.getApplicationsByIds(request);
+        ApplicationDto.BulkResponse result =
+                applicationService.getApplicationsByIds(request, LIST_ADMIN);
 
         assertThat(result.items()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getApplicationsByIds: null·빈 목록·100건 초과는 조회 전에 거부한다")
+    void getApplicationsByIds_잘못된목록_IllegalArgumentException발생() {
+        var nullRequest = new ApplicationDto.BulkGetRequest();
+        var emptyRequest = new ApplicationDto.BulkGetRequest();
+        emptyRequest.setApfMngNos(List.of());
+        var oversizedRequest = new ApplicationDto.BulkGetRequest();
+        oversizedRequest.setApfMngNos(java.util.Collections.nCopies(101, "APF-1"));
+
+        assertThatThrownBy(() -> applicationService.getApplicationsByIds(nullRequest, LIST_ADMIN))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> applicationService.getApplicationsByIds(emptyRequest, LIST_ADMIN))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(
+                        () -> applicationService.getApplicationsByIds(oversizedRequest, LIST_ADMIN))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(applicationRepository, never()).findReadViewsByApfMngNoIn(any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -1106,7 +1222,7 @@ class ApplicationServiceTest {
         given(applicationRepository.countInProgressByEno("E10001")).willReturn(2);
 
         ApplicationDto.ApprovalBadgeCountResponse result =
-                applicationService.getApprovalBadgeCount("BBR001", "E10001");
+                applicationDashboardService.getApprovalBadgeCount("BBR001", "E10001", LIST_ADMIN);
 
         assertThat(result.getPendingCount()).isEqualTo(3);
         assertThat(result.getInProgressCount()).isEqualTo(2);
@@ -1128,7 +1244,6 @@ class ApplicationServiceTest {
         // bulkApprove 요청 생성
         ApplicationDto.ApprovalItem item = new ApplicationDto.ApprovalItem();
         item.setApfMngNo(APF_MNG_NO);
-        item.setDcdEno("E10001");
         item.setDcdOpnn("일괄결재테스트");
         item.setDcdSts("승인");
 
@@ -1136,7 +1251,8 @@ class ApplicationServiceTest {
         request.setApprovals(List.of(item));
 
         // when
-        ApplicationDto.BulkApproveResponse response = applicationService.bulkApprove(request);
+        ApplicationDto.BulkApproveResponse response =
+                applicationService.bulkApprove(request, "E10001");
 
         // then
         assertThat(response.getTotalCount()).isEqualTo(1);
@@ -1151,15 +1267,51 @@ class ApplicationServiceTest {
 
         ApplicationDto.ApprovalItem item = new ApplicationDto.ApprovalItem();
         item.setApfMngNo(APF_MNG_NO);
-        item.setDcdEno("E10001");
         item.setDcdOpnn("일괄결재테스트");
         item.setDcdSts("승인");
 
         ApplicationDto.BulkApproveRequest request = new ApplicationDto.BulkApproveRequest();
         request.setApprovals(List.of(item));
 
-        assertThatThrownBy(() -> applicationService.bulkApprove(request))
+        assertThatThrownBy(() -> applicationService.bulkApprove(request, "E10001"))
                 .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("bulkApprove: 인증 주체가 현재 결재자가 아니면 403용 예외를 보존한다")
+    void bulkApprove_잘못된결재자_AccessDeniedException보존() {
+        Capplm application = mockCapplm();
+        given(applicationRepository.findById(APF_MNG_NO)).willReturn(Optional.of(application));
+        given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
+                .willReturn(List.of(pendingApprover("E10001", 1, "Y")));
+        var item = new ApplicationDto.ApprovalItem();
+        item.setApfMngNo(APF_MNG_NO);
+        item.setDcdSts("승인");
+        var request = new ApplicationDto.BulkApproveRequest();
+        request.setApprovals(List.of(item));
+
+        assertThatThrownBy(() -> applicationService.bulkApprove(request, "E99999"))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("현재 결재자");
+    }
+
+    @Test
+    @DisplayName("bulkApprove: 중복 신청관리번호는 처리 전에 거부한다")
+    void bulkApprove_중복신청관리번호_IllegalArgumentException발생() {
+        var first = new ApplicationDto.ApprovalItem();
+        first.setApfMngNo(APF_MNG_NO);
+        first.setDcdSts("2");
+        var duplicate = new ApplicationDto.ApprovalItem();
+        duplicate.setApfMngNo(APF_MNG_NO);
+        duplicate.setDcdSts("3");
+        var request = new ApplicationDto.BulkApproveRequest();
+        request.setApprovals(List.of(first, duplicate));
+
+        assertThatThrownBy(() -> applicationService.bulkApprove(request, "E10001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("중복");
+        verify(detailPolicy, never()).findJsonlessCouncilIds(any());
+        verify(applicationRepository, never()).findById(any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -1353,22 +1505,20 @@ class ApplicationServiceTest {
         given(applicationMapRepository.findByApfDcmNoAndFntTbNm(APF_MNG_NO, "BPROJM"))
                 .willReturn(List.of(bprojm));
 
-        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"));
+        applicationService.approve(APF_MNG_NO, approveRequest("E10001", "승인"), "E10001");
 
         verify(bprojaSyncService).upsert("PRJ-2026-0001", "PRJ-2026-0001", "09");
     }
 
     @Test
-    @DisplayName("bulkApprove: 승인 목록이 비어 있으면 0건 성공으로 반환한다")
-    void bulkApprove_빈목록_0건반환() {
+    @DisplayName("bulkApprove: 승인 목록이 비어 있으면 처리 전에 거부한다")
+    void bulkApprove_빈목록_IllegalArgumentException발생() {
         ApplicationDto.BulkApproveRequest request = new ApplicationDto.BulkApproveRequest();
         request.setApprovals(List.of());
 
-        ApplicationDto.BulkApproveResponse response = applicationService.bulkApprove(request);
-
-        assertThat(response.getTotalCount()).isZero();
-        assertThat(response.getSuccessCount()).isZero();
-        assertThat(response.getResults()).isEmpty();
+        assertThatThrownBy(() -> applicationService.bulkApprove(request, "E10001"))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(detailPolicy, never()).findJsonlessCouncilIds(any());
     }
 
     // ───────────────────────────────────────────────────────
@@ -1386,7 +1536,7 @@ class ApplicationServiceTest {
         given(applicationRepository.findPendingRowsByEno("10001")).willReturn(List.of());
 
         ApplicationDto.DashboardResponse result =
-                applicationService.getDashboard("BBR001", "10001");
+                applicationDashboardService.getDashboard("BBR001", "10001", LIST_ADMIN);
 
         assertThat(result.getPendingCount()).isEqualTo(2);
         assertThat(result.getInProgressCount()).isEqualTo(1);
@@ -1418,7 +1568,7 @@ class ApplicationServiceTest {
                                         new Object[] {"APF-NULL", "날짜 없음", "김길동", null})));
 
         ApplicationDto.DashboardResponse result =
-                applicationService.getDashboard("BBR001", "10001");
+                applicationDashboardService.getDashboard("BBR001", "10001", LIST_ADMIN);
 
         assertThat(result.getMonthlyTrend())
                 .extracting(value -> value.getCount())
@@ -1426,6 +1576,28 @@ class ApplicationServiceTest {
         assertThat(result.getPendingList())
                 .extracting(value -> value.getUrgency())
                 .containsExactly("urgent", "normal");
+    }
+
+    @Test
+    @DisplayName("getDashboard: 일반 사용자의 임의 부서·사번 입력을 무시하고 인증 범위로 조회한다")
+    void getDashboard_일반사용자_인증범위강제() {
+        applicationDashboardService.getDashboard("D999", "E99999", LIST_USER);
+
+        verify(applicationRepository).countPendingByEnoAndBbrC("E10001", "D001");
+        verify(applicationRepository).countInProgressByEnoAndBbrC("E10001", "D001");
+        verify(applicationRepository).countRejectedByEnoAndBbrC("E10001", "D001");
+        verify(applicationRepository).findPendingRowsByEnoAndBbrC("E10001", "D001");
+        verify(applicationRepository, never()).countPendingByEno("E99999");
+    }
+
+    @Test
+    @DisplayName("getApprovalBadgeCount: 일반 사용자의 임의 부서·사번 입력을 무시한다")
+    void getApprovalBadgeCount_일반사용자_인증범위강제() {
+        applicationDashboardService.getApprovalBadgeCount("D999", "E99999", LIST_USER);
+
+        verify(applicationRepository).countPendingByEnoAndBbrC("E10001", "D001");
+        verify(applicationRepository).countInProgressByEnoAndBbrC("E10001", "D001");
+        verify(applicationRepository, never()).countPendingByEno("E99999");
     }
 
     // ───────────────────────────────────────────────────────
@@ -1446,7 +1618,7 @@ class ApplicationServiceTest {
         given(organizationRepository.findNameViewsByPrlmOgzCConeIn(any()))
                 .willReturn(List.of(new OrgNameView("18001", "정보기술부")));
 
-        ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
+        ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO, LIST_ADMIN);
 
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
         assertThat(result.getRqsNm()).isEqualTo("홍길동");
@@ -1474,7 +1646,7 @@ class ApplicationServiceTest {
                                         .build()));
 
         ApplicationDto.ApproverResponse approver =
-                applicationService.getApplication(APF_MNG_NO).getApprovers().getFirst();
+                applicationService.getApplication(APF_MNG_NO, LIST_ADMIN).getApprovers().getFirst();
 
         assertThat(approver.getUsrNm()).isEqualTo("김기획부장");
         assertThat(approver.getPtCNm()).isEqualTo("부장");
@@ -1492,7 +1664,7 @@ class ApplicationServiceTest {
         given(approverRepository.findByDcdMngNoOrderByDcrSqnSnoAsc(APF_MNG_NO))
                 .willReturn(List.of());
 
-        ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO);
+        ApplicationDto.Response result = applicationService.getApplication(APF_MNG_NO, LIST_ADMIN);
 
         assertThat(result.getApfMngNo()).isEqualTo(APF_MNG_NO);
     }

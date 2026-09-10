@@ -17,13 +17,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.dto.ApprovalHomeInboxDto;
+import com.kdb.it.common.approval.service.ApplicationDashboardService;
 import com.kdb.it.common.approval.service.ApplicationService;
 import com.kdb.it.common.approval.service.ApprovalHomeInboxService;
 import com.kdb.it.common.approval.service.ApprovalLineManagementService;
@@ -38,9 +38,12 @@ import com.kdb.it.common.util.CookieUtil;
 import com.kdb.it.config.JacksonConfig;
 import com.kdb.it.config.TestSecurityConfig;
 import jakarta.servlet.http.Cookie;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -67,6 +70,7 @@ class ApplicationControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
 
+    @MockitoBean private ApplicationDashboardService applicationDashboardService;
     @MockitoBean private ApplicationService applicationService;
     @MockitoBean private ApprovalHomeInboxService approvalHomeInboxService;
     @MockitoBean private PendingApproverService pendingApproverService;
@@ -173,70 +177,177 @@ class ApplicationControllerTest {
 
     @Test
     @DisplayName("GET /api/applications/{apfMngNo} - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void getApplication_인증_200() throws Exception {
-        given(applicationService.getApplication("APF_20260001"))
+        given(applicationService.getApplication("APF_20260001", USER))
                 .willReturn(ApplicationDto.Response.builder().build());
-        mockMvc.perform(get("/api/applications/APF_20260001")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/applications/APF_20260001").with(user(USER)))
+                .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("POST /api/applications/bulk-get - 인증된 사용자 → 200 + items/failedIds 반환")
-    @WithMockUser(username = "10001")
     void bulkGet_인증_200() throws Exception {
-        given(applicationService.getApplicationsByIds(any()))
+        given(applicationService.getApplicationsByIds(any(), eq(USER)))
                 .willReturn(new ApplicationDto.BulkResponse(List.of(), List.of()));
+        var request = new ApplicationDto.BulkGetRequest();
+        request.setApfMngNos(List.of("APF-1"));
         mockMvc.perform(
                         post("/api/applications/bulk-get")
+                                .with(user(USER))
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        objectMapper.writeValueAsString(
-                                                new ApplicationDto.BulkGetRequest())))
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.failedIds").isArray());
     }
 
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "{}",
+                "{\"apfMngNos\":null}",
+                "{\"apfMngNos\":[]}",
+                "{\"apfMngNos\":[null]}",
+                "{\"apfMngNos\":[\"   \"]}"
+            })
+    @DisplayName("POST /api/applications/bulk-get - null·빈 입력은 400")
+    void bulkGet_null또는빈입력_400(String body) throws Exception {
+        mockMvc.perform(
+                        post("/api/applications/bulk-get")
+                                .with(user(USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isBadRequest());
+
+        verify(applicationService, never()).getApplicationsByIds(any(), any());
+    }
+
     @Test
-    @DisplayName("POST /api/applications/{apfMngNo}/approve - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
-    void approve_인증_200() throws Exception {
+    @DisplayName("POST /api/applications/bulk-get - 100건 초과 또는 64자 초과 ID는 400")
+    void bulkGet_입력상한초과_400() throws Exception {
+        var oversizedBatch = new ApplicationDto.BulkGetRequest();
+        oversizedBatch.setApfMngNos(Collections.nCopies(101, "APF-1"));
+        var oversizedId = new ApplicationDto.BulkGetRequest();
+        oversizedId.setApfMngNos(List.of("A".repeat(65)));
+
+        mockMvc.perform(
+                        post("/api/applications/bulk-get")
+                                .with(user(USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(oversizedBatch)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(
+                        post("/api/applications/bulk-get")
+                                .with(user(USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(oversizedId)))
+                .andExpect(status().isBadRequest());
+
+        verify(applicationService, never()).getApplicationsByIds(any(), any());
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/{apfMngNo}/approve - 요청 본문의 사번 대신 인증 주체 사번을 전달한다")
+    void approve_인증주체사번전달_200() throws Exception {
         mockMvc.perform(
                         post("/api/applications/APF_20260001/approve")
                                 .with(user(USER))
                                 .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
-                                        objectMapper.writeValueAsString(
-                                                new ApplicationDto.ApproveRequest())))
+                                        "{\"dcdEno\":\"OTHER\",\"dcdSts\":\"승인\",\"dcdOpnn\":\"확인\"}"))
                 .andExpect(status().isOk());
+
+        verify(applicationService)
+                .approve(eq("APF_20260001"), any(ApplicationDto.ApproveRequest.class), eq("10001"));
     }
 
     @Test
     @DisplayName("POST /api/applications/bulk-approve - 인증된 사용자 → 200")
     @WithMockUser(username = "10001")
     void bulkApprove_인증_200() throws Exception {
-        given(applicationService.bulkApprove(any()))
+        given(applicationService.bulkApprove(any(), eq("10001")))
                 .willReturn(ApplicationDto.BulkApproveResponse.builder().build());
+        var item = new ApplicationDto.ApprovalItem();
+        item.setApfMngNo("APF-1");
+        item.setDcdSts("2");
+        var request = new ApplicationDto.BulkApproveRequest();
+        request.setApprovals(List.of(item));
         mockMvc.perform(
                         post("/api/applications/bulk-approve")
                                 .with(user(USER))
                                 .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        objectMapper.writeValueAsString(
-                                                new ApplicationDto.BulkApproveRequest())))
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "{}",
+                "{\"approvals\":null}",
+                "{\"approvals\":[]}",
+                "{\"approvals\":[null]}",
+                "{\"approvals\":[{\"apfMngNo\":\"\",\"dcdSts\":\"2\"}]}",
+                "{\"approvals\":[{\"apfMngNo\":\"APF-1\"}]}",
+                "{\"approvals\":[{\"apfMngNo\":\"APF-1\",\"dcdSts\":\"완료\"}]}"
+            })
+    @DisplayName("POST /api/applications/bulk-approve - null·빈 값·잘못된 상태는 400")
+    void bulkApprove_잘못된입력_400(String body) throws Exception {
+        mockMvc.perform(
+                        post("/api/applications/bulk-approve")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isBadRequest());
+
+        verify(applicationService, never()).bulkApprove(any(), anyString());
+    }
+
+    @Test
+    @DisplayName("POST /api/applications/bulk-approve - 건수·ID·의견 상한 초과는 400")
+    void bulkApprove_입력상한초과_400() throws Exception {
+        var item = new ApplicationDto.ApprovalItem();
+        item.setApfMngNo("APF-1");
+        item.setDcdSts("2");
+        var oversizedBatch = new ApplicationDto.BulkApproveRequest();
+        oversizedBatch.setApprovals(Collections.nCopies(101, item));
+
+        var oversizedItem = new ApplicationDto.ApprovalItem();
+        oversizedItem.setApfMngNo("A".repeat(65));
+        oversizedItem.setDcdSts("2");
+        oversizedItem.setDcdOpnn("가".repeat(2001));
+        var oversizedFields = new ApplicationDto.BulkApproveRequest();
+        oversizedFields.setApprovals(List.of(oversizedItem));
+
+        mockMvc.perform(
+                        post("/api/applications/bulk-approve")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(oversizedBatch)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(
+                        post("/api/applications/bulk-approve")
+                                .with(user(USER))
+                                .cookie(MFA_PROOF)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(oversizedFields)))
+                .andExpect(status().isBadRequest());
+
+        verify(applicationService, never()).bulkApprove(any(), anyString());
     }
 
     @Test
     @DisplayName("GET /api/applications/dashboard - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void getDashboard_인증_200() throws Exception {
-        given(applicationService.getDashboard(anyString(), anyString()))
+        given(applicationDashboardService.getDashboard(anyString(), anyString(), eq(USER)))
                 .willReturn(new ApplicationDto.DashboardResponse());
         mockMvc.perform(
                         get("/api/applications/dashboard")
+                                .with(user(USER))
                                 .param("bbrC", "IT001")
                                 .param("eno", "E10001"))
                 .andExpect(status().isOk());
@@ -244,12 +355,12 @@ class ApplicationControllerTest {
 
     @Test
     @DisplayName("GET /api/applications/approval-badge - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void getApprovalBadge_인증_200() throws Exception {
-        given(applicationService.getApprovalBadgeCount(anyString(), anyString()))
+        given(applicationDashboardService.getApprovalBadgeCount(anyString(), anyString(), eq(USER)))
                 .willReturn(new ApplicationDto.ApprovalBadgeCountResponse());
         mockMvc.perform(
                         get("/api/applications/approval-badge")
+                                .with(user(USER))
                                 .param("bbrC", "IT001")
                                 .param("eno", "E10001"))
                 .andExpect(status().isOk());
@@ -257,14 +368,13 @@ class ApplicationControllerTest {
 
     @Test
     @DisplayName("GET /api/applications/{apfMngNo}/apfDtlCone - 인증된 사용자 → 200")
-    @WithMockUser(username = "10001")
     void getApfDtlCone_인증_200() throws Exception {
         // 준비
-        given(applicationService.getApfDtlCone("APF_202600000001"))
+        given(applicationService.getApfDtlCone("APF_202600000001", USER))
                 .willReturn(ApplicationDto.ApfDtlConeResponse.builder().build());
 
         // 실행 및 검증
-        mockMvc.perform(get("/api/applications/APF_202600000001/apfDtlCone"))
+        mockMvc.perform(get("/api/applications/APF_202600000001/apfDtlCone").with(user(USER)))
                 .andExpect(status().isOk());
     }
 
@@ -276,16 +386,17 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "10001")
     void corruptDetailReturnsServerErrorWithoutRawParserContent() throws Exception {
-        given(applicationService.getApfDtlCone("APF_202600000001"))
+        given(applicationService.getApfDtlCone("APF_202600000001", USER))
                 .willAnswer(
                         i ->
                                 com.kdb.it.common.approval.itbudget.service.StoredSnapshotFixture
                                         .reader()
                                         .read("{\"private\":SECRET_BODY}"));
         var response =
-                mockMvc.perform(get("/api/applications/APF_202600000001/apfDtlCone"))
+                mockMvc.perform(
+                                get("/api/applications/APF_202600000001/apfDtlCone")
+                                        .with(user(USER)))
                         .andExpect(status().isInternalServerError())
                         .andReturn()
                         .getResponse()
@@ -294,28 +405,15 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/applications - 신규 신청서 생성 → 201 Created + Location 헤더")
-    @WithMockUser(username = "10001")
-    void submit_인증_201() throws Exception {
-        // 준비
-        given(applicationService.submit(any())).willReturn("APF_202600000001");
-
-        // 실행 및 검증
+    @DisplayName("POST /api/applications - 구형 범용 상신 API는 공개되지 않는다")
+    void submit_구형공개API폐쇄_405() throws Exception {
         mockMvc.perform(
                         post("/api/applications")
                                 .with(user(USER))
-                                .cookie(MFA_PROOF)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        objectMapper.writeValueAsString(
-                                                new ApplicationDto.CreateRequest())))
-                .andExpect(status().isCreated())
-                .andExpect(header().exists("Location"))
-                .andExpect(
-                        header().string(
-                                        "Set-Cookie",
-                                        org.hamcrest.Matchers.containsString("Max-Age=0")));
-        verify(mfaService).consumeApprovalProof(USER, "valid-proof");
+                                .content("{}"))
+                .andExpect(status().isMethodNotAllowed());
+        verify(applicationService, never()).submit(any());
     }
 
     @Test
@@ -436,21 +534,14 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/applications - MFA proof 없음 → 401 + 서비스 미호출")
-    void submit_MFA증표없음_서비스미호출() throws Exception {
+    @DisplayName("POST /api/applications - MFA 증표가 없어도 폐쇄된 API는 실행되지 않는다")
+    void submit_MFA증표없음_구형API폐쇄() throws Exception {
         mockMvc.perform(
                         post("/api/applications")
                                 .with(user(USER))
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        objectMapper.writeValueAsString(
-                                                new ApplicationDto.CreateRequest())))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("MFA_REQUIRED"))
-                .andExpect(
-                        header().string(
-                                        "Set-Cookie",
-                                        org.hamcrest.Matchers.containsString("Max-Age=0")));
+                                .content("{}"))
+                .andExpect(status().isMethodNotAllowed());
 
         verify(applicationService, never()).submit(any());
     }

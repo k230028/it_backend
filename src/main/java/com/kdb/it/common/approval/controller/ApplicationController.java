@@ -2,6 +2,7 @@ package com.kdb.it.common.approval.controller;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.dto.ApprovalHomeInboxDto;
+import com.kdb.it.common.approval.service.ApplicationDashboardService;
 import com.kdb.it.common.approval.service.ApplicationService;
 import com.kdb.it.common.approval.service.ApprovalHomeInboxService;
 import com.kdb.it.common.approval.service.ApprovalLineManagementService;
@@ -13,7 +14,6 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -55,6 +55,8 @@ public class ApplicationController {
 
     /** 신청서 비즈니스 로직 서비스 */
     private final ApplicationService applicationService;
+
+    private final ApplicationDashboardService applicationDashboardService;
 
     /** 전자결재 Home 결재함·기안함 조회 서비스 */
     private final ApprovalHomeInboxService approvalHomeInboxService;
@@ -112,7 +114,7 @@ public class ApplicationController {
      *
      * @param bgYy 기준연도 (미지정 시 전체 연도)
      * @param apfSts 결재상태 (미지정 시 작성완료(0) = 상신 대상)
-     * @param user 인증 사용자 (일반 사용자는 소속 부서로 제한)
+     * @param user 인증 사용자 (역할과 관계없이 소속 부서로 제한)
      * @return HTTP 200 + 결재상태별 건수 응답 ({@link ApplicationDto.PendingCountResponse})
      */
     @GetMapping("/pending-count")
@@ -120,7 +122,7 @@ public class ApplicationController {
             summary = "결재상태별 건수 조회",
             description =
                     "정보화사업/전산업무비 건수를 인증 사용자의 조회 범위로 집계합니다. "
-                            + "일반 사용자는 소속 부서, 시스템관리자는 전체 부서가 대상이며 "
+                            + "역할과 관계없이 인증 사용자의 소속 부서가 대상이며 "
                             + "apfSts 미지정 시 작성완료(0), 즉 상신 대상으로 집계합니다.")
     public ResponseEntity<ApplicationDto.PendingCountResponse> getPendingCount(
             @RequestParam(value = "bgYy", required = false) String bgYy,
@@ -157,8 +159,9 @@ public class ApplicationController {
     @GetMapping("/{apfMngNo}")
     @Operation(summary = "특정 신청서 조회", description = "특정 신청서를 조회합니다.")
     public ResponseEntity<ApplicationDto.Response> getApplication(
-            @PathVariable("apfMngNo") String apfMngNo) {
-        ApplicationDto.Response response = applicationService.getApplication(apfMngNo);
+            @PathVariable("apfMngNo") String apfMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        ApplicationDto.Response response = applicationService.getApplication(apfMngNo, user);
         return ResponseEntity.ok(response);
     }
 
@@ -176,8 +179,9 @@ public class ApplicationController {
             summary = "신청서 세부내용 조회",
             description = "신청서 관리번호(apfMngNo)로 세부내용(APF_DTL_CONE)을 조회합니다.")
     public ResponseEntity<ApplicationDto.ApfDtlConeResponse> getApfDtlCone(
-            @PathVariable("apfMngNo") String apfMngNo) {
-        return ResponseEntity.ok(applicationService.getApfDtlCone(apfMngNo));
+            @PathVariable("apfMngNo") String apfMngNo,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(applicationService.getApfDtlCone(apfMngNo, user));
     }
 
     /**
@@ -195,36 +199,11 @@ public class ApplicationController {
             description =
                     "여러 개의 신청서를 한 번에 조회합니다. 조회 성공 항목(items)과 미존재 신청관리번호 목록(failedIds)을 함께 반환합니다.")
     public ResponseEntity<ApplicationDto.BulkResponse> bulkGetApplications(
-            @RequestBody ApplicationDto.BulkGetRequest request) {
-        ApplicationDto.BulkResponse response = applicationService.getApplicationsByIds(request);
+            @Valid @RequestBody ApplicationDto.BulkGetRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        ApplicationDto.BulkResponse response =
+                applicationService.getApplicationsByIds(request, user);
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * 신규 신청서 생성
-     *
-     * <p>신청서 마스터, 원본 데이터 연결(Cappla), 결재선(Cdecim)을 일괄 생성합니다.
-     *
-     * <p>생성 흐름:
-     *
-     * <ol>
-     *   <li>시퀀스로 신청서 관리번호 생성 (예: {@code APF-2026-00000001})
-     *   <li>신청서 마스터(TPRMPP_CAPPLM) 저장
-     *   <li>원본 데이터 연결(TPRMPP_CAPPLA) 저장
-     *   <li>결재선 목록(TPRMPP_CDECIM) 저장
-     * </ol>
-     *
-     * @param request 신청서 생성 요청 ({@link ApplicationDto.CreateRequest})
-     * @return HTTP 201 Created + 생성된 신청서 관리번호 (Location 헤더 포함)
-     */
-    @PostMapping
-    @MfaRequired(purpose = MfaPurpose.APPROVAL)
-    @Operation(summary = "신규 신청서 생성", description = "신규 신청서를 생성합니다.")
-    public ResponseEntity<String> submit(@Valid @RequestBody ApplicationDto.CreateRequest request) {
-        // 신청서 생성 후 관리번호 반환
-        String apfMngNo = applicationService.submit(request);
-        // 201 Created 응답 + Location 헤더에 생성된 리소스 URL 포함
-        return ResponseEntity.created(URI.create("/api/applications/" + apfMngNo)).body(apfMngNo);
     }
 
     /**
@@ -242,7 +221,8 @@ public class ApplicationController {
      * </ul>
      *
      * @param apfMngNo 신청서 관리번호
-     * @param request 결재 요청 (결재자 사번, 의견, 승인/반려 상태)
+     * @param request 결재 요청 (의견, 승인/반려 상태)
+     * @param user 인증 사용자
      * @return HTTP 200 (본문 없음)
      */
     @PostMapping("/{apfMngNo}/approve")
@@ -250,8 +230,9 @@ public class ApplicationController {
     @Operation(summary = "신청서 승인", description = "신청서를 승인합니다.")
     public ResponseEntity<Void> approve(
             @PathVariable("apfMngNo") String apfMngNo,
-            @Valid @RequestBody ApplicationDto.ApproveRequest request) {
-        applicationService.approve(apfMngNo, request);
+            @Valid @RequestBody ApplicationDto.ApproveRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        applicationService.approve(apfMngNo, request, user.getEno());
         return ResponseEntity.ok().build();
     }
 
@@ -270,8 +251,10 @@ public class ApplicationController {
             summary = "신청서 일괄 승인",
             description = "여러 개의 신청서를 한 번에 승인합니다. 전체를 하나의 트랜잭션으로 처리하며, 하나라도 실패하면 전체 롤백됩니다.")
     public ResponseEntity<ApplicationDto.BulkApproveResponse> bulkApprove(
-            @RequestBody ApplicationDto.BulkApproveRequest request) {
-        ApplicationDto.BulkApproveResponse response = applicationService.bulkApprove(request);
+            @Valid @RequestBody ApplicationDto.BulkApproveRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        ApplicationDto.BulkApproveResponse response =
+                applicationService.bulkApprove(request, user.getEno());
         return ResponseEntity.ok(response);
     }
 
@@ -383,8 +366,10 @@ public class ApplicationController {
     @GetMapping("/dashboard")
     @Operation(summary = "전자결재 대시보드 조회", description = "부서코드 기준 KPI, 월별 추이, 본인 결재 대기 목록을 반환합니다.")
     public ResponseEntity<ApplicationDto.DashboardResponse> getDashboard(
-            @RequestParam("bbrC") String bbrC, @RequestParam("eno") String eno) {
-        return ResponseEntity.ok(applicationService.getDashboard(bbrC, eno));
+            @RequestParam("bbrC") String bbrC,
+            @RequestParam("eno") String eno,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(applicationDashboardService.getDashboard(bbrC, eno, user));
     }
 
     /** 인증 사용자의 전자결재 Home 결재함·기안함 전체 목록을 반환합니다. */
@@ -405,7 +390,10 @@ public class ApplicationController {
     @GetMapping("/approval-badge")
     @Operation(summary = "사이드바 배지 건수 조회", description = "결재 대기 수와 기안 진행 중 수를 반환합니다.")
     public ResponseEntity<ApplicationDto.ApprovalBadgeCountResponse> getApprovalBadgeCount(
-            @RequestParam("bbrC") String bbrC, @RequestParam("eno") String eno) {
-        return ResponseEntity.ok(applicationService.getApprovalBadgeCount(bbrC, eno));
+            @RequestParam("bbrC") String bbrC,
+            @RequestParam("eno") String eno,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(
+                applicationDashboardService.getApprovalBadgeCount(bbrC, eno, user));
     }
 }

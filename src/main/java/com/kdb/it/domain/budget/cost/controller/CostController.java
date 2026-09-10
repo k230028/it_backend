@@ -388,8 +388,10 @@ public class CostController {
                         content = @Content(schema = @Schema(implementation = String.class)))
             })
     @PostMapping
-    public ResponseEntity<String> createCost(@Valid @RequestBody CostDto.CreateRequest request) {
-        String itMngcNo = costService.createCost(request);
+    public ResponseEntity<String> createCost(
+            @Valid @RequestBody CostDto.CreateRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        String itMngcNo = costService.createCost(request, user);
         return ResponseEntity.created(URI.create("/api/cost/" + itMngcNo)).body(itMngcNo);
     }
 

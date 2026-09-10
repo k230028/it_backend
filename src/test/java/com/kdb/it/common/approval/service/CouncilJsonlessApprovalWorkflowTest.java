@@ -204,13 +204,14 @@ class CouncilJsonlessApprovalWorkflowTest {
 
         switch (action) {
             case "APPROVE" -> {
-                for (Cdecim row : rows(id)) service.approve(id, decision(row.getDcrEno(), "2"));
+                for (Cdecim row : rows(id))
+                    service.approve(id, decision(row.getDcrEno(), "2"), row.getDcrEno());
                 assertThat(app.getItPtlApfPrgStsC()).isEqualTo("2");
                 assertThat(app.getDcdReqInf()).isNull();
                 assertThat(rows(id)).allMatch(row -> "2".equals(row.getItPtlDcdStsC()));
             }
             case "REJECT" -> {
-                service.approve(id, decision("E1", "3"));
+                service.approve(id, decision("E1", "3"), "E1");
                 assertThat(app.getItPtlApfPrgStsC()).isEqualTo("3");
                 assertThat(app.getDcdReqInf()).isNull();
             }
@@ -245,7 +246,7 @@ class CouncilJsonlessApprovalWorkflowTest {
         assertThat(rows(id)).extracting(Cdecim::getDcrEno).containsExactly("E4");
         assertThat(storedApplications.get(id).getDcdReqInf()).isNull();
         verify(maps, times(4)).findDetailSourcesByApplicationIds(List.of(id));
-        service.approve(id, decision("E4", "2"));
+        service.approve(id, decision("E4", "2"), "E4");
         assertThat(storedApplications.get(id).getItPtlApfPrgStsC()).isEqualTo("2");
     }
 
@@ -330,12 +331,11 @@ class CouncilJsonlessApprovalWorkflowTest {
                                 id -> {
                                     var item = new ApplicationDto.ApprovalItem();
                                     item.setApfMngNo(id);
-                                    item.setDcdEno("E1");
                                     item.setDcdSts("2");
                                     return item;
                                 })
                         .toList());
-        assertThat(service.bulkApprove(request).getSuccessCount()).isEqualTo(2);
+        assertThat(service.bulkApprove(request, "E1").getSuccessCount()).isEqualTo(2);
         assertThat(storedApplications.values())
                 .allMatch(
                         app -> "2".equals(app.getItPtlApfPrgStsC()) && app.getDcdReqInf() == null);
@@ -345,7 +345,7 @@ class CouncilJsonlessApprovalWorkflowTest {
 
     private void executeCommand(String id, String command) {
         switch (command) {
-            case "APPROVE" -> service.approve(id, decision("E1", "2"));
+            case "APPROVE" -> service.approve(id, decision("E1", "2"), "E1");
             case "RECALL" -> {
                 var request = new ApplicationDto.RecallRequest();
                 request.setRecallOpnn("회수");
@@ -417,7 +417,6 @@ class CouncilJsonlessApprovalWorkflowTest {
 
     private ApplicationDto.ApproveRequest decision(String eno, String status) {
         var request = new ApplicationDto.ApproveRequest();
-        request.setDcdEno(eno);
         request.setDcdSts(status);
         request.setDcdOpnn("결재");
         return request;

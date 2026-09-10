@@ -96,13 +96,22 @@ public final class OwnershipVerifier {
             throw new AccessDeniedException("인증 정보가 없어 삭제할 수 없습니다.");
         }
 
+        verifySameDepartmentOrAdmin(resourceBbrC, user);
+    }
+
+    /** 명시적으로 전달된 인증 사용자가 대상 부서와 같거나 시스템관리자인지 검증합니다. */
+    public static void verifySameDepartmentOrAdmin(String resourceBbrC, CustomUserDetails user) {
+        if (user == null) {
+            throw new AccessDeniedException("인증 정보가 없습니다.");
+        }
+
         if (user.isAdmin()
                 || (StringUtils.hasText(resourceBbrC)
                         && Objects.equals(resourceBbrC, user.getBbrC()))) {
             return;
         }
 
-        throw new AccessDeniedException("같은 부서 사용자 또는 시스템관리자만 삭제할 수 있습니다.");
+        throw new AccessDeniedException("같은 부서 사용자 또는 시스템관리자만 수행할 수 있습니다.");
     }
 
     /**

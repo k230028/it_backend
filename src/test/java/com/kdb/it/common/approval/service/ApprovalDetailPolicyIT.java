@@ -6,6 +6,7 @@ import com.kdb.it.common.approval.entity.Cappla;
 import com.kdb.it.common.approval.entity.Capplm;
 import com.kdb.it.common.approval.repository.ApplicationMapRepository;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
+import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.support.MfaTestSupportConfig;
 import com.kdb.it.support.OracleAvailableCondition;
 import java.util.List;
@@ -30,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(username = "ITEST15")
 class ApprovalDetailPolicyIT {
+    private static final CustomUserDetails ADMIN =
+            new CustomUserDetails("ITEST15", List.of(CustomUserDetails.ATH_ADMIN), null);
     @Autowired private ApplicationRepository applications;
     @Autowired private ApplicationMapRepository maps;
     @Autowired private ApprovalDetailPolicy policy;
@@ -47,11 +50,11 @@ class ApprovalDetailPolicyIT {
         String corrupt = application(raw.replace("\"125.000\"", "\"999.000\""));
         applications.flush();
         maps.flush();
-        assertThat(service.getApfDtlCone(valid).getApfDtlCone()).isEqualTo(raw);
-        assertThat(service.getApfDtlCone(council).getApfDtlCone()).isNull();
-        assertThatThrownBy(() -> service.getApfDtlCone(invalidNull))
+        assertThat(service.getApfDtlCone(valid, ADMIN).getApfDtlCone()).isEqualTo(raw);
+        assertThat(service.getApfDtlCone(council, ADMIN).getApfDtlCone()).isNull();
+        assertThatThrownBy(() -> service.getApfDtlCone(invalidNull, ADMIN))
                 .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
-        assertThatThrownBy(() -> service.getApfDtlCone(corrupt))
+        assertThatThrownBy(() -> service.getApfDtlCone(corrupt, ADMIN))
                 .isInstanceOf(com.kdb.it.exception.DataCorruptionException.class);
     }
 

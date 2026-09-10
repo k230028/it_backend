@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.repository.ApplicationRepository;
@@ -69,6 +70,40 @@ class ApplicationBulkReadSupportTest {
 
         assertThat(result.items()).hasSize(1);
         assertThat(result.failedIds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("중복 ID를 첫 등장 순서로 제거한 뒤 저장소를 한 번 조회한다")
+    void read_deduplicatesIdsBeforeRepositoryQuery() {
+        ApplicationRepository applicationRepository = mock(ApplicationRepository.class);
+        ApproverRepository approverRepository = mock(ApproverRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        OrganizationRepository organizationRepository = mock(OrganizationRepository.class);
+        ApplicationRepository.ApplicationReadView first =
+                mock(ApplicationRepository.ApplicationReadView.class);
+        ApplicationRepository.ApplicationReadView second =
+                mock(ApplicationRepository.ApplicationReadView.class);
+        given(first.getApfMngNo()).willReturn("APF-2");
+        given(second.getApfMngNo()).willReturn("APF-1");
+        given(applicationRepository.findReadViewsByApfMngNoIn(any()))
+                .willReturn(List.of(second, first));
+        given(approverRepository.findReadViewsByDcdMngNoInOrderByDcrSqnSnoAsc(any()))
+                .willReturn(List.of());
+        var request = new ApplicationDto.BulkGetRequest();
+        request.setApfMngNos(List.of("APF-2", "APF-1", "APF-2"));
+
+        ApplicationDto.BulkResponse result =
+                ApplicationBulkReadSupport.read(
+                        request,
+                        applicationRepository,
+                        approverRepository,
+                        userRepository,
+                        organizationRepository);
+
+        verify(applicationRepository).findReadViewsByApfMngNoIn(List.of("APF-2", "APF-1"));
+        assertThat(result.items())
+                .extracting(ApplicationDto.Response::getApfMngNo)
+                .containsExactly("APF-2", "APF-1");
     }
 
     @Test

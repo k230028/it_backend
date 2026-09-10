@@ -147,7 +147,8 @@ class CostControllerTest {
     @DisplayName("POST /api/cost - 인증된 사용자 → 201 Created + Location")
     @WithMockUser(username = "10001")
     void createCost_인증_201() throws Exception {
-        given(costService.createCost(any())).willReturn("COST_2026_0001");
+        given(costService.createCost(any(), any(CustomUserDetails.class)))
+                .willReturn("COST_2026_0001");
         var body = new CostDto.CreateRequest();
         body.setCurC("KRW");
         body.setCostSvnDpmC("D001");
@@ -155,6 +156,7 @@ class CostControllerTest {
 
         mockMvc.perform(
                         post("/api/cost")
+                                .with(authentication(adminAuthentication()))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())

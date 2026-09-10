@@ -294,6 +294,22 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
             nativeQuery = true)
     int countPendingByEno(@Param("eno") String eno);
 
+    /** 본인 부서에서 온 결재 대기 신청서 수입니다. */
+    @Query(
+            value =
+                    """
+        SELECT COUNT(DISTINCT a.APF_DCM_NO)
+        FROM TPRMPP_CAPPLM a
+        JOIN TPRMPP_CDECIM d ON a.APF_DCM_NO = d.APF_DCM_NO
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
+          AND a.DCD_REQ_BBR_C = :bbrC
+          AND d.DCR_ENO = :eno
+          AND d.DCR_SQN_SNO > 0
+          AND d.IT_PTL_DCD_STS_C = '1'
+        """,
+            nativeQuery = true)
+    int countPendingByEnoAndBbrC(@Param("eno") String eno, @Param("bbrC") String bbrC);
+
     /** 내가 기안한 진행 중 건수 */
     @Query(
             value =
@@ -306,15 +322,27 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
             nativeQuery = true)
     int countInProgressByEno(@Param("eno") String eno);
 
+    /** 본인 부서에서 기안한 진행 중 신청서 수입니다. */
+    @Query(
+            value =
+                    """
+        SELECT COUNT(*)
+        FROM TPRMPP_CAPPLM a
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
+          AND a.DCD_REQ_USID = :eno
+          AND a.DCD_REQ_BBR_C = :bbrC
+        """,
+            nativeQuery = true)
+    int countInProgressByEnoAndBbrC(@Param("eno") String eno, @Param("bbrC") String bbrC);
+
     /** 이번달 부서 완료 건수 */
     @Query(
             value =
                     """
         SELECT COUNT(*)
         FROM TPRMPP_CAPPLM a
-        JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
         WHERE a.IT_PTL_APF_PRG_STS_C = '2'
-          AND u.BBR_C = :bbrC
+          AND a.DCD_REQ_BBR_C = :bbrC
           AND a.DCD_REQ_DTM >= TRUNC(SYSDATE, 'MM')
         """,
             nativeQuery = true)
@@ -332,6 +360,19 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
             nativeQuery = true)
     int countRejectedByEno(@Param("eno") String eno);
 
+    /** 본인 부서에서 기안한 반려 신청서 수입니다. */
+    @Query(
+            value =
+                    """
+        SELECT COUNT(*)
+        FROM TPRMPP_CAPPLM a
+        WHERE a.IT_PTL_APF_PRG_STS_C = '3'
+          AND a.DCD_REQ_USID = :eno
+          AND a.DCD_REQ_BBR_C = :bbrC
+        """,
+            nativeQuery = true)
+    int countRejectedByEnoAndBbrC(@Param("eno") String eno, @Param("bbrC") String bbrC);
+
     /** 부서 기준 최근 6개월 월별 결재 처리 건수 반환 컬럼: [0]=MONTH(YYYY-MM), [1]=CNT */
     @Query(
             value =
@@ -339,8 +380,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
         SELECT TO_CHAR(a.DCD_REQ_DTM, 'YYYY-MM') AS MONTH,
                COUNT(*) AS CNT
         FROM TPRMPP_CAPPLM a
-        JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
-        WHERE u.BBR_C = :bbrC
+        WHERE a.DCD_REQ_BBR_C = :bbrC
           AND a.DCD_REQ_DTM >= ADD_MONTHS(TRUNC(SYSDATE, 'MM'), -5)
         GROUP BY TO_CHAR(a.DCD_REQ_DTM, 'YYYY-MM')
         ORDER BY 1
@@ -374,6 +414,31 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
             nativeQuery = true)
     List<Object[]> findPendingListByEno(@Param("eno") String eno);
 
+    /** 본인 부서에서 온 결재 대기 최근 3건을 조회합니다. */
+    @Query(
+            value =
+                    """
+        SELECT a.APF_DCM_NO, a.DCD_REQ_TTL, u.USR_NM,
+               TO_CHAR(a.DCD_REQ_DTM, 'YYYY-MM-DD') AS RQS_DT_STR
+        FROM TPRMPP_CAPPLM a
+        JOIN TPRMPP_CUSERI u ON a.DCD_REQ_USID = u.ENO
+        WHERE a.IT_PTL_APF_PRG_STS_C = '1'
+          AND a.DCD_REQ_BBR_C = :bbrC
+          AND EXISTS (
+            SELECT 1
+            FROM TPRMPP_CDECIM d
+            WHERE d.APF_DCM_NO = a.APF_DCM_NO
+              AND d.DCR_ENO = :eno
+              AND d.DCR_SQN_SNO > 0
+              AND d.IT_PTL_DCD_STS_C = '1'
+          )
+        ORDER BY a.DCD_REQ_DTM DESC, a.APF_DCM_NO DESC
+        FETCH FIRST 3 ROWS ONLY
+        """,
+            nativeQuery = true)
+    List<Object[]> findPendingListByEnoAndBbrC(
+            @Param("eno") String eno, @Param("bbrC") String bbrC);
+
     /**
      * 부서 기준 최근 6개월 월별 결재 처리 건수를 DTO로 봉인 반환한다(#6).
      *
@@ -392,5 +457,12 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
      */
     default List<PendingApprovalRow> findPendingRowsByEno(String eno) {
         return findPendingListByEno(eno).stream().map(PendingApprovalRow::fromRow).toList();
+    }
+
+    /** 본인 부서 결재 대기 최근 3건을 DTO로 변환합니다. */
+    default List<PendingApprovalRow> findPendingRowsByEnoAndBbrC(String eno, String bbrC) {
+        return findPendingListByEnoAndBbrC(eno, bbrC).stream()
+                .map(PendingApprovalRow::fromRow)
+                .toList();
     }
 }

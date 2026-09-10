@@ -69,6 +69,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class ProjectServiceTest {
 
     @Test
+    void createProjectRejectsAnotherDepartmentBeforePersistence() {
+        var actor = new CustomUserDetails("E10001", List.of(CustomUserDetails.ATH_USER), "D001");
+        var request = ProjectDto.CreateRequest.builder().svnDpmC("D999").build();
+
+        assertThatThrownBy(() -> projectService.createProject(request, actor))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(codeService, projectRepository);
+    }
+
+    @Test
     void importedNamesAndAmountsCannotBypassApprovalGuard() {
         Bprojm project = Bprojm.builder().abusMngNo("LOCK-P").sno(3).build();
         given(projectRepository.findCurrentVersionForUpdate("LOCK-P"))

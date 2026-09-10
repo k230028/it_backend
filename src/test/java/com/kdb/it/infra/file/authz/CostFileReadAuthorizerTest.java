@@ -67,4 +67,14 @@ class CostFileReadAuthorizerTest {
 
         then(costRepository).shouldHaveNoInteractions();
     }
+
+    @Test
+    @DisplayName("전산업무비 첨부 종류에만 이 판정기가 걸린다")
+    void supportsOnlyCostAttachmentKind() {
+        // 레지스트리는 APG_FL_KD_NM으로 판정기를 고른다. 이 집합이 어긋나면
+        // 전산업무비 첨부가 판정기 없이 통과하거나 다른 업무 첨부까지 가로챈다.
+        assertThat(authorizer.supportedApgFlKdNms())
+                .containsExactly(CostFileReadAuthorizer.COST_KIND);
+        assertThat(CostFileReadAuthorizer.COST_KIND).isEqualTo("전산업무비");
+    }
 }
