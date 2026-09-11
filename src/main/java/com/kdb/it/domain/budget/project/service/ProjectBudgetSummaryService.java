@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-@Slf4j
 public class ProjectBudgetSummaryService {
 
     /** 자본예산 세부 코드타입: 개발비 */
@@ -175,7 +173,7 @@ public class ProjectBudgetSummaryService {
      * <p>당해 요청금액은 {@code 총소요금액 − 예정금액 − 지급금액}으로 복원합니다. 저장 불변식이 깨진 경우 음수를 0으로 숨기지 않고 그대로 노출합니다.
      *
      * <p>일반 등록·수정 경로는 저장할 때마다 세 컬럼을 중앙 계산 결과로 갱신하므로({@code ProjectService.applyAmountSnapshot}) 보통
-     * 파생값과 같습니다. 다른 경우는 저장 컬럼이 정본입니다.
+     * 파생값과 같습니다. 다른 경우는 저장 컬럼이 정본이며, 파생값과의 차이는 로그로 남기지 않습니다.
      *
      * @param response 파생 합계가 이미 채워진 응답
      * @param totRqmAmt 저장된 총소요금액. null이면 세 값을 모두 파생 합계로 둡니다
@@ -194,15 +192,6 @@ public class ProjectBudgetSummaryService {
         BigDecimal storedPaidAmt = nvl(dfrAmt);
         BigDecimal storedCurrentRequestAmt =
                 amountCalculator.restoreCurrentRequestAmount(totRqmAmt, mplAmt, dfrAmt);
-        warnSnapshotDiff(response, "tyyBgAmt", response.getTyyBgAmt(), storedCurrentRequestAmt);
-        warnSnapshotDiff(response, "prjBgAmt", response.getPrjBgAmt(), totRqmAmt);
-        warnSnapshotDiff(response, "mplAmt", response.getMplAmt(), storedPlannedAmt);
-        BigDecimal derivedPaidAmt = response.getDfrAmt();
-        if (derivedPaidAmt != null) {
-            warnSnapshotDiff(response, "dfrAmt", derivedPaidAmt, storedPaidAmt);
-        } else {
-            warnSnapshotDiff(response, "dfrAmt", BigDecimal.ZERO, storedPaidAmt);
-        }
 
         response.setPrjBgAmt(totRqmAmt);
         response.setMplAmt(storedPlannedAmt);
@@ -268,22 +257,5 @@ public class ProjectBudgetSummaryService {
 
     private static BigDecimal nvl(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
-    }
-
-    private static void warnSnapshotDiff(
-            ProjectDto.Response response,
-            String field,
-            BigDecimal derivedAmount,
-            BigDecimal storedAmount) {
-        BigDecimal derived = nvl(derivedAmount);
-        BigDecimal stored = nvl(storedAmount);
-        if (derived.compareTo(stored) == 0) return;
-
-        log.warn(
-                "정보화사업 금액 스냅샷 불일치: projectKey={}, field={}, derived={}, stored={}",
-                response.getAbusMngNo(),
-                field,
-                derived.toPlainString(),
-                stored.toPlainString());
     }
 }
