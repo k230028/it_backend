@@ -149,6 +149,38 @@ class CapitalDeclaredAmountsTest {
     }
 
     @Test
+    @DisplayName("1-2가 전부 외화 품목이면 1-1 요약표(백만원)로 대체하지 않고 외화 품목을 유지한다")
+    void keepsForeignResourceItemsInsteadOfSynthesizingSummary() {
+        // 실측(호치민사무소 2026): 1-2가 USD 1,813,543이고 1-1 요약표 `'26년도 합계`가 같은 숫자를 백만원 칸에 보인다.
+        // 외화 행은 AMT가 비고 FC_AMT만 채워지므로 "금액 없는 품목"으로 오판하면 1-1 백만원 합성으로 바뀐다
+        Workbook wb =
+                workbookOf(
+                        w -> {
+                            writeOverviewWithSummaryItem(
+                                    w.createSheet(OVERVIEW_SHEET_NAME),
+                                    1_813_543d,
+                                    0d,
+                                    "U$ 1,813,543");
+                            writeResourceItem(
+                                    w.createSheet(RESOURCE_SHEET_NAME), "개발비", 1_813_543d, "USD");
+                        });
+        Map<FormSheetKind, Sheet> sheets = new EnumMap<>(FormSheetKind.class);
+        sheets.put(FormSheetKind.CAPITAL_OVERVIEW, wb.getSheet(OVERVIEW_SHEET_NAME));
+        sheets.put(FormSheetKind.CAPITAL_RESOURCE, wb.getSheet(RESOURCE_SHEET_NAME));
+
+        FormAdapterOutput output = adapt(sheets);
+
+        assertThat(output.projects().get(0).getItems())
+                .singleElement()
+                .satisfies(
+                        item -> {
+                            assertThat(item.getCurC()).isEqualTo("USD");
+                            assertThat(item.getFcAmt()).isEqualByComparingTo("1813543");
+                            assertThat(item.getAmt()).isNull();
+                        });
+    }
+
+    @Test
     @DisplayName("[조건②] 품목이 없어 배수를 못 정하면 금액을 적재하지 않고 경고만 낸다")
     void skipsAmountsWhenUnitUnresolved() {
         FormAdapterOutput output = adapt(overviewOnly("2,000백만원", 1_265_624_700d, 0d));
@@ -583,33 +615,41 @@ class CapitalDeclaredAmountsTest {
             double yearAmount, double laterAmount, String wholePeriod) {
         Workbook wb =
                 workbookOf(
-                        w -> {
-                            Sheet sheet = w.createSheet(OVERVIEW_SHEET_NAME);
-                            Row nameRow = sheet.createRow(0);
-                            cell(nameRow, 2).setCellValue("사업명");
-                            cell(nameRow, 3).setCellValue("노후인프라 중장기 실행방안 수립");
-                            Row amountRow = sheet.createRow(1);
-                            cell(amountRow, 7).setCellValue("총 사업금액(전체기간)");
-                            cell(amountRow, 9).setCellValue(wholePeriod);
-                            Row header = sheet.createRow(2);
-                            cell(header, 0).setCellValue("분기별 소요(안) (백만원, 부가세포함)");
-                            cell(header, 1).setCellValue("비목");
-                            cell(header, 6).setCellValue("'26년도 합계");
-                            cell(header, 7).setCellValue("'26년도 이후");
-                            cell(header, 8).setCellValue("전체 합계");
-                            Row item = sheet.createRow(3);
-                            cell(item, 1).setCellValue("외주용역비");
-                            cell(item, 5).setCellValue(yearAmount);
-                            cell(item, 6).setCellValue(yearAmount);
-                            cell(item, 7).setCellValue(laterAmount);
-                            cell(item, 8).setCellValue(yearAmount + laterAmount);
-                            Row total = sheet.createRow(4);
-                            cell(total, 0).setCellValue("총 계");
-                            cell(total, 6).setCellValue(yearAmount);
-                            cell(total, 7).setCellValue(laterAmount);
-                            cell(total, 8).setCellValue(yearAmount + laterAmount);
-                        });
+                        w ->
+                                writeOverviewWithSummaryItem(
+                                        w.createSheet(OVERVIEW_SHEET_NAME),
+                                        yearAmount,
+                                        laterAmount,
+                                        wholePeriod));
         return wb.getSheetAt(0);
+    }
+
+    /** 1-1 시트에 사업명·총액과 비목별 요약표를 채웁니다. 1-2 시트와 함께 쓰는 워크북에서 재사용합니다. */
+    private static void writeOverviewWithSummaryItem(
+            Sheet sheet, double yearAmount, double laterAmount, String wholePeriod) {
+        Row nameRow = sheet.createRow(0);
+        cell(nameRow, 2).setCellValue("사업명");
+        cell(nameRow, 3).setCellValue("노후인프라 중장기 실행방안 수립");
+        Row amountRow = sheet.createRow(1);
+        cell(amountRow, 7).setCellValue("총 사업금액(전체기간)");
+        cell(amountRow, 9).setCellValue(wholePeriod);
+        Row header = sheet.createRow(2);
+        cell(header, 0).setCellValue("분기별 소요(안) (백만원, 부가세포함)");
+        cell(header, 1).setCellValue("비목");
+        cell(header, 6).setCellValue("'26년도 합계");
+        cell(header, 7).setCellValue("'26년도 이후");
+        cell(header, 8).setCellValue("전체 합계");
+        Row item = sheet.createRow(3);
+        cell(item, 1).setCellValue("외주용역비");
+        cell(item, 5).setCellValue(yearAmount);
+        cell(item, 6).setCellValue(yearAmount);
+        cell(item, 7).setCellValue(laterAmount);
+        cell(item, 8).setCellValue(yearAmount + laterAmount);
+        Row total = sheet.createRow(4);
+        cell(total, 0).setCellValue("총 계");
+        cell(total, 6).setCellValue(yearAmount);
+        cell(total, 7).setCellValue(laterAmount);
+        cell(total, 8).setCellValue(yearAmount + laterAmount);
     }
 
     /** 1-1 시트에 `총 사업금액(전체기간)`과 요약표(`'26년도 합계`·`'26년도 이후`)를 채웁니다. */

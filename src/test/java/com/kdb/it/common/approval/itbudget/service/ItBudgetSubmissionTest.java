@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.kdb.it.common.approval.domain.ApprovalStatus;
 import com.kdb.it.common.approval.domain.DecisionStatus;
 import com.kdb.it.common.approval.entity.*;
+import com.kdb.it.common.approval.event.ApprovalCompletedEvent;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.*;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.common.approval.notification.ApprovalRequestNotifier;
@@ -199,6 +201,57 @@ class ItBudgetSubmissionTest {
         assertThat(snapshot.at("/approvalLine/approvers/1/date").isNull()).isTrue();
         assertThat(snapshot.at("/approvalLine/requester/date").asText())
                 .isEqualTo("2030-01-02T23:59:59");
+    }
+
+    @Test
+    void requesterInEveryApprovalSlotCompletesApprovalOnSubmission() throws Exception {
+        var input =
+                new PreviewRequest(
+                        List.of(
+                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "U1"),
+                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "U1")),
+                        List.of(
+                                new DocumentRequest(
+                                        "project",
+                                        List.of(ItBudgetApprovalFacadeTest.projectRef()))));
+        var preview = facade.preview(f.actor, input);
+        var request = submission(input, preview);
+        LocalDateTime submittedAt = LocalDateTime.of(2030, 1, 2, 23, 59, 59);
+
+        try (MockedStatic<LocalDateTime> dates =
+                mockStatic(LocalDateTime.class, CALLS_REAL_METHODS)) {
+            dates.when(LocalDateTime::now).thenReturn(submittedAt);
+            facade.submit(f.actor, request);
+        }
+
+        var savedApplication = ArgumentCaptor.forClass(Capplm.class);
+        verify(applications).save(savedApplication.capture());
+        var stored = savedApplication.getValue();
+        assertThat(stored.getItPtlApfPrgStsC()).isEqualTo(ApprovalStatus.COMPLETED.code());
+        var decisions = ArgumentCaptor.forClass(Cdecim.class);
+        verify(approvers, times(3)).save(decisions.capture());
+        assertThat(decisions.getAllValues())
+                .extracting(Cdecim::getDcrEno)
+                .containsExactly("U1", "U1", "U1");
+        assertThat(decisions.getAllValues())
+                .allSatisfy(
+                        decision -> {
+                            assertThat(decision.getItPtlDcdStsC())
+                                    .isEqualTo(DecisionStatus.APPROVED.code());
+                            assertThat(decision.getDcdDtm())
+                                    .isEqualTo(submittedAt.toLocalDate());
+                        });
+        var snapshot = f.mapper.readTree(stored.getDcdReqInf());
+        assertThat(snapshot.at("/approvalLine/approvers/0/date").asText())
+                .isEqualTo("2030-01-02T23:59:59");
+        assertThat(snapshot.at("/approvalLine/approvers/1/date").asText())
+                .isEqualTo("2030-01-02T23:59:59");
+        verify(sync).upsert("P1", "P1", "09");
+        verify(events)
+                .publishEvent(
+                        new ApprovalCompletedEvent(
+                                stored.getApfMngNo(), ApprovalStatus.COMPLETED.label()));
+        verify(notifier, never()).notifyApprovalRequest(any());
     }
 
     @Test

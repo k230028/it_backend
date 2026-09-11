@@ -199,14 +199,15 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
                 generalItems.add(toItem(row, context, sno++, diagnostics));
             }
         }
+        // 외화 행은 AMT를 비우고 FC_AMT만 채우므로 원화 금액만 보면 "금액 없는 품목"으로 오판한다.
+        // 실측(호치민사무소 2026): 1-2가 전부 USD인 파일이 1-1 요약표(백만원)로 대체되어 U$1,813,543이
+        // 1,813,543백만원으로 적재됐다
         if ((!items.isEmpty() || !generalItems.isEmpty())
                 && declared.yearTotalRaw() != null
                 && declared.yearTotalRaw().signum() > 0
                 && !declared.summaryItems().isEmpty()
-                && items.stream()
-                        .allMatch(item -> item.getAmt() == null || item.getAmt().signum() == 0)
-                && generalItems.stream()
-                        .allMatch(item -> item.getAmt() == null || item.getAmt().signum() == 0)) {
+                && items.stream().allMatch(CapitalProjectFormAdapter::hasNoAmount)
+                && generalItems.stream().allMatch(CapitalProjectFormAdapter::hasNoAmount)) {
             List<RequestFormDto.FormDiagnostic> synthesizedDiagnostics = new ArrayList<>();
             List<ProjectDto.BitemmDto> synthesized =
                     summaryItems(declared, projectName, context, synthesizedDiagnostics);
@@ -467,6 +468,12 @@ public class CapitalProjectFormAdapter implements FormSheetAdapter {
      */
     private static boolean hasForeignCurrencyItem(List<ProjectDto.BitemmDto> items) {
         return items.stream().anyMatch(item -> item.getAmt() == null);
+    }
+
+    /** 원화 금액과 외화 금액이 모두 비었거나 0인 품목인지 판정합니다. 외화 행은 AMT 대신 FC_AMT를 채웁니다. */
+    private static boolean hasNoAmount(ProjectDto.BitemmDto item) {
+        return (item.getAmt() == null || item.getAmt().signum() == 0)
+                && (item.getFcAmt() == null || item.getFcAmt().signum() == 0);
     }
 
     /**

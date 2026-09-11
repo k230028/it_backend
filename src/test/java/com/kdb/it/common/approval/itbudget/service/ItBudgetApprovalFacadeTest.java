@@ -156,24 +156,6 @@ class ItBudgetApprovalFacadeTest {
     }
 
     @Test
-    void previewRejectsRequesterInBothApprovalStepsBeforeReadingLedgers() {
-        var input =
-                new PreviewRequest(
-                        List.of(
-                                new ApproverRef(RequestApproverRole.TEAM_LEAD, "U1"),
-                                new ApproverRef(RequestApproverRole.DEPT_HEAD, "U1")),
-                        request().documents());
-
-        assertThatThrownBy(() -> facade.preview(actor, input))
-                .isInstanceOfSatisfying(
-                        ItBudgetApprovalException.class,
-                        exception ->
-                                assertThat(exception.code())
-                                        .isEqualTo("IT_BUDGET_PREVIEW_INVALID"));
-        verifyNoInteractions(loader, builder, tokens);
-    }
-
-    @Test
     void previewRejectsThirdApproverBeforeReadingLedgers() {
         var input =
                 new PreviewRequest(

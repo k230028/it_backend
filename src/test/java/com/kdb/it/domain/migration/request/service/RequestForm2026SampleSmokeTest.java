@@ -161,8 +161,8 @@ class RequestForm2026SampleSmokeTest {
             if (classifySample(sampleRoot, path)) requestForms++;
         }
 
-        assertThat(excelFiles.size()).isEqualTo(74);
-        assertThat(requestForms).isEqualTo(62);
+        assertThat(excelFiles.size()).isEqualTo(75);
+        assertThat(requestForms).isEqualTo(63);
         assertThat(excelFiles.size() - requestForms).isEqualTo(12);
     }
 
