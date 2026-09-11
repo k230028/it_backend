@@ -57,6 +57,7 @@ public class RequestFormFileImporter {
     private final ProjectService projectService;
     private final ApprovalStamper approvalStamper;
     private final RequestFormValidator validator;
+    private final RequestFormXcrBaseDateAssigner xcrBaseDateAssigner;
 
     /**
      * 파일 1건을 원장에 반영합니다.
@@ -123,7 +124,7 @@ public class RequestFormFileImporter {
             String cgprNm = cost.getCgprId();
             cost.setCgprId(null);
             cost.setBseYy(bseYy);
-            String costBgNo = costService.createCostForMigration(cost, Integer.parseInt(bseYy));
+            String costBgNo = costService.createCostForRequestForm(cost, Integer.parseInt(bseYy));
             costService.assignImportedPersonName(costBgNo, cgprNm);
             String apfMngNo = stamp(TABLE_COST, costBgNo, cost.getCttNm(), actorEno, bseYy);
             created.add(
@@ -362,6 +363,9 @@ public class RequestFormFileImporter {
             FormAdapterOutput output, String bseYy) {
         List<RequestFormDto.FormDiagnostic> diagnostics = new ArrayList<>(output.diagnostics());
         diagnostics.addAll(validator.validate(output, bseYy));
+        // 통화가 확정된 뒤에만 기준일자를 정할 수 있으므로 검증 다음에 둔다. dry-run과 반영이 같은 경로를 타
+        // 미리보기에서 먼저 드러난다
+        diagnostics.addAll(xcrBaseDateAssigner.assign(output, bseYy));
         return List.copyOf(diagnostics);
     }
 

@@ -222,7 +222,8 @@ class RequestForm2026SampleSmokeTest {
                                 mock(CostService.class),
                                 mock(ProjectService.class),
                                 mock(ApprovalStamper.class),
-                                new RequestFormValidator(costRepository, projectRepository)));
+                                new RequestFormValidator(costRepository, projectRepository),
+                                mock(RequestFormXcrBaseDateAssigner.class)));
         RequestFormImportService service =
                 new RequestFormImportService(
                         reader,

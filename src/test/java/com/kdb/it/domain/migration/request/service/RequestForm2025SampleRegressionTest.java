@@ -222,7 +222,8 @@ class RequestForm2025SampleRegressionTest {
 
     private RequestFormDto.FileResult preview(FormAdapterOutput output, String departmentCode) {
         RequestFormFileImporter importer =
-                new RequestFormFileImporter(null, null, null, validator());
+                new RequestFormFileImporter(
+                        null, null, null, validator(), mock(RequestFormXcrBaseDateAssigner.class));
         RequestFormDto.FileEntry entry =
                 new RequestFormDto.FileEntry("sample.xls", "sample", departmentCode, null, "571");
         return importer.preview(output, entry, "2025");

@@ -279,6 +279,45 @@ class MigrationIoeCatalogReaderTest {
         return Ccodem.builder().cId(CommonCodeGroups.IOE).cdva(cdva).cdvaNm(cdvaNm).build();
     }
 
+    @Test
+    @DisplayName("통화 → 환율기준일자(코드값상세) 맵을 만든다")
+    void 환율기준일자_맵을_만든다() {
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
+                .thenReturn(
+                        List.of(
+                                currencyWithBaseDate("USD", "1432", " 20260115 "),
+                                currencyWithBaseDate("GBP", "1924", "2026-01-15")));
+
+        Map<String, String> result = readerWithRepo().xcrBaseDateByCurrency();
+
+        // 형식 판정은 호출자가 맡으므로 공백만 정리해 원문을 그대로 넘긴다
+        assertThat(result).containsEntry("USD", "20260115").containsEntry("GBP", "2026-01-15");
+    }
+
+    @Test
+    @DisplayName("환율기준일자(코드값상세)가 비어 있는 통화는 맵에 넣지 않는다")
+    void 환율기준일자가_비어있으면_건너뛴다() {
+        when(codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null))
+                .thenReturn(
+                        List.of(
+                                currency("KRW", "1"),
+                                currencyWithBaseDate("JPY", "9.7", "   "),
+                                currencyWithBaseDate("USD", "1432", "20260115")));
+
+        Map<String, String> result = readerWithRepo().xcrBaseDateByCurrency();
+
+        assertThat(result).containsOnlyKeys("USD");
+    }
+
+    private static Ccodem currencyWithBaseDate(String cdva, String cdvaDtlC, String cdvaDtl) {
+        return Ccodem.builder()
+                .cId(CommonCodeGroups.CURRENCY)
+                .cdva(cdva)
+                .cdvaDtlC(cdvaDtlC)
+                .cdvaDtl(cdvaDtl)
+                .build();
+    }
+
     private static Ccodem currency(String cdva, String cdvaDtlC) {
         return Ccodem.builder()
                 .cId(CommonCodeGroups.CURRENCY)

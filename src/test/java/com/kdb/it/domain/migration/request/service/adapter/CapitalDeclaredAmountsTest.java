@@ -19,6 +19,7 @@ import com.kdb.it.domain.migration.request.dto.FormSheetKind;
 import com.kdb.it.domain.migration.request.dto.RequestFormDto;
 import com.kdb.it.domain.migration.request.service.RequestFormFileImporter;
 import com.kdb.it.domain.migration.request.service.RequestFormValidator;
+import com.kdb.it.domain.migration.request.service.RequestFormXcrBaseDateAssigner;
 import com.kdb.it.domain.migration.request.service.SheetAnchorScanner;
 import com.kdb.it.domain.migration.request.support.FormDiagnostics;
 import com.kdb.it.domain.migration.request.support.TestIoeIndex;
@@ -374,7 +375,12 @@ class CapitalDeclaredAmountsTest {
         given(validator.withoutDuplicateProjects(output, "2026")).willReturn(output);
         given(projectService.createProject(any(), eq(true))).willReturn("PRJ-2026-0001");
         RequestFormFileImporter importer =
-                new RequestFormFileImporter(costService, projectService, stamper, validator);
+                new RequestFormFileImporter(
+                        costService,
+                        projectService,
+                        stamper,
+                        validator,
+                        Mockito.mock(RequestFormXcrBaseDateAssigner.class));
 
         importer.apply(
                 output,

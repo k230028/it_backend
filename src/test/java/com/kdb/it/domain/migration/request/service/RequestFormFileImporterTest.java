@@ -42,6 +42,7 @@ class RequestFormFileImporterTest {
     @Mock private ProjectService projectService;
     @Mock private ApprovalStamper stamper;
     @Mock private RequestFormValidator validator;
+    @Mock private RequestFormXcrBaseDateAssigner xcrBaseDateAssigner;
 
     private static final RequestFormDto.FileEntry ENTRY =
             new RequestFormDto.FileEntry("자금운용실/요청서.xls", "자금운용실", null, AmountUnit.WON, "571");
@@ -53,7 +54,8 @@ class RequestFormFileImporterTest {
     }
 
     private RequestFormFileImporter importer() {
-        return new RequestFormFileImporter(costService, projectService, stamper, validator);
+        return new RequestFormFileImporter(
+                costService, projectService, stamper, validator, xcrBaseDateAssigner);
     }
 
     private static FormAdapterOutput outputWithOneOfEach() {
@@ -78,13 +80,13 @@ class RequestFormFileImporterTest {
     void createsLedgerWithPeriodValidationSkipped() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0001");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-2026-0001");
 
         RequestFormDto.FileResult result =
                 importer().apply(outputWithOneOfEach(), ENTRY, "2026", "12345678");
 
         verify(projectService).createProject(any(), eq(true));
-        verify(costService).createCostForMigration(any(), eq(2026));
+        verify(costService).createCostForRequestForm(any(), eq(2026));
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
         assertThat(result.created())
                 .extracting(RequestFormDto.CreatedRecord::key)
@@ -96,7 +98,7 @@ class RequestFormFileImporterTest {
     void createsCostManagementNumberWithUploadedBudgetYear() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2025-0001");
-        when(costService.createCostForMigration(any(), eq(2025))).thenReturn("COST-2025-0001");
+        when(costService.createCostForRequestForm(any(), eq(2025))).thenReturn("COST-2025-0001");
 
         RequestFormDto.FileResult result =
                 importer().apply(outputWithOneOfEach(), ENTRY, "2025", "12345678");
@@ -122,7 +124,7 @@ class RequestFormFileImporterTest {
     void stampsApprovalForEachLedger() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0001");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-2026-0001");
 
         importer().apply(outputWithOneOfEach(), ENTRY, "2026", "12345678");
 
@@ -183,7 +185,7 @@ class RequestFormFileImporterTest {
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.BLOCKED);
         assertThat(result.created()).isEmpty();
         verify(projectService, never()).createProject(any(), anyBoolean());
-        verify(costService, never()).createCostForMigration(any(), anyInt());
+        verify(costService, never()).createCostForRequestForm(any(), anyInt());
         verify(stamper, never()).stamp(any(), any(), any(), any(), any(), any(), any());
     }
 
@@ -199,7 +201,7 @@ class RequestFormFileImporterTest {
         output.costs().getFirst().setCgprId("김담당");
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-1");
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-1");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-1");
 
         RequestFormDto.FileResult result = importer().apply(output, ENTRY, "2026", "12345678");
 
@@ -230,7 +232,7 @@ class RequestFormFileImporterTest {
                         "정보화사업 품목 비목을 확정하지 못했습니다.",
                         List.of());
         when(validator.validate(any(), anyString())).thenReturn(List.of(blocker));
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0001");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-2026-0001");
 
         RequestFormDto.FileResult result =
                 importer().apply(outputWithOneOfEach(), ENTRY, "2026", "12345678");
@@ -241,7 +243,7 @@ class RequestFormFileImporterTest {
                 .extracting(RequestFormDto.CreatedRecord::key)
                 .containsExactly("COST-2026-0001");
         verify(projectService, never()).createProject(any(), anyBoolean());
-        verify(costService).createCostForMigration(any(), eq(2026));
+        verify(costService).createCostForRequestForm(any(), eq(2026));
     }
 
     @Test
@@ -264,13 +266,13 @@ class RequestFormFileImporterTest {
                 new FormAdapterOutput(
                         List.of(), List.of(blocked, applicable), List.of(blocker), null);
         when(validator.validate(any(), anyString())).thenReturn(List.of());
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0001");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-2026-0001");
 
         RequestFormDto.FileResult result = importer().apply(output, ENTRY, "2026", "12345678");
 
         ArgumentCaptor<CostDto.CreateRequest> captor =
                 ArgumentCaptor.forClass(CostDto.CreateRequest.class);
-        verify(costService).createCostForMigration(captor.capture(), eq(2026));
+        verify(costService).createCostForRequestForm(captor.capture(), eq(2026));
         assertThat(captor.getValue().getCttNm()).isEqualTo("정상 계약");
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
         assertThat(result.blockedCounts()).isEqualTo(new RequestFormDto.RecordCounts(0, 0, 1));
@@ -334,14 +336,14 @@ class RequestFormFileImporterTest {
                         "경상사업명이 비어 있습니다.",
                         List.of());
         when(validator.validate(any(), anyString())).thenReturn(List.of(blocker));
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0001");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-2026-0001");
 
         RequestFormDto.FileResult result = importer().apply(output, ENTRY, "2026", "12345678");
 
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
         assertThat(result.diagnostics()).contains(blocker);
         verify(projectService, never()).createProject(any(), anyBoolean());
-        verify(costService).createCostForMigration(any(), eq(2026));
+        verify(costService).createCostForRequestForm(any(), eq(2026));
     }
 
     @Test
@@ -385,7 +387,7 @@ class RequestFormFileImporterTest {
                                         List.of())));
         when(validator.withoutDuplicateProjects(eq(original), eq("2026")))
                 .thenReturn(withoutDuplicateProject);
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0001");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-2026-0001");
 
         RequestFormDto.FileResult result = importer().apply(original, ENTRY, "2026", "12345678");
 
@@ -393,7 +395,7 @@ class RequestFormFileImporterTest {
         assertThat(result.counts().capitalProjects()).isEqualTo(1);
         assertThat(result.counts().costs()).isEqualTo(1);
         verify(projectService, never()).createProject(any(), anyBoolean());
-        verify(costService).createCostForMigration(any(), eq(2026));
+        verify(costService).createCostForRequestForm(any(), eq(2026));
     }
 
     @Test
@@ -422,6 +424,16 @@ class RequestFormFileImporterTest {
                                         RequestFormDiagnosticCode.REQUIRED_MISSING,
                                         "필수",
                                         List.of())));
+        when(xcrBaseDateAssigner.assign(any(), eq("2026")))
+                .thenReturn(
+                        List.of(
+                                RequestFormDto.FormDiagnostic.of(
+                                        null,
+                                        null,
+                                        "xcrBseDt",
+                                        RequestFormDiagnosticCode.DATE_UNPARSEABLE,
+                                        "기준일자",
+                                        List.of())));
 
         RequestFormDto.FileResult result = importer().preview(output, ENTRY, "2026");
 
@@ -429,7 +441,8 @@ class RequestFormFileImporterTest {
                 .extracting(RequestFormDto.FormDiagnostic::code)
                 .containsExactlyInAnyOrder(
                         RequestFormDiagnosticCode.OPTIONAL_MISSING,
-                        RequestFormDiagnosticCode.REQUIRED_MISSING);
+                        RequestFormDiagnosticCode.REQUIRED_MISSING,
+                        RequestFormDiagnosticCode.DATE_UNPARSEABLE);
         assertThat(result.suggestedGeneralExpenseUnit()).isEqualTo(AmountUnit.WON);
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.BLOCKED);
     }
@@ -444,7 +457,7 @@ class RequestFormFileImporterTest {
         assertThat(result.status()).isEqualTo(RequestFormDto.FileStatus.APPLIED);
         assertThat(result.created()).isEmpty();
         verify(projectService, never()).createProject(any(), anyBoolean());
-        verify(costService, never()).createCostForMigration(any(), anyInt());
+        verify(costService, never()).createCostForRequestForm(any(), anyInt());
     }
 
     @Test
@@ -452,7 +465,7 @@ class RequestFormFileImporterTest {
     void overwritesBudgetYearFromManifest() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2099-0001");
-        when(costService.createCostForMigration(any(), eq(2099))).thenReturn("COST-2099-0001");
+        when(costService.createCostForRequestForm(any(), eq(2099))).thenReturn("COST-2099-0001");
         FormAdapterOutput output = outputWithOneOfEach();
 
         importer().apply(output, ENTRY, "2099", "12345678");
@@ -542,7 +555,7 @@ class RequestFormFileImporterTest {
     void keepsItemSnapshotWhenNoDeclaredAmounts() {
         when(validator.validate(any(), anyString())).thenReturn(List.of());
         when(projectService.createProject(any(), anyBoolean())).thenReturn("PRJ-2026-0001");
-        when(costService.createCostForMigration(any(), eq(2026))).thenReturn("COST-2026-0001");
+        when(costService.createCostForRequestForm(any(), eq(2026))).thenReturn("COST-2026-0001");
 
         importer().apply(outputWithOneOfEach(), ENTRY, "2026", "12345678");
 

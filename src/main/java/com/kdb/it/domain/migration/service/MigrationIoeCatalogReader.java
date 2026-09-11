@@ -123,6 +123,31 @@ public class MigrationIoeCatalogReader {
     }
 
     /**
+     * 통화 → 환율기준일자 맵을 만듭니다.
+     *
+     * <p>환율기준일자는 통화 공통코드의 <b>코드값상세</b>({@code CO_CDVA_SPS})에 `YYYYMMDD`로 적습니다 — 사용자 전산업무비 작성 화면이 통화
+     * 선택 시 자동 입력하는 값과 같은 칸입니다. {@link #xcrByCurrency()}와 같은 유효일자 기준으로 읽어 환율과 기준일자가 다른 행에서 오지 않게
+     * 합니다.
+     *
+     * <p>형식 판정은 하지 않습니다. 잘못된 표기를 여기서 걸러 버리면 호출자가 "미등록"과 "형식 오류"를 구분해 진단할 수 없습니다.
+     *
+     * @return 예: `{"USD" → "20260115"}`. 코드값상세가 비어 있는 통화는 담지 않고, 앞뒤 공백만 정리합니다
+     */
+    public Map<String, String> xcrBaseDateByCurrency() {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (Ccodem code : codeRepository.findByCIdWithValidDate(CommonCodeGroups.CURRENCY, null)) {
+            if (code.getCdva() == null || code.getCdvaDtl() == null) {
+                continue;
+            }
+            String baseDate = code.getCdvaDtl().trim();
+            if (!baseDate.isEmpty()) {
+                out.putIfAbsent(code.getCdva(), baseDate);
+            }
+        }
+        return out;
+    }
+
+    /**
      * 공통코드 그룹의 선택 후보를 만듭니다.
      *
      * <p>편성요청서의 선택 항목은 저장 형태가 둘로 갈립니다 — 업무구분·사업유형처럼 <b>코드값명</b>을 그대로 담는 컬럼과, 보고상태·추진가능성처럼

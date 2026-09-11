@@ -294,6 +294,23 @@ public class CostService {
         return createCost(request, true, true, budgetYear);
     }
 
+    /**
+     * 부점 편성요청서 일괄업로드용 생성 진입점입니다.
+     *
+     * <p>편성요청서 어댑터는 외화 행의 원화금액·환율을 비워 보내므로 일반 화면과 같이 서버가 Ccodem 환율로 {@code itMngcBgAmt = fcAmt ×
+     * xcr}를 재계산해야 합니다. 관리번호만 편성연도로 채번하고 편성 기간 검증은 건너뜁니다. 금융정보단말기 일괄업로드({@link
+     * #createCostForMigration(CostDto.CreateRequest, int)})처럼 제출 금액을 보존하면 외화 행의 원화금액과 환율이 비어 저장됩니다.
+     *
+     * @param request 생성 요청 (외화 행은 fcAmt만 채워진 상태)
+     * @param budgetYear 관리번호에 사용할 예산연도
+     * @return 생성된 전산업무비 관리번호
+     * @throws IllegalStateException 외화 통화인데 유효한 Ccodem 환율이 없는 경우
+     */
+    @Transactional
+    public String createCostForRequestForm(CostDto.CreateRequest request, int budgetYear) {
+        return createCost(request, true, false, budgetYear);
+    }
+
     private String createCost(
             CostDto.CreateRequest request,
             boolean skipBudgetPeriodValidation,

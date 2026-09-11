@@ -672,6 +672,37 @@ class CostServiceTest {
     }
 
     @Test
+    @DisplayName("createCostForRequestForm: 외화 행은 예산연도로 채번하되 환율·원화금액은 Ccodem으로 재계산한다")
+    void createCostForRequestForm_recomputesForeignAmountWithBudgetYearId() {
+        // given: 편성요청서 어댑터는 외화 행의 원화금액·환율을 비워 보낸다
+        CostDto.CreateRequest request =
+                CostDto.CreateRequest.builder()
+                        .cttNm("해외지점 외화 계약")
+                        .curC("USD")
+                        .fcAmt(new BigDecimal("1000.000"))
+                        .xcr(null)
+                        .costTotXpAmt(null)
+                        .build();
+        given(costRepository.getNextSequenceValue()).willReturn(7L);
+        given(costRepository.getNextSnoValue("COST-2025-0007")).willReturn(1);
+        given(costRepository.save(any(Bcostm.class))).willAnswer(inv -> inv.getArgument(0));
+        given(xcrLookupService.resolveXcr(eq("USD"), any(LocalDate.class)))
+                .willReturn(new BigDecimal("1300.5000"));
+
+        String result = costService.createCostForRequestForm(request, 2025);
+
+        assertThat(result).isEqualTo("COST-2025-0007");
+        ArgumentCaptor<Bcostm> captor = ArgumentCaptor.forClass(Bcostm.class);
+        verify(costRepository).save(captor.capture());
+        assertThat(captor.getValue().getXcr()).isEqualByComparingTo(new BigDecimal("1300.5000"));
+        assertThat(captor.getValue().getCostTotXpAmt())
+                .isEqualByComparingTo(new BigDecimal("1300500.0000"));
+        assertThat(captor.getValue().getFcAmt()).isEqualByComparingTo(new BigDecimal("1000.000"));
+        verify(approvalStamper, never())
+                .stampDrafted(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     @DisplayName("createCost: 상위조직명(PRLM_HRK_OGZ_C_CONE)을 담당자(CUSERI) 소속 상위조직명으로 채운다")
     void createCost_상위조직명_담당자기준설정() {
         // given: 담당자(cgprId) 소속 CUSERI의 상위조직명 스냅샷 (getPrlmHrkOgzCNm은 파생 게터라 mock 사용)
