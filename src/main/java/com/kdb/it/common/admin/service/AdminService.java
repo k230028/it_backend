@@ -537,7 +537,7 @@ public class AdminService {
     // =========================================================================
 
     /**
-     * 전체 로그인 이력을 페이지네이션으로 조회합니다. ENO → 사용자명 변환을 포함합니다.
+     * 전체 로그인 이력을 페이지네이션으로 조회합니다. ENO → 사용자명·부서명·팀명 변환을 포함합니다.
      *
      * @param pageable 페이지 정보 (최신순 정렬)
      * @return 페이지네이션된 로그인 이력 응답
@@ -545,21 +545,30 @@ public class AdminService {
     public Page<AdminDto.LoginHistoryResponse> getLoginHistory(Pageable pageable) {
         Page<LoginHistoryRepository.LoginHistoryView> page =
                 loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable);
-        Map<String, String> userNameMap =
-                loadUserNameMap(page.getContent().stream().map(history -> history.getEno()));
+        Map<String, UserRepository.UserOrgNameView> userOrgMap =
+                loadUserOrgNameMap(page.getContent().stream().map(history -> history.getEno()));
         List<AdminDto.LoginHistoryResponse> content =
                 page.getContent().stream()
-                        .map(history -> toLoginHistoryResponse(history, userNameMap))
+                        .map(history -> toLoginHistoryResponse(history, userOrgMap))
                         .toList();
         return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
-    /** 로그인 이력 프로젝션을 LoginHistoryResponse DTO로 변환합니다. */
+    /**
+     * 로그인 이력 프로젝션을 LoginHistoryResponse DTO로 변환합니다.
+     *
+     * <p>미등록 사번은 이름 자리에 사번 원문을 두고(기존 계약 유지) 부서명·팀명은 null로 둡니다.
+     */
     private AdminDto.LoginHistoryResponse toLoginHistoryResponse(
-            LoginHistoryRepository.LoginHistoryView h, Map<String, String> userNameMap) {
+            LoginHistoryRepository.LoginHistoryView h,
+            Map<String, UserRepository.UserOrgNameView> userOrgMap) {
+        UserRepository.UserOrgNameView user =
+                h.getEno() == null ? null : userOrgMap.get(h.getEno());
         return new AdminDto.LoginHistoryResponse(
                 h.getEno(),
-                resolveUserName(h.getEno(), userNameMap),
+                user != null && user.getUsrNm() != null ? user.getUsrNm() : h.getEno(),
+                user == null ? null : user.getBbrNm(),
+                user == null ? null : user.getTemNm(),
                 h.getLgnDtm(),
                 h.getItPtlLgnTc(),
                 h.getIpAddr(),
@@ -650,6 +659,21 @@ public class AdminService {
         return userRepository.findNameViewsByEnoIn(enoSet).stream()
                 .filter(user -> user.getUsrNm() != null)
                 .collect(Collectors.toMap(user -> user.getEno(), user -> user.getUsrNm()));
+    }
+
+    /**
+     * 사번 스트림을 IN 배치 1회로 조회해 사번별 사용자명·부서명·팀명 프로젝션 맵을 만듭니다.
+     *
+     * @param enos 조회할 사번 스트림 (null 항목은 무시)
+     * @return 사번별 프로젝션 맵 (미등록 사번은 키 없음, 입력이 비면 빈 맵이며 DB 조회 없음)
+     */
+    private Map<String, UserRepository.UserOrgNameView> loadUserOrgNameMap(Stream<String> enos) {
+        Set<String> enoSet = enos.filter(Objects::nonNull).collect(Collectors.toSet());
+        if (enoSet.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findOrgNameViewsByEnoIn(enoSet).stream()
+                .collect(Collectors.toMap(user -> user.getEno(), user -> user, (a, b) -> a));
     }
 
     /**

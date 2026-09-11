@@ -544,7 +544,7 @@ class ProjectServiceTest {
         // when & then
         assertThatThrownBy(() -> projectService.deleteProject(prjMngNo, 1))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("임시저장 또는 작성완료");
+                .hasMessageContaining("임시저장·작성완료·반려·회수");
     }
 
     @Test
@@ -1410,7 +1410,7 @@ class ProjectServiceTest {
 
         assertThatThrownBy(() -> projectService.deleteProject(prjMngNo, 1))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("임시저장 또는 작성완료");
+                .hasMessageContaining("임시저장·작성완료·반려·회수");
 
         assertThat(project.getDelYn()).isEqualTo("N");
         verifyNoInteractions(bitemmRepository);

@@ -75,10 +75,13 @@ class ApprovalWriteGuardTest {
         assertThatCode(() -> guard.verifyDeletable(TABLE, ID, SNO)).doesNotThrowAnyException();
     }
 
-    @Test
-    void 작성완료이면_삭제할_수_있다() {
+    @ParameterizedTest
+    @EnumSource(
+            value = ApprovalStatus.class,
+            names = {"DRAFTED", "REJECTED", "RECALLED"})
+    void 작성완료_반려_회수이면_삭제할_수_있다(ApprovalStatus status) {
         when(applicationMapRepository.findLatestApplicationStatus(TABLE, ID, SNO))
-                .thenReturn(Optional.of(ApprovalStatus.DRAFTED.code()));
+                .thenReturn(Optional.of(status.code()));
 
         assertThatCode(() -> guard.verifyDeletable(TABLE, ID, SNO)).doesNotThrowAnyException();
     }
@@ -86,14 +89,14 @@ class ApprovalWriteGuardTest {
     @ParameterizedTest
     @EnumSource(
             value = ApprovalStatus.class,
-            names = {"DRAFTED"},
+            names = {"DRAFTED", "REJECTED", "RECALLED"},
             mode = EnumSource.Mode.EXCLUDE)
-    void 작성완료_외의_결재상태는_삭제할_수_없다(ApprovalStatus status) {
+    void 결재중_결재완료_수기등록은_삭제할_수_없다(ApprovalStatus status) {
         when(applicationMapRepository.findLatestApplicationStatus(TABLE, ID, SNO))
                 .thenReturn(Optional.of(status.code()));
 
         assertThatThrownBy(() -> guard.verifyDeletable(TABLE, ID, SNO))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("임시저장 또는 작성완료");
+                .hasMessageContaining("임시저장·작성완료·반려·회수");
     }
 }

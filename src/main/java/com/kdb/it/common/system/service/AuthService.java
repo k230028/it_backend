@@ -128,7 +128,8 @@ public class AuthService {
      * @param ipAddress 로그인 실패 이력에 기록할 클라이언트 IP
      * @param userAgent 로그인 실패 이력에 기록할 User-Agent
      * @return MFA 검증에 사용할 로그인 대기 거래 식별자와 만료 시각
-     * @throws LoginRejectedException 사번이 없거나 비밀번호가 일치하지 않는 경우
+     * @throws LoginRejectedException 사번이 없거나 비밀번호가 일치하지 않거나 접속 제한 대상({@link
+     *     #rejectIfLoginBlocked})인 경우
      */
     @Transactional(noRollbackFor = LoginRejectedException.class)
     public AuthDto.LoginStartResponse startLogin(
@@ -147,8 +148,9 @@ public class AuthService {
      * @param ipAddress 로그인 성공 이력에 기록할 클라이언트 IP
      * @param userAgent 로그인 성공 이력에 기록할 User-Agent
      * @return MFA 소비 뒤 발급된 로그인 응답
+     * @throws LoginRejectedException 사용자가 없거나 접속 제한 대상({@link #rejectIfLoginBlocked})인 경우
      */
-    @Transactional
+    @Transactional(noRollbackFor = LoginRejectedException.class)
     public AuthDto.LoginResponse completeLogin(
             String pendingCookie, String proofCookie, String ipAddress, String userAgent) {
         String eno = mfaService.consumeLoginProof(pendingCookie, proofCookie);
@@ -156,6 +158,8 @@ public class AuthService {
                 userRepository
                         .findByEno(eno)
                         .orElseThrow(() -> new LoginRejectedException("사용자를 찾을 수 없습니다."));
+        // startLogin에서 이미 걸렀지만 MFA 대기 중 사용자 정보가 바뀐 경우를 위해 발급 직전 한 번 더 판정한다.
+        rejectIfLoginBlocked(user, ipAddress, userAgent);
         return issueLoginTokens(user, ipAddress, userAgent);
     }
 
@@ -172,7 +176,51 @@ public class AuthService {
             recordLoginFailure(eno, ipAddress, userAgent, "비밀번호 불일치");
             throw new LoginRejectedException("비밀번호가 일치하지 않습니다.");
         }
+        // 비밀번호 검증 뒤에 판정해 자격증명이 틀린 요청에는 제한 대상 여부가 드러나지 않게 한다.
+        rejectIfLoginBlocked(user, ipAddress, userAgent);
         return user;
+    }
+
+    /** 접속 제한 대상 판정 시 로그인 실패 이력에 남기는 사유 */
+    static final String LOGIN_BLOCKED_REASON = "접속 제한 대상 사용자";
+
+    /**
+     * 접속 제한 대상 사용자인지 판정합니다.
+     *
+     * <p>부서코드({@code BBR_C})가 {@code 9}로 시작하지 않으면서 행번({@code ENO})이 {@code O} 또는 {@code o}로 시작하는
+     * 사용자는 로그인할 수 없습니다. 부서코드가 비어 있으면 "9로 시작하지 않음"으로 봅니다 — 누락 값을 정상으로 숨기지 않습니다.
+     *
+     * @param user 자격증명 또는 SSO 인증이 끝난 사용자
+     * @return 접속 제한 대상이면 {@code true}
+     */
+    static boolean isLoginBlocked(CuserI user) {
+        String eno = user.getEno();
+        if (eno == null || eno.isEmpty()) {
+            return false;
+        }
+        char enoHead = eno.charAt(0);
+        boolean externalEno = enoHead == 'O' || enoHead == 'o';
+        String bbrC = user.getBbrC();
+        boolean internalDept = bbrC != null && bbrC.startsWith("9");
+        return externalEno && !internalDept;
+    }
+
+    /**
+     * 접속 제한 대상이면 실패 이력을 남기고 로그인을 거부합니다.
+     *
+     * <p>수동 로그인과 SSO 로그인이 공통으로 거치는 마지막 관문입니다. 판정 규칙은 {@link #isLoginBlocked(CuserI)}를 따릅니다.
+     *
+     * @param user 자격증명 또는 SSO 인증이 끝난 사용자
+     * @param ipAddress 실패 이력에 기록할 클라이언트 IP (SSO는 {@code "SSO"})
+     * @param userAgent 실패 이력에 기록할 User-Agent (SSO는 {@code "SSO"})
+     * @throws LoginRejectedException 접속 제한 대상인 경우
+     */
+    private void rejectIfLoginBlocked(CuserI user, String ipAddress, String userAgent) {
+        if (!isLoginBlocked(user)) {
+            return;
+        }
+        recordLoginFailure(user.getEno(), ipAddress, userAgent, LOGIN_BLOCKED_REASON);
+        throw new LoginRejectedException("접속 권한이 없는 사용자입니다.");
     }
 
     /**
@@ -456,14 +504,16 @@ public class AuthService {
      *
      * @param eno SSO 인증 결과로 확인된 사번
      * @return 쿠키 발급에 사용할 로그인 응답 DTO
+     * @throws LoginRejectedException 접속 제한 대상({@link #rejectIfLoginBlocked})인 경우 — 실패 이력은 커밋된다
      * @throws RuntimeException 사번에 해당하는 사용자가 없거나 토큰 발급/저장에 실패한 경우
      */
-    @Transactional
+    @Transactional(noRollbackFor = LoginRejectedException.class)
     public AuthDto.LoginResponse issueSsoTokens(String eno) {
         CuserI user =
                 userRepository
                         .findByEno(eno)
                         .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + eno));
+        rejectIfLoginBlocked(user, "SSO", "SSO");
 
         List<String> athIds = userRoleResolver.resolveAthIds(eno);
 

@@ -238,8 +238,7 @@ class ItBudgetSubmissionTest {
                         decision -> {
                             assertThat(decision.getItPtlDcdStsC())
                                     .isEqualTo(DecisionStatus.APPROVED.code());
-                            assertThat(decision.getDcdDtm())
-                                    .isEqualTo(submittedAt.toLocalDate());
+                            assertThat(decision.getDcdDtm()).isEqualTo(submittedAt.toLocalDate());
                         });
         var snapshot = f.mapper.readTree(stored.getDcdReqInf());
         assertThat(snapshot.at("/approvalLine/approvers/0/date").asText())

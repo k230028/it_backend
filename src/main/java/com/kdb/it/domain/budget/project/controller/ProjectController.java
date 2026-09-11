@@ -290,7 +290,7 @@ public class ProjectController {
      *
      * <p>정보화사업과 관련 품목을 논리 삭제(DEL_YN='Y')합니다.
      *
-     * <p>임시저장 또는 작성완료 상태인 지정 순번의 사업과 품목만 삭제합니다.
+     * <p>임시저장·작성완료·반려·회수 상태인 지정 순번의 사업과 품목만 삭제합니다.
      *
      * @param prjMngNo 삭제할 프로젝트 관리번호
      * @return HTTP 204 No Content

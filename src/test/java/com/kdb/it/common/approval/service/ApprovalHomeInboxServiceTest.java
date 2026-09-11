@@ -57,6 +57,7 @@ class ApprovalHomeInboxServiceTest {
                 .extracting(ApprovalHomeInboxDto.Item::apfMngNo)
                 .containsExactly("APF-005");
         assertThat(result.approvalPending().getFirst().actionable()).isTrue();
+        assertThat(result.approvalPending().getFirst().requestNote()).isEqualTo("승인 대기 신청내용");
         assertThat(result.approvalCompleted())
                 .extracting(ApprovalHomeInboxDto.Item::apfMngNo)
                 .containsExactly("APF-004");
@@ -111,6 +112,7 @@ class ApprovalHomeInboxServiceTest {
         ApplicationRepository.HomeInboxRow row = mock(ApplicationRepository.HomeInboxRow.class);
         given(row.getApfMngNo()).willReturn(id);
         given(row.getTitle()).willReturn(title);
+        given(row.getRequestNote()).willReturn(title + " 신청내용");
         given(row.getRequesterName()).willReturn(requesterName);
         given(row.getRequestedAt()).willReturn(LocalDate.of(2026, 9, 1).atStartOfDay());
         given(row.getStatusCode()).willReturn(statusCode);

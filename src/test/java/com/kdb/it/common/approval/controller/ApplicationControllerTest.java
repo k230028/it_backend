@@ -138,6 +138,7 @@ class ApplicationControllerTest {
                                         new ApprovalHomeInboxDto.Item(
                                                 "APF-001",
                                                 "결재 대기 문서",
+                                                "정보화사업 1건",
                                                 "김기안",
                                                 java.time.LocalDate.of(2026, 9, 1),
                                                 "1",
@@ -151,6 +152,7 @@ class ApplicationControllerTest {
         mockMvc.perform(get("/api/applications/home-inbox").with(user(USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.approvalPending[0].apfMngNo").value("APF-001"))
+                .andExpect(jsonPath("$.approvalPending[0].requestNote").value("정보화사업 1건"))
                 .andExpect(jsonPath("$.approvalPending[0].actionable").value(true));
         verify(approvalHomeInboxService).getHomeInbox(USER);
     }

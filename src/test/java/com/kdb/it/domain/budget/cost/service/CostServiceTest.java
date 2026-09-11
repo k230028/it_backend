@@ -2935,7 +2935,7 @@ class CostServiceTest {
                     () ->
                             assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 2))
                                     .isInstanceOf(IllegalStateException.class)
-                                    .hasMessageContaining("임시저장 또는 작성완료"));
+                                    .hasMessageContaining("임시저장·작성완료·반려·회수"));
 
             verify(draft, never()).delete();
         }

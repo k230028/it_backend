@@ -138,6 +138,30 @@ class AdminServiceTest {
         }
     }
 
+    /** 로그인 이력 응답의 이름·부서명·팀명 프로젝션 테스트 더블. */
+    private record OrgNameView(String eno, String usrNm, String bbrNm, String temNm)
+            implements UserRepository.UserOrgNameView {
+        @Override
+        public String getEno() {
+            return eno;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
+
+        @Override
+        public String getBbrNm() {
+            return bbrNm;
+        }
+
+        @Override
+        public String getTemNm() {
+            return temNm;
+        }
+    }
+
     private record LoginHistoryView(
             String eno,
             LocalDateTime lgnDtm,
@@ -792,21 +816,26 @@ class AdminServiceTest {
         Page<LoginHistoryRepository.LoginHistoryView> page =
                 new PageImpl<>(List.of(known, unknown, nullEno), pageable, 3);
         given(loginHistoryRepository.findPageViewsByOrderByLgnDtmDesc(pageable)).willReturn(page);
-        given(userRepository.findNameViewsByEnoIn(any()))
-                .willReturn(List.of(new NameView("KNOWN", "사용자명")));
+        given(userRepository.findOrgNameViewsByEnoIn(any()))
+                .willReturn(List.of(new OrgNameView("KNOWN", "사용자명", "정보기술부", "포탈팀")));
 
         // 실행
         Page<AdminDto.LoginHistoryResponse> result = adminService.getLoginHistory(pageable);
 
-        // 검증
+        // 검증: 등록 사번은 이름·부서명·팀명, 미등록 사번은 이름 자리에 사번 원문과 null 부서·팀
         assertThat(result.getTotalElements()).isEqualTo(3);
         assertThat(result.getContent())
-                .extracting(response -> response.eno(), response -> response.usrNm())
+                .extracting(
+                        response -> response.eno(),
+                        response -> response.usrNm(),
+                        response -> response.bbrNm(),
+                        response -> response.temNm())
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple("KNOWN", "사용자명"),
-                        org.assertj.core.groups.Tuple.tuple("UNKNOWN", "UNKNOWN"),
-                        org.assertj.core.groups.Tuple.tuple(null, null));
-        verify(userRepository, times(1)).findNameViewsByEnoIn(Set.of("KNOWN", "UNKNOWN"));
+                        org.assertj.core.groups.Tuple.tuple("KNOWN", "사용자명", "정보기술부", "포탈팀"),
+                        org.assertj.core.groups.Tuple.tuple("UNKNOWN", "UNKNOWN", null, null),
+                        org.assertj.core.groups.Tuple.tuple(null, null, null, null));
+        verify(userRepository, times(1)).findOrgNameViewsByEnoIn(Set.of("KNOWN", "UNKNOWN"));
+        verify(userRepository, times(0)).findNameViewsByEnoIn(any());
         verify(userRepository, times(0)).findNameViewByEno(any());
     }
 
@@ -823,9 +852,10 @@ class AdminServiceTest {
         // 실행
         Page<AdminDto.LoginHistoryResponse> result = adminService.getLoginHistory(pageable);
 
-        // 검증
+        // 검증: 빈 페이지에서는 사용자·조직 조회 자체를 하지 않는다
         assertThat(result.getTotalElements()).isZero();
         assertThat(result.getContent()).isEmpty();
+        verify(userRepository, times(0)).findOrgNameViewsByEnoIn(any());
     }
 
     @Test

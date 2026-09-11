@@ -68,23 +68,31 @@ public class ApprovalWriteGuard {
         }
     }
 
+    /** 최신 신청서가 이 상태이면 원천 개정본을 삭제할 수 있습니다. 반려·회수는 재상신 전 초안이므로 작성완료와 같이 취급합니다. */
+    private static final List<String> DELETABLE_STATUSES =
+            List.of(
+                    ApprovalStatus.DRAFTED.code(),
+                    ApprovalStatus.REJECTED.code(),
+                    ApprovalStatus.RECALLED.code());
+
     /**
-     * 원천 개정본이 임시저장(신청서 없음) 또는 작성완료 상태인지 확인합니다.
+     * 원천 개정본이 임시저장(신청서 없음)·작성완료·반려·회수 상태인지 확인합니다.
      *
-     * <p>삭제는 사후 정정 목적의 일반 수정과 달리 복구하기 어려우므로 관리자도 같은 상태 제한을 적용합니다.
+     * <p>삭제는 사후 정정 목적의 일반 수정과 달리 복구하기 어려우므로 관리자도 같은 상태 제한을 적용합니다. 결재중(1)은 결재선이 검토 중이고
+     * 결재완료(2)·수기등록(9)은 확정된 예산이므로 삭제할 수 없습니다.
      *
      * @param fntTbNm 원본 테이블명
      * @param pkColNm 관리번호
      * @param sno 개정 순번
-     * @throws IllegalStateException 최신 신청서가 작성완료 이외의 상태인 경우
+     * @throws IllegalStateException 최신 신청서가 결재중·결재완료·수기등록 상태인 경우
      */
     public void verifyDeletable(String fntTbNm, String pkColNm, Integer sno) {
         applicationMapRepository
                 .findLatestApplicationStatus(fntTbNm, pkColNm, sno)
-                .filter(status -> !ApprovalStatus.DRAFTED.code().equals(status))
+                .filter(status -> !DELETABLE_STATUSES.contains(status))
                 .ifPresent(
                         status -> {
-                            throw new IllegalStateException("임시저장 또는 작성완료 상태의 문서만 삭제할 수 있습니다.");
+                            throw new IllegalStateException("임시저장·작성완료·반려·회수 상태의 문서만 삭제할 수 있습니다.");
                         });
     }
 

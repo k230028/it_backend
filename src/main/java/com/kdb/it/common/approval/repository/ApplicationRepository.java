@@ -162,6 +162,9 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
 
         String getTitle();
 
+        /** 등록자결재요청내용(RGPR_DCD_REQ_CONE). 상신 시 기록한 신청내용 요약이며 없으면 null이다. */
+        String getRequestNote();
+
         String getRequesterName();
 
         LocalDateTime getRequestedAt();
@@ -188,6 +191,7 @@ public interface ApplicationRepository extends JpaRepository<Capplm, String> {
                     """
         SELECT a.APF_DCM_NO AS "apfMngNo",
                a.DCD_REQ_TTL AS "title",
+               a.RGPR_DCD_REQ_CONE AS "requestNote",
                u.USR_NM AS "requesterName",
                a.DCD_REQ_DTM AS "requestedAt",
                a.IT_PTL_APF_PRG_STS_C AS "statusCode",

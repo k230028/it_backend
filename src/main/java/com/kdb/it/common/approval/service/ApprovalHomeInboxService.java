@@ -81,6 +81,7 @@ public class ApprovalHomeInboxService {
         return new ApprovalHomeInboxDto.Item(
                 row.getApfMngNo(),
                 row.getTitle(),
+                row.getRequestNote(),
                 row.getRequesterName(),
                 row.getRequestedAt() == null ? null : row.getRequestedAt().toLocalDate(),
                 row.getStatusCode(),

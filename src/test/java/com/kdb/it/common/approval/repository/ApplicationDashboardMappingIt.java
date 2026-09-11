@@ -112,8 +112,9 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
                         .apfMngNo(apfMngNo)
                         .itPtlApfPrgStsC("1")
                         .dcdReqTtl("Home projection 검증")
+                        .rgprDcdReqCone("정보화사업 1건 · 경상사업 2건")
                         .dcdReqUsid(eno)
-                        .dcdReqBbrC("D001")
+                        .dcdReqBbrC("D01")
                         .dcdReqDtm(requestedAt)
                         .fstEnrDtm(auditAt)
                         .fstEnrUsid("HOME-IT")
@@ -126,26 +127,27 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
 
         String otherPending = "APF-HOME-OTHER-PENDING";
         entityManager.persist(
-                application(otherPending, "1", "EOTHERREQ01", "D002", "타 부서 결재 대기", auditAt));
+                application(otherPending, "1", "EOTHERREQ01", "D02", "타 부서 결재 대기", auditAt));
         entityManager.persist(decision(otherPending, 1, eno, "1", auditAt));
 
         String otherCompleted = "APF-HOME-OTHER-COMPLETED";
         entityManager.persist(
-                application(otherCompleted, "2", "EOTHERREQ02", "D002", "타 부서 결재 완료", auditAt));
+                application(otherCompleted, "2", "EOTHERREQ02", "D02", "타 부서 결재 완료", auditAt));
         entityManager.persist(decision(otherCompleted, 1, eno, "2", auditAt));
 
         String otherDraft = "APF-HOME-OTHER-DRAFT";
-        entityManager.persist(application(otherDraft, "3", eno, "D002", "타 부서 본인 기안", auditAt));
+        entityManager.persist(application(otherDraft, "3", eno, "D02", "타 부서 본인 기안", auditAt));
         entityManager.flush();
         entityManager.clear();
 
         List<ApplicationRepository.HomeInboxRow> rows =
-                applicationRepository.findHomeInboxRowsByEnoAndBbrC(eno, "D001");
+                applicationRepository.findHomeInboxRowsByEnoAndBbrC(eno, "D01");
 
         assertThat(rows).hasSize(1);
         ApplicationRepository.HomeInboxRow row = rows.getFirst();
         assertThat(row.getApfMngNo()).isEqualTo(apfMngNo);
         assertThat(row.getTitle()).isEqualTo("Home projection 검증");
+        assertThat(row.getRequestNote()).isEqualTo("정보화사업 1건 · 경상사업 2건");
         assertThat(row.getRequestedAt().toLocalDate()).isEqualTo(requestedAt);
         assertThat(row.getStatusCode()).isEqualTo("1");
         assertThat(row.getApprovalPending()).isEqualTo(1);
@@ -153,9 +155,9 @@ class ApplicationDashboardMappingIt extends AbstractOracleRepositoryTest {
         assertThat(row.getDraftCategory()).isEqualTo("IN_PROGRESS");
         assertThat(row.getActionable()).isZero();
 
-        assertThat(applicationRepository.findPendingApfMngNosByEnoAndBbrC(eno, "D001"))
+        assertThat(applicationRepository.findPendingApfMngNosByEnoAndBbrC(eno, "D01"))
                 .containsExactly(apfMngNo);
-        assertThat(applicationRepository.findPendingApfMngNosByEnoAndBbrC(eno, "D002"))
+        assertThat(applicationRepository.findPendingApfMngNosByEnoAndBbrC(eno, "D02"))
                 .containsExactly(otherPending);
     }
 

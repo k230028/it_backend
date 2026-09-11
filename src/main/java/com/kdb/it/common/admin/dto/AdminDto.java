@@ -309,6 +309,8 @@ public class AdminDto {
      *
      * @param eno 사번
      * @param usrNm 사용자명
+     * @param bbrNm 부서명 (CORGNI.BBR_NM; 미등록 사번·조직 미등재면 null)
+     * @param temNm 팀명 (CUSERI.TEM_NM; 미등록 사번·팀 미배정이면 null)
      * @param lgnDtm 로그인 일시
      * @param itPtlLgnTc 로그인 유형 코드
      * @param ipAddr IP 주소
@@ -320,6 +322,8 @@ public class AdminDto {
     public record LoginHistoryResponse(
             String eno,
             String usrNm, // ENO → 이름 변환
+            @Schema(description = "부서명", nullable = true) String bbrNm,
+            @Schema(description = "팀명", nullable = true) String temNm,
             LocalDateTime lgnDtm,
             String itPtlLgnTc, // 공통코드 C_ID='IT_PTL_LGN_TC' (1=성공, 2=실패, 3=로그아웃)
             String ipAddr,

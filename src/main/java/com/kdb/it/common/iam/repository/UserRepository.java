@@ -120,6 +120,24 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
     }
 
     /**
+     * 사용자명·부서명·팀명 응답에 필요한 프로젝션 (관리자 로그인 이력 등).
+     *
+     * <p>부서명은 조직마스터(CORGNI.BBR_NM)를 사용자 부서코드(BBR_C)로 조인해 얻고, 팀코드는 조직마스터에 등재되지 않으므로 팀명은 사용자 레코드의
+     * {@code TEM_NM}을 그대로 사용합니다.
+     */
+    interface UserOrgNameView {
+        String getEno();
+
+        String getUsrNm();
+
+        /** 부서명 (CORGNI.BBR_NM). 부서코드가 조직마스터에 없으면 null입니다. */
+        String getBbrNm();
+
+        /** 팀명 (CUSERI.TEM_NM). 팀 미배정 사용자는 null입니다. */
+        String getTemNm();
+    }
+
+    /**
      * 사번 목록으로 사용자 이름 프로젝션을 조회합니다.
      *
      * @param enos 사번 목록
@@ -201,6 +219,18 @@ public interface UserRepository extends JpaRepository<CuserI, String>, UserRepos
                     + "WHERE u.eno IN :enos")
     List<CouncilMemberUserRow> findCouncilMemberUserRowsByEnoIn(
             @Param("enos") Collection<String> enos);
+
+    /**
+     * 사번 목록으로 사용자명·부서명·팀명 프로젝션을 IN 배치로 조회합니다.
+     *
+     * @param enos 사번 목록 (비어 있지 않아야 하며 호출자가 상한을 관리)
+     * @return 사번별 사용자명·부서명·팀명 프로젝션 목록 (미등록 사번은 결과에 없음)
+     */
+    @Query(
+            "SELECT u.eno AS eno, u.usrNm AS usrNm, o.bbrNm AS bbrNm, u.temNm AS temNm "
+                    + "FROM CuserI u LEFT JOIN CorgnI o ON o.prlmOgzCCone = u.bbrC "
+                    + "WHERE u.eno IN :enos")
+    List<UserOrgNameView> findOrgNameViewsByEnoIn(@Param("enos") Collection<String> enos);
 
     /**
      * 부서코드(BBR_C)로 사용자 목록 조회 (조직 정보 즉시 로딩)

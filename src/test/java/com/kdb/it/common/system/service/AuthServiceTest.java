@@ -237,6 +237,103 @@ class AuthServiceTest {
         verifyNoInteractions(jwtUtil, refreshTokenRepository);
     }
 
+    /* ── 접속 제한 대상(부서코드 비-9 + 행번 O/o) 로그인 차단 ── */
+
+    private static CuserI blockRuleUser(String eno, String bbrC) {
+        return CuserI.builder()
+                .eno(eno)
+                .usrNm("외부인력")
+                .usrEcyPwd("encodedPwd")
+                .bbrC(bbrC)
+                .delYn("N")
+                .build();
+    }
+
+    @Test
+    @DisplayName("login - 부서코드가 9로 시작하지 않고 행번이 O로 시작하면 비밀번호가 맞아도 거부하고 실패 이력을 남긴다")
+    void login_접속제한대상_거부및실패이력저장() {
+        given(userRepository.findByEno("O12345"))
+                .willReturn(Optional.of(blockRuleUser("O12345", "1234")));
+        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+
+        assertThatThrownBy(() -> authService.startLogin("O12345", "password", "127.0.0.1", "Agent"))
+                .isInstanceOf(LoginRejectedException.class)
+                .hasMessageContaining("접속 권한이 없는 사용자입니다");
+
+        org.mockito.ArgumentCaptor<Clognh> captor =
+                org.mockito.ArgumentCaptor.forClass(Clognh.class);
+        verify(loginHistoryRepository, times(1)).save(captor.capture());
+        assertThat(captor.getValue().getLgnErrRsn()).isEqualTo("접속 제한 대상 사용자");
+        verifyNoInteractions(mfaService, jwtUtil, refreshTokenRepository);
+    }
+
+    @Test
+    @DisplayName("login - 소문자 o로 시작하는 행번도 같은 규칙으로 거부한다")
+    void login_접속제한대상_소문자행번_거부() {
+        given(userRepository.findByEno("o12345"))
+                .willReturn(Optional.of(blockRuleUser("o12345", "1234")));
+        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+
+        assertThatThrownBy(() -> authService.startLogin("o12345", "password", "127.0.0.1", "Agent"))
+                .isInstanceOf(LoginRejectedException.class);
+        verifyNoInteractions(mfaService);
+    }
+
+    @Test
+    @DisplayName("login - 부서코드가 비어 있으면 9로 시작하지 않는 것으로 보고 O 행번을 거부한다")
+    void login_접속제한대상_부서코드없음_거부() {
+        given(userRepository.findByEno("O12345"))
+                .willReturn(Optional.of(blockRuleUser("O12345", null)));
+        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+
+        assertThatThrownBy(() -> authService.startLogin("O12345", "password", "127.0.0.1", "Agent"))
+                .isInstanceOf(LoginRejectedException.class);
+        verifyNoInteractions(mfaService);
+    }
+
+    @Test
+    @DisplayName("login - O 행번이라도 부서코드가 9로 시작하면 통과한다")
+    void login_O행번_9부서_통과() {
+        given(userRepository.findByEno("O12345"))
+                .willReturn(Optional.of(blockRuleUser("O12345", "9001")));
+        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+        given(mfaService.registerLoginPending("O12345"))
+                .willReturn(new MfaDto.LoginPendingRegistration(UUID.randomUUID(), 60));
+
+        assertThat(authService.startLogin("O12345", "password", "127.0.0.1", "Agent")).isNotNull();
+        verify(loginHistoryRepository, never()).save(any(Clognh.class));
+    }
+
+    @Test
+    @DisplayName("login - 부서코드가 9로 시작하지 않아도 행번이 O/o가 아니면 통과한다")
+    void login_일반행번_비9부서_통과() {
+        given(userRepository.findByEno("K12345"))
+                .willReturn(Optional.of(blockRuleUser("K12345", "1234")));
+        given(passwordEncoder.matches("password", "encodedPwd")).willReturn(true);
+        given(mfaService.registerLoginPending("K12345"))
+                .willReturn(new MfaDto.LoginPendingRegistration(UUID.randomUUID(), 60));
+
+        assertThat(authService.startLogin("K12345", "password", "127.0.0.1", "Agent")).isNotNull();
+        verify(loginHistoryRepository, never()).save(any(Clognh.class));
+    }
+
+    @Test
+    @DisplayName("issueSsoTokens - 접속 제한 대상은 SSO 인증이 끝나도 토큰을 발급하지 않고 실패 이력을 남긴다")
+    void issueSsoTokens_접속제한대상_거부() {
+        given(userRepository.findByEno("O12345"))
+                .willReturn(Optional.of(blockRuleUser("O12345", "1234")));
+
+        assertThatThrownBy(() -> authService.issueSsoTokens("O12345"))
+                .isInstanceOf(LoginRejectedException.class)
+                .hasMessageContaining("접속 권한이 없는 사용자입니다");
+
+        org.mockito.ArgumentCaptor<Clognh> captor =
+                org.mockito.ArgumentCaptor.forClass(Clognh.class);
+        verify(loginHistoryRepository, times(1)).save(captor.capture());
+        assertThat(captor.getValue().getLgnErrRsn()).isEqualTo("접속 제한 대상 사용자");
+        verifyNoInteractions(jwtUtil, refreshTokenRepository);
+    }
+
     @Test
     @DisplayName("login - 존재하지 않는 사번 → LoginRejectedException 발생 및 실패 이력 1회 저장")
     void login_존재하지않는사번_예외발생() {

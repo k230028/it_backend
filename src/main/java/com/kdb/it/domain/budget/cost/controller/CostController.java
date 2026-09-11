@@ -280,7 +280,7 @@ public class CostController {
      * <p>전산관리비를 물리적으로 삭제하지 않고, DEL_YN 컬럼을 'Y'로 변경하여 논리 삭제(Soft Delete)를 수행합니다. 삭제된 항목은 조회에서 제외됩니다.
      *
      * @param itMngcNo 삭제할 전산관리비 관리번호
-     *     <p>임시저장 또는 작성완료 상태인 지정 순번의 전산업무비와 단말기만 삭제합니다.
+     *     <p>임시저장·작성완료·반려·회수 상태인 지정 순번의 전산업무비와 단말기만 삭제합니다.
      * @return HTTP 204 (본문 없음), HTTP 404 전산관리비가 없는 경우
      */
     @Operation(summary = "전산관리비 삭제", description = "전산관리비를 삭제(Soft Delete)합니다.")

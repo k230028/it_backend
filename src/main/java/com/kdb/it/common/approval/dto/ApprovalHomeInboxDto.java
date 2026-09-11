@@ -33,6 +33,8 @@ public final class ApprovalHomeInboxDto {
     public record Item(
             @Schema(description = "신청서관리번호") String apfMngNo,
             @Schema(description = "신청서명") String title,
+            @Schema(description = "신청내용(등록자결재요청내용). 상신 시 기록하지 않은 신청서는 null", nullable = true)
+                    String requestNote,
             @Schema(description = "신청자명") String requesterName,
             @Schema(description = "신청일자") LocalDate requestedAt,
             @Schema(description = "결재상태 코드") String statusCode,
