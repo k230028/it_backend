@@ -334,6 +334,21 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("isLoginBlocked - 부점코드 국외 판정은 BranchCodes와 같아 빈 부점코드도 국내(차단 대상)로 본다")
+    void isLoginBlocked_빈부점코드_BranchCodes와동일() {
+        // 누락 부점코드를 국외로 오판해 차단을 풀지 않는다 — BranchCodes.isForeign의 null·빈 값 규칙과 일치해야 한다.
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("O12345", "")))
+                .isEqualTo(!com.kdb.it.common.iam.BranchCodes.isForeign(""))
+                .isTrue();
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("O12345", null)))
+                .isEqualTo(!com.kdb.it.common.iam.BranchCodes.isForeign(null))
+                .isTrue();
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("O12345", "920")))
+                .isEqualTo(!com.kdb.it.common.iam.BranchCodes.isForeign("920"))
+                .isFalse();
+    }
+
+    @Test
     @DisplayName("issueSsoTokens - 접속 제한 대상은 SSO 인증이 끝나도 토큰을 발급하지 않고 실패 이력을 남긴다")
     void issueSsoTokens_접속제한대상_거부() {
         given(userRepository.findByEno("O12345"))

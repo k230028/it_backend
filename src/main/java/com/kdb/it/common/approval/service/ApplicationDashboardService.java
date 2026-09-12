@@ -6,19 +6,35 @@ import com.kdb.it.common.system.security.CustomUserDetails;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 전자결재 대시보드와 배지 집계를 인증 사용자의 부서 범위로 제공합니다. */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ApplicationDashboardService {
 
+    /** 결재 대기 긴급도: 신청일자가 3일을 초과해 지난 건. */
+    static final String URGENCY_URGENT = "urgent";
+
+    /** 결재 대기 긴급도: 3일 이내 신청 건. */
+    static final String URGENCY_NORMAL = "normal";
+
+    /** 결재 대기 긴급도: 신청일자가 없어 판정할 수 없는 건. 정상으로 숨기지 않고 드러낸다. */
+    static final String URGENCY_UNKNOWN = "unknown";
+
     private final ApplicationRepository applicationRepository;
 
-    /** 부서 통계와 본인 결재 대기 목록을 반환합니다. 일반 사용자의 요청 조건은 인증 주체로 덮어씁니다. */
+    /**
+     * 부서 통계와 본인 결재 대기 목록을 반환합니다. 일반 사용자의 요청 조건은 인증 주체로 덮어씁니다.
+     *
+     * <p>결재 대기 건의 신청일자({@code RQS_DT})가 비어 있으면 오늘로 간주하지 않고 {@code requestedAt=null}, {@code
+     * urgency=unknown}으로 내리며 WARN 로그에 신청서번호를 남깁니다.
+     */
     public ApplicationDto.DashboardResponse getDashboard(
             String requestedBbrC, String requestedEno, CustomUserDetails user) {
         DashboardScope scope = dashboardScope(requestedBbrC, requestedEno, user);
@@ -55,23 +71,18 @@ public class ApplicationDashboardService {
                                 : applicationRepository.findPendingRowsByEno(scope.eno()))
                         .stream()
                                 .map(
-                                        row -> {
-                                            String requestedAt = row.rqsDt();
-                                            LocalDate requestedDate =
-                                                    requestedAt == null
-                                                            ? LocalDate.now()
-                                                            : LocalDate.parse(requestedAt);
-                                            return ApplicationDto.PendingItem.builder()
-                                                    .apfMngNo(row.apfDcmNo())
-                                                    .title(row.title())
-                                                    .requesterName(row.usrNm())
-                                                    .requestedAt(requestedAt)
-                                                    .urgency(
-                                                            requestedDate.isBefore(threeDaysAgo)
-                                                                    ? "urgent"
-                                                                    : "normal")
-                                                    .build();
-                                        })
+                                        row ->
+                                                ApplicationDto.PendingItem.builder()
+                                                        .apfMngNo(row.apfDcmNo())
+                                                        .title(row.title())
+                                                        .requesterName(row.usrNm())
+                                                        .requestedAt(row.rqsDt())
+                                                        .urgency(
+                                                                urgency(
+                                                                        row.apfDcmNo(),
+                                                                        row.rqsDt(),
+                                                                        threeDaysAgo))
+                                                        .build())
                                 .toList();
 
         return ApplicationDto.DashboardResponse.builder()
@@ -83,6 +94,25 @@ public class ApplicationDashboardService {
                 .monthlyTrend(monthlyTrend)
                 .pendingList(pendingList)
                 .build();
+    }
+
+    /**
+     * 결재 대기 건의 긴급도를 판정합니다.
+     *
+     * @param applicationId 신청서관리번호 (경고 로그 식별용)
+     * @param requestedAt 신청일자 (YYYY-MM-DD), 누락 가능
+     * @param threeDaysAgo 긴급 판정 기준일
+     * @return {@code urgent}·{@code normal}, 신청일자가 없으면 {@code unknown}
+     */
+    private static String urgency(
+            String applicationId, String requestedAt, LocalDate threeDaysAgo) {
+        if (requestedAt == null) {
+            log.warn("결재 대기 신청서의 신청일자(RQS_DT)가 비어 있어 긴급도를 판정할 수 없습니다: apfMngNo={}", applicationId);
+            return URGENCY_UNKNOWN;
+        }
+        return LocalDate.parse(requestedAt).isBefore(threeDaysAgo)
+                ? URGENCY_URGENT
+                : URGENCY_NORMAL;
     }
 
     /** 결재 대기와 기안 진행 중 건수를 반환합니다. 일반 사용자의 요청 조건은 인증 주체로 덮어씁니다. */

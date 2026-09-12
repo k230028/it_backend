@@ -10,9 +10,9 @@ import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.project.dto.ProjectDirectoryDto;
 import com.kdb.it.domain.budget.project.entity.Bproja;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.BprojaRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
+import com.kdb.it.domain.budget.project.repository.ProjectRepository.ProjectDirectoryView;
 import com.kdb.it.exception.NotFoundException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,14 @@ public class ProjectDirectoryService {
     private static final String PROJECT_STATUS_CODE = "IT_PTL_STS_TC";
     private static final String PROJECT_TABLE_NAME = "BPROJM";
 
+    /**
+     * 디렉터리 목록이 한 요청에서 조립하는 최대 사업 수입니다.
+     *
+     * <p>정보화사업 목록 API의 상한({@code ProjectRepositoryImpl.MAX_LIST_ROWS})과 같은 값입니다. 관리번호 내림차순으로 조회하므로
+     * 상한을 넘으면 가장 오래된 사업부터 목록에서 빠집니다.
+     */
+    static final int MAX_DIRECTORY_ROWS = 500;
+
     private final ProjectRepository projectRepository;
     private final BprojaRepository bprojaRepository;
     private final ApplicationMapRepository applicationMapRepository;
@@ -42,26 +51,38 @@ public class ProjectDirectoryService {
     private final UserRepository userRepository;
     private final CodeService codeService;
 
-    /** 부서 범위를 적용하지 않고 현재 최종본 사업의 안전한 요약을 반환합니다. */
+    /**
+     * 부서 범위를 적용하지 않고 현재 최종본 사업의 안전한 요약을 반환합니다.
+     *
+     * <p>전체 엔티티 대신 {@link ProjectDirectoryView} 프로젝션을 (관리번호, 순번) 내림차순으로 {@link
+     * #MAX_DIRECTORY_ROWS}까지만 조회합니다.
+     */
     public List<ProjectDirectoryDto.Response> findAll() {
-        return assemble(projectRepository.findAllByDelYn("N"));
+        return assemble(
+                projectRepository.findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                        "N", "Y", Limit.of(MAX_DIRECTORY_ROWS)));
     }
 
-    /** 상세 권한과 무관하게 지정 사업의 담당 부서·담당자 요약을 반환합니다. */
+    /**
+     * 상세 권한과 무관하게 지정 사업의 담당 부서·담당자 요약을 반환합니다.
+     *
+     * @throws NotFoundException 최종·미삭제 사업이 없는 경우
+     */
     public ProjectDirectoryDto.Response findOne(String abusMngNo) {
-        Bprojm project =
+        ProjectDirectoryView project =
                 projectRepository
-                        .findByAbusMngNoAndDelYn(abusMngNo, "N")
+                        .findDirectoryViewByAbusMngNoAndLstYnAndDelYn(abusMngNo, "Y", "N")
                         .orElseThrow(() -> new NotFoundException("정보화사업을 찾을 수 없습니다."));
         return assemble(List.of(project)).getFirst();
     }
 
-    private List<ProjectDirectoryDto.Response> assemble(List<Bprojm> projects) {
+    private List<ProjectDirectoryDto.Response> assemble(List<ProjectDirectoryView> projects) {
         if (projects.isEmpty()) {
             return List.of();
         }
 
-        List<String> projectIds = projects.stream().map(Bprojm::getAbusMngNo).distinct().toList();
+        List<String> projectIds =
+                projects.stream().map(ProjectDirectoryView::getAbusMngNo).distinct().toList();
         Map<String, List<Bproja>> stepsByProject =
                 bprojaRepository.findByAbusMngNoInAndDelYn(projectIds, "N").stream()
                         .collect(Collectors.groupingBy(Bproja::getAbusMngNo));
@@ -98,7 +119,7 @@ public class ProjectDirectoryService {
 
         Set<String> organizationCodes = new LinkedHashSet<>();
         Set<String> userIds = new LinkedHashSet<>();
-        for (Bprojm project : projects) {
+        for (ProjectDirectoryView project : projects) {
             addNonBlank(organizationCodes, project.getSvnDpmC());
             addNonBlank(userIds, project.getTlrUsid());
             addNonBlank(userIds, project.getUsid());

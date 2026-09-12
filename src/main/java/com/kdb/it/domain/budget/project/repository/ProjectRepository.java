@@ -6,6 +6,7 @@ import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -109,6 +110,57 @@ public interface ProjectRepository
 
         String getAbusNm();
     }
+
+    /**
+     * 전 직원 사업 검색 디렉터리가 안전한 요약을 조립하는 데 필요한 컬럼만 담은 프로젝션입니다.
+     *
+     * <p>본문·금액 컬럼을 싣지 않으므로 전체 {@link Bprojm} 엔티티 조회보다 가볍고, 상세 권한이 없는 사용자에게 노출해도 되는 범위로 한정됩니다.
+     */
+    interface ProjectDirectoryView {
+        String getAbusMngNo();
+
+        Integer getSno();
+
+        String getAbusNm();
+
+        String getOdnYn();
+
+        String getSvnDpmC();
+
+        String getSvnDpmNm();
+
+        String getTlrUsid();
+
+        String getTlrNm();
+
+        String getUsid();
+
+        String getUsrNm();
+    }
+
+    /**
+     * 사업 검색 디렉터리용 최종·미삭제 사업 프로젝션을 상한까지 조회합니다.
+     *
+     * <p>정렬은 (사업관리번호, 순번) 내림차순으로 고정해 상한에 걸려 잘리는 쪽이 항상 오래된 사업이 되게 합니다.
+     *
+     * @param delYn 삭제 여부 ('N'=미삭제)
+     * @param lstYn 최종 여부 ('Y'=최종본)
+     * @param limit 조회 상한
+     * @return 조건에 맞는 디렉터리 프로젝션 (관리번호·순번 내림차순, 상한까지)
+     */
+    List<ProjectDirectoryView> findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+            String delYn, String lstYn, Limit limit);
+
+    /**
+     * 사업 검색 디렉터리 단건용 최종·미삭제 사업 프로젝션을 조회합니다.
+     *
+     * @param abusMngNo 사업관리번호
+     * @param lstYn 최종 여부 ('Y'=최종본)
+     * @param delYn 삭제 여부 ('N'=미삭제)
+     * @return 현재 최종본 프로젝션 (없으면 {@link Optional#empty()})
+     */
+    Optional<ProjectDirectoryView> findDirectoryViewByAbusMngNoAndLstYnAndDelYn(
+            String abusMngNo, String lstYn, String delYn);
 
     /**
      * 프로젝트 관리번호와 삭제여부로 단건 조회

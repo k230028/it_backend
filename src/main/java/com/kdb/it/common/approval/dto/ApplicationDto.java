@@ -633,12 +633,12 @@ public class ApplicationDto {
         @Schema(description = "신청자명")
         private String requesterName;
 
-        @Schema(description = "신청일자 (YYYY-MM-DD)")
+        @Schema(description = "신청일자 (YYYY-MM-DD). 원장에 신청일자가 없으면 null", nullable = true)
         private String requestedAt;
 
         @Schema(
-                description = "긴급여부: urgent(3일 초과) | normal",
-                allowableValues = {"urgent", "normal"})
+                description = "긴급여부: urgent(3일 초과) | normal | unknown(신청일자 없음)",
+                allowableValues = {"urgent", "normal", "unknown"})
         private String urgency;
     }
 

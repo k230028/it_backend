@@ -18,14 +18,27 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** 인증 경계와 응답 구조를 검증한다. ROLE_ADMIN 강제는 실제 SecurityConfig의 {@code /api/admin/**} 규칙이 담당한다. */
+/**
+ * 인증 경계·권한·응답 구조를 검증한다.
+ *
+ * <p>URL 패턴 규칙이 없는 {@link TestSecurityConfig}에 메서드 보안만 켜므로, 컨트롤러의 {@code @PreAuthorize}를 지우면 일반 사용자
+ * 403 테스트가 깨진다. 실제 {@code SecurityConfig}의 {@code /api/admin/**} 규칙과 이중으로 보호되는지를 지키는 안전망이다.
+ */
 @WebMvcTest(ServerMetricsController.class)
-@Import({TestSecurityConfig.class, JacksonConfig.class})
+@Import({
+    TestSecurityConfig.class,
+    JacksonConfig.class,
+    ServerMetricsControllerTest.MethodSecurityTestConfig.class
+})
 class ServerMetricsControllerTest {
+
+    @EnableMethodSecurity
+    static class MethodSecurityTestConfig {}
 
     @Autowired private MockMvc mockMvc;
 
@@ -38,6 +51,14 @@ class ServerMetricsControllerTest {
     void getServerMetrics_비인증_401() throws Exception {
         mockMvc.perform(get("/api/admin/dashboard/server-metrics"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/admin/dashboard/server-metrics - 일반 사용자 → 403")
+    @WithMockUser(username = "10002", roles = "USER")
+    void getServerMetrics_일반사용자_403() throws Exception {
+        mockMvc.perform(get("/api/admin/dashboard/server-metrics"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

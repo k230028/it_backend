@@ -158,7 +158,7 @@ class CommonPopupServiceTest {
     }
 
     @Test
-    @DisplayName("전결권 안내 최초 저장은 전용 식별자로 PDOC 문서를 생성한다")
+    @DisplayName("전결권 안내 최초 저장은 전용 식별자와 전용 접두사(APOP-)로 문서를 생성한다")
     void saveApprovalAuthorityNotice_createsDedicatedDocument() {
         given(
                         guideDocRepository.findByDocTtlConeAndDocDtlItmCAndDelYn(
@@ -170,7 +170,7 @@ class CommonPopupServiceTest {
         given(
                         creationService.createPopup(
                                 CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
-                                "PDOC-",
+                                "APOP-",
                                 "<p>전결권 안내</p>"))
                 .willReturn(created);
 
@@ -179,6 +179,15 @@ class CommonPopupServiceTest {
 
         assertThat(response.docMngNo()).isEqualTo(DOC_NO);
         assertThat(response.contentHtml()).isEqualTo("<p>전결권 안내</p>");
+        // 공통 안내 팝업(PDOC-)과 접두사를 공유하지 않아야 접두사 필터 목록에 섞이지 않는다.
+        verify(creationService, never())
+                .createPopup(
+                        CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
+                        "PDOC-",
+                        "<p>전결권 안내</p>");
+        assertThat(CommonPopupService.APPROVAL_AUTHORITY_DOCUMENT_NUMBER_PREFIX)
+                .isEqualTo("APOP-")
+                .isNotEqualTo(CommonPopupType.POPUP.documentNumberPrefix());
     }
 
     @Test

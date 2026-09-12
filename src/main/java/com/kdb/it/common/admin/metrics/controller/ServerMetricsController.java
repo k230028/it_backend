@@ -6,15 +6,22 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 관리자 대시보드 서버 자원 사용량 API. {@code /api/admin/**} 보안 규칙으로 ROLE_ADMIN만 접근한다. */
+/**
+ * 관리자 대시보드 서버 자원 사용량 API.
+ *
+ * <p>관리자(ROLE_ADMIN) 전용. {@code SecurityConfig}의 {@code /api/admin/**} URL 규칙과 클래스 수준
+ * {@code @PreAuthorize}로 이중 보호한다.
+ */
 @Tag(name = "Admin", description = "관리자 대시보드 서버 자원 사용량")
 @RestController
 @RequestMapping("/api/admin/dashboard/server-metrics")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class ServerMetricsController {
 
     private final ServerMetricsService service;

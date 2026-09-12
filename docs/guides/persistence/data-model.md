@@ -73,7 +73,7 @@
 | `02` | `FORM_GUIDE` | 사업 입력 길라잡이 | `FDOC-` |
 | `03` | `USER_GUIDE` | 코드명은 "사용자가이드"이지만 실제 사용처는 예산작성 화면 카드 메모(`BudgetCardNoteService`)뿐이다. 사용자가이드 파일 자체는 `CFILEM`을 재사용한다 | `BNOTE-` |
 | `04` | `CONTACT_INFO` | 스피드다이얼 담당자 정보 | `CDOC-` |
-| `05` | `NOTICE_POPUP` | 공통·화면별 안내 팝업(`PDOC-`·`IPOP-`·`OPOP-`·`CPOP-`)과 사업 전결권 안내(`PDOC-`) | 기능별 |
+| `05` | `NOTICE_POPUP` | 공통·화면별 안내 팝업(`PDOC-`·`IPOP-`·`OPOP-`·`CPOP-`)과 사업 전결권 안내(`APOP-` 신규 행·`PDOC-` 기존 행, 조회는 `DOC_TTL_CONE`+`DOC_DTL_ITM_C`로만 판정) | 기능별 |
 
 ## 결재 원장
 

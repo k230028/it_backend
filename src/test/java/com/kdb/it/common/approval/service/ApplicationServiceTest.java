@@ -1544,7 +1544,7 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("getDashboard: 월별 추이와 오래된 결재 대기 건은 긴급으로 반환한다")
+    @DisplayName("getDashboard: 월별 추이와 오래된 결재 대기 건은 긴급, 신청일자 없는 건은 unknown으로 반환한다")
     void getDashboard_월별추이와긴급상태반환() {
         given(applicationRepository.countPendingByEno("10001")).willReturn(2);
         given(applicationRepository.countInProgressByEno("10001")).willReturn(1);
@@ -1575,7 +1575,7 @@ class ApplicationServiceTest {
                 .containsExactly(4);
         assertThat(result.getPendingList())
                 .extracting(value -> value.getUrgency())
-                .containsExactly("urgent", "normal");
+                .containsExactly("urgent", "unknown");
     }
 
     @Test

@@ -516,9 +516,10 @@ class ApiResponseOpenApiContractTest {
         assertSchemaNullable(ApplicationDto.ApproverResponse.class, "usrNm", "ptCNm", "bbrNm");
         assertAllPropertiesRequired(ApplicationDto.DashboardResponse.class);
         assertAllPropertiesRequired(ApplicationDto.MonthlyCount.class);
-        assertAllPropertiesRequired(ApplicationDto.PendingItem.class);
+        // 신청일자(RQS_DT)가 없는 결재 대기 건은 requestedAt=null, urgency=unknown으로 내린다.
+        assertAllPropertiesRequired(ApplicationDto.PendingItem.class, "requestedAt");
         assertAllPropertiesRequired(ApplicationDto.ApprovalBadgeCountResponse.class);
-        assertEnum(ApplicationDto.PendingItem.class, "urgency", "urgent", "normal");
+        assertEnum(ApplicationDto.PendingItem.class, "urgency", "urgent", "normal", "unknown");
         assertEnum(ApplicationDto.ApproverResponse.class, "lstDcdYn", "Y", "N");
 
         assertAllPropertiesRequired(ApplicationInfoDto.class, "apfSts", "apfStsC", "rqsOpnn");

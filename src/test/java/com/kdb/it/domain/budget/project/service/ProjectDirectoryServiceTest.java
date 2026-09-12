@@ -3,8 +3,11 @@ package com.kdb.it.domain.budget.project.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -16,7 +19,6 @@ import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.domain.budget.project.dto.ProjectDirectoryDto;
 import com.kdb.it.domain.budget.project.entity.Bproja;
-import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.BprojaRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.exception.NotFoundException;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Limit;
 
 class ProjectDirectoryServiceTest {
 
@@ -62,22 +65,22 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("사업 검색 디렉터리는 현재 개정본의 최신 신청서 상태와 경상사업 여부를 반환한다")
     void findAll_최신신청서_신청서상태와경상사업여부반환() {
-        Bprojm project =
-                Bprojm.builder()
-                        .abusMngNo("PRJ-ORDINARY")
-                        .sno(2)
-                        .lstYn("Y")
-                        .delYn("N")
-                        .odnYn("Y")
-                        .abusNm("경상 유지보수")
-                        .build();
+        ProjectRepository.ProjectDirectoryView project =
+                new DirectoryView(
+                        "PRJ-ORDINARY", 2, "경상 유지보수", "Y", null, null, null, null, null, null);
         ApplicationMapRepository.ApplicationMapView currentApplication =
                 applicationMapView("APF-2026-00000002", "PRJ-ORDINARY", 2);
         ApplicationMapRepository.ApplicationMapView previousApplication =
                 applicationMapView("APF-2026-00000001", "PRJ-ORDINARY", 1);
         ApplicationRepository.ApplicationSummaryView summary =
                 applicationSummaryView("APF-2026-00000002", "1");
-        given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of(project));
         given(
                         applicationMapRepository.findViewsByFntTbNmAndPkColNmInOrderByApfDcmNoDesc(
                                 "BPROJM", List.of("PRJ-ORDINARY")))
@@ -95,8 +98,14 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("사업 검색 디렉터리는 부서 범위 없이 전 사업의 안전한 담당자 요약을 반환한다")
     void findAll_모든부서_안전한요약반환() {
-        Bprojm project = project("PRJ-OTHER", "타 부서 디지털 사업");
-        given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+        ProjectRepository.ProjectDirectoryView project = project("PRJ-OTHER", "타 부서 디지털 사업");
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of(project));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-OTHER"), "N"))
                 .willReturn(List.of(step("PRJ-OTHER", "79")));
         given(organizationRepository.findNameViewsByPrlmOgzCConeIn(List.of("D200")))
@@ -136,8 +145,8 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("사업 검색 디렉터리 단건은 상세 권한과 무관하게 같은 안전한 요약을 반환한다")
     void findOne_타부서사업_안전한요약반환() {
-        Bprojm project = project("PRJ-OTHER", "타 부서 디지털 사업");
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-OTHER", "N"))
+        ProjectRepository.ProjectDirectoryView project = project("PRJ-OTHER", "타 부서 디지털 사업");
+        given(projectRepository.findDirectoryViewByAbusMngNoAndLstYnAndDelYn("PRJ-OTHER", "Y", "N"))
                 .willReturn(Optional.of(project));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-OTHER"), "N"))
                 .willReturn(List.of(step("PRJ-OTHER", "79")));
@@ -155,9 +164,45 @@ class ProjectDirectoryServiceTest {
     }
 
     @Test
+    @DisplayName("사업 검색 디렉터리는 전체 엔티티 대신 프로젝션을 관리번호 내림차순 상한까지 조회하고 그 순서를 보존한다")
+    void findAll_프로젝션_안정정렬_상한적용() {
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of(project("PRJ-0002", "둘째"), project("PRJ-0001", "첫째")));
+        given(bprojaRepository.findByAbusMngNoInAndDelYn(anyCollection(), eq("N")))
+                .willReturn(List.of());
+        given(organizationRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
+                .willReturn(List.of());
+        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
+        given(codeService.findCodeEntitiesByCId("IT_PTL_STS_TC")).willReturn(List.of());
+
+        List<ProjectDirectoryDto.Response> result = service.findAll();
+
+        assertThat(result)
+                .extracting(ProjectDirectoryDto.Response::abusMngNo)
+                .containsExactly("PRJ-0002", "PRJ-0001");
+        assertThat(ProjectDirectoryService.MAX_DIRECTORY_ROWS).isPositive();
+        verify(projectRepository)
+                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                        "N", "Y", Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS));
+        verify(projectRepository, never()).findAllByDelYn(anyString());
+        verify(projectRepository, never()).findAllByDelYnAndLstYn(anyString(), anyString());
+    }
+
+    @Test
     @DisplayName("최종본 사업이 없으면 부서·사용자·코드 조회 없이 빈 목록을 반환한다")
     void findAll_사업없음_추가조회없이빈목록() {
-        given(projectRepository.findAllByDelYn("N")).willReturn(List.of());
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of());
 
         assertThat(service.findAll()).isEmpty();
 
@@ -173,8 +218,14 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("조회된 부서명과 사용자명이 있으면 사업 스냅샷 값보다 우선한다")
     void findAll_조회성공_스냅샷대신최신명칭사용() {
-        Bprojm project = project("PRJ-OTHER", "타 부서 디지털 사업");
-        given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+        ProjectRepository.ProjectDirectoryView project = project("PRJ-OTHER", "타 부서 디지털 사업");
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of(project));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-OTHER"), "N"))
                 .willReturn(List.of(step("PRJ-OTHER", "79")));
         OrganizationRepository.OrganizationNameView renamedDepartment =
@@ -197,8 +248,14 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("조회된 부서명이 공백이면 사업 스냅샷의 부서명으로 되돌린다")
     void findAll_조회부서명공백_스냅샷부서명사용() {
-        Bprojm project = project("PRJ-OTHER", "타 부서 디지털 사업");
-        given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+        ProjectRepository.ProjectDirectoryView project = project("PRJ-OTHER", "타 부서 디지털 사업");
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of(project));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-OTHER"), "N"))
                 .willReturn(List.of(step("PRJ-OTHER", "79")));
         OrganizationRepository.OrganizationNameView blankDepartment =
@@ -214,19 +271,25 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("담당자 컬럼에 사번 대신 이름이 저장된 사업은 사번을 노출하지 않고 이름만 표시한다")
     void findAll_담당자컬럼에이름저장_사번노출없이이름표시() {
-        Bprojm project =
-                Bprojm.builder()
-                        .abusMngNo("PRJ-NAME")
-                        .sno(1)
-                        .lstYn("Y")
-                        .delYn("N")
-                        .abusNm("이름 저장 사업")
-                        .svnDpmC("D200")
-                        .svnDpmNm("리스크관리부")
-                        .tlrUsid("홍길동")
-                        .usid("Luke Buckingham-Brown")
-                        .build();
-        given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+        ProjectRepository.ProjectDirectoryView project =
+                new DirectoryView(
+                        "PRJ-NAME",
+                        1,
+                        "이름 저장 사업",
+                        null,
+                        "D200",
+                        "리스크관리부",
+                        "홍길동",
+                        null,
+                        "Luke Buckingham-Brown",
+                        null);
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of(project));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-NAME"), "N"))
                 .willReturn(List.of(step("PRJ-NAME", "79")));
         given(organizationRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
@@ -245,19 +308,25 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("담당부서·담당자 값이 비어 있으면 조회 키에 넣지 않는다")
     void findAll_빈담당값_조회키에서제외() {
-        Bprojm project =
-                Bprojm.builder()
-                        .abusMngNo("PRJ-BLANK")
-                        .sno(1)
-                        .lstYn("Y")
-                        .delYn("N")
-                        .abusNm("담당 미지정 사업")
-                        .svnDpmC(null)
-                        .svnDpmNm("리스크관리부")
-                        .tlrUsid("   ")
-                        .usid("10003")
-                        .build();
-        given(projectRepository.findAllByDelYn("N")).willReturn(List.of(project));
+        ProjectRepository.ProjectDirectoryView project =
+                new DirectoryView(
+                        "PRJ-BLANK",
+                        1,
+                        "담당 미지정 사업",
+                        null,
+                        null,
+                        "리스크관리부",
+                        "   ",
+                        null,
+                        "10003",
+                        null);
+        given(
+                        projectRepository
+                                .findDirectoryViewsByDelYnAndLstYnOrderByAbusMngNoDescSnoDesc(
+                                        "N",
+                                        "Y",
+                                        Limit.of(ProjectDirectoryService.MAX_DIRECTORY_ROWS)))
+                .willReturn(List.of(project));
         given(bprojaRepository.findByAbusMngNoInAndDelYn(List.of("PRJ-BLANK"), "N"))
                 .willReturn(List.of(step("PRJ-BLANK", "79")));
         given(organizationRepository.findNameViewsByPrlmOgzCConeIn(anyCollection()))
@@ -278,7 +347,9 @@ class ProjectDirectoryServiceTest {
     @Test
     @DisplayName("없는 사업의 단건 조회는 빈 요약이 아니라 조회 실패로 구분한다")
     void findOne_없는사업_NotFound예외() {
-        given(projectRepository.findByAbusMngNoAndDelYn("PRJ-MISSING", "N"))
+        given(
+                        projectRepository.findDirectoryViewByAbusMngNoAndLstYnAndDelYn(
+                                "PRJ-MISSING", "Y", "N"))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.findOne("PRJ-MISSING"))
@@ -321,20 +392,73 @@ class ProjectDirectoryServiceTest {
         return view;
     }
 
-    private static Bprojm project(String id, String name) {
-        return Bprojm.builder()
-                .abusMngNo(id)
-                .sno(1)
-                .lstYn("Y")
-                .delYn("N")
-                .abusNm(name)
-                .svnDpmC("D200")
-                .svnDpmNm("리스크관리부")
-                .tlrUsid("10002")
-                .tlrNm("김팀장")
-                .usid("10003")
-                .usrNm("이담당")
-                .build();
+    private static ProjectRepository.ProjectDirectoryView project(String id, String name) {
+        return new DirectoryView(
+                id, 1, name, null, "D200", "리스크관리부", "10002", "김팀장", "10003", "이담당");
+    }
+
+    /** 디렉터리 프로젝션의 테스트 구현. 엔티티 전체가 아니라 조립에 필요한 컬럼만 갖는다. */
+    private record DirectoryView(
+            String abusMngNo,
+            Integer sno,
+            String abusNm,
+            String odnYn,
+            String svnDpmC,
+            String svnDpmNm,
+            String tlrUsid,
+            String tlrNm,
+            String usid,
+            String usrNm)
+            implements ProjectRepository.ProjectDirectoryView {
+        @Override
+        public String getAbusMngNo() {
+            return abusMngNo;
+        }
+
+        @Override
+        public Integer getSno() {
+            return sno;
+        }
+
+        @Override
+        public String getAbusNm() {
+            return abusNm;
+        }
+
+        @Override
+        public String getOdnYn() {
+            return odnYn;
+        }
+
+        @Override
+        public String getSvnDpmC() {
+            return svnDpmC;
+        }
+
+        @Override
+        public String getSvnDpmNm() {
+            return svnDpmNm;
+        }
+
+        @Override
+        public String getTlrUsid() {
+            return tlrUsid;
+        }
+
+        @Override
+        public String getTlrNm() {
+            return tlrNm;
+        }
+
+        @Override
+        public String getUsid() {
+            return usid;
+        }
+
+        @Override
+        public String getUsrNm() {
+            return usrNm;
+        }
     }
 
     private static Bproja step(String projectId, String status) {

@@ -1,5 +1,6 @@
 package com.kdb.it.common.system.service;
 
+import com.kdb.it.common.iam.BranchCodes;
 import com.kdb.it.common.iam.entity.CuserI;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.LoginAttemptService;
@@ -187,8 +188,9 @@ public class AuthService {
     /**
      * 접속 제한 대상 사용자인지 판정합니다.
      *
-     * <p>부서코드({@code BBR_C})가 {@code 9}로 시작하지 않으면서 행번({@code ENO})이 {@code O} 또는 {@code o}로 시작하는
-     * 사용자는 로그인할 수 없습니다. 부서코드가 비어 있으면 "9로 시작하지 않음"으로 봅니다 — 누락 값을 정상으로 숨기지 않습니다.
+     * <p>부점코드({@code BBR_C})가 국외점포({@link BranchCodes#isForeign}, {@code 9}로 시작)가 아니면서 행번({@code
+     * ENO})이 {@code O} 또는 {@code o}로 시작하는 사용자는 로그인할 수 없습니다. 부점코드가 비어 있으면 {@code BranchCodes}와 같이
+     * 국내(국외 아님)로 봅니다 — 누락 값을 국외로 오판해 차단을 풀지 않습니다.
      *
      * @param user 자격증명 또는 SSO 인증이 끝난 사용자
      * @return 접속 제한 대상이면 {@code true}
@@ -200,9 +202,8 @@ public class AuthService {
         }
         char enoHead = eno.charAt(0);
         boolean externalEno = enoHead == 'O' || enoHead == 'o';
-        String bbrC = user.getBbrC();
-        boolean internalDept = bbrC != null && bbrC.startsWith("9");
-        return externalEno && !internalDept;
+        boolean foreignBranch = BranchCodes.isForeign(user.getBbrC());
+        return externalEno && !foreignBranch;
     }
 
     /**

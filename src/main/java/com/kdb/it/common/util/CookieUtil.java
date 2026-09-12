@@ -71,10 +71,12 @@ public class CookieUtil {
     private static final String SSO_VERIFIED_PATH = "/api/auth/sso";
 
     /**
-     * SSO 검증 완료 쿠키 만료 시간 (60초). {@code jwt.sso-verified-validity} 속성과 무관하게 고정되므로 토큰 수명을 60초보다 길게
-     * 설정해도 쿠키가 먼저 만료된다.
+     * SSO 검증 완료 토큰 유효시간(ms). {@code JwtUtil}이 토큰 만료에 쓰는 {@code jwt.sso-verified-validity}와 같은 속성을
+     * 읽어 쿠키 Max-Age가 토큰 수명과 함께 움직이게 한다. 미설정 시 60초. 테스트가 {@code new CookieUtil(...)}로 생성할 때를 위해 같은
+     * 기본값으로 초기화한다.
      */
-    private static final long SSO_VERIFIED_MAX_AGE = 60;
+    @Value("${jwt.sso-verified-validity:60000}")
+    private long ssoVerifiedValidityMs = 60_000L;
 
     /**
      * 쿠키 Secure 플래그. 개발 환경만 프로파일에서 false(HTTP 허용)로 내리고 그 밖에는 true(HTTPS 전용)입니다. 설정이 빠졌을 때 평문 전송으로
@@ -242,8 +244,9 @@ public class CookieUtil {
      * SSO 검증 완료 쿠키를 생성합니다.
      *
      * <p>ESSO 검증을 통과한 사번을 담은 단기 JWT({@code JwtUtil.generateSsoVerifiedToken})를 서버 세션 대신 httpOnly
-     * 쿠키로 운반합니다. 경로를 {@code /api/auth/sso}로 제한해 완료 엔드포인트 외에는 전송되지 않게 하고, 60초 뒤 만료됩니다. 완료 처리 후에는
-     * {@link #deleteSsoVerifiedCookie()}로 즉시 제거합니다.
+     * 쿠키로 운반합니다. 경로를 {@code /api/auth/sso}로 제한해 완료 엔드포인트 외에는 전송되지 않게 하고, Max-Age는 {@code
+     * jwt.sso-verified-validity}(ms)를 초 단위로 올림한 값(최소 1초)이라 토큰 만료와 함께 사라집니다. 완료 처리 후에는 {@link
+     * #deleteSsoVerifiedCookie()}로 즉시 제거합니다.
      *
      * @param token 서명된 SSO 검증 완료 JWT
      * @return {@code sso-verified} 쿠키
@@ -253,9 +256,14 @@ public class CookieUtil {
                 .httpOnly(true)
                 .secure(secureCookie)
                 .path(SSO_VERIFIED_PATH)
-                .maxAge(SSO_VERIFIED_MAX_AGE)
+                .maxAge(ssoVerifiedMaxAgeSeconds())
                 .sameSite("Lax")
                 .build();
+    }
+
+    /** 토큰 유효시간(ms)을 쿠키 Max-Age(초)로 올림 변환합니다. 쿠키가 토큰보다 먼저 사라지지 않도록 올림하고 최소 1초를 보장합니다. */
+    private long ssoVerifiedMaxAgeSeconds() {
+        return Math.max(1L, Math.ceilDiv(ssoVerifiedValidityMs, 1000L));
     }
 
     /** SSO 검증 완료 쿠키 삭제용 쿠키(Max-Age=0)를 생성합니다. 발급 경로와 같은 경로로 내려야 브라우저가 지웁니다. */

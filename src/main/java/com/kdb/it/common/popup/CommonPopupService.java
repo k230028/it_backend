@@ -28,6 +28,16 @@ public class CommonPopupService {
     public static final String APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER =
             "project.approval-authority";
 
+    /**
+     * 전결권 안내 신규 문서의 DOC_MNG_NO 접두사입니다.
+     *
+     * <p>공통 안내 팝업({@link CommonPopupType#POPUP}, {@code PDOC-})과 접두사를 공유하면 접두사만으로 필터링하는 다른 기능의 목록에
+     * 이 문서가 섞이므로 전용 접두사를 씁니다. 이 상수 도입 전에 만들어진 전결권 안내 행은 {@code PDOC-} 관리번호를 그대로 유지합니다 — {@code
+     * DOC_MNG_NO}는 PK이며 BGDOCL·CFILEM이 참조하므로 개명하지 않습니다. 조회는 {@code DOC_TTL_CONE}과 {@code
+     * DOC_DTL_ITM_C} 조합만 사용하고 접두사에 의존하지 않으므로 기존 행도 동일하게 활성 문서로 찾습니다.
+     */
+    public static final String APPROVAL_AUTHORITY_DOCUMENT_NUMBER_PREFIX = "APOP-";
+
     private static final String DOCUMENT_TYPE = BgdocDocumentType.NOTICE_POPUP.code();
 
     private final GuideDocRepository guideDocRepository;
@@ -85,10 +95,19 @@ public class CommonPopupService {
                 type.documentName());
     }
 
-    /** 전결권 안내 본문을 최초 생성하거나 현재 활성 문서에 저장합니다. */
+    /**
+     * 전결권 안내 본문을 최초 생성하거나 현재 활성 문서에 저장합니다.
+     *
+     * <p>최초 생성 시 관리번호는 {@link #APPROVAL_AUTHORITY_DOCUMENT_NUMBER_PREFIX}로 채번합니다. 기존 {@code PDOC-}
+     * 행이 활성이면 그 행을 갱신하며 새로 채번하지 않습니다.
+     */
     @Transactional
     public CommonPopupDto.AdminResponse saveApprovalAuthorityNotice(String contentHtml) {
-        return saveDocument(APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER, "PDOC-", contentHtml, "전결권 안내");
+        return saveDocument(
+                APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER,
+                APPROVAL_AUTHORITY_DOCUMENT_NUMBER_PREFIX,
+                contentHtml,
+                "전결권 안내");
     }
 
     private CommonPopupDto.AdminResponse saveDocument(

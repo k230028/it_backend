@@ -820,6 +820,28 @@ class CookieUtilTest {
         }
 
         @Test
+        @DisplayName("Max-Age는 jwt.sso-verified-validity(ms)에서 유도된다 — 120000ms → 120초")
+        void 검증쿠키_MaxAge_속성유도() {
+            CookieUtil util = cookieUtil();
+            ReflectionTestUtils.setField(util, "ssoVerifiedValidityMs", 120_000L);
+
+            ResponseCookie cookie = util.createSsoVerifiedCookie("signed-token");
+
+            assertThat(cookie.getMaxAge().getSeconds()).isEqualTo(120L);
+        }
+
+        @Test
+        @DisplayName("Max-Age는 초 단위 올림이며 최소 1초다 — 1500ms → 2초, 1ms → 1초")
+        void 검증쿠키_MaxAge_올림_최소1초() {
+            CookieUtil util = cookieUtil();
+            ReflectionTestUtils.setField(util, "ssoVerifiedValidityMs", 1_500L);
+            assertThat(util.createSsoVerifiedCookie("t").getMaxAge().getSeconds()).isEqualTo(2L);
+
+            ReflectionTestUtils.setField(util, "ssoVerifiedValidityMs", 1L);
+            assertThat(util.createSsoVerifiedCookie("t").getMaxAge().getSeconds()).isEqualTo(1L);
+        }
+
+        @Test
         @DisplayName("secure=true이면 Secure 플래그를 설정한다")
         void 검증쿠키_secureTrue() {
             ResponseCookie cookie = cookieUtil(true).createSsoVerifiedCookie("signed-token");
