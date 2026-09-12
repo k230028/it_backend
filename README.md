@@ -159,6 +159,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 - 로그인과 토큰 갱신을 제외한 API는 기본적으로 인증이 필요합니다. `JwtAuthenticationFilter`가 Access Token 쿠키를 검증하고 `CustomUserDetails`를 보안 컨텍스트에 넣습니다.
 - Access Token과 Refresh Token은 httpOnly 쿠키로 전달하며 서버 세션은 만들지 않습니다. 관리자 API는 URL 규칙과 `@PreAuthorize`를 함께 사용하고, 일반 업무 API는 서비스에서 소유자·부서 범위를 추가로 검증합니다.
 - SSO 콜백 왕복 상태도 서버 세션을 쓰지 않습니다. 복귀 경로는 `sso-next`/`sso-origin` 쿠키, 검증된 사번은 60초짜리 서명 JWT를 담은 `sso-verified` httpOnly 쿠키로 운반하므로 다중 WAS 인스턴스에서 로드밸런서 세션 유지(sticky session) 없이 동작합니다. 상세는 [SSO 가이드](docs/guides/integrations/sso.md)를 참고합니다.
+- **접속 제한 대상(국내부점 소속 외주직원)은 로그인할 수 없습니다.** 행번(`ENO`)이 `O`/`o`로 시작하면서 부점코드(`BBR_C`)가 국외점포(`9`로 시작, `BranchCodes.isForeign`)가 아닌 사용자는 자격증명이 맞아도 `AuthService.rejectIfLoginBlocked`가 거부합니다. 부점코드가 비어 있는 O행번도 차단 대상이며, 국외점포 소속 O행번과 일반 행번은 통과합니다. 판정은 수동 로그인(비밀번호 검증 뒤라 자격증명 오류와 구분되지 않음)·MFA 완료·SSO 토큰 발급 세 경로에서 모두 수행하고, 로그인 실패 이력에 `접속 제한 대상 사용자` 사유를 커밋합니다. 관리자 사용자 전환(`/api/admin/switch-user`)은 이 판정을 거치지 않는 개발 편의 경로이며 운영에서는 `app.dev.user-switch.enabled=false`로 등록되지 않습니다.
 - 결재 상태처럼 원 업무와 반드시 함께 반영되어야 하는 변경은 동기 `@EventListener`로 같은 트랜잭션에서 처리합니다.
 - 알림은 `@TransactionalEventListener(AFTER_COMMIT)`에서 처리하고 저장이 필요하면 `REQUIRES_NEW` 트랜잭션을 사용합니다. 따라서 알림 실패가 이미 성공한 원 업무를 롤백하지 않습니다.
 - `AFTER_COMMIT` 알림 리스너 자체는 별도 비동기 스레드가 아니라 커밋 후 콜백으로 실행되며, 실패한 알림은 60초 주기 재시도 작업이 건당 최대 5회까지 처리합니다.
