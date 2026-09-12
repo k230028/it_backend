@@ -3,7 +3,8 @@
 ## 업무 엔티티
 
 - `BaseEntity`를 상속합니다.
-- `@Column`에 메타 용어 기반 이름, 길이와 한글 comment를 지정합니다.
+- `@Column`에 메타 용어 기반 이름, 길이와 한글 comment를 지정합니다. CLOB 컬럼은 `@Lob`으로 선언하고 길이를 지정하지 않습니다.
+- 서비스 검증을 거치지 않고 직접 생성·복제되는 스냅샷 문자열(담당자·부서명 등)은 엔티티 `@PrePersist`/`@PreUpdate`에서 `Utf8ByteLimit`으로 BYTE 한도를 한 번 더 검증합니다(`Bcostm`·`Bprojm` 참고). 초과는 `IllegalArgumentException`으로 실패시키고 잘라 저장하지 않습니다.
 - 삭제는 `delete()`로 `DEL_YN='Y'`를 설정합니다.
 - 복합키는 `@IdClass`를 사용합니다.
 

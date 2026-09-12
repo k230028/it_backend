@@ -10,7 +10,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** TPRMPP_BGDOCM의 단일 공통 안내 팝업을 조회·저장·게시 중지합니다. */
+/**
+ * TPRMPP_BGDOCM의 안내 팝업 문서를 조회·저장·게시 중지합니다.
+ *
+ * <p>대상은 {@link CommonPopupType}이 허용하는 공통·화면별 안내 4종과 사업 전결권 안내({@link
+ * #APPROVAL_AUTHORITY_DOCUMENT_IDENTIFIER})이며, 유형마다 {@code DOC_TTL_CONE} 고정 식별자로 활성 1건을 유지합니다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

@@ -1,8 +1,15 @@
 package com.kdb.it.domain.budget.plan.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -93,5 +100,36 @@ class PlanControllerTest {
     @WithMockUser(username = "10001", roles = "ADMIN")
     void deletePlan_인증_204() throws Exception {
         mockMvc.perform(delete("/api/plans/PLN-2026-0001")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/plans/{plnMngNo} - 관리자 → 204, 서비스에 관리번호와 본문 전달")
+    @WithMockUser(username = "10001", roles = "ADMIN")
+    void updatePlanText_관리자_204() throws Exception {
+        mockMvc.perform(
+                        patch("/api/plans/PLN-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"prjDvmCone\":\"IT프로젝트 내용\",\"itBgCone\":\"IT예산 내용\"}"))
+                .andExpect(status().isNoContent());
+
+        verify(planService)
+                .updatePlanText(
+                        eq("PLN-2026-0001"),
+                        argThat(
+                                request ->
+                                        "IT프로젝트 내용".equals(request.getPrjDvmCone())
+                                                && "IT예산 내용".equals(request.getItBgCone())));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/plans/{plnMngNo} - 비인증 → 401, 서비스 미호출")
+    void updatePlanText_비인증_401() throws Exception {
+        mockMvc.perform(
+                        patch("/api/plans/PLN-2026-0001")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"prjDvmCone\":\"IT프로젝트 내용\"}"))
+                .andExpect(status().isUnauthorized());
+
+        verify(planService, never()).updatePlanText(anyString(), any());
     }
 }

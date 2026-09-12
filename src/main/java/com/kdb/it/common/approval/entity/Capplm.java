@@ -23,11 +23,13 @@ import lombok.experimental.SuperBuilder;
  *
  * <p>결재 신청서의 헤더 정보를 관리합니다. 신청서와 원본 데이터 연결({@link Cappla}), 결재선({@link Cdecim})과 연관됩니다.
  *
- * <p>신청서 상태({@code IT_PTL_APF_PRG_STS_C}) 흐름:
+ * <p>신청서 상태({@code IT_PTL_APF_PRG_STS_C}) 흐름. 코드값은 {@link ApprovalStatus}가 SoT입니다.
  *
  * <pre>
- *   "결재중" → (모든 결재자 승인 시) → "결재완료"
- *           → (중간 반려 시)       → "반려"
+ *   "작성완료(0)" → (상신 시) → "결재중(1)" → (모든 결재자 승인 시) → "결재완료(2)"
+ *                                        → (중간 반려 시)       → "반려(3)"
+ *                                        → (신청자 회수 시)     → "회수(4)"
+ *   "수기등록(9)"은 편성요청서 반입이 결재 없이 만든 신청서의 종결 상태
  * </pre>
  *
  * <p>관리번호 형식: {@code APF-{연도}-{8자리 시퀀스}} (예: {@code APF-2026-00000001})
@@ -46,7 +48,7 @@ public class Capplm extends BaseEntity {
     @Column(name = "APF_DCM_NO", length = 64, nullable = false, comment = "신청서식별번호")
     private String apfMngNo;
 
-    /** 신청서진행상태코드: Ccodem APF_STS 참조 (1:결재중, 2:결재완료, 3:반려, 4:회수) */
+    /** 신청서진행상태코드: 코드그룹 {@code IT_PTL_APF_PRG_STS_C}, 값은 {@link ApprovalStatus} 참조 */
     @Column(name = "IT_PTL_APF_PRG_STS_C", length = 2, nullable = false, comment = "IT포탈신청서진행상태코드")
     private String itPtlApfPrgStsC;
 

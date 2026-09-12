@@ -27,7 +27,7 @@ RequestFormController
        │    └─ GeneralExpenseFormAdapter    전산업무비(시트 ③)
        ├─ RequestFormValidator           횡단 검증 (필수값·물리 길이·자연키 중복)
        ├─ RequestFormFileImporter        원장 반영 (REQUIRES_NEW — 반영의 원자 단위)
-       │    └─ MigrationApprovalStamper     이관 결재 표식
+       │    └─ ApprovalStamper              이관 결재 표식 (common.approval.service, 상태 9 수기등록)
        └─ RequestFormSourceFileArchiver  원본 보관 (commit 경로에서만)
 ```
 

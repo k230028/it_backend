@@ -70,7 +70,10 @@ public class CookieUtil {
     /** SSO 검증 완료 쿠키 전송 경로 — {@code /api/auth/sso/complete}에만 전송되도록 제한 */
     private static final String SSO_VERIFIED_PATH = "/api/auth/sso";
 
-    /** SSO 검증 완료 쿠키 만료 시간 (60초) — JwtUtil.DEFAULT_SSO_VERIFIED_VALIDITY_MS와 같은 길이 */
+    /**
+     * SSO 검증 완료 쿠키 만료 시간 (60초). {@code jwt.sso-verified-validity} 속성과 무관하게 고정되므로 토큰 수명을 60초보다 길게
+     * 설정해도 쿠키가 먼저 만료된다.
+     */
     private static final long SSO_VERIFIED_MAX_AGE = 60;
 
     /**

@@ -21,6 +21,6 @@ SSO 핸드셰이크는 서버 세션(`HttpSession`)을 사용하지 않습니다
 
 - **로드밸런서 세션 유지(sticky session)가 필요 없습니다.** 왕복의 각 요청이 서로 다른 WAS 인스턴스에 떨어져도 `sso-verified` 토큰은 공유 `jwt.secret`으로 어느 인스턴스든 검증합니다. L4는 Least Connection 같은 순수 부하분산으로 두어도 됩니다.
 - 모든 인스턴스가 같은 `jwt.secret`을 주입받아야 합니다. 인스턴스별로 키가 다르면 다른 인스턴스가 발급한 `sso-verified` 토큰을 `JWT 서명·만료·용도 검증에 실패했습니다` 경고와 함께 거부해 수동 로그인으로 떨어집니다.
-- 토큰 수명은 `jwt.sso-verified-validity`(기본 60000ms)로 조정합니다. 리다이렉트 왕복만 버티면 되므로 늘릴 이유는 거의 없습니다.
+- 토큰 수명은 `jwt.sso-verified-validity`(기본 60000ms)로 조정합니다. 다만 `sso-verified` 쿠키의 Max-Age는 `CookieUtil`에 60초로 고정돼 있어 속성을 60초보다 길게 잡아도 쿠키가 먼저 사라집니다. 리다이렉트 왕복만 버티면 되므로 늘릴 이유는 거의 없습니다.
 - 서버 저장소가 없으므로 60초 안의 재전송을 서버가 막지는 못합니다. `sso-verified`는 httpOnly·`Path=/api/auth/sso`라 이를 읽을 수 있는 공격자는 Refresh 쿠키도 읽을 수 있어, 위협 모델은 이전 세션 방식과 같습니다. 1회용을 서버가 강제해야 하는 요구가 생기면 MFA와 같은 공유 저장소(`MfaTransactionStore` 패턴)로 옮깁니다.
 - `sso-next`/`sso-origin` 쿠키는 복귀 경로를 운반하는 유일한 수단입니다. ESSO 교차 출처 POST 콜백 뒤 마지막 same-site `complete` 내비게이션에 실려 원본 URL을 복원하므로 제거하면 안 됩니다.

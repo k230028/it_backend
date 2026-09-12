@@ -407,6 +407,37 @@ class AdminServiceTest {
                 .hasMessageContaining("존재하지 않는 역할입니다");
     }
 
+    @Test
+    @DisplayName("deleteRole - 정상 삭제 시 Soft Delete (DEL_YN='Y')")
+    void deleteRole_정상삭제_SoftDelete() {
+        // given
+        CroleIId id = new CroleIId("ITPAD001", "10001");
+        CroleI role = CroleI.builder().id(id).useYn("Y").delYn("N").build();
+        given(roleRepository.findById(id)).willReturn(Optional.of(role));
+
+        // when
+        adminService.deleteRole("ITPAD001", "10001");
+
+        // then
+        assertThat(role.getDelYn()).isEqualTo("Y");
+        verify(roleRepository, never()).delete(any(CroleI.class));
+    }
+
+    @Test
+    @DisplayName("deleteRole - 이미 삭제된 역할은 미존재로 취급해 IllegalArgumentException 발생")
+    void deleteRole_이미삭제된역할_예외발생() {
+        // given
+        CroleIId id = new CroleIId("ITPAD001", "10001");
+        CroleI deleted = CroleI.builder().id(id).useYn("Y").delYn("Y").build();
+        given(roleRepository.findById(id)).willReturn(Optional.of(deleted));
+
+        // when & then
+        assertThatThrownBy(() -> adminService.deleteRole("ITPAD001", "10001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("존재하지 않는 역할입니다");
+        assertThat(deleted.getDelYn()).isEqualTo("Y");
+    }
+
     // =========================================================================
     // 사용자 (CuserI)
     // =========================================================================
@@ -455,6 +486,34 @@ class AdminServiceTest {
     }
 
     @Test
+    @DisplayName("deleteUser - 정상 삭제 시 Soft Delete (DEL_YN='Y')")
+    void deleteUser_정상삭제_SoftDelete() {
+        // given
+        CuserI user = CuserI.builder().eno("10001").delYn("N").build();
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(user));
+
+        // when
+        adminService.deleteUser("10001");
+
+        // then
+        assertThat(user.getDelYn()).isEqualTo("Y");
+        verify(userRepository, never()).delete(any(CuserI.class));
+    }
+
+    @Test
+    @DisplayName("deleteUser - 이미 삭제된 사용자는 미존재로 취급해 IllegalArgumentException 발생")
+    void deleteUser_이미삭제된사용자_예외발생() {
+        // given
+        CuserI deleted = CuserI.builder().eno("10001").delYn("Y").build();
+        given(userRepository.findByEno("10001")).willReturn(Optional.of(deleted));
+
+        // when & then
+        assertThatThrownBy(() -> adminService.deleteUser("10001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("존재하지 않는 사원번호입니다");
+    }
+
+    @Test
     @DisplayName("updateUser - password 포함 시 비밀번호도 함께 변경")
     void updateUser_password포함_비밀번호변경() {
         // given
@@ -487,6 +546,41 @@ class AdminServiceTest {
         assertThatThrownBy(() -> adminService.createOrganization(req))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("이미 존재하는 조직코드입니다");
+    }
+
+    @Test
+    @DisplayName("createOrganization - 정상 요청 시 요청값 그대로 조직을 저장한다")
+    void createOrganization_정상요청_저장호출() {
+        // given
+        AdminDto.OrgRequest req =
+                new AdminDto.OrgRequest("BBR002", "IT기획부", "IT Planning", 3, "BBR001");
+        given(orgRepository.existsById("BBR002")).willReturn(false);
+
+        // when
+        adminService.createOrganization(req);
+
+        // then
+        ArgumentCaptor<CorgnI> captor = ArgumentCaptor.forClass(CorgnI.class);
+        verify(orgRepository, times(1)).save(captor.capture());
+        CorgnI saved = captor.getValue();
+        assertThat(saved.getPrlmOgzCCone()).isEqualTo("BBR002");
+        assertThat(saved.getBbrNm()).isEqualTo("IT기획부");
+        assertThat(saved.getBbrWrenNm()).isEqualTo("IT Planning");
+        assertThat(saved.getItmSqnSno()).isEqualTo(3);
+        assertThat(saved.getPrlmHrkOgzCCone()).isEqualTo("BBR001");
+    }
+
+    @Test
+    @DisplayName("deleteOrganization - 이미 삭제된 조직은 미존재로 취급해 IllegalArgumentException 발생")
+    void deleteOrganization_이미삭제된조직_예외발생() {
+        // given
+        CorgnI deleted = CorgnI.builder().prlmOgzCCone("BBR001").delYn("Y").build();
+        given(orgRepository.findById("BBR001")).willReturn(Optional.of(deleted));
+
+        // when & then
+        assertThatThrownBy(() -> adminService.deleteOrganization("BBR001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("존재하지 않는 조직코드입니다");
     }
 
     @Test
@@ -623,6 +717,29 @@ class AdminServiceTest {
         verify(roleRepository).findAdminRolePage(eq("홍"), pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getSort().getOrderFor("id.eno")).isNotNull();
         verify(userRepository, times(1)).findNameViewsByEnoIn(anySet());
+    }
+
+    @Test
+    @DisplayName("getRoles: 정렬 미지정이면 복합키(athId, eno) 오름차순의 안정 정렬을 적용한다")
+    void getRoles_정렬미지정_기본안정정렬() {
+        // given
+        PageRequest unsorted = PageRequest.of(0, 20);
+        given(roleRepository.findAdminRolePage(eq(null), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(), unsorted, 0));
+
+        // when
+        Page<AdminDto.RoleResponse> result = adminService.getRoles(null, unsorted);
+
+        // then
+        assertThat(result.getContent()).isEmpty();
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(roleRepository).findAdminRolePage(eq(null), pageableCaptor.capture());
+        Sort applied = pageableCaptor.getValue().getSort();
+        assertThat(applied.getOrderFor("id.athId")).isNotNull();
+        assertThat(applied.getOrderFor("id.athId").getDirection()).isEqualTo(Sort.Direction.ASC);
+        assertThat(applied.getOrderFor("id.eno")).isNotNull();
+        assertThat(applied.getOrderFor("id.eno").getDirection()).isEqualTo(Sort.Direction.ASC);
+        verify(userRepository, never()).findNameViewsByEnoIn(anySet());
     }
 
     @Test

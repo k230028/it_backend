@@ -45,7 +45,7 @@ Swagger UI와 API 명세는 `local-ext`·`local-int`·`dev`에서만 활성화�
 | `dev`       | 개발 서버        | ESSO 실연동 | 비활성 | Secure 해제 / 허용       |
 | `prod`      | 운영 서버        | ESSO 실연동 | 비활성 | Secure 적용 / 허용 안 함 |
 
-프로파일을 지정하지 않으면 공통 설정의 보수적 기본값이 적용됩니다. 이 경우 Flyway와 개발 사용자 전환·Bearer 폴백은 꺼지고, `DB_PASSWORD`·`JWT_SECRET`이 필요하며, 프론트 URL과 CORS 허용 Origin의 기본값은 비어 있습니다. 일반 로컬 개발은 프로파일 없는 기동보다 `local-ext` 또는 `local-int`를 사용합니다.
+프로파일을 지정하지 않으면 공통 설정의 보수적 기본값이 적용됩니다. 이 경우 Flyway와 개발 사용자 전환·Bearer 폴백은 꺼지고, `DB_PASSWORD`·`JWT_SECRET`·`TOKEN_FINGERPRINT_SECRET`이 필요하며, 프론트 URL과 CORS 허용 Origin의 기본값은 비어 있습니다. `DB_URL` 환경변수는 `dev`·`prod` 프로파일에서만 읽으며, 로컬 프로파일과 프로파일 없는 기동은 공통 설정의 `127.0.0.1:11521/XEPDB1`을 고정으로 사용합니다(다른 주소가 필요하면 `SPRING_DATASOURCE_URL`로 덮어씁니다). 일반 로컬 개발은 프로파일 없는 기동보다 `local-ext` 또는 `local-int`를 사용합니다.
 
 ## 주요 명령어
 
@@ -82,6 +82,9 @@ it_backend/
 │   └── application*.properties   공통·프로파일별 설정
 ├── src/test/java/                단위·슬라이스·Oracle 통합 테스트
 ├── docs/guides/                  아키텍처·보안·DB·연동 상세 가이드
+├── docs/operations/              백엔드 배포·복구·데이터 이동 기록
+├── scripts/                      Javadoc 경고 점검·JWT 시크릿 생성 보조 스크립트
+├── oss/                          폐쇄망 반입용 오픈소스 산출물 스크립트
 ├── build.gradle                  의존성·품질 게이트·Flyway 리소스 구성
 └── gradle/wrapper/               Gradle 9.2.1 Wrapper
 ```
@@ -103,7 +106,7 @@ HTTP 요청
   → Oracle
 ```
 
-Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청은 `@Valid`로 검증합니다. 응답 DTO의 `@Schema`는 Swagger 문서용 장식이 아니라 프론트가 소비하는 계약입니다 — 프론트가 `/v3/api-docs`에서 TypeScript 타입을 생성하므로 여기의 `requiredMode`·`nullable`·`allowableValues`가 곧 프론트 타입이 되며, 그 계약은 `ApiResponseOpenApiContractTest`와 도메인별 `*OpenApiContractTest`가 고정합니다. 서비스는 JWT 인증 주체를 기준으로 역할·부서·소유권을 재검증하며, 조회와 쓰기 트랜잭션을 구분합니다. 처리 중 발생한 업무·검증 예외는 `GlobalExceptionHandler`가 `timestamp`, `status`, `message`를 가진 JSON 오류 응답으로 변환합니다.
+Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청은 `@Valid`로 검증합니다. 응답 DTO의 `@Schema`는 Swagger 문서용 장식이 아니라 프론트가 소비하는 계약입니다 — 프론트가 `/v3/api-docs`에서 TypeScript 타입을 생성하므로 여기의 `requiredMode`·`nullable`·`allowableValues`가 곧 프론트 타입이 되며, 그 계약은 `ApiResponseOpenApiContractTest`와 도메인별 `*OpenApiContractTest`가 고정합니다. 서비스는 JWT 인증 주체를 기준으로 역할·부서·소유권을 재검증하며, 조회와 쓰기 트랜잭션을 구분합니다. 처리 중 발생한 업무·검증 예외는 `GlobalExceptionHandler`가 `timestamp`, `status`, `message`를 가진 JSON 오류 응답으로 변환합니다. 전산예산 결재 오류와 전산업무비·정보화사업 저장 충돌은 여기에 `code`와 현재 원장 상태(변경자·변경 일시·현재 스탬프·현재 상세)를 더한 전용 응답 DTO로 내려 화면이 병합 다이얼로그를 띄울 수 있게 합니다.
 
 목록·bulk 조회는 전체 엔티티를 메모리로 가져오거나 ID별 상세 조회를 반복하지 않습니다. 필요한 컬럼의 projection/read view, DB의 명시적 정렬과 페이지 상한, 식별자 IN 배치 조회를 사용하고, 누락 식별자는 응답 조립 중 조용히 성공 처리하지 않습니다. 이관·설정 파싱에서는 값이 없는 경우와 malformed인 경우를 구분해 진단·경고·차단으로 표면화합니다.
 
@@ -116,7 +119,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 | `common.mfa`                                                                  | 추가 인증 거래 발급·검증·소비와 공유 저장소            | 수동 로그인과 전자결재 명령의 증표를 `common.system`·`common.approval`에 제공 |
 | `common.i18n`                                                                 | 메뉴명·공통코드 표시명 번역과 변경 이력                | 메뉴·코드 조회 응답의 표시명을 언어별로 제공                         |
 | `common.speeddial`                                                            | 전역 스피드다이얼의 FAQ 조회·Q&A 등록·담당자 정보 조회 | 전용 테이블 없이 `common.board`의 FAQ(`004`)·Q&A(`005`) 유형 게시판과 `BGDOCM` 단일 문서를 재사용 |
-| `common.popup`                                                                | 공통 안내 팝업 게시·중지와 활성 팝업 조회              | 전용 테이블 없이 `BGDOCM`의 `DOC_TTL_CONE='common.popup'` 단일 문서를 재사용 |
+| `common.popup`                                                                | 공통 안내 팝업과 화면별 작성 안내 팝업의 게시·중지와 활성 팝업 조회 | 전용 테이블 없이 `BGDOCM`의 `DOC_TTL_CONE` 단일 문서를 유형별로 재사용. 유형은 `CommonPopupType` 허용 목록(`common.popup`·`common.info`·`common.ordn`·`common.cost`)으로 고정하고 문서번호 접두사(`PDOC-`·`IPOP-`·`OPOP-`·`CPOP-`)를 유형마다 분리 |
 | `common.notification`                                                         | 인앱 알림 저장, 소유권 검증, 채널 라우팅               | 결재·게시판 이벤트와 `infra.eai` 연결                                |
 | `domain.budget`                                                               | 정보화사업·경상사업, 전산업무비, SNO 재상신 이력, 계획, 문서 검토, 예산 현황·작업. `budget.document.formguide`는 사업 입력 길라잡이를 서버 고정 카탈로그 기준으로 등록·조회 | 협의회와 사업 집행의 기준 사업 데이터를 제공                         |
 | `domain.bizplan`                                                              | 정보기술부문 계획에 포함된 사업의 사업계획             | `budget.plan`, `budget.project`의 계획 관계·사업·품목·단계 상태 사용 |
@@ -171,7 +174,7 @@ Controller는 엔티티 대신 DTO로 HTTP 계약을 노출하고, 변경 요청
 - 감사 로그는 별도 `REQUIRES_NEW` 트랜잭션에서 `flush()`해 기록하므로 감사 기록 실패가 원 업무 트랜잭션을 롤백시키지 않습니다.
 - 단순 CRUD는 `JpaRepository`를 사용하고 동적 검색·집계·다중 조인은 `*RepositoryCustom`과 `*RepositoryImpl`의 QueryDSL 구현으로 분리합니다.
 - 공통코드, 메뉴 권한, 알림 미읽음 수, Tiptap 메타데이터는 Caffeine 캐시를 사용합니다. 캐시 쓰기는 트랜잭션 완료와 연동하고, 원본 변경 서비스가 `@CacheEvict`로 즉시 무효화하며 TTL은 누락에 대한 안전망으로 사용합니다.
-- 캐시 TTL은 공통코드·예산기간·메뉴권한 1시간, Tiptap 메타데이터 10분, 알림 미읽음 수 60초이며 모두 프로세스 로컬 Caffeine 캐시입니다.
+- 캐시 TTL은 공통코드·예산기간·메뉴권한 60초, Tiptap 메타데이터 10분, 알림 미읽음 수 60초이며 모두 프로세스 로컬 Caffeine 캐시입니다. 무효화는 인스턴스 간에 전파되지 않으므로 각 TTL이 곧 다른 AP가 옛 값을 보는 최대 시간이며, 새 캐시의 TTL은 그 허용 시간을 근거로 정합니다(`CacheConfig`).
 - 정보화사업 금액은 화면·조회마다 다시 더하지 않고 활성 품목과 지급금액으로 한 번 계산해 사업 스냅샷에 기록합니다. 저장 단위 반올림과 `NUMBER(18,3)` 범위 검증을 한 곳에 모아, 외화 환산이 끼어드는 경로에서도 컬럼별 통화 의미가 갈리지 않게 합니다. 계약은 [사업 집행 가이드](docs/guides/domains/project-execution.md)와 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)가 SoT입니다.
 - 물리 스키마 변경의 기준은 `C:\it\it_database\migrations`이며, 엔티티 매핑과 마이그레이션을 함께 검토합니다. 상세 매핑은 [데이터 모델 인덱스](docs/guides/persistence/data-model.md)를 확인합니다.
 
@@ -345,7 +348,7 @@ WAS_LOG_PEER_SVR2=http://ap2-host:28080
 설계상 알아 둘 점:
 
 - **저장은 프로세스 메모리뿐입니다.** `RingBufferAppender`가 링버퍼에 적재하므로 재기동 이전 로그는 조회할 수 없고, 용량을 넘으면 오래된 줄부터 버립니다. 버려진 줄이 있으면 응답이 `dropped`로 알려 화면이 배너로 표면화합니다. 장기 보관이 필요한 로그는 기존 파일 appender가 계속 담당합니다.
-- **다중 인스턴스는 피어 팜아웃으로 처리합니다.** 자기 인스턴스가 아닌 대상을 조회하면 `/internal/was-logs/**`로 위임합니다. 이 경로는 `SecurityConfig`에서 `permitAll`이고 공유 비밀 헤더 `X-Internal-Token`이 유일한 관문이므로, 비밀값이 비면 컨트롤러 빈 자체를 등록하지 않아 인증 없는 로그 엔드포인트가 열리는 경로를 구조적으로 없앱니다. 운영 배포 시 방화벽에서 이 경로를 사내 서버 대역으로 제한하고 피어 URL은 HTTPS를 사용합니다.
+- **다중 인스턴스는 피어 팜아웃으로 처리합니다.** 자기 인스턴스가 아닌 대상을 조회하면 `/internal/was-logs/**`로 위임합니다. 이 경로는 `SecurityConfig`에서 `permitAll`이고 공유 비밀 헤더 `X-Internal-Token`이 유일한 관문이므로, 비밀값이 비면 컨트롤러 빈 자체를 등록하지 않아 인증 없는 로그 엔드포인트가 열리는 경로를 구조적으로 없앱니다. 운영 배포 시 방화벽에서 이 경로를 사내 서버 대역으로 제한합니다. 피어 URL은 인스턴스가 실제로 수신하는 스킴으로 지정하며(위 RAC 2노드 예시는 사내망 HTTP), TLS를 종단하는 구성이면 HTTPS를 사용합니다.
 - **로그레벨 변경은 항상 TTL을 가집니다.** Actuator 엔드포인트를 열지 않고 `LoggingSystem` 빈만 사용하며, 최대 120분·동시 50건 상한과 `com.kdb.it`·`org.springframework`·`org.hibernate` 접두사 화이트리스트를 적용합니다. 루트 로거 전체 변경은 허용하지 않습니다. 만료되면 스케줄러가 직전 레벨로 되돌리고 재기동 시에는 설정 파일 레벨로 자연 복원됩니다.
 - **조회·레벨변경·다운로드는 모두 관리자 감사 로그를 남깁니다.** 로그 본문을 마스킹하지 않는 대신 누가 언제 무엇을 봤는지 남기는 것이 보상 통제이며, 내부 API는 공유 비밀 불일치로 거부한 시도도 원격 주소와 함께 기록합니다.
 

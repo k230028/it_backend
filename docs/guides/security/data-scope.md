@@ -29,8 +29,17 @@ if (StringUtils.hasText(allowedBbrC)) {
 
 ## 소유권
 
-- 공통 owner-or-admin 검증은 `OwnershipVerifier.verifyOwnerOrAdmin`을 사용합니다.
-- 관리자 전용 상태 전이는 `verifyAdmin`을 사용합니다.
+- 소유권 판정은 `OwnershipVerifier`의 정적 메서드만 사용하고 도메인마다 사번·부서 비교를 새로 쓰지 않습니다.
+
+| 메서드 | 판정 | 결과 |
+| --- | --- | --- |
+| `verifyOwnerOrAdmin(ownerEno, user)` | 작성자 본인 또는 관리자 | 아니면 거부 |
+| `verifyModifiable(creatorEno, resourceBbrC)` / `canModify(...)` | 최초 작성자, 같은 부서, 관리자 | 거부 / boolean 분기 |
+| `verifySameDepartmentOrAdmin(resourceBbrC[, user])` | 같은 부서 또는 관리자 | 아니면 거부 |
+| `verifyAdmin(user)` | 관리자 전용 상태 전이 | 아니면 거부 |
+| `isCurrentUserAdmin()` | 거부가 아니라 분기가 필요한 규칙(예: 결재완료 사후 정정 허용) | boolean, 미인증은 false |
+| `currentEno()` | 인증 주체 이름을 그대로 저장해야 하는 용도(작성완료 스탬프 등). principal 타입을 가리지 않음 | 사번 또는 `null` |
+
 - 게시물·댓글·문서·파일은 읽기와 쓰기 권한을 각각 확인합니다.
 
 ## 작성자 조직 스냅샷

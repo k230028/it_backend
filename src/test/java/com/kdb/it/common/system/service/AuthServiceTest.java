@@ -318,6 +318,22 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("isLoginBlocked - 행번이 비어 있으면 판정할 수 없으므로 차단 대상으로 보지 않는다")
+    void isLoginBlocked_행번없음_차단아님() {
+        assertThat(AuthService.isLoginBlocked(blockRuleUser(null, "1234"))).isFalse();
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("", "1234"))).isFalse();
+    }
+
+    @Test
+    @DisplayName("isLoginBlocked - 부서코드 비-9와 O/o 행번이 함께일 때만 차단한다")
+    void isLoginBlocked_조합별판정() {
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("O12345", "1234"))).isTrue();
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("o12345", null))).isTrue();
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("O12345", "9001"))).isFalse();
+        assertThat(AuthService.isLoginBlocked(blockRuleUser("K12345", "1234"))).isFalse();
+    }
+
+    @Test
     @DisplayName("issueSsoTokens - 접속 제한 대상은 SSO 인증이 끝나도 토큰을 발급하지 않고 실패 이력을 남긴다")
     void issueSsoTokens_접속제한대상_거부() {
         given(userRepository.findByEno("O12345"))

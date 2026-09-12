@@ -2,7 +2,11 @@ package com.kdb.it.domain.council.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -176,5 +180,37 @@ class CouncilQnaControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/council/{asctId}/qna/{qtnId} - 인증된 사용자 → 200, 서비스에 경로·본문 전달")
+    @WithMockUser(username = "10001")
+    void updateQna_인증_200() throws Exception {
+        // QnaUpdateRequest.qtnCone은 @NotBlank — 유효한 본문 전송
+        mockMvc.perform(
+                        patch("/api/council/" + ASCT_ID + "/qna/QTN-ASCT-2026-0001-01")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"qtnCone\":\"수정된 질의 내용\"}"))
+                .andExpect(status().isOk());
+
+        verify(qnaService)
+                .updateQna(
+                        eq(ASCT_ID),
+                        eq("QTN-ASCT-2026-0001-01"),
+                        argThat(request -> "수정된 질의 내용".equals(request.qtnCone())),
+                        any());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/council/{asctId}/qna/{qtnId} - 질의내용 누락 → 400, 서비스 미호출")
+    @WithMockUser(username = "10001")
+    void updateQna_본문누락_400() throws Exception {
+        mockMvc.perform(
+                        patch("/api/council/" + ASCT_ID + "/qna/QTN-ASCT-2026-0001-01")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"qtnCone\":\"  \"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(qnaService, never()).updateQna(anyString(), anyString(), any(), any());
     }
 }

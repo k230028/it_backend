@@ -16,8 +16,8 @@ Controller → Service → Repository → Oracle
 | 패키지      | 책임                                                  |
 | ----------- | ----------------------------------------------------- |
 | `config`    | Security, JPA, QueryDSL, Swagger, Web 설정            |
-| `common`    | 인증, IAM, 결재, 게시판, 코드, 알림, 관리자 공통 기능 |
-| `domain`    | 예산, 협의회, 사업 집행, 메뉴, 감사 도메인            |
+| `common`    | 인증, SSO, IAM, MFA, 결재, 게시판, 코드, 다국어, 알림, 스피드다이얼, 안내 팝업, 관리자 공통 기능 |
+| `domain`    | 예산, 사업계획, 협의회, 사업 집행, 메뉴, 배너, 사용자가이드, 이관, 감사 도메인 |
 | `infra`     | 파일, AI, EAI 등 외부 기술 연동                       |
 | `exception` | 예외 응답 변환                                        |
 
