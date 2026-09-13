@@ -22,8 +22,8 @@ import lombok.Setter;
 /**
  * 정보화사업 생성·수정·조회와 연관 품목 전달에 사용하는 DTO 모음입니다.
  *
- * <p>검색 조건·일괄 조회 요청은 {@link ProjectQueryDto}에 있으며 상속으로 {@code ProjectDto.SearchCondition}처럼 같은 이름으로
- * 접근합니다.
+ * <p>검색 조건·일괄 조회 요청·결과는 {@link ProjectQueryDto}에 있으며 상속으로 {@code ProjectDto.SearchCondition}처럼 같은
+ * 이름으로 접근합니다.
  */
 public class ProjectDto extends ProjectQueryDto {
 
@@ -627,6 +627,14 @@ public class ProjectDto extends ProjectQueryDto {
         @Schema(description = "마지막수정자")
         private String lstChgUsid;
 
+        /** 최초 등록자 이름 — 사번 조회로 채우며 미해석(퇴직·DB 기본값)이면 null */
+        @Schema(description = "최초생성자명", example = "홍길동", nullable = true)
+        private String fstEnrUsNm;
+
+        /** 마지막 수정자 이름 — 사번 조회로 채우며 미해석이면 null */
+        @Schema(description = "마지막수정자명", example = "홍길동", nullable = true)
+        private String lstChgUsNm;
+
         /**
          * 연결된 신청서관리번호
          *
@@ -903,18 +911,4 @@ public class ProjectDto extends ProjectQueryDto {
             return ProjectDtoSupport.fromEntity(bitemm);
         }
     }
-
-    /**
-     * 정보화사업 일괄 조회 결과 DTO (부분 성공)
-     *
-     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 프로젝트관리번호 목록({@code failedIds})을 함께 반환합니다. 누락 건을
-     * 조용히 버리지 않고 호출자에게 노출하기 위함입니다.
-     *
-     * @param items 조회 성공 항목 목록
-     * @param failedIds 조회 실패(미존재) 프로젝트관리번호 목록
-     */
-    @Schema(name = "ProjectBulkResponse", description = "정보화사업 일괄 조회 결과 (부분 성공)")
-    public record BulkResponse(
-            @Schema(description = "조회 성공 항목") java.util.List<Response> items,
-            @Schema(description = "조회 실패(미존재) 프로젝트관리번호 목록") java.util.List<String> failedIds) {}
 }

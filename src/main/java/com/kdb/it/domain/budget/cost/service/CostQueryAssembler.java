@@ -10,6 +10,7 @@ import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.util.AuditorNameFiller;
 import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.cost.dto.CostDto;
@@ -60,6 +61,13 @@ public class CostQueryAssembler {
         applyApplication(response, cost.getCostBgNo(), cost.getBgSno());
         applySnapshotNames(response, cost);
         applyNames(response);
+        // 상세 헤더의 "최근 수정자 / 최초 작성자" 표시용. 목록·이력 경로는 싣지 않는다.
+        AuditorNameFiller.fill(
+                userRepository,
+                response.getFstEnrUsid(),
+                response.getLstChgUsid(),
+                response::setFstEnrUsNm,
+                response::setLstChgUsNm);
         applyBudgetCategory(response);
         applyPreviousBudget(response);
         List<Btermm> terminals =

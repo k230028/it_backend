@@ -459,7 +459,12 @@ class ApiResponseOpenApiContractTest {
                 "apfMngNo",
                 "apfSts",
                 "apfStsC",
-                "lstChgDtm");
+                "fstEnrDtm",
+                "fstEnrUsid",
+                "fstEnrUsNm",
+                "lstChgDtm",
+                "lstChgUsid",
+                "lstChgUsNm");
         assertAllPropertiesRequired(
                 CostDto.TerminalDto.class,
                 "tmnMngNo",

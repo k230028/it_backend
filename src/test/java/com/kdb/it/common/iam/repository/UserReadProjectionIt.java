@@ -153,6 +153,29 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     }
 
     @Test
+    @DisplayName("직위코드가 B6으로 시작하는 그룹은 그룹 안에서만 내림차순으로 정렬한다")
+    void employeeRows_sortB6PositionCodeGroupDescending() {
+        // B6 그룹은 전체 오름차순 위치(20 뒤, C10 앞)를 유지하되 그룹 안에서는 내림차순(B65 → B62 → B60)
+        persistOrderingUser("KZ71003", "정렬비육둘", "B62");
+        persistOrderingUser("KZ71004", "정렬비육오", "B65");
+        persistOrderingUser("KZ71005", "정렬씨십", "C10");
+        persistOrderingUser("KZ71006", "정렬비육영", "B60");
+        em.flush();
+        em.clear();
+        List<String> expected =
+                List.of("KZ71001", "KZ71002", "KZ71004", "KZ71003", "KZ71006", "KZ71005");
+
+        assertThat(userRepository.findListRowsByBbrC(ORG_CODE, "K"))
+                .extracting(UserDto.ListRow::eno)
+                .containsExactlyElementsOf(expected);
+
+        assertThat(userRepository.searchListRowsByKeyword("정렬", "K", SEARCH_LIMIT))
+                .extracting(UserDto.ListRow::eno)
+                .filteredOn(eno -> expected.contains(eno))
+                .containsExactlyElementsOf(expected);
+    }
+
+    @Test
     @DisplayName("키워드 검색은 요청한 상한까지만 반환한다")
     void searchListRowsByKeyword_appliesLimit() {
         assertThat(userRepository.searchListRowsByKeyword("테스트팀", null, 1)).hasSize(1);

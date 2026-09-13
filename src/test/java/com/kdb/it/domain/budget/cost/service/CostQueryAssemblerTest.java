@@ -2,6 +2,7 @@ package com.kdb.it.domain.budget.cost.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -29,6 +30,7 @@ import com.kdb.it.domain.budget.cost.repository.CostRepository;
 import com.kdb.it.domain.budget.work.repository.BbugtmRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -449,6 +451,60 @@ class CostQueryAssemblerTest {
 
         assertThat(result.getCgprNm()).isEqualTo("퇴직자");
         assertThat(result.getCgprId()).isEqualTo("K999999");
+    }
+
+    @Test
+    @DisplayName("단건 조립: 최초 작성자·최근 수정자 감사 필드를 응답에 싣고 사번을 이름으로 채운다")
+    void assembleDetail_감사자명_배치조회로채움() {
+        LocalDateTime created = LocalDateTime.of(2026, 1, 5, 9, 12);
+        LocalDateTime modified = LocalDateTime.of(2026, 9, 14, 10, 30);
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-AUDIT")
+                        .bgSno(1)
+                        .lstYn("Y")
+                        .fstEnrUsid("K100001")
+                        .fstEnrDtm(created)
+                        .lstChgUsid("K100002")
+                        .lstChgDtm(modified)
+                        .build();
+        given(
+                        userRepository.findNameViewsByEnoIn(
+                                argThat(enos -> enos.containsAll(List.of("K100001", "K100002")))))
+                .willReturn(
+                        List.of(
+                                new UserView("K100001", "작성자", "대리"),
+                                new UserView("K100002", "수정자", "과장")));
+
+        CostDto.Response result = assembler.assembleDetail(cost);
+
+        assertThat(result.getFstEnrUsid()).isEqualTo("K100001");
+        assertThat(result.getFstEnrUsNm()).isEqualTo("작성자");
+        assertThat(result.getFstEnrDtm()).isEqualTo(created);
+        assertThat(result.getLstChgUsid()).isEqualTo("K100002");
+        assertThat(result.getLstChgUsNm()).isEqualTo("수정자");
+        assertThat(result.getLstChgDtm()).isEqualTo(modified);
+    }
+
+    @Test
+    @DisplayName("단건 조립: 감사자 사번이 미해석(DB 기본값·퇴직)이면 이름은 비우고 사번은 그대로 둔다")
+    void assembleDetail_감사자미해석_사번유지_이름null() {
+        Bcostm cost =
+                Bcostm.builder()
+                        .costBgNo("COST-AUDIT-LEGACY")
+                        .bgSno(1)
+                        .lstYn("Y")
+                        .fstEnrUsid("00000000000000")
+                        .lstChgUsid("K999999")
+                        .build();
+        given(userRepository.findNameViewsByEnoIn(any())).willReturn(List.of());
+
+        CostDto.Response result = assembler.assembleDetail(cost);
+
+        assertThat(result.getFstEnrUsid()).isEqualTo("00000000000000");
+        assertThat(result.getFstEnrUsNm()).isNull();
+        assertThat(result.getLstChgUsid()).isEqualTo("K999999");
+        assertThat(result.getLstChgUsNm()).isNull();
     }
 
     @Test

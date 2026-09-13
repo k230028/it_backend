@@ -11,6 +11,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDateTime;
@@ -43,6 +44,9 @@ import org.springframework.data.domain.Sort;
  */
 @RequiredArgsConstructor // final 필드 생성자 자동 주입 (Lombok)
 public class UserRepositoryImpl implements UserRepositoryCustom {
+
+    /** 그룹 안에서 직위코드를 내림차순으로 표시하는 직위코드 접두사 */
+    private static final String DESCENDING_POSITION_CODE_PREFIX = "B6";
 
     /** QueryDSL 쿼리 팩토리: JPA 쿼리 생성 및 실행 담당 */
     private final JPAQueryFactory queryFactory;
@@ -295,6 +299,9 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
      * <p>우선순위: ① K로 시작하는 행번({@code ENO}) 우선(K*** &gt; O***) → ② 직위코드({@code PT_C}) 오름차순 → ③ 사용자명·행번
      * 오름차순. ③은 동순위 결과의 표시 순서를 고정하기 위한 보조 키입니다.
      *
+     * <p>단, {@code B6}으로 시작하는 직위코드는 하나의 그룹으로 묶어 오름차순 위치({@code B5* 뒤, B7* 앞})는 유지하되 그룹 안에서는 직위코드
+     * 내림차순으로 표시합니다.
+     *
      * <p>직위코드가 없는 사용자는 같은 행번 그룹의 마지막에 표시합니다.
      *
      * @param user 사용자 Q 타입
@@ -303,10 +310,20 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
     private OrderSpecifier<?>[] employeeDisplayOrder(QCuserI user) {
         return new OrderSpecifier<?>[] {
             enoPrefixPriority(user).asc(),
-            user.ptC.asc().nullsLast(),
+            positionCodeGroup(user).asc().nullsLast(),
+            // B6 그룹 안에서만 내림차순이 적용된다. 그 외 직위코드는 그룹 키가 직위코드 자체라 이 키의 영향을 받지 않는다.
+            user.ptC.desc(),
             user.usrNm.asc(),
             user.eno.asc()
         };
+    }
+
+    /** B6으로 시작하는 직위코드를 {@code B6} 하나로 묶고, 그 외는 직위코드 그대로 두는 1차 정렬 키를 만듭니다. */
+    private StringExpression positionCodeGroup(QCuserI user) {
+        return new CaseBuilder()
+                .when(user.ptC.startsWith(DESCENDING_POSITION_CODE_PREFIX))
+                .then(DESCENDING_POSITION_CODE_PREFIX)
+                .otherwise(user.ptC);
     }
 
     /** K로 시작하는 행번을 0, 그 외(O 행번 등)를 1로 매겨 K 행번을 앞세우는 정렬 키를 만듭니다. */

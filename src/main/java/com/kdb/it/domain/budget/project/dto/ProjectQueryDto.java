@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * 정보화사업 DTO 중 검색 조건·일괄 조회 요청 계약을 분리한 기반 타입입니다.
+ * 정보화사업 DTO 중 검색 조건·일괄 조회 요청·결과 계약을 분리한 기반 타입입니다.
  *
  * <p>{@link ProjectDto}가 이 클래스를 상속하므로 기존 호출부는 {@code ProjectDto.SearchCondition}처럼 같은 이름으로 접근합니다.
  * OpenAPI 스키마 이름도 {@code @Schema(name)}으로 고정되어 프론트 생성 타입에 영향을 주지 않습니다.
@@ -117,4 +117,18 @@ public class ProjectQueryDto {
      */
     @Schema(name = "ProjectDto.VersionRef", description = "개정본 지정 참조")
     public record VersionRef(String mngNo, Integer sno) {}
+
+    /**
+     * 정보화사업 일괄 조회 결과 DTO (부분 성공)
+     *
+     * <p>조회에 성공한 항목({@code items})과 미존재로 조회에 실패한 프로젝트관리번호 목록({@code failedIds})을 함께 반환합니다. 누락 건을
+     * 조용히 버리지 않고 호출자에게 노출하기 위함입니다.
+     *
+     * @param items 조회 성공 항목 목록
+     * @param failedIds 조회 실패(미존재) 프로젝트관리번호 목록
+     */
+    @Schema(name = "ProjectBulkResponse", description = "정보화사업 일괄 조회 결과 (부분 성공)")
+    public record BulkResponse(
+            @Schema(description = "조회 성공 항목") java.util.List<ProjectDto.Response> items,
+            @Schema(description = "조회 실패(미존재) 프로젝트관리번호 목록") java.util.List<String> failedIds) {}
 }

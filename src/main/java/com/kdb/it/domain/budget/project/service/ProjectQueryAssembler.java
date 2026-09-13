@@ -11,6 +11,7 @@ import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.code.service.CodeService;
 import com.kdb.it.common.iam.repository.OrganizationRepository;
 import com.kdb.it.common.iam.repository.UserRepository;
+import com.kdb.it.common.util.AuditorNameFiller;
 import com.kdb.it.common.util.CodeNameMapBuilder;
 import com.kdb.it.common.util.UserNameResolver;
 import com.kdb.it.domain.budget.project.dto.ProjectDto;
@@ -110,6 +111,13 @@ public class ProjectQueryAssembler {
             response.setSvnDpmCNm(project.getSvnDpmNm());
         }
         applyNames(response);
+        // 상세 헤더의 "최근 수정자 / 최초 작성자" 표시용. 목록·bulk 경로는 싣지 않는다.
+        AuditorNameFiller.fill(
+                userRepository,
+                response.getFstEnrUsid(),
+                response.getLstChgUsid(),
+                response::setFstEnrUsNm,
+                response::setLstChgUsNm);
         List<Bproja> steps = bprojaRepository.findByAbusMngNoAndDelYn(project.getAbusMngNo(), "N");
         response.setStsTc(representativeStatus(steps, project.getAbusMngNo()));
         response.setBprojaStsCodes(

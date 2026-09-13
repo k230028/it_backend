@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
@@ -388,6 +389,56 @@ class ProjectQueryAssemblerTest {
         assertThat(result.getTlrUsidNm()).isEqualTo("김팀장");
         assertThat(result.getUsid()).isNull();
         assertThat(result.getTlrUsid()).isNull();
+    }
+
+    @Test
+    @DisplayName("상세 조립: 최초 작성자·최근 수정자 사번을 배치 조회 한 번으로 이름으로 채운다")
+    void assembleDetail_감사자명_배치조회로채움() {
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-AUDIT")
+                        .sno(1)
+                        .delYn("N")
+                        .fstEnrUsid("K100001")
+                        .lstChgUsid("K100002")
+                        .build();
+        given(userRepository.findNameViewsByEnoIn(anyCollection()))
+                .willReturn(
+                        List.of(
+                                new UserNameView("K100001", "작성자", "대리"),
+                                new UserNameView("K100002", "수정자", "과장")));
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getFstEnrUsid()).isEqualTo("K100001");
+        assertThat(result.getFstEnrUsNm()).isEqualTo("작성자");
+        assertThat(result.getLstChgUsid()).isEqualTo("K100002");
+        assertThat(result.getLstChgUsNm()).isEqualTo("수정자");
+        then(userRepository)
+                .should()
+                .findNameViewsByEnoIn(
+                        argThat(enos -> enos.containsAll(List.of("K100001", "K100002"))));
+    }
+
+    @Test
+    @DisplayName("상세 조립: 감사자 사번이 미해석(DB 기본값·퇴직)이면 이름은 비우고 사번은 그대로 둔다")
+    void assembleDetail_감사자미해석_사번유지_이름null() {
+        Bprojm project =
+                Bprojm.builder()
+                        .abusMngNo("PRJ-AUDIT-LEGACY")
+                        .sno(1)
+                        .delYn("N")
+                        .fstEnrUsid("00000000000000")
+                        .lstChgUsid("K999999")
+                        .build();
+        given(userRepository.findNameViewsByEnoIn(anyCollection())).willReturn(List.of());
+
+        ProjectDto.Response result = assembler.assembleDetail(project);
+
+        assertThat(result.getFstEnrUsid()).isEqualTo("00000000000000");
+        assertThat(result.getFstEnrUsNm()).isNull();
+        assertThat(result.getLstChgUsid()).isEqualTo("K999999");
+        assertThat(result.getLstChgUsNm()).isNull();
     }
 
     @Test

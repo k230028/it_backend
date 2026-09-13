@@ -351,7 +351,12 @@ public class CostDto extends CostQueryDto {
                 "apfMngNo",
                 "apfSts",
                 "apfStsC",
-                "lstChgDtm"
+                "fstEnrDtm",
+                "fstEnrUsid",
+                "fstEnrUsNm",
+                "lstChgDtm",
+                "lstChgUsid",
+                "lstChgUsNm"
             })
     public static class Response {
         /** 전산관리비관리번호 (BG_NO) */
@@ -571,9 +576,29 @@ public class CostDto extends CostQueryDto {
         @Schema(description = "신청서 상세 정보")
         private ApplicationInfoDto applicationInfo;
 
+        /** 최초 등록 일시 (BaseEntity FST_ENR_DTM) */
+        @Schema(description = "최초생성시간", example = "2026-01-05T09:12:00", nullable = true)
+        private LocalDateTime fstEnrDtm;
+
+        /** 최초 등록자 사번 (BaseEntity FST_ENR_USID) */
+        @Schema(description = "최초생성자 사번", example = "K140024", nullable = true)
+        private String fstEnrUsid;
+
+        /** 최초 등록자 이름 — 사번 조회로 채우며 미해석(퇴직·DB 기본값)이면 null */
+        @Schema(description = "최초생성자명", example = "홍길동", nullable = true)
+        private String fstEnrUsNm;
+
         /** 최종변경일시 (BaseEntity LST_CHG_DTM — 목록 기본 정렬(최근 수정순)에 사용) */
         @Schema(description = "최종변경일시", example = "2026-07-01T10:30:00", nullable = true)
         private LocalDateTime lstChgDtm;
+
+        /** 마지막 수정자 사번 (BaseEntity LST_CHG_USID) */
+        @Schema(description = "마지막수정자 사번", example = "K140024", nullable = true)
+        private String lstChgUsid;
+
+        /** 마지막 수정자 이름 — 사번 조회로 채우며 미해석이면 null */
+        @Schema(description = "마지막수정자명", example = "홍길동", nullable = true)
+        private String lstChgUsNm;
 
         /** 개정본 동시성 스탬프. 상세 조회에서만 채우며, 저장 요청에 그대로 되돌려 보낸다. */
         @Schema(
@@ -615,7 +640,10 @@ public class CostDto extends CostQueryDto {
                     .cncdRfrNo(entity.getCncdRfrNo()) // 관련전산업무비번호
                     .fcAmt(entity.getFcAmt()) // 외화금액
                     .delYn(entity.getDelYn()) // 삭제여부
+                    .fstEnrDtm(entity.getFstEnrDtm()) // 최초생성시간
+                    .fstEnrUsid(entity.getFstEnrUsid()) // 최초생성자 사번
                     .lstChgDtm(entity.getLstChgDtm()) // 최종변경일시 (목록 기본 정렬용)
+                    .lstChgUsid(entity.getLstChgUsid()) // 마지막수정자 사번
                     .build();
         }
 
