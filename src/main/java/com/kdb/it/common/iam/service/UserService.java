@@ -90,14 +90,14 @@ public class UserService {
     }
 
     /**
-     * 사용자 검색 (이름·팀명·사번 부분 일치)
+     * 사용자 검색 (이름·사번·직위명·팀명 부분 일치)
      *
      * <p>분기:
      *
      * <ul>
      *   <li>keyword 비어있고 orgCode 지정 → 해당 부서 사용자 전체 (멘션 default 목록용)
      *   <li>keyword 비어있고 orgCode도 비어있음 → 빈 리스트 (전체 사용자 dump 방지)
-     *   <li>keyword 있음 → 전체 조직 대상 이름·팀명·사번 LIKE 검색 + orgCode 있으면 부서 필터링
+     *   <li>keyword 있음 → 전체 조직 대상 이름·사번·직위명·팀명 LIKE 검색 + orgCode 있으면 부서 필터링
      * </ul>
      *
      * <p>전체 조직이 대상이므로 검색어는 {@link #MIN_KEYWORD_LENGTH}자 이상이어야 하며 결과는 {@link
@@ -107,7 +107,7 @@ public class UserService {
      *
      * <p>{@code enoPrefix}를 주면 해당 접두사로 시작하는 행번만 반환하며, 필터는 결과 상한 절단보다 먼저 DB에서 적용됩니다.
      *
-     * @param keyword 검색어 (이름·팀명·사번 부분 일치, null/blank 허용)
+     * @param keyword 검색어 (이름·사번·직위명·팀명 부분 일치, null/blank 허용)
      * @param orgCode 부서코드 (null이면 전체 부서 대상)
      * @param enoPrefix 행번({@code ENO}) 접두사 필터 (null·공백이면 전체)
      * @return 검색 결과 사용자 목록 DTO (최대 {@link #SEARCH_RESULT_LIMIT}건)

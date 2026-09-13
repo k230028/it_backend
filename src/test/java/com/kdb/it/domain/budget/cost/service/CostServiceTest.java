@@ -438,9 +438,66 @@ class CostServiceTest {
     void deleteCost_존재하지않는관리번호_IllegalArgumentException발생() {
         given(costRepository.findVersionForUpdate(IT_MNGC_NO, 1)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 1))
+        assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 1, VALID_STAMP))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(IT_MNGC_NO);
+    }
+
+    @Test
+    @DisplayName("deleteCost: 동시성 스탬프가 없으면 400 COST_STAMP_REQUIRED로 거부하고 삭제하지 않는다")
+    void deleteCost_스탬프없음_400() {
+        Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
+        given(cost.getCostSvnDpmC()).willReturn("BBR001");
+        given(costRepository.findVersionForUpdate(IT_MNGC_NO, 1)).willReturn(Optional.of(cost));
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+        try {
+            assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 1, null))
+                    .isInstanceOf(
+                            com.kdb.it.domain.budget.cost.exception.CostConflictException.class)
+                    .hasMessageContaining("동시성 스탬프");
+            verify(cost, org.mockito.Mockito.never()).delete();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("deleteCost: 다른 사용자가 먼저 수정해 스탬프가 다르면 409로 거부하고 삭제하지 않는다")
+    void deleteCost_스탬프불일치_409() {
+        Bcostm cost = org.mockito.Mockito.mock(Bcostm.class);
+        given(cost.getCostSvnDpmC()).willReturn("BBR001");
+        given(cost.getCostBgNo()).willReturn(IT_MNGC_NO);
+        given(cost.getBgSno()).willReturn(1);
+        given(costRepository.findVersionForUpdate(IT_MNGC_NO, 1)).willReturn(Optional.of(cost));
+        // 불일치 응답 본문에 현재 개정본을 싣기 위한 재조회
+        given(costRepository.findByCostBgNoAndBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
+                .willReturn(Optional.of(cost));
+        CustomUserDetails admin =
+                new CustomUserDetails("10001", List.of(CustomUserDetails.ATH_ADMIN), "BBR001");
+        org.springframework.security.core.Authentication auth =
+                mock(org.springframework.security.core.Authentication.class);
+        org.springframework.security.core.context.SecurityContext ctx =
+                mock(org.springframework.security.core.context.SecurityContext.class);
+        given(auth.getPrincipal()).willReturn(admin);
+        given(ctx.getAuthentication()).willReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+        try {
+            assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 1, "b".repeat(64)))
+                    .isInstanceOf(
+                            com.kdb.it.domain.budget.cost.exception.CostConflictException.class)
+                    .hasMessageContaining("다른 사용자");
+            verify(cost, org.mockito.Mockito.never()).delete();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 
     // ───────────────────────────────────────────────────────
@@ -980,7 +1037,7 @@ class CostServiceTest {
             given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1)).willReturn(List.of());
 
             // when
-            costService.deleteCost(IT_MNGC_NO, 1);
+            costService.deleteCost(IT_MNGC_NO, 1, VALID_STAMP);
 
             // then: cost.delete() 호출 확인 (Soft Delete 검증)
             verify(cost).delete();
@@ -1573,7 +1630,7 @@ class CostServiceTest {
             given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 1))
                     .willReturn(List.of(terminal));
 
-            costService.deleteCost(IT_MNGC_NO, 1);
+            costService.deleteCost(IT_MNGC_NO, 1, VALID_STAMP);
 
             verify(cost).delete();
             verify(terminal).delete();
@@ -2866,7 +2923,7 @@ class CostServiceTest {
             Bcostm draft = revision(3, "N");
             given(costRepository.findVersionForUpdate(IT_MNGC_NO, 3))
                     .willReturn(Optional.of(draft));
-            asUser(true, () -> costService.deleteCost(IT_MNGC_NO, 3));
+            asUser(true, () -> costService.deleteCost(IT_MNGC_NO, 3, VALID_STAMP));
             var ordered =
                     org.mockito.Mockito.inOrder(
                             costRepository, capplaRepository, draft, btermmRepository);
@@ -2888,7 +2945,7 @@ class CostServiceTest {
             given(btermmRepository.findByTermBgNoAndTermBgSno(IT_MNGC_NO, 3))
                     .willReturn(List.of(terminal));
 
-            asUser(false, () -> costService.deleteCost(IT_MNGC_NO, 3));
+            asUser(false, () -> costService.deleteCost(IT_MNGC_NO, 3, VALID_STAMP));
 
             verify(target).delete();
             verify(terminal).delete();
@@ -2899,7 +2956,7 @@ class CostServiceTest {
         @Test
         @DisplayName("순번이 없으면 어떤 전산업무비 이력도 조회하거나 삭제하지 않는다")
         void exactRevisionDelete_rejectsMissingSno() {
-            assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, null))
+            assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, null, VALID_STAMP))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("순번");
 
@@ -2933,7 +2990,10 @@ class CostServiceTest {
             asUser(
                     true,
                     () ->
-                            assertThatThrownBy(() -> costService.deleteCost(IT_MNGC_NO, 2))
+                            assertThatThrownBy(
+                                            () ->
+                                                    costService.deleteCost(
+                                                            IT_MNGC_NO, 2, VALID_STAMP))
                                     .isInstanceOf(IllegalStateException.class)
                                     .hasMessageContaining("임시저장·작성완료·반려·회수"));
 

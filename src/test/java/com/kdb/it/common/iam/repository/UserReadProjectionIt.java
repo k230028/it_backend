@@ -100,8 +100,8 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
     }
 
     @Test
-    @DisplayName("키워드 검색은 이름·팀명·사번을 대상으로 하고 삭제 필터 없이 조직 없는 사용자도 반환한다")
-    void searchListRowsByKeyword_matchesNameTeamAndEno() {
+    @DisplayName("키워드 검색은 이름·사번·직위명·팀명을 대상으로 하고 삭제 필터 없이 조직 없는 사용자도 반환한다")
+    void searchListRowsByKeyword_matchesNameEnoTitleAndTeam() {
         // 이름 부분 일치 — 삭제된 사용자(BE03002)도 기존 정책대로 포함한다
         assertThat(userRepository.searchListRowsByKeyword("길동", null, SEARCH_LIMIT))
                 .filteredOn(row -> row.eno().startsWith("BE03"))
@@ -118,6 +118,12 @@ class UserReadProjectionIt extends AbstractOracleRepositoryTest {
         assertThat(userRepository.searchListRowsByKeyword("테스트팀", null, SEARCH_LIMIT))
                 .extracting(row -> row.eno())
                 .contains("BE03001", "BE03002", "BE03003");
+
+        // 직위명 부분 일치 — 이름·팀명에 없는 검색어라도 직위로 찾는다
+        assertThat(userRepository.searchListRowsByKeyword("팀장", null, SEARCH_LIMIT))
+                .filteredOn(row -> row.eno().startsWith("BE03"))
+                .extracting(row -> row.eno())
+                .containsExactly("BE03001");
 
         // 사번 부분 일치(대소문자 무시)와 이름 오름차순 정렬
         List<String> names =

@@ -186,12 +186,13 @@ public class UserRepositoryImpl implements UserRepositoryCustom {
         QCuserI user = QCuserI.cuserI;
         QCorgnI organization = new QCorgnI("searchOrganization");
         return selectListRows(user, organization)
-                // 이름·팀명·사번 중 하나라도 부분 일치하면 결과에 포함한다 (대소문자 무시)
+                // 이름·사번·직위명·팀명 중 하나라도 부분 일치하면 결과에 포함한다 (대소문자 무시)
                 .where(
                         user.usrNm
                                 .containsIgnoreCase(keyword)
-                                .or(user.temNm.containsIgnoreCase(keyword))
-                                .or(user.eno.containsIgnoreCase(keyword)),
+                                .or(user.eno.containsIgnoreCase(keyword))
+                                .or(user.ptCNm.containsIgnoreCase(keyword))
+                                .or(user.temNm.containsIgnoreCase(keyword)),
                         // 행번 접두사 필터를 상한 절단보다 먼저 DB에서 적용해
                         // 접두사에 맞는 사용자만 limit건을 채우게 한다.
                         enoPrefixFilter(user, enoPrefix))

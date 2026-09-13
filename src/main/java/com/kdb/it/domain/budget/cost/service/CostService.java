@@ -514,9 +514,20 @@ public class CostService {
         return target.getCostBgNo();
     }
 
-    /** 지정한 전산업무비 개정본과 그 순번에 연결된 단말기만 논리 삭제합니다. */
+    /**
+     * 지정한 전산업무비 개정본과 그 순번에 연결된 단말기만 논리 삭제합니다.
+     *
+     * <p>수정과 같은 동시성 스탬프 규칙을 적용합니다. 같은 부서의 다른 사용자가 화면을 조회한 뒤 이 개정본을 고쳤다면 옛 화면의 삭제는 409 {@code
+     * COST_SOURCE_CHANGED}로 거부해 방금 반영된 변경이 조용히 사라지지 않게 합니다.
+     *
+     * @param itMngcNo 전산업무비 관리번호
+     * @param bgSno 삭제할 개정본 순번 (1 이상)
+     * @param concurrencyStamp 화면이 조회 시점에 받은 동시성 스탬프. 없거나 형식이 다르면 400 {@code COST_STAMP_REQUIRED}
+     * @throws IllegalArgumentException 순번이 없거나 개정본이 존재하지 않는 경우
+     * @throws com.kdb.it.domain.budget.cost.exception.CostConflictException 스탬프가 없거나 현재 개정본과 다른 경우
+     */
     @Transactional
-    public void deleteCost(String itMngcNo, Integer bgSno) {
+    public void deleteCost(String itMngcNo, Integer bgSno, String concurrencyStamp) {
         if (bgSno == null || bgSno < 1) {
             throw new IllegalArgumentException("삭제할 전산업무비 순번이 필요합니다.");
         }
@@ -533,6 +544,8 @@ public class CostService {
                                                         + bgSno));
         OwnershipVerifier.verifySameDepartmentOrAdmin(cost.getCostSvnDpmC());
         approvalWriteGuard.verifyDeletable(COST_TABLE, itMngcNo, bgSno);
+        // 잠근 개정본의 현재 스탬프와 비교한다. 삭제는 본문이 없으므로 스탬프만 따로 받는다.
+        concurrencyGuard.verifyStamp(concurrencyStamp, cost, nameResolver::resolveCgprName);
         cost.delete();
         btermmRepository.findByTermBgNoAndTermBgSno(itMngcNo, bgSno).forEach(Btermm::delete);
     }

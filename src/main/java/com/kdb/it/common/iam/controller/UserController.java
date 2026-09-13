@@ -85,7 +85,7 @@ public class UserController {
     }
 
     /**
-     * 사용자 검색 (이름·팀명·사번)
+     * 사용자 검색 (이름·사번·직위명·팀명)
      *
      * <p>전체 조직을 대상으로 사용자명(USR_NM)·팀명(TEM_NM)·사번(ENO)에 검색어를 포함하는 사용자 목록을 반환합니다. 부서코드(orgCode)를 추가로
      * 전달하면 해당 부서 소속만 필터링합니다.
@@ -94,16 +94,16 @@ public class UserController {
      *
      * <p>{@code enoPrefix}를 주면 해당 접두사로 시작하는 행번만 반환합니다. (예: {@code K} → K로 시작하는 행번만)
      *
-     * @param keyword 검색어 (이름·팀명·사번 부분 일치)
+     * @param keyword 검색어 (이름·사번·직위명·팀명 부분 일치)
      * @param orgCode 부서코드 (선택, 미입력 시 전체 조직 대상)
      * @param enoPrefix 행번(ENO) 접두사 필터 (선택, 미입력 시 전체)
      * @return HTTP 200 + 검색 결과 사용자 목록
      */
     @GetMapping("/search")
     @Operation(
-            summary = "사용자 검색 (이름·팀명·사번)",
+            summary = "사용자 검색 (이름·사번·직위·팀명)",
             description =
-                    "전체 조직에서 이름·팀명·사번 부분 일치로 검색합니다(2자 이상, 결과 건수 제한). "
+                    "전체 조직에서 이름·사번·직위명·팀명 부분 일치로 검색합니다(2자 이상, 결과 건수 제한). "
                             + "keyword 비어있고 orgCode 지정 시 해당 부서 사용자 전체 반환. 둘 다 비어있으면 빈 리스트. "
                             + "enoPrefix를 주면 해당 접두사 행번만 반환합니다.")
     public ResponseEntity<List<UserDto.ListResponse>> searchUsers(

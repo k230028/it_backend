@@ -354,10 +354,12 @@ class CostControllerTest {
         mockMvc.perform(
                         delete("/api/cost/COST_2026_0001")
                                 .param("sno", "2")
+                                .param("concurrencyStamp", "a".repeat(64))
                                 .with(authentication(adminAuthentication())))
                 .andExpect(status().isNoContent());
 
-        verify(costService).deleteCost("COST_2026_0001", 2);
+        // 스탬프는 컨트롤러가 검증하지 않고 서비스에 그대로 넘긴다(수정과 같은 규칙으로 서비스가 판정)
+        verify(costService).deleteCost("COST_2026_0001", 2, "a".repeat(64));
     }
 
     @Test

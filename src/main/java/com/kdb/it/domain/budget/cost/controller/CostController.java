@@ -281,16 +281,29 @@ public class CostController {
      *
      * @param itMngcNo 삭제할 전산관리비 관리번호
      *     <p>임시저장·작성완료·반려·회수 상태인 지정 순번의 전산업무비와 단말기만 삭제합니다.
-     * @return HTTP 204 (본문 없음), HTTP 404 전산관리비가 없는 경우
+     * @param bgSno 삭제할 개정본 순번
+     * @param concurrencyStamp 화면이 조회 시점에 받은 동시성 스탬프. 수정과 같은 규칙으로 검증해 다른 사용자가 고친 개정본을 옛 화면에서 삭제하지
+     *     못하게 합니다.
+     * @return HTTP 204 (본문 없음), HTTP 404 전산관리비가 없는 경우, HTTP 409 다른 사용자가 먼저 수정한 경우
      */
-    @Operation(summary = "전산관리비 삭제", description = "전산관리비를 삭제(Soft Delete)합니다.")
+    @Operation(
+            summary = "전산관리비 삭제",
+            description =
+                    "전산관리비를 삭제(Soft Delete)합니다. concurrencyStamp가 현재 개정본과 다르면 409 COST_SOURCE_CHANGED로 거부합니다.")
     @ApiResponses(
             value = {
                 @ApiResponse(responseCode = "204", description = "삭제 성공", content = @Content),
-                @ApiResponse(responseCode = "400", description = "삭제 불가", content = @Content),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "삭제 불가 또는 동시성 스탬프 누락",
+                        content = @Content),
                 @ApiResponse(
                         responseCode = "404",
                         description = "존재하지 않는 전산관리비",
+                        content = @Content),
+                @ApiResponse(
+                        responseCode = "409",
+                        description = "다른 사용자가 먼저 수정한 전산관리비",
                         content = @Content)
             })
     @DeleteMapping("/{itMngcNo}")
@@ -300,11 +313,14 @@ public class CostController {
                     String itMngcNo,
             @Parameter(description = "삭제할 전산업무비 순번", required = true, example = "1")
                     @RequestParam(value = "sno", required = false)
-                    Integer bgSno) {
+                    Integer bgSno,
+            @Parameter(description = "조회 시점의 동시성 스탬프 (64자 hex)", required = true)
+                    @RequestParam(value = "concurrencyStamp", required = false)
+                    String concurrencyStamp) {
         if (bgSno == null || bgSno < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "삭제할 전산업무비 순번이 필요합니다.");
         }
-        costService.deleteCost(itMngcNo, bgSno);
+        costService.deleteCost(itMngcNo, bgSno, concurrencyStamp);
         return ResponseEntity.noContent().build();
     }
 

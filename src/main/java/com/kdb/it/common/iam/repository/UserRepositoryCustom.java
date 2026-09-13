@@ -42,7 +42,7 @@ public interface UserRepositoryCustom {
     List<UserDto.ListRow> findListRowsByBbrC(String bbrC, String enoPrefix);
 
     /**
-     * 전체 조직을 대상으로 사용자명·팀명·사번을 부분 일치(대소문자 무시) 검색합니다.
+     * 전체 조직을 대상으로 사용자명·사번·직위명·팀명을 부분 일치(대소문자 무시) 검색합니다.
      *
      * <p>결과는 K 행번 우선, 직위코드({@code PT_C}) 오름차순, 사용자명·사번 오름차순으로 정렬하고 {@code limit}건까지만 반환합니다. 전체 조직이
      * 대상이라 상한 없이 조회하면 응답이 과도하게 커질 수 있습니다. 상한 절단은 정렬 이후에 적용되므로 우선순위가 높은 사용자가 먼저 남습니다.
