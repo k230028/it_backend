@@ -3,6 +3,7 @@ package com.kdb.it.exception;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ErrorResponse;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.common.mfa.exception.MfaException;
+import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.domain.budget.cost.dto.CostConflictResponse;
 import com.kdb.it.domain.budget.cost.exception.CostConflictException;
 import com.kdb.it.domain.budget.project.dto.ProjectConflictResponse;
@@ -344,6 +345,20 @@ public class GlobalExceptionHandler {
         }
         log.warn("런타임 예외 발생: {}", e.getMessage(), e);
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "요청을 처리할 수 없습니다.");
+    }
+
+    /**
+     * 다중 탭에서 Refresh Token 회전 요청이 겹친 경우 재시도 가능한 충돌로 반환합니다.
+     *
+     * <p>이미 다른 요청이 새 인증 쿠키를 발급했을 수 있으므로 이 응답에서는 쿠키를 삭제하지 않습니다.
+     *
+     * @param e 동시 Refresh Token 회전 예외
+     * @return 409 응답 + 재시도 안내 메시지
+     */
+    @ExceptionHandler(ConcurrentRefreshException.class)
+    public ResponseEntity<String> handleConcurrentRefresh(ConcurrentRefreshException e) {
+        log.info("Refresh Token 동시 갱신 충돌: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
     }
 
     /**

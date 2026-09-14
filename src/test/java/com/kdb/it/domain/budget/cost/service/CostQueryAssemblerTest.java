@@ -241,8 +241,17 @@ class CostQueryAssemblerTest {
                         .build();
         given(terminalRepository.findByTermBgNoAndTermBgSnoAndDelYn("COST-DETAIL", 2, "N"))
                 .willReturn(List.of(terminal));
-        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-PREV"), "2026"))
-                .willReturn(java.util.Map.of("COST-PREV", BigDecimal.valueOf(900)));
+        given(
+                        costRepository.findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+                                List.of("COST-PREV"), "2026", "Y", "N"))
+                .willReturn(
+                        List.of(
+                                Bcostm.builder()
+                                        .costBgNo("COST-PREV")
+                                        .curC("USD")
+                                        .fcAmt(BigDecimal.valueOf(900))
+                                        .costTotXpAmt(BigDecimal.valueOf(1_350_000))
+                                        .build()));
 
         CostDto.Response result = assembler.assembleDetail(cost);
 
@@ -259,6 +268,7 @@ class CostQueryAssemblerTest {
         assertThat(result.getAbusTcNm()).isEqualTo("계속");
         assertThat(result.getIoeCNm()).isEqualTo("개발비");
         assertThat(result.getPrevBgAmt()).isEqualByComparingTo("900");
+        assertThat(result.getPrevCurC()).isEqualTo("USD");
         assertThat(result.getAssetBg()).isEqualByComparingTo("1000");
         assertThat(result.getDvcBg()).isEqualByComparingTo("1000");
         assertThat(result.getTerminals())
@@ -295,8 +305,16 @@ class CostQueryAssemblerTest {
         given(userRepository.findNameViewsByEnoIn(any()))
                 .willReturn(List.of(new UserView("10001", "담당자", "과장")));
         stubCodes();
-        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-PREV"), "2026"))
-                .willReturn(java.util.Map.of("COST-PREV", BigDecimal.valueOf(900)));
+        given(
+                        costRepository.findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+                                List.of("COST-PREV"), "2026", "Y", "N"))
+                .willReturn(
+                        List.of(
+                                Bcostm.builder()
+                                        .costBgNo("COST-PREV")
+                                        .curC("USD")
+                                        .fcAmt(BigDecimal.valueOf(900))
+                                        .build()));
         given(budgetRepository.sumDupBgByItMngcNos(List.of("COST-PREV"), "2026"))
                 .willReturn(java.util.Map.of("COST-PREV", BigDecimal.valueOf(700)));
 
@@ -305,6 +323,7 @@ class CostQueryAssemblerTest {
         assertThat(result.getCostSvnDpmNm()).isEqualTo("정보기술부");
         assertThat(result.getCgprNm()).isEqualTo("담당자");
         assertThat(result.getPrevBgAmt()).isEqualByComparingTo("900");
+        assertThat(result.getPrevCurC()).isEqualTo("USD");
         assertThat(result.getPrevDupBg()).isEqualByComparingTo("700");
     }
 

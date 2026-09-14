@@ -346,6 +346,7 @@ public class CostDto extends CostQueryDto {
                 "assetDupBg",
                 "costDupBg",
                 "prevBgAmt",
+                "prevCurC",
                 "prevDupBg",
                 "delYn",
                 "apfMngNo",
@@ -541,6 +542,10 @@ public class CostDto extends CostQueryDto {
          */
         @Schema(description = "전년도 예산 (계속 항목은 전년도 예산 합계 — 외화 행은 외화금액 기준, 신규는 0)", nullable = true)
         private BigDecimal prevBgAmt;
+
+        /** 전년도 예산 통화: 전년도 원장의 CUR_C이며 당해 통화 변경과 무관합니다. */
+        @Schema(description = "전년도 예산 통화", example = "USD", nullable = true)
+        private String prevCurC;
 
         /** 전년도 BBUGTM 편성예산: 계속 항목의 cncdRfrNo 기준 bseYy-1 DUP_BG 합계, 신규는 0 */
         @Schema(

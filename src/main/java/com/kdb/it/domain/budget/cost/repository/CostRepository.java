@@ -152,6 +152,10 @@ public interface CostRepository extends JpaRepository<Bcostm, BcostmId>, CostRep
     Optional<Bcostm> findByCostBgNoAndBseYyAndLstYnAndDelYn(
             String costBgNo, String bseYy, String lstYn, String delYn);
 
+    /** 전년도 예산 금액과 통화를 관리번호 집합으로 한 번에 조회합니다. */
+    List<Bcostm> findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+            java.util.Collection<String> costBgNos, String bseYy, String lstYn, String delYn);
+
     /** 금융정보단말기 일괄업로드 대상인지까지 확인하는 최신 전산업무비 조회입니다. */
     Optional<Bcostm> findByCostBgNoAndBseYyAndLstYnAndTmnYnAndDelYn(
             String costBgNo, String bseYy, String lstYn, String tmnYn, String delYn);

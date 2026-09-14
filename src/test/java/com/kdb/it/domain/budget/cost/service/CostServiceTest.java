@@ -1868,12 +1868,21 @@ class CostServiceTest {
                         .build();
         given(costRepository.findByCostBgNoAndDelYn("COST-2026-0004", "N"))
                 .willReturn(List.of(cost));
-        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2026-0023"), "2025"))
-                .willReturn(java.util.Map.of("COST-2026-0023", BigDecimal.valueOf(4_200_000)));
+        given(
+                        costRepository.findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+                                List.of("COST-2026-0023"), "2025", "Y", "N"))
+                .willReturn(
+                        List.of(
+                                Bcostm.builder()
+                                        .costBgNo("COST-2026-0023")
+                                        .curC("KRW")
+                                        .costTotXpAmt(BigDecimal.valueOf(4_200_000))
+                                        .build()));
 
         CostDto.Response result = costService.getCost("COST-2026-0004");
 
         assertThat(result.getPrevBgAmt()).isEqualByComparingTo("4200000");
+        assertThat(result.getPrevCurC()).isEqualTo("KRW");
     }
 
     @Test
@@ -1951,8 +1960,16 @@ class CostServiceTest {
         given(btermmRepository.findByTermBgNoAndTermBgSnoAndDelYn(IT_MNGC_NO, 1, "N"))
                 .willReturn(List.of());
         // 전년도 예산은 cncdRfrNo(전년도 항목 관리번호) 기준으로 조회한다
-        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2025-0001"), "2025"))
-                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(900)));
+        given(
+                        costRepository.findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+                                List.of("COST-2025-0001"), "2025", "Y", "N"))
+                .willReturn(
+                        List.of(
+                                Bcostm.builder()
+                                        .costBgNo("COST-2025-0001")
+                                        .curC("KRW")
+                                        .costTotXpAmt(BigDecimal.valueOf(900))
+                                        .build()));
         given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-2025-0001"), "2025"))
                 .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(800)));
 
@@ -1997,8 +2014,16 @@ class CostServiceTest {
                         .delYn("N")
                         .build();
         given(costRepository.findAllByDelYn("N")).willReturn(List.of(prev2025, cont2026));
-        given(costRepository.sumPrevBgByCostBgNos(List.of("COST-2025-0001"), "2025"))
-                .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(90_000_000)));
+        given(
+                        costRepository.findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+                                List.of("COST-2025-0001"), "2025", "Y", "N"))
+                .willReturn(
+                        List.of(
+                                Bcostm.builder()
+                                        .costBgNo("COST-2025-0001")
+                                        .curC("KRW")
+                                        .costTotXpAmt(BigDecimal.valueOf(90_000_000))
+                                        .build()));
         given(bbugtmRepository.sumDupBgByItMngcNos(List.of("COST-2025-0001"), "2025"))
                 .willReturn(java.util.Map.of("COST-2025-0001", BigDecimal.valueOf(90_000_000)));
 

@@ -454,6 +454,7 @@ class ApiResponseOpenApiContractTest {
                 "assetDupBg",
                 "costDupBg",
                 "prevBgAmt",
+                "prevCurC",
                 "prevDupBg",
                 "delYn",
                 "apfMngNo",

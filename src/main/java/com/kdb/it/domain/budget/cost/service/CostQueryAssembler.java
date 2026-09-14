@@ -433,6 +433,7 @@ public class CostQueryAssembler {
 
     private void applyPreviousBudget(CostDto.Response response) {
         response.setPrevBgAmt(BigDecimal.ZERO);
+        response.setPrevCurC(null);
         if (!"20".equals(response.getAbusTc()) || !isYear(response.getBseYy())) {
             return;
         }
@@ -441,16 +442,19 @@ public class CostQueryAssembler {
             return;
         }
         String previousYear = previousYear(response.getBseYy());
-        response.setPrevBgAmt(
-                costRepository
-                        .sumPrevBgByCostBgNos(List.of(lookupKey), previousYear)
-                        .getOrDefault(lookupKey, BigDecimal.ZERO));
+        costRepository
+                .findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+                        List.of(lookupKey), previousYear, "Y", "N")
+                .stream()
+                .findFirst()
+                .ifPresent(previous -> applyPreviousBudget(response, previous));
     }
 
     private void applyPreviousBudgets(List<CostDto.Response> responses) {
         responses.forEach(
                 response -> {
                     response.setPrevBgAmt(BigDecimal.ZERO);
+                    response.setPrevCurC(null);
                     response.setPrevDupBg(BigDecimal.ZERO);
                 });
         Map<String, List<CostDto.Response>> responsesByYear =
@@ -468,16 +472,26 @@ public class CostQueryAssembler {
                             .distinct()
                             .toList();
             if (!previousBudgetKeys.isEmpty()) {
-                Map<String, BigDecimal> previousBudgets =
-                        costRepository.sumPrevBgByCostBgNos(previousBudgetKeys, previousYear);
+                Map<String, Bcostm> previousBudgets =
+                        costRepository
+                                .findByCostBgNoInAndBseYyAndLstYnAndDelYn(
+                                        previousBudgetKeys, previousYear, "Y", "N")
+                                .stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                Bcostm::getCostBgNo,
+                                                previous -> previous,
+                                                (first, second) -> second));
                 yearGroup.stream()
                         .filter(response -> "20".equals(response.getAbusTc()))
                         .forEach(
-                                response ->
-                                        response.setPrevBgAmt(
-                                                previousBudgets.getOrDefault(
-                                                        previousBudgetKey(response),
-                                                        BigDecimal.ZERO)));
+                                response -> {
+                                    Bcostm previous =
+                                            previousBudgets.get(previousBudgetKey(response));
+                                    if (previous != null) {
+                                        applyPreviousBudget(response, previous);
+                                    }
+                                });
             }
             List<String> linkedCostNos =
                     yearGroup.stream()
@@ -497,6 +511,16 @@ public class CostQueryAssembler {
                                                         response.getCncdRfrNo(), BigDecimal.ZERO)));
             }
         }
+    }
+
+    private static void applyPreviousBudget(CostDto.Response response, Bcostm previous) {
+        String currency = hasText(previous.getCurC()) ? previous.getCurC() : "KRW";
+        BigDecimal amount =
+                !"KRW".equals(currency) && previous.getFcAmt() != null
+                        ? previous.getFcAmt()
+                        : previous.getCostTotXpAmt();
+        response.setPrevBgAmt(amount != null ? amount : BigDecimal.ZERO);
+        response.setPrevCurC(currency);
     }
 
     private void applyComposedBudgets(List<CostDto.Response> responses, String budgetYear) {

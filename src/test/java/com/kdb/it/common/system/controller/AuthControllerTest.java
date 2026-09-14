@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.mfa.controller.MfaController;
 import com.kdb.it.common.system.dto.AuthDto;
+import com.kdb.it.common.system.exception.ConcurrentRefreshException;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.common.system.security.JwtUtil;
 import com.kdb.it.common.system.service.AuthService;
@@ -592,6 +593,23 @@ class AuthControllerTest {
                         .andReturn();
 
         assertBothDeleteCookies(result);
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/refresh - 동시 갱신 충돌은 409이며 인증 쿠키를 삭제하지 않는다")
+    void refresh_동시갱신충돌_409및쿠키유지() throws Exception {
+        given(authService.refreshAccessToken("concurrent-refresh-token"))
+                .willThrow(new ConcurrentRefreshException("토큰이 방금 갱신되었습니다. 잠시 후 다시 시도하세요."));
+
+        mockMvc.perform(
+                        post("/api/auth/refresh")
+                                .cookie(
+                                        new Cookie(
+                                                CookieUtil.REFRESH_TOKEN_COOKIE,
+                                                "concurrent-refresh-token")))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("토큰이 방금 갱신되었습니다. 잠시 후 다시 시도하세요."))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
 
     // -----------------------------------------------------------------------
