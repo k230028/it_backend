@@ -21,11 +21,69 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 
 class ItBudgetSnapshotObservationTest {
     @Test
+    void v3IntegrityFailureCountsAndLogsItsVersionWithoutRawValues() throws Exception {
+        Logger logger = (Logger) LoggerFactory.getLogger(ItBudgetSnapshotReader.class);
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        var registry = new SimpleMeterRegistry();
+        try (var context = context(registry)) {
+            var root = v3();
+            object(root, "/payload/ledger/aggregates/0/children/0/columns")
+                    .put("FC_AMT", "PRIVATE_JSON_VALUE");
+
+            assertThatThrownBy(
+                            () ->
+                                    context.getBean(ItBudgetSnapshotReader.class)
+                                            .read(root.toString()))
+                    .isInstanceOf(DataCorruptionException.class);
+            assertThat(
+                            registry.get("approval.it_budget.snapshot.integrity_failure")
+                                    .counter()
+                                    .count())
+                    .isEqualTo(1);
+            assertThat(appender.list)
+                    .singleElement()
+                    .satisfies(
+                            event -> {
+                                assertThat(event.getFormattedMessage())
+                                        .contains("version=v3", "outcome=integrity_failure")
+                                        .doesNotContain("PRIVATE_JSON_VALUE", "P1", "U1");
+                                assertThat(event.getThrowableProxy()).isNull();
+                            });
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
     void downgradedV2EnvelopeStillCountsAsIntegrityFailure() throws Exception {
         var registry = new SimpleMeterRegistry();
         try (var context = context(registry)) {
             var root = v2();
             object(root, "/form").put("version", 1);
+            assertThatThrownBy(
+                            () ->
+                                    context.getBean(ItBudgetSnapshotReader.class)
+                                            .read(root.toString()))
+                    .isInstanceOf(DataCorruptionException.class);
+            assertThat(
+                            registry.get("approval.it_budget.snapshot.integrity_failure")
+                                    .counter()
+                                    .count())
+                    .isEqualTo(1);
+            assertThat(registry.find("approval.it_budget.snapshot.legacy_read").counter()).isNull();
+        }
+    }
+
+    @Test
+    void downgradedV3EnvelopeStillCountsAsIntegrityFailure() throws Exception {
+        var registry = new SimpleMeterRegistry();
+        try (var context = context(registry)) {
+            var root = v3();
+            object(root, "/form").put("version", 1);
+
             assertThatThrownBy(
                             () ->
                                     context.getBean(ItBudgetSnapshotReader.class)

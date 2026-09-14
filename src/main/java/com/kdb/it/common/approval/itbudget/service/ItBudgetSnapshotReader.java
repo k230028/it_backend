@@ -6,7 +6,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto;
+import com.kdb.it.common.approval.itbudget.model.ItBudgetLedgerSnapshot;
 import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot;
+import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshotV3;
 import com.kdb.it.exception.DataCorruptionException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,12 +25,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/** 저장 신청서를 한 번 파싱하고 전산예산 v2의 구조·무결성을 검증한다. 원장을 다시 읽지 않는다. */
+/** 저장 신청서를 한 번 파싱하고 전산예산 버전별 구조·무결성을 검증한다. 원장을 다시 읽지 않는다. */
 @Component
 public final class ItBudgetSnapshotReader {
     private static final Logger log = LoggerFactory.getLogger(ItBudgetSnapshotReader.class);
@@ -65,58 +70,110 @@ public final class ItBudgetSnapshotReader {
             JsonNode tree = mapper.readTree(raw);
             if (!(tree instanceof ObjectNode root)) throw corrupt(tag, "신청서 상세 JSON은 객체여야 합니다.");
             JsonNode version = root.path("form").path("version");
-            tag = version.isIntegralNumber() && version.intValue() == 2 ? "v2" : "v1";
             String form = root.path("form").path("id").asText();
             boolean budget = "it-budget".equals(form) || "IT_BUDGET".equals(form);
             boolean envelope = root.has("integrity") || budget && root.has("payload");
-            // v2 봉투가 남아 있으면 버전 필드를 변조해도 v1 조회로 분류하지 않는다.
-            if (envelope) tag = "v2";
-            if (!budget && !envelope && !(version.isIntegralNumber() && version.intValue() == 2))
-                return new ParsedSnapshot(root, 1, null);
+            tag = versionTag(root, version, envelope);
+            if (!budget
+                    && !envelope
+                    && !(version.isIntegralNumber()
+                            && (version.intValue() == 2 || version.intValue() == 3)))
+                return new ParsedSnapshot(root, 1, null, null);
             if (budget
                     && !envelope
                     && (version.isMissingNode() || version.isInt() && version.intValue() == 1)) {
                 recordCounter("approval.it_budget.snapshot.legacy_read");
                 log.debug("전산예산 스냅샷 조회: version=v1, outcome=legacy_read");
-                return new ParsedSnapshot(root, 1, null);
+                return new ParsedSnapshot(root, 1, null, null);
             }
-            if (!"it-budget".equals(form) || !version.isInt() || version.intValue() != 2)
+            if (!"it-budget".equals(form) || !version.isInt())
                 throw corrupt("unknown", "지원하지 않는 전산예산 스냅샷 버전입니다.");
-            tag = "v2";
-            ObjectNode document = root.deepCopy();
-            JsonNode recall = document.remove("recallInfo");
-            if (recall != null) validateRecall(recall);
-            shape(document, ItBudgetApprovalDto.ItBudgetSnapshot.class);
-            var snapshot = mapper.treeToValue(document, ItBudgetApprovalDto.ItBudgetSnapshot.class);
-            validate(snapshot);
-            validateRoles(snapshot.approvalLine());
-            var integrity = snapshot.integrity();
-            if (!"SHA-256".equals(integrity.algorithm())
-                    || !"IT_BUDGET_V2".equals(integrity.canonicalization())
-                    || !digestFormat(integrity.payloadDigest()))
-                throw corrupt(tag, "스냅샷 무결성 메타데이터가 올바르지 않습니다.");
-            verifyIdentities(snapshot);
-            ItBudgetSnapshot.Payload payload =
-                    ItBudgetSnapshotCodec.toInternal(mapper, snapshot.payload());
-            if (!MessageDigest.isEqual(
-                    canonical.digest(payload).getBytes(StandardCharsets.UTF_8),
-                    integrity.payloadDigest().getBytes(StandardCharsets.UTF_8)))
-                throw corrupt(tag, "전산예산 스냅샷 payloadDigest가 일치하지 않습니다.");
-            return new ParsedSnapshot(root, 2, payload);
+            return switch (version.intValue()) {
+                case 2 -> readV2(root);
+                case 3 -> readV3(root);
+                default -> throw corrupt("unknown", "지원하지 않는 전산예산 스냅샷 버전입니다.");
+            };
         } catch (SnapshotCorruptionException exception) {
-            recordIntegrityFailure("v2".equals(tag) || "v2".equals(exception.versionTag()));
+            recordIntegrityFailure(
+                    modernTag(exception.versionTag()) ? exception.versionTag() : tag);
             throw exception;
         } catch (JsonProcessingException | IllegalArgumentException | DateTimeException exception) {
             // Jackson 예외의 메시지·cause에는 JSON 토큰/본문이 포함될 수 있어 외부 예외에 연결하지 않는다.
-            recordIntegrityFailure("v2".equals(tag));
+            recordIntegrityFailure(tag);
             throw corrupt(tag, "신청서 상세 JSON 또는 필수 값이 손상되었습니다.");
         }
     }
 
-    private void recordIntegrityFailure(boolean v2) {
-        if (!v2) return;
+    private ParsedSnapshot readV2(ObjectNode root) throws JsonProcessingException {
+        String tag = "v2";
+        ObjectNode document = root.deepCopy();
+        JsonNode recall = document.remove("recallInfo");
+        if (recall != null) validateRecall(recall, tag);
+        shape(document, ItBudgetApprovalDto.ItBudgetSnapshot.class, tag);
+        var snapshot = mapper.treeToValue(document, ItBudgetApprovalDto.ItBudgetSnapshot.class);
+        validate(snapshot, tag);
+        validateRoles(snapshot.approvalLine());
+        var integrity = snapshot.integrity();
+        if (!"SHA-256".equals(integrity.algorithm())
+                || !"IT_BUDGET_V2".equals(integrity.canonicalization())
+                || !digestFormat(integrity.payloadDigest()))
+            throw corrupt(tag, "스냅샷 무결성 메타데이터가 올바르지 않습니다.");
+        verifyIdentities(snapshot);
+        ItBudgetSnapshot.Payload payload =
+                ItBudgetSnapshotCodec.toInternal(mapper, snapshot.payload());
+        verifyDigest(payload, integrity.payloadDigest(), tag);
+        return new ParsedSnapshot(root, 2, payload, null);
+    }
+
+    private ParsedSnapshot readV3(ObjectNode root) throws JsonProcessingException {
+        String tag = "v3";
+        ObjectNode document = root.deepCopy();
+        JsonNode recall = document.remove("recallInfo");
+        if (recall != null) validateRecall(recall, tag);
+        shape(document, ItBudgetSnapshotV3Dto.ItBudgetSnapshot.class, tag);
+        validateLedgerScalars(document.path("payload").path("ledger"));
+        var snapshot = mapper.treeToValue(document, ItBudgetSnapshotV3Dto.ItBudgetSnapshot.class);
+        validate(snapshot, tag);
+        validateRoles(snapshot.approvalLine());
+        var integrity = snapshot.integrity();
+        if (!"SHA-256".equals(integrity.algorithm())
+                || !"IT_BUDGET_V3".equals(integrity.canonicalization())
+                || !digestFormat(integrity.payloadDigest()))
+            throw corrupt(tag, "스냅샷 무결성 메타데이터가 올바르지 않습니다.");
+        verifyIdentities(snapshot);
+        ItBudgetSnapshotV3.Payload v3Payload =
+                ItBudgetSnapshotV3Codec.toInternal(mapper, snapshot.payload());
+        validateLedger(v3Payload);
+        verifyDigest(v3Payload, integrity.payloadDigest(), tag);
+        return new ParsedSnapshot(root, 3, ItBudgetSnapshotV3Codec.toV2View(v3Payload), v3Payload);
+    }
+
+    private void verifyDigest(Object payload, String storedDigest, String tag) {
+        if (!MessageDigest.isEqual(
+                canonical.digest(payload).getBytes(StandardCharsets.UTF_8),
+                storedDigest.getBytes(StandardCharsets.UTF_8)))
+            throw corrupt(tag, "전산예산 스냅샷 payloadDigest가 일치하지 않습니다.");
+    }
+
+    private static String versionTag(ObjectNode root, JsonNode version, boolean envelope) {
+        if (envelope) {
+            String canonicalization = root.path("integrity").path("canonicalization").asText();
+            if ("IT_BUDGET_V3".equals(canonicalization)) return "v3";
+            if ("IT_BUDGET_V2".equals(canonicalization)) return "v2";
+        }
+        if (version.isIntegralNumber() && version.intValue() == 3) return "v3";
+        if (version.isIntegralNumber() && version.intValue() == 2) return "v2";
+        return "v1";
+    }
+
+    private static boolean modernTag(String tag) {
+        return "v2".equals(tag) || "v3".equals(tag);
+    }
+
+    private void recordIntegrityFailure(String tag) {
+        if (!modernTag(tag)) return;
         recordCounter("approval.it_budget.snapshot.integrity_failure");
-        log.warn("전산예산 스냅샷 무결성 검증 실패: version=v2, outcome=integrity_failure");
+        log.warn("전산예산 스냅샷 무결성 검증 실패: version={}, outcome=integrity_failure", tag);
     }
 
     private void recordCounter(String name) {
@@ -127,8 +184,8 @@ public final class ItBudgetSnapshotReader {
         }
     }
 
-    private void validate(Object value) {
-        if (!validator.validate(value).isEmpty()) throw corrupt("v2", "스냅샷 필수 값 또는 형식이 올바르지 않습니다.");
+    private void validate(Object value, String tag) {
+        if (!validator.validate(value).isEmpty()) throw corrupt(tag, "스냅샷 필수 값 또는 형식이 올바르지 않습니다.");
     }
 
     private void validateRoles(ItBudgetApprovalDto.SnapshotApprovalLine line) {
@@ -144,39 +201,58 @@ public final class ItBudgetSnapshotReader {
         }
     }
 
+    private void validateRoles(ItBudgetSnapshotV3Dto.SnapshotApprovalLine line) {
+        if (line.approvers().isEmpty()) throw corrupt("v3", "저장된 신청서의 결재선이 비어 있습니다.");
+        Set<ItBudgetApprovalDto.ApproverRole> fixedRoles = new HashSet<>();
+        int previousRole = -1;
+        for (var person : line.approvers()) {
+            var role = person.role();
+            if (role.ordinal() < previousRole
+                    || role != ItBudgetApprovalDto.ApproverRole.ADDITIONAL && !fixedRoles.add(role))
+                throw corrupt("v3", "결재 역할 또는 순서가 올바르지 않습니다.");
+            previousRole = role.ordinal();
+        }
+    }
+
     /** 선언되지 않은 필드는 거부하고, OpenAPI에서 선택값으로 표시한 record 필드만 누락을 허용한다. */
-    private void shape(JsonNode node, Type type) {
+    private void shape(JsonNode node, Type type, String tag) {
         if (node.isNull()) return;
         if (type instanceof ParameterizedType parameterized) {
-            if (!node.isArray()) throw corrupt("v2", "스냅샷 배열 형식이 올바르지 않습니다.");
-            for (JsonNode child : node) shape(child, parameterized.getActualTypeArguments()[0]);
+            if (parameterized.getRawType() instanceof Class<?> raw
+                    && Map.class.isAssignableFrom(raw)) {
+                if (!node.isObject()) throw corrupt(tag, "스냅샷 객체 형식이 올바르지 않습니다.");
+                return;
+            }
+            if (!node.isArray()) throw corrupt(tag, "스냅샷 배열 형식이 올바르지 않습니다.");
+            for (JsonNode child : node)
+                shape(child, parameterized.getActualTypeArguments()[0], tag);
             return;
         }
         Class<?> target = (Class<?>) type;
         if (target.isRecord()) {
-            if (!node.isObject()) throw corrupt("v2", "스냅샷 객체 형식이 올바르지 않습니다.");
+            if (!node.isObject()) throw corrupt(tag, "스냅샷 객체 형식이 올바르지 않습니다.");
             var components = target.getRecordComponents();
             Set<String> declared = new HashSet<>();
             for (var component : components) declared.add(component.getName());
             if (!node.propertyStream().allMatch(entry -> declared.contains(entry.getKey())))
-                throw corrupt("v2", "스냅샷 필드가 누락되었거나 추가되었습니다.");
+                throw corrupt(tag, "스냅샷 필드가 누락되었거나 추가되었습니다.");
             for (var component : components) {
                 JsonNode child = node.get(component.getName());
                 if (child == null) {
                     if (isOptional(component)) continue;
-                    throw corrupt("v2", "스냅샷 필수 필드가 없습니다.");
+                    throw corrupt(tag, "스냅샷 필수 필드가 없습니다.");
                 }
                 if (component.getType().isPrimitive() && child.isNull())
-                    throw corrupt("v2", "스냅샷 필수 필드가 없습니다.");
-                shape(child, component.getGenericType());
+                    throw corrupt(tag, "스냅샷 필수 필드가 없습니다.");
+                shape(child, component.getGenericType(), tag);
             }
         } else if (target == int.class) {
             if (!node.isIntegralNumber() || !node.canConvertToInt())
-                throw corrupt("v2", "스냅샷 정수 형식이 올바르지 않습니다.");
+                throw corrupt(tag, "스냅샷 정수 형식이 올바르지 않습니다.");
         } else {
-            if (!node.isTextual()) throw corrupt("v2", "스냅샷 문자열 형식이 올바르지 않습니다.");
+            if (!node.isTextual()) throw corrupt(tag, "스냅샷 문자열 형식이 올바르지 않습니다.");
             if (target == LocalDate.class && !node.textValue().matches("\\d{4}-\\d{2}-\\d{2}"))
-                throw corrupt("v2", "스냅샷 날짜 형식이 올바르지 않습니다.");
+                throw corrupt(tag, "스냅샷 날짜 형식이 올바르지 않습니다.");
             if (target == Instant.class) OffsetDateTime.parse(node.textValue());
         }
     }
@@ -218,8 +294,187 @@ public final class ItBudgetSnapshotReader {
         if (!actual.equals(expected)) throw corrupt("v2", "payload와 무결성 원장 식별자가 다릅니다.");
     }
 
+    private void verifyIdentities(ItBudgetSnapshotV3Dto.ItBudgetSnapshot snapshot) {
+        Set<SourceIdentity> expected = new HashSet<>();
+        for (var project : snapshot.payload().projects()) {
+            addIdentity(
+                    expected,
+                    new SourceIdentity("PROJECT", project.id(), project.revision()),
+                    "v3");
+            Set<ChildIdentity> children = new HashSet<>();
+            for (var item : project.items()) {
+                if (item.revision() != project.revision()
+                        || !children.add(new ChildIdentity(item.id(), item.sequence())))
+                    throw corrupt("v3", "품목의 원장 식별자가 올바르지 않습니다.");
+            }
+        }
+        for (var cost : snapshot.payload().costs()) {
+            addIdentity(expected, new SourceIdentity("COST", cost.id(), cost.revision()), "v3");
+            Set<ChildIdentity> children = new HashSet<>();
+            for (var terminal : cost.terminals()) {
+                if (terminal.revision() != cost.revision()
+                        || !children.add(new ChildIdentity(terminal.id(), terminal.sequence())))
+                    throw corrupt("v3", "단말기의 원장 식별자가 올바르지 않습니다.");
+            }
+        }
+        Set<SourceIdentity> actual = new HashSet<>();
+        Set<Integer> orders = new HashSet<>();
+        for (var source : snapshot.integrity().sources()) {
+            addIdentity(
+                    actual,
+                    new SourceIdentity(source.kind().name(), source.id(), source.revision()),
+                    "v3");
+            if (!orders.add(source.order()) || !digestFormat(source.digest()))
+                throw corrupt("v3", "원장 무결성 메타데이터가 올바르지 않습니다.");
+        }
+        if (!actual.equals(expected)) throw corrupt("v3", "payload와 무결성 원장 식별자가 다릅니다.");
+    }
+
     private void addIdentity(Set<SourceIdentity> identities, SourceIdentity identity) {
         if (!identities.add(identity)) throw corrupt("v2", "스냅샷 원장 식별자가 중복되었습니다.");
+    }
+
+    private void addIdentity(Set<SourceIdentity> identities, SourceIdentity identity, String tag) {
+        if (!identities.add(identity)) throw corrupt(tag, "스냅샷 원장 식별자가 중복되었습니다.");
+    }
+
+    private void validateLedgerScalars(JsonNode ledger) {
+        for (JsonNode aggregate : ledger.path("aggregates")) {
+            validateRowScalars(aggregate.path("parent"));
+            for (JsonNode child : aggregate.path("children")) validateRowScalars(child);
+        }
+    }
+
+    private void validateRowScalars(JsonNode row) {
+        if (!row.path("columns")
+                .propertyStream()
+                .allMatch(
+                        entry -> {
+                            JsonNode value = entry.getValue();
+                            return value.isNull()
+                                    || value.isTextual()
+                                    || value.isNumber()
+                                    || value.isBoolean();
+                        })) throw corrupt("v3", "원장 컬럼 값은 JSON scalar여야 합니다.");
+    }
+
+    private void validateLedger(ItBudgetSnapshotV3.Payload payload) {
+        if (!"IT_BUDGET_LEDGER_V1".equals(payload.ledger().format()))
+            throw corrupt("v3", "원장 스냅샷 형식이 올바르지 않습니다.");
+        Set<SourceIdentity> expected = new HashSet<>();
+        payload.projects()
+                .forEach(
+                        project ->
+                                addIdentity(
+                                        expected,
+                                        new SourceIdentity(
+                                                "PROJECT", project.id(), project.revision()),
+                                        "v3"));
+        payload.costs()
+                .forEach(
+                        cost ->
+                                addIdentity(
+                                        expected,
+                                        new SourceIdentity("COST", cost.id(), cost.revision()),
+                                        "v3"));
+        Set<SourceIdentity> actual = new HashSet<>();
+        for (var aggregate : payload.ledger().aggregates()) {
+            addIdentity(
+                    actual,
+                    new SourceIdentity(aggregate.kind(), aggregate.id(), aggregate.revision()),
+                    "v3");
+            switch (aggregate.kind()) {
+                case "PROJECT" -> validateProjectLedger(payload, aggregate);
+                case "COST" -> validateCostLedger(payload, aggregate);
+                default -> throw corrupt("v3", "원장 aggregate 종류가 올바르지 않습니다.");
+            }
+        }
+        if (!actual.equals(expected)) throw corrupt("v3", "표시 데이터와 원장 스냅샷이 일치하지 않습니다.");
+    }
+
+    private void validateProjectLedger(
+            ItBudgetSnapshotV3.Payload payload, ItBudgetLedgerSnapshot.Aggregate aggregate) {
+        var project =
+                payload.projects().stream()
+                        .filter(
+                                candidate ->
+                                        candidate.id().equals(aggregate.id())
+                                                && candidate.revision() == aggregate.revision())
+                        .findFirst()
+                        .orElseThrow(() -> corrupt("v3", "표시 데이터와 원장 스냅샷이 일치하지 않습니다."));
+        requireRow(
+                aggregate.parent(),
+                "BPROJM",
+                Map.of("ABUS_MNG_NO", project.id(), "SNO", project.revision()));
+        Set<ChildIdentity> expected = new HashSet<>();
+        project.items()
+                .forEach(item -> expected.add(new ChildIdentity(item.id(), item.sequence())));
+        Set<ChildIdentity> active = new HashSet<>();
+        Set<ChildIdentity> all = new HashSet<>();
+        for (var row : aggregate.children()) {
+            requireRow(
+                    row,
+                    "BITEMM",
+                    Map.of(
+                            "ABUS_MNG_NO", project.id(),
+                            "FNT_TB_CRY_SNO", project.revision()));
+            ChildIdentity identity = childIdentity(row, "GCL_MNG_NO", "SNO");
+            if (!all.add(identity)) throw corrupt("v3", "원장 자식 복합키가 중복되었습니다.");
+            if ("N".equals(row.columns().get("DEL_YN"))) active.add(identity);
+        }
+        if (!active.equals(expected)) throw corrupt("v3", "표시 품목과 원장 복합키가 일치하지 않습니다.");
+    }
+
+    private void validateCostLedger(
+            ItBudgetSnapshotV3.Payload payload, ItBudgetLedgerSnapshot.Aggregate aggregate) {
+        var cost =
+                payload.costs().stream()
+                        .filter(
+                                candidate ->
+                                        candidate.id().equals(aggregate.id())
+                                                && candidate.revision() == aggregate.revision())
+                        .findFirst()
+                        .orElseThrow(() -> corrupt("v3", "표시 데이터와 원장 스냅샷이 일치하지 않습니다."));
+        requireRow(
+                aggregate.parent(),
+                "BCOSTM",
+                Map.of("BG_NO", cost.id(), "BG_SNO", cost.revision()));
+        Set<ChildIdentity> expected = new HashSet<>();
+        cost.terminals()
+                .forEach(
+                        terminal ->
+                                expected.add(
+                                        new ChildIdentity(terminal.id(), terminal.sequence())));
+        Set<ChildIdentity> active = new HashSet<>();
+        Set<ChildIdentity> all = new HashSet<>();
+        for (var row : aggregate.children()) {
+            requireRow(row, "BTERMM", Map.of("BG_NO", cost.id(), "BG_SNO", cost.revision()));
+            ChildIdentity identity = childIdentity(row, "TMN_MNG_NO", "SNO");
+            if (!all.add(identity)) throw corrupt("v3", "원장 자식 복합키가 중복되었습니다.");
+            if ("N".equals(row.columns().get("DEL_YN"))) active.add(identity);
+        }
+        if (!active.equals(expected)) throw corrupt("v3", "표시 단말기와 원장 복합키가 일치하지 않습니다.");
+    }
+
+    private void requireRow(
+            ItBudgetLedgerSnapshot.Row row, String table, Map<String, Object> expectedColumns) {
+        if (!table.equals(row.table())) throw corrupt("v3", "원장 테이블 조합이 올바르지 않습니다.");
+        for (var expected : expectedColumns.entrySet()) {
+            if (!row.columns().containsKey(expected.getKey())
+                    || !Objects.equals(row.columns().get(expected.getKey()), expected.getValue()))
+                throw corrupt("v3", "원장 복합키가 올바르지 않습니다.");
+        }
+    }
+
+    private ChildIdentity childIdentity(
+            ItBudgetLedgerSnapshot.Row row, String idColumn, String sequenceColumn) {
+        if (!row.columns().containsKey(idColumn)
+                || !row.columns().containsKey(sequenceColumn)
+                || !(row.columns().get(idColumn) instanceof String id)
+                || id.isBlank()
+                || !(row.columns().get(sequenceColumn) instanceof Integer sequence)
+                || sequence < 1) throw corrupt("v3", "원장 자식 복합키가 올바르지 않습니다.");
+        return new ChildIdentity(id, sequence);
     }
 
     private static boolean digestFormat(String value) {
@@ -230,7 +485,7 @@ public final class ItBudgetSnapshotReader {
 
     private record ChildIdentity(String id, int sequence) {}
 
-    private void validateRecall(JsonNode recall) {
+    private void validateRecall(JsonNode recall, String tag) {
         if (!recall.isObject()
                 || recall.size() != 3
                 || !recall.path("recallerEno").isTextual()
@@ -239,7 +494,7 @@ public final class ItBudgetSnapshotReader {
                 || !(recall.has("recallOpnn")
                         && (recall.get("recallOpnn").isNull()
                                 || recall.get("recallOpnn").isTextual())))
-            throw corrupt("v2", "회수 정보 형식이 올바르지 않습니다.");
+            throw corrupt(tag, "회수 정보 형식이 올바르지 않습니다.");
         LocalDateTime.parse(recall.path("recallDtm").textValue());
     }
 
@@ -266,11 +521,17 @@ public final class ItBudgetSnapshotReader {
         private final ObjectNode root;
         private final int version;
         private final ItBudgetSnapshot.Payload payload;
+        private final ItBudgetSnapshotV3.Payload v3Payload;
 
-        private ParsedSnapshot(ObjectNode root, int version, ItBudgetSnapshot.Payload payload) {
+        private ParsedSnapshot(
+                ObjectNode root,
+                int version,
+                ItBudgetSnapshot.Payload payload,
+                ItBudgetSnapshotV3.Payload v3Payload) {
             this.root = root;
             this.version = version;
             this.payload = payload;
+            this.v3Payload = v3Payload;
         }
 
         public int version() {
@@ -279,6 +540,11 @@ public final class ItBudgetSnapshotReader {
 
         public ItBudgetSnapshot.Payload payload() {
             return payload;
+        }
+
+        public ItBudgetSnapshotV3.Payload v3Payload() {
+            if (version != 3) throw new IllegalStateException("v3 문서에만 v3 payload를 사용할 수 있습니다.");
+            return v3Payload;
         }
 
         /** v1은 기존의 얕은 DTO 규칙으로 이미 파싱된 트리에서 읽는다. 변환 오류는 데이터 손상이다. */
@@ -294,7 +560,7 @@ public final class ItBudgetSnapshotReader {
         /** required인 진행 문서는 결재선 누락·형식 손상을 실패시킨다. */
         public ObjectNode approvalLine(boolean required) {
             if (root.get("approvalLine") instanceof ObjectNode line) return line;
-            if (required || version == 2) throw corrupt("v" + version, "필수 결재선이 손상되었습니다.");
+            if (required || version >= 2) throw corrupt("v" + version, "필수 결재선이 손상되었습니다.");
             return null;
         }
 
@@ -304,7 +570,7 @@ public final class ItBudgetSnapshotReader {
             info.put("recallerEno", eno);
             info.put("recallDtm", LocalDateTime.now().toString());
             info.put("recallOpnn", opinion);
-            if (version == 2) validateRecall(info);
+            if (version >= 2) validateRecall(info, "v" + version);
             root.set("recallInfo", info);
         }
 
@@ -312,12 +578,26 @@ public final class ItBudgetSnapshotReader {
         public String write() {
             try {
                 if (version == 2) {
-                    shape(root.get("approvalLine"), ItBudgetApprovalDto.SnapshotApprovalLine.class);
+                    shape(
+                            root.get("approvalLine"),
+                            ItBudgetApprovalDto.SnapshotApprovalLine.class,
+                            "v2");
                     var line =
                             mapper.treeToValue(
                                     root.get("approvalLine"),
                                     ItBudgetApprovalDto.SnapshotApprovalLine.class);
-                    validate(line);
+                    validate(line, "v2");
+                    validateRoles(line);
+                } else if (version == 3) {
+                    shape(
+                            root.get("approvalLine"),
+                            ItBudgetSnapshotV3Dto.SnapshotApprovalLine.class,
+                            "v3");
+                    var line =
+                            mapper.treeToValue(
+                                    root.get("approvalLine"),
+                                    ItBudgetSnapshotV3Dto.SnapshotApprovalLine.class);
+                    validate(line, "v3");
                     validateRoles(line);
                 }
                 return mapper.writeValueAsString(root);
