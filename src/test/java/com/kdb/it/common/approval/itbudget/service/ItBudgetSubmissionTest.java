@@ -113,8 +113,10 @@ class ItBudgetSubmissionTest {
         verify(applications, times(2)).save(saved.capture());
         var first = f.mapper.readTree(saved.getAllValues().getFirst().getDcdReqInf());
         assertThat(first.at("/form/id").asText()).isEqualTo("it-budget");
-        assertThat(first.at("/form/version").asInt()).isEqualTo(2);
+        assertThat(first.at("/form/version").asInt()).isEqualTo(3);
         assertThat(first.at("/payload/costs/0/id").asText()).isEqualTo("C1");
+        assertThat(first.at("/payload/ledger/format").asText()).isEqualTo("IT_BUDGET_LEDGER_V1");
+        assertThat(first.at("/integrity/canonicalization").asText()).isEqualTo("IT_BUDGET_V3");
         assertThat(first.at("/integrity/capturedAt").asText()).isEqualTo("2026-09-06T05:30:00Z");
         assertThat(first.at("/integrity/payloadDigest").asText())
                 .isEqualTo(request.documents().getFirst().payloadDigest());

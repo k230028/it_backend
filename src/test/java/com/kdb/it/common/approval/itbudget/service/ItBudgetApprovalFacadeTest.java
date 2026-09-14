@@ -44,7 +44,12 @@ class ItBudgetApprovalFacadeTest {
     final ItBudgetSnapshotBuilder builder =
             spy(
                     new ItBudgetSnapshotBuilder(
-                            canonical, new ProjectAmountCalculator(), users, organizations, codes));
+                            canonical,
+                            new ItBudgetLedgerCapture(canonical),
+                            new ProjectAmountCalculator(),
+                            users,
+                            organizations,
+                            codes));
     final ItBudgetPreviewTokenService tokens =
             spy(
                     new ItBudgetPreviewTokenService(
@@ -115,6 +120,9 @@ class ItBudgetApprovalFacadeTest {
                                         .fntTbCrySno(1)
                                         .qty(new BigDecimal("2"))
                                         .amt(new BigDecimal("7.125"))
+                                        .fcAmt(new BigDecimal("1000.000"))
+                                        .xcr(new BigDecimal("1.0000"))
+                                        .curC("USD")
                                         .delYn("N")
                                         .build()));
     }
@@ -324,19 +332,31 @@ class ItBudgetApprovalFacadeTest {
         assertThat(result.expiresAt()).isEqualTo(Instant.parse("2026-09-06T06:00:00Z"));
         assertThat(claims.previewDigest()).isEqualTo(result.previewDigest());
         var snapshot = result.documents().getFirst().snapshot();
-        assertThat(snapshot.form()).isEqualTo(new Form("it-budget", 2));
+        assertThat(snapshot.form().id()).isEqualTo("it-budget");
+        assertThat(snapshot.form().version()).isEqualTo(3);
         assertThat(snapshot.integrity().capturedAt()).isEqualTo(claims.issuedAt());
         assertThat(snapshot.integrity().algorithm()).isEqualTo("SHA-256");
-        assertThat(snapshot.integrity().canonicalization()).isEqualTo("IT_BUDGET_V2");
+        assertThat(snapshot.integrity().canonicalization()).isEqualTo("IT_BUDGET_V3");
         assertThat(snapshot.approvalLine().requester())
-                .isEqualTo(new Requester("U1", "이름 U1", "직급"));
+                .isEqualTo(
+                        new com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto.Requester(
+                                "U1", "이름 U1", "직급"));
         assertThat(snapshot.approvalLine().approvers())
-                .extracting(ApprovalPerson::eno)
+                .extracting(person -> person.eno())
                 .containsExactly("A1", "A2");
         assertThat(snapshot.payload().projects().getFirst().currentRequestAmount())
                 .isEqualTo("7.125");
         assertThat(snapshot.payload().projects().getFirst().items().getFirst().id())
                 .isEqualTo("I1");
+        assertThat(snapshot.payload().projects().getFirst().items().getFirst().foreignAmount())
+                .isEqualTo("1000.000");
+        assertThat(snapshot.payload().ledger().aggregates()).hasSize(2);
+        assertThat(snapshot.payload().ledger().aggregates())
+                .extracting(aggregate -> aggregate.id())
+                .containsExactly("C1", "P1");
+        assertThat(snapshot.payload().ledger().aggregates().get(1).children().getFirst().columns())
+                .containsEntry("FC_AMT", "1000.000")
+                .containsEntry("SNO", 3);
         assertThat(snapshot.payload().costs().getFirst().baseYear()).isEqualTo("2027");
         assertThat(snapshot.payload().costs().getFirst().terminals().getFirst().id())
                 .isEqualTo("T1");
@@ -353,7 +373,7 @@ class ItBudgetApprovalFacadeTest {
         var typedPayload =
                 mapper.convertValue(
                         snapshot.payload(),
-                        com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot.Payload.class);
+                        com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshotV3.Payload.class);
         assertThat(canonical.digest(typedPayload)).isEqualTo(snapshot.integrity().payloadDigest());
         try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
             assertThat(factory.getValidator().validate(result)).isEmpty();

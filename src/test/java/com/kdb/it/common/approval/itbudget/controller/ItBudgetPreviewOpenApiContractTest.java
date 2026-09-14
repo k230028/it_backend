@@ -37,18 +37,18 @@ class ItBudgetPreviewOpenApiContractTest {
                                         .getContentAsString());
         var operation = json.at("/paths/~1api~1applications~1it-budget~1previews/post");
         assertThat(
-                        json.at("/components/schemas/ItBudgetSnapshotApprovalPerson/required")
+                        json.at("/components/schemas/ItBudgetSnapshotV3ApprovalPerson/required")
                                 .toString())
                 .contains("role");
         assertThat(
                         json.at(
-                                        "/components/schemas/ItBudgetSnapshotApprovalPerson/properties/role/type")
+                                        "/components/schemas/ItBudgetSnapshotV3ApprovalPerson/properties/role/type")
                                 .toString())
                 .contains("string")
                 .doesNotContain("null");
         assertThat(
                         json.at(
-                                        "/components/schemas/ItBudgetSnapshotApprovalPerson/properties/role/enum")
+                                        "/components/schemas/ItBudgetSnapshotV3ApprovalPerson/properties/role/enum")
                                 .toString())
                 .isEqualTo("[\"TEAM_LEAD\",\"DEPT_HEAD\",\"ADDITIONAL\"]");
         assertThat(json.at("/components/schemas/ItBudgetSourceDigest/required").toString())
@@ -101,20 +101,31 @@ class ItBudgetPreviewOpenApiContractTest {
                     .isEqualTo("#/components/schemas/ItBudgetApprovalErrorResponse");
         assertThat(
                         json.at(
-                                        "/components/schemas/ItBudgetSnapshotProject/properties/currentRequestAmount/type")
-                                .toString())
-                .contains("string");
-        assertThat(
-                        json.at("/components/schemas/ItBudgetSnapshotCost/properties/baseYear/type")
+                                        "/components/schemas/ItBudgetSnapshotV3Project/properties/currentRequestAmount/type")
                                 .toString())
                 .contains("string");
         assertThat(
                         json.at(
-                                        "/components/schemas/ItBudgetSnapshotApprovalPerson/properties/date/type")
+                                        "/components/schemas/ItBudgetSnapshotV3Cost/properties/baseYear/type")
+                                .toString())
+                .contains("string");
+        assertThat(
+                        json.at(
+                                        "/components/schemas/ItBudgetSnapshotV3ApprovalPerson/properties/date/type")
                                 .toString())
                 .contains("string", "null");
-        assertThat(json.at("/components/schemas/ItBudgetSnapshotRequester/required").toString())
+        assertThat(json.at("/components/schemas/ItBudgetSnapshotV3Requester/required").toString())
                 .contains("eno", "name");
+        assertThat(
+                        json.at(
+                                        "/components/schemas/ItBudgetSnapshotV3ProjectItem/properties/foreignAmount/type")
+                                .toString())
+                .contains("string", "null");
+        assertThat(
+                        json.at(
+                                        "/components/schemas/ItBudgetSnapshotV3Payload/properties/ledger/$ref")
+                                .asText())
+                .isEqualTo("#/components/schemas/ItBudgetSnapshotV3Ledger");
     }
 
     @Configuration(proxyBeanMethods = false)

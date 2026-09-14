@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.*;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetApprovalFacade;
 import com.kdb.it.common.mfa.security.MfaGuardConfiguration;
@@ -119,11 +120,15 @@ class ItBudgetApplicationControllerTest {
     }
 
     @Test
-    void previewAcceptsCustomPrincipalWithoutMfaAndReturnsV2Contract() throws Exception {
+    void previewAcceptsCustomPrincipalWithoutMfaAndReturnsV3Contract() throws Exception {
         var snapshot =
-                new ItBudgetSnapshot(
-                        new Form("it-budget", 2),
-                        new Payload(List.of(), List.of(), new Summary("0.000", "0.000", "0.000")),
+                new ItBudgetSnapshotV3Dto.ItBudgetSnapshot(
+                        new ItBudgetSnapshotV3Dto.Form("it-budget", 3),
+                        new ItBudgetSnapshotV3Dto.Payload(
+                                List.of(),
+                                List.of(),
+                                new ItBudgetSnapshotV3Dto.Summary("0.000", "0.000", "0.000"),
+                                new ItBudgetSnapshotV3Dto.Ledger("IT_BUDGET_LEDGER_V1", List.of())),
                         null,
                         null);
         when(facade.preview(eq(USER), any()))
@@ -142,7 +147,7 @@ class ItBudgetApplicationControllerTest {
                                 .content(BODY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.documents[0].snapshot.form.id").value("it-budget"))
-                .andExpect(jsonPath("$.documents[0].snapshot.form.version").value(2))
+                .andExpect(jsonPath("$.documents[0].snapshot.form.version").value(3))
                 .andExpect(jsonPath("$.previewToken").value("opaque"));
         verify(facade).preview(eq(USER), any());
         verifyNoInteractions(mfaService);

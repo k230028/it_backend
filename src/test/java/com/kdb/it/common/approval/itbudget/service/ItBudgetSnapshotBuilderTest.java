@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.*;
+import com.kdb.it.common.approval.itbudget.model.ItBudgetLedgerSnapshot;
 import com.kdb.it.common.code.entity.Ccodem;
 import com.kdb.it.common.code.repository.CodeRepository;
 import com.kdb.it.common.iam.entity.CuserI;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ItBudgetSnapshotBuilderTest {
@@ -30,7 +32,12 @@ class ItBudgetSnapshotBuilderTest {
     final CodeRepository codes = mock(CodeRepository.class);
     final ItBudgetSnapshotBuilder builder =
             new ItBudgetSnapshotBuilder(
-                    canonical, new ProjectAmountCalculator(), users, organizations, codes);
+                    canonical,
+                    new ItBudgetLedgerCapture(canonical),
+                    new ProjectAmountCalculator(),
+                    users,
+                    organizations,
+                    codes);
 
     ItBudgetSnapshotBuilderTest() {
         when(users.findByEnoIn(anyCollection()))
@@ -73,7 +80,9 @@ class ItBudgetSnapshotBuilderTest {
                         .ioeC("A")
                         .qty(new BigDecimal("2"))
                         .amt(new BigDecimal("12.340"))
-                        .curC("KRW")
+                        .fcAmt(new BigDecimal("1000.000"))
+                        .xcr(new BigDecimal("1.0000"))
+                        .curC("USD")
                         .delYn("N")
                         .build();
         var deleted = item("D", 1, "P1", 1, "Y");
@@ -82,13 +91,17 @@ class ItBudgetSnapshotBuilderTest {
         assertThat(result.payload().projects().getFirst().items()).hasSize(1);
         assertThat(result.payload().summary().total()).isEqualTo(new BigDecimal("12.340"));
         assertThat(result.payload().summary().asset()).isEqualTo(new BigDecimal("12.340"));
+        assertThat(result.payload().projects().getFirst().items().getFirst().foreignAmount())
+                .isEqualByComparingTo("1000.000");
+        assertThat(result.payload().ledger().format()).isEqualTo("IT_BUDGET_LEDGER_V1");
+        assertThat(result.payload().ledger().aggregates()).hasSize(1);
         assertThat(result.payloadDigest()).isEqualTo(canonical.digest(result.payload()));
         assertThat(result.sources().getFirst().digest())
                 .isNotEqualTo(build(p, List.of(i)).sources().getFirst().digest());
     }
 
     @Test
-    void auditAndFetchedNamesOnlyChangeTheAppropriateDigestBoundary() {
+    void auditAndFetchedNamesStayOutsideSourceDigestButChangeV3PayloadDigest() {
         var p = project("P1", 1);
         var before = build(p, List.of());
         var audit =
@@ -102,7 +115,7 @@ class ItBudgetSnapshotBuilderTest {
                         .guid("guid")
                         .build();
         assertThat(build(audit, List.of()).sources()).isEqualTo(before.sources());
-        assertThat(build(audit, List.of()).payloadDigest()).isEqualTo(before.payloadDigest());
+        assertThat(build(audit, List.of()).payloadDigest()).isNotEqualTo(before.payloadDigest());
         when(users.findByEnoIn(anyCollection()))
                 .thenReturn(
                         List.of(
@@ -165,8 +178,8 @@ class ItBudgetSnapshotBuilderTest {
                         .findAndRegisterModules()
                         .convertValue(
                                 result.payload(),
-                                com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Payload
-                                        .class);
+                                com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto
+                                        .Payload.class);
         assertThat(
                         jakarta.validation.Validation.buildDefaultValidatorFactory()
                                 .getValidator()
@@ -210,8 +223,8 @@ class ItBudgetSnapshotBuilderTest {
                 mapper.valueToTree(
                         mapper.convertValue(
                                 built.payload(),
-                                com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Payload
-                                        .class));
+                                com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto
+                                        .Payload.class));
         assertThat(wire.at("/costs/0/baseYear").asText()).isEqualTo("2027");
         assertThat(wire.at("/costs/0/terminals/0/id").asText()).isEqualTo("T1");
         assertThat(wire.at("/costs/0/terminals/0/revision").asInt()).isEqualTo(2);
@@ -237,6 +250,38 @@ class ItBudgetSnapshotBuilderTest {
                                         new DocumentRequest(
                                                 "one", List.of(a.ref(), ref("P2", 1, 1)))),
                                 List.of(a)));
+    }
+
+    @Test
+    void rejectsLedgerThatDoesNotMatchTheDisplayAggregateIdentity() {
+        var ledgerCapture = mock(ItBudgetLedgerCapture.class);
+        when(ledgerCapture.capture(anyList()))
+                .thenReturn(
+                        new ItBudgetLedgerSnapshot(
+                                "IT_BUDGET_LEDGER_V1",
+                                List.of(
+                                        new ItBudgetLedgerSnapshot.Aggregate(
+                                                "PROJECT",
+                                                "OTHER",
+                                                1,
+                                                new ItBudgetLedgerSnapshot.Row("BPROJM", Map.of()),
+                                                List.of()))));
+        var mismatchedBuilder =
+                new ItBudgetSnapshotBuilder(
+                        canonical,
+                        ledgerCapture,
+                        new ProjectAmountCalculator(),
+                        users,
+                        organizations,
+                        codes);
+        var p = project("P1", 1);
+        var ref = ref("P1", 1, 1);
+
+        invalid(
+                () ->
+                        mismatchedBuilder.buildDocuments(
+                                List.of(new DocumentRequest("one", List.of(ref))),
+                                List.of(ItBudgetSourceLoader.aggregate(ref, p, List.of()))));
     }
 
     @Test
@@ -396,8 +441,8 @@ class ItBudgetSnapshotBuilderTest {
                 mapper.valueToTree(
                         mapper.convertValue(
                                 built.payload(),
-                                com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.Payload
-                                        .class));
+                                com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto
+                                        .Payload.class));
         assertThat(wire.at("/projects/0/currentRequestAmount").asText()).isEqualTo("10.125");
     }
 

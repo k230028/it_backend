@@ -92,7 +92,7 @@ public final class ItBudgetApprovalDto {
             @NotBlank @Size(max = 64) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String clientDocumentKey,
             @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-                    ItBudgetSnapshot snapshot,
+                    ItBudgetSnapshotV3Dto.ItBudgetSnapshot snapshot,
             @NotBlank @Size(min = 64, max = 64) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String payloadDigest,
             @NotEmpty @Size(max = 500) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)

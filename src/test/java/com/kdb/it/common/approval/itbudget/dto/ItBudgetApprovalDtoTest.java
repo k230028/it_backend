@@ -41,6 +41,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -195,19 +196,46 @@ class ItBudgetApprovalDtoTest {
     }
 
     @Test
-    void previewResponse_serializesExplicitV2SnapshotAndSourceDigestContract() throws Exception {
-        ItBudgetSnapshot snapshot =
-                new ItBudgetSnapshot(
-                        new Form("it-budget", 2),
-                        new Payload(List.of(), List.of(), new Summary("1.000", "2.000", "3.000")),
-                        new SnapshotApprovalLine(new Requester("E10001", "신청자", "과장"), List.of()),
-                        new Integrity(
+    void previewResponse_serializesExplicitV3SnapshotAndLedgerContract() throws Exception {
+        ItBudgetSnapshotV3Dto.ItBudgetSnapshot snapshot =
+                new ItBudgetSnapshotV3Dto.ItBudgetSnapshot(
+                        new ItBudgetSnapshotV3Dto.Form("it-budget", 3),
+                        new ItBudgetSnapshotV3Dto.Payload(
+                                List.of(),
+                                List.of(),
+                                new ItBudgetSnapshotV3Dto.Summary("1.000", "2.000", "3.000"),
+                                new ItBudgetSnapshotV3Dto.Ledger(
+                                        "IT_BUDGET_LEDGER_V1",
+                                        List.of(
+                                                new ItBudgetSnapshotV3Dto.LedgerAggregate(
+                                                        "PROJECT",
+                                                        "P-001",
+                                                        1,
+                                                        new ItBudgetSnapshotV3Dto.LedgerRow(
+                                                                "BPROJM",
+                                                                Map.of(
+                                                                        "ABUS_MNG_NO",
+                                                                        "P-001",
+                                                                        "SNO",
+                                                                        1)),
+                                                        List.of(
+                                                                new ItBudgetSnapshotV3Dto.LedgerRow(
+                                                                        "BITEMM",
+                                                                        Map.of(
+                                                                                "GCL_MNG_NO",
+                                                                                "I-001",
+                                                                                "FC_AMT",
+                                                                                "1000.000"))))))),
+                        new ItBudgetSnapshotV3Dto.SnapshotApprovalLine(
+                                new ItBudgetSnapshotV3Dto.Requester("E10001", "신청자", "과장"),
+                                List.of()),
+                        new ItBudgetSnapshotV3Dto.Integrity(
                                 "SHA-256",
-                                "IT_BUDGET_V2",
+                                "IT_BUDGET_V3",
                                 DIGEST,
                                 Instant.parse("2026-09-06T05:00:00Z"),
                                 List.of(
-                                        new SnapshotSource(
+                                        new ItBudgetSnapshotV3Dto.SnapshotSource(
                                                 SourceKind.PROJECT, "P-001", 1, 1, DIGEST))));
         PreviewResponse response =
                 new PreviewResponse(
@@ -237,9 +265,37 @@ class ItBudgetApprovalDtoTest {
         assertThat(json.at("/documents/0/snapshot/payload/summary/total").isTextual()).isTrue();
         assertThat(json.at("/documents/0/snapshot/payload/summary/total").asText())
                 .isEqualTo("1.000");
+        assertThat(json.at("/documents/0/snapshot/payload/ledger/format").asText())
+                .isEqualTo("IT_BUDGET_LEDGER_V1");
+        assertThat(
+                        json.at(
+                                        "/documents/0/snapshot/payload/ledger/aggregates/0/children/0/columns/FC_AMT")
+                                .asText())
+                .isEqualTo("1000.000");
         assertThat(json.at("/documents/0/snapshot/integrity/capturedAt").isTextual()).isTrue();
         assertThat(json.at("/documents/0/snapshot/integrity/capturedAt").asText())
                 .isEqualTo("2026-09-06T05:00:00Z");
+    }
+
+    @Test
+    void v2SnapshotContractDoesNotGainV3PayloadFields() {
+        ItBudgetSnapshot snapshot =
+                new ItBudgetSnapshot(
+                        new Form("it-budget", 2),
+                        new Payload(List.of(), List.of(), new Summary("1.000", "2.000", "3.000")),
+                        new SnapshotApprovalLine(new Requester("E10001", "신청자", "과장"), List.of()),
+                        new Integrity(
+                                "SHA-256",
+                                "IT_BUDGET_V2",
+                                DIGEST,
+                                Instant.parse("2026-09-06T05:00:00Z"),
+                                List.of(
+                                        new SnapshotSource(
+                                                SourceKind.PROJECT, "P-001", 1, 1, DIGEST))));
+
+        var payload = objectMapper.valueToTree(snapshot.payload());
+
+        assertThat(payload.has("ledger")).isFalse();
     }
 
     @Test
@@ -339,6 +395,11 @@ class ItBudgetApprovalDtoTest {
         assertPattern(Summary.class, "^-?\\d+\\.\\d{3}$", "total", "asset", "cost");
         assertPattern(ProjectItem.class, "^-?\\d+$", "quantity");
         assertPattern(ProjectItem.class, "^-?\\d+\\.\\d{3}$", "amount");
+        assertPattern(
+                ItBudgetSnapshotV3Dto.ProjectItem.class,
+                "^-?\\d+\\.\\d{3}$",
+                "amount",
+                "foreignAmount");
         assertPattern(
                 ItBudgetApprovalDto.Project.class,
                 "^-?\\d+\\.\\d{3}$",

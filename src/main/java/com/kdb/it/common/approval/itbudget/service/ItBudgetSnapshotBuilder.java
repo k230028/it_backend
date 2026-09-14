@@ -5,7 +5,8 @@ import static com.kdb.it.common.approval.itbudget.service.ItBudgetSourceLoader.i
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.DocumentRequest;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SourceKind;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.SourceRef;
-import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot.*;
+import com.kdb.it.common.approval.itbudget.model.ItBudgetLedgerSnapshot;
+import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshotV3.*;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSourceLoader.SourceAggregate;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSourceLoader.SourceKey;
 import com.kdb.it.common.code.CommonCodeGroups;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ItBudgetSnapshotBuilder {
     private final ItBudgetCanonicalJson canonical;
+    private final ItBudgetLedgerCapture ledgerCapture;
     private final ProjectAmountCalculator amountCalculator;
     private final UserRepository users;
     private final OrganizationRepository organizations;
@@ -86,11 +88,13 @@ public class ItBudgetSnapshotBuilder {
                 List<Project> projectRows = new ArrayList<>();
                 List<Cost> costRows = new ArrayList<>();
                 List<Source> sources = new ArrayList<>();
+                List<SourceAggregate> documentAggregates = new ArrayList<>();
                 for (var r :
                         d.sourceRefs().stream()
                                 .sorted(Comparator.comparing(SourceRef::order))
                                 .toList()) {
                     var a = byKey.get(key(r));
+                    documentAggregates.add(a);
                     if (r.kind() == SourceKind.PROJECT) projectRows.add(project(a, display));
                     else costRows.add(cost(a, display));
                     sources.add(
@@ -121,7 +125,9 @@ public class ItBudgetSnapshotBuilder {
                                 new Summary(
                                         canonical.money(currentRequests),
                                         canonical.money(asset),
-                                        canonical.money(expense)));
+                                        canonical.money(expense)),
+                                ledgerCapture.capture(documentAggregates));
+                validateLedger(payload);
                 result.add(
                         new BuiltDocument(
                                 d.clientDocumentKey(),
@@ -244,6 +250,7 @@ public class ItBudgetSnapshotBuilder {
                                                 canonical.quantity(i.getQty()),
                                                 i.getCurC(),
                                                 canonical.money(i.getAmt()),
+                                                canonical.money(i.getFcAmt()),
                                                 i.getCncdFdtnCone()))
                         .toList();
         return new Project(
@@ -340,6 +347,147 @@ public class ItBudgetSnapshotBuilder {
                 expense,
                 terminalRows);
     }
+
+    private static void validateLedger(Payload payload) {
+        var ledger = payload.ledger();
+        Set<AggregateIdentity> expected = new HashSet<>();
+        payload.projects().stream()
+                .map(project -> new AggregateIdentity("PROJECT", project.id(), project.revision()))
+                .forEach(expected::add);
+        payload.costs().stream()
+                .map(cost -> new AggregateIdentity("COST", cost.id(), cost.revision()))
+                .forEach(expected::add);
+        var actual =
+                ledger.aggregates().stream()
+                        .map(
+                                aggregate ->
+                                        new AggregateIdentity(
+                                                aggregate.kind(),
+                                                aggregate.id(),
+                                                aggregate.revision()))
+                        .toList();
+        if (actual.size() != expected.size() || !new HashSet<>(actual).equals(expected))
+            throw invalid("표시 데이터와 원장 스냅샷이 일치하지 않습니다.");
+        for (var aggregate : ledger.aggregates()) {
+            if ("PROJECT".equals(aggregate.kind())) validateProjectLedger(payload, aggregate);
+            else if ("COST".equals(aggregate.kind())) validateCostLedger(payload, aggregate);
+            else throw invalid("표시 데이터와 원장 스냅샷이 일치하지 않습니다.");
+        }
+    }
+
+    private static void validateProjectLedger(
+            Payload payload, ItBudgetLedgerSnapshot.Aggregate aggregate) {
+        var project =
+                payload.projects().stream()
+                        .filter(
+                                candidate ->
+                                        candidate.id().equals(aggregate.id())
+                                                && candidate.revision() == aggregate.revision())
+                        .findFirst()
+                        .orElseThrow(() -> invalid("표시 데이터와 원장 스냅샷이 일치하지 않습니다."));
+        var expectedParent = new RowIdentity("BPROJM", project.id(), project.revision());
+        var actualParent = rowIdentity(aggregate.parent(), "ABUS_MNG_NO", "SNO");
+        var expectedChildren =
+                project.items().stream()
+                        .map(
+                                item ->
+                                        new ChildIdentity(
+                                                "BITEMM",
+                                                item.id(),
+                                                item.sequence(),
+                                                project.id(),
+                                                item.revision(),
+                                                decimal(item.amount()),
+                                                decimal(item.foreignAmount())))
+                        .toList();
+        var actualChildren =
+                aggregate.children().stream()
+                        .filter(row -> "N".equals(row.columns().get("DEL_YN")))
+                        .map(
+                                row ->
+                                        childIdentity(
+                                                row,
+                                                "GCL_MNG_NO",
+                                                "SNO",
+                                                "ABUS_MNG_NO",
+                                                "FNT_TB_CRY_SNO"))
+                        .toList();
+        if (!actualParent.equals(expectedParent) || !actualChildren.equals(expectedChildren))
+            throw invalid("표시 데이터와 원장 스냅샷이 일치하지 않습니다.");
+    }
+
+    private static void validateCostLedger(
+            Payload payload, ItBudgetLedgerSnapshot.Aggregate aggregate) {
+        var cost =
+                payload.costs().stream()
+                        .filter(
+                                candidate ->
+                                        candidate.id().equals(aggregate.id())
+                                                && candidate.revision() == aggregate.revision())
+                        .findFirst()
+                        .orElseThrow(() -> invalid("표시 데이터와 원장 스냅샷이 일치하지 않습니다."));
+        var expectedParent = new RowIdentity("BCOSTM", cost.id(), cost.revision());
+        var actualParent = rowIdentity(aggregate.parent(), "BG_NO", "BG_SNO");
+        var expectedChildren =
+                cost.terminals().stream()
+                        .map(
+                                terminal ->
+                                        new ChildIdentity(
+                                                "BTERMM",
+                                                terminal.id(),
+                                                terminal.sequence(),
+                                                cost.id(),
+                                                terminal.revision(),
+                                                decimal(terminal.budgetAmount()),
+                                                decimal(terminal.foreignAmount())))
+                        .toList();
+        var actualChildren =
+                aggregate.children().stream()
+                        .filter(row -> "N".equals(row.columns().get("DEL_YN")))
+                        .map(row -> childIdentity(row, "TMN_MNG_NO", "SNO", "BG_NO", "BG_SNO"))
+                        .toList();
+        if (!actualParent.equals(expectedParent) || !actualChildren.equals(expectedChildren))
+            throw invalid("표시 데이터와 원장 스냅샷이 일치하지 않습니다.");
+    }
+
+    private static RowIdentity rowIdentity(
+            ItBudgetLedgerSnapshot.Row row, String idColumn, String revisionColumn) {
+        return new RowIdentity(
+                row.table(), row.columns().get(idColumn), row.columns().get(revisionColumn));
+    }
+
+    private static ChildIdentity childIdentity(
+            ItBudgetLedgerSnapshot.Row row,
+            String idColumn,
+            String sequenceColumn,
+            String parentIdColumn,
+            String parentRevisionColumn) {
+        return new ChildIdentity(
+                row.table(),
+                row.columns().get(idColumn),
+                row.columns().get(sequenceColumn),
+                row.columns().get(parentIdColumn),
+                row.columns().get(parentRevisionColumn),
+                row.columns().get("AMT"),
+                row.columns().get("FC_AMT"));
+    }
+
+    private static String decimal(BigDecimal value) {
+        return value == null ? null : value.toPlainString();
+    }
+
+    private record AggregateIdentity(String kind, String id, int revision) {}
+
+    private record RowIdentity(String table, Object id, Object revision) {}
+
+    private record ChildIdentity(
+            String table,
+            Object id,
+            Object sequence,
+            Object parentId,
+            Object parentRevision,
+            Object amount,
+            Object foreignAmount) {}
 
     private static final Set<String> COST_TYPES =
             Set.of("IOE_IDR", "IOE_SEVS", "IOE_XPN", "IOE_LEAFE");

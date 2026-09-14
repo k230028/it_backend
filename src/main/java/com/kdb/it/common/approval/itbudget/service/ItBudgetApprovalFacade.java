@@ -3,8 +3,9 @@ package com.kdb.it.common.approval.itbudget.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.*;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto;
 import com.kdb.it.common.approval.itbudget.exception.ItBudgetApprovalException;
-import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshot;
+import com.kdb.it.common.approval.itbudget.model.ItBudgetSnapshotV3;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetPreviewTokenService.PreviewBinding;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSnapshotBuilder.BuiltDocument;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetSourceLoader.SourceAggregate;
@@ -35,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** 인증 주체와 원장을 검증해 전산예산 v2 미리보기를 발급하고 잠금 아래 원자적으로 상신한다. */
+/** 인증 주체와 원장을 검증해 전산예산 v3 미리보기를 발급하고 잠금 아래 원자적으로 상신한다. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -119,7 +120,7 @@ public class ItBudgetApprovalFacade {
                     changed);
         if (approvalBlocked) throw stale();
 
-        ItBudgetSnapshot.ApprovalLine line;
+        ItBudgetSnapshotV3.ApprovalLine line;
         List<BuiltDocument> built;
         try {
             line = approvalLine(actor.getEno(), normalized.approvers());
@@ -193,14 +194,14 @@ public class ItBudgetApprovalFacade {
     }
 
     /** 기안자가 선두 결재 역할을 겸하면 상신일시로 해당 연속 구간을 자동 승인한다. */
-    private ItBudgetSnapshot.ApprovalLine approveLeadingRequesterRoles(
-            ItBudgetSnapshot.ApprovalLine line, String requesterEno, LocalDateTime requestAt) {
-        var approvers = new ArrayList<ItBudgetSnapshot.ApprovalPerson>();
+    private ItBudgetSnapshotV3.ApprovalLine approveLeadingRequesterRoles(
+            ItBudgetSnapshotV3.ApprovalLine line, String requesterEno, LocalDateTime requestAt) {
+        var approvers = new ArrayList<ItBudgetSnapshotV3.ApprovalPerson>();
         boolean leadingRequester = true;
         for (var approver : line.approvers()) {
             if (leadingRequester && requesterEno.equals(approver.eno())) {
                 approvers.add(
-                        new ItBudgetSnapshot.ApprovalPerson(
+                        new ItBudgetSnapshotV3.ApprovalPerson(
                                 approver.role(),
                                 approver.eno(),
                                 approver.name(),
@@ -212,8 +213,8 @@ public class ItBudgetApprovalFacade {
             }
         }
         var requester = line.requester();
-        return new ItBudgetSnapshot.ApprovalLine(
-                new ItBudgetSnapshot.Requester(
+        return new ItBudgetSnapshotV3.ApprovalLine(
+                new ItBudgetSnapshotV3.Requester(
                         requester.eno(), requester.name(), requester.rank(), requestAt),
                 approvers);
     }
@@ -284,8 +285,8 @@ public class ItBudgetApprovalFacade {
     private record PreviewView(
             String requesterEno,
             PreviewRequest request,
-            ItBudgetSnapshot.ApprovalLine approvalLine,
-            List<ItBudgetSnapshot.Payload> payloads) {}
+            ItBudgetSnapshotV3.ApprovalLine approvalLine,
+            List<ItBudgetSnapshotV3.Payload> payloads) {}
 
     private PreviewRequest normalize(PreviewRequest request, boolean requireApprovers) {
         if (request == null
@@ -352,7 +353,7 @@ public class ItBudgetApprovalFacade {
         if (requireActive && !"N".equals(parent.getDelYn())) throw ItBudgetSourceLoader.notFound();
     }
 
-    private ItBudgetSnapshot.ApprovalLine approvalLine(
+    private ItBudgetSnapshotV3.ApprovalLine approvalLine(
             String requesterEno, List<ApproverRef> approvers) {
         Set<String> enos = new LinkedHashSet<>();
         enos.add(requesterEno);
@@ -369,7 +370,7 @@ public class ItBudgetApprovalFacade {
                         .map(
                                 a -> {
                                     var p = requiredPerson(people, a.eno(), true);
-                                    return new ItBudgetSnapshot.ApprovalPerson(
+                                    return new ItBudgetSnapshotV3.ApprovalPerson(
                                             ApproverRole.valueOf(a.role().name()),
                                             p.getEno(),
                                             p.getUsrNm(),
@@ -377,8 +378,8 @@ public class ItBudgetApprovalFacade {
                                             null);
                                 })
                         .toList();
-        return new ItBudgetSnapshot.ApprovalLine(
-                new ItBudgetSnapshot.Requester(
+        return new ItBudgetSnapshotV3.ApprovalLine(
+                new ItBudgetSnapshotV3.Requester(
                         requester.getEno(), requester.getUsrNm(), requester.getPtCNm()),
                 line);
     }
@@ -394,12 +395,23 @@ public class ItBudgetApprovalFacade {
     }
 
     private PreviewDocument publicDocument(
-            BuiltDocument document, ItBudgetSnapshot.ApprovalLine line, Instant capturedAt) {
+            BuiltDocument document, ItBudgetSnapshotV3.ApprovalLine line, Instant capturedAt) {
+        var internal =
+                new ItBudgetSnapshotV3(
+                        new ItBudgetSnapshotV3.Form("it-budget", 3),
+                        document.payload(),
+                        line,
+                        new ItBudgetSnapshotV3.Integrity(
+                                "SHA-256",
+                                "IT_BUDGET_V3",
+                                document.payloadDigest(),
+                                capturedAt,
+                                document.sources()));
         var sources =
-                document.sources().stream()
+                internal.integrity().sources().stream()
                         .map(
                                 s ->
-                                        new SnapshotSource(
+                                        new ItBudgetSnapshotV3Dto.SnapshotSource(
                                                 SourceKind.valueOf(s.kind()),
                                                 s.id(),
                                                 s.revision(),
@@ -407,29 +419,30 @@ public class ItBudgetApprovalFacade {
                                                 s.digest()))
                         .toList();
         var publicLine =
-                new SnapshotApprovalLine(
-                        new Requester(
-                                line.requester().eno(),
-                                line.requester().name(),
-                                line.requester().rank(),
-                                line.requester().date()),
-                        line.approvers().stream()
+                new ItBudgetSnapshotV3Dto.SnapshotApprovalLine(
+                        new ItBudgetSnapshotV3Dto.Requester(
+                                internal.approvalLine().requester().eno(),
+                                internal.approvalLine().requester().name(),
+                                internal.approvalLine().requester().rank(),
+                                internal.approvalLine().requester().date()),
+                        internal.approvalLine().approvers().stream()
                                 .map(
                                         p ->
-                                                new ApprovalPerson(
+                                                new ItBudgetSnapshotV3Dto.ApprovalPerson(
                                                         p.role(), p.eno(), p.name(), p.rank(),
                                                         p.date()))
                                 .toList());
         var snapshot =
-                new com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto.ItBudgetSnapshot(
-                        new Form("it-budget", 2),
-                        publicPayload(document.payload()),
+                new ItBudgetSnapshotV3Dto.ItBudgetSnapshot(
+                        new ItBudgetSnapshotV3Dto.Form(
+                                internal.form().id(), internal.form().version()),
+                        publicPayload(internal.payload()),
                         publicLine,
-                        new Integrity(
-                                "SHA-256",
-                                "IT_BUDGET_V2",
-                                document.payloadDigest(),
-                                capturedAt,
+                        new ItBudgetSnapshotV3Dto.Integrity(
+                                internal.integrity().algorithm(),
+                                internal.integrity().canonicalization(),
+                                internal.integrity().payloadDigest(),
+                                internal.integrity().capturedAt(),
                                 sources));
         return new PreviewDocument(
                 document.clientDocumentKey(),
@@ -458,7 +471,7 @@ public class ItBudgetApprovalFacade {
         return sources.size() == 1 ? firstName : firstName + " 외 " + (sources.size() - 1) + "건";
     }
 
-    private String snapshotName(BuiltDocument document, ItBudgetSnapshot.Source source) {
+    private String snapshotName(BuiltDocument document, ItBudgetSnapshotV3.Source source) {
         String name =
                 source.kind().equals("PROJECT")
                         ? document.payload().projects().stream()
@@ -758,9 +771,9 @@ public class ItBudgetApprovalFacade {
         };
     }
 
-    private Payload publicPayload(ItBudgetSnapshot.Payload payload) {
+    private ItBudgetSnapshotV3Dto.Payload publicPayload(ItBudgetSnapshotV3.Payload payload) {
         try {
-            return ItBudgetSnapshotCodec.toPublic(mapper, canonical, payload);
+            return ItBudgetSnapshotV3Codec.toPublic(mapper, canonical, payload);
         } catch (JsonProcessingException exception) {
             throw invalid("스냅샷 공개 값 변환에 실패했습니다.");
         }
