@@ -125,6 +125,16 @@ class ItBudgetCanonicalJsonTest {
     }
 
     @Test
+    void v2RequesterConvenienceConstructorPreservesLegacyNullDate() {
+        var requester = new ItBudgetSnapshot.Requester("E10001", "신청자", "과장");
+
+        assertThat(requester.eno()).isEqualTo("E10001");
+        assertThat(requester.name()).isEqualTo("신청자");
+        assertThat(requester.rank()).isEqualTo("과장");
+        assertThat(requester.date()).isNull();
+    }
+
+    @Test
     void snapshot_defensivelyCopiesCallerOwnedListsBeforeCanonicalDigest() {
         List<ItBudgetSnapshot.ApprovalPerson> approvers =
                 new ArrayList<>(

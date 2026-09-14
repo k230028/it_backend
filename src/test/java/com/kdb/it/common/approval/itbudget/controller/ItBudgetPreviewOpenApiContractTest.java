@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetApprovalFacade;
 import com.kdb.it.config.SwaggerConfig;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -121,11 +124,43 @@ class ItBudgetPreviewOpenApiContractTest {
                                         "/components/schemas/ItBudgetSnapshotV3ProjectItem/properties/foreignAmount/type")
                                 .toString())
                 .contains("string", "null");
+        assertThat(requiredProperties(json, "ItBudgetSnapshotV3ProjectItem"))
+                .containsExactlyInAnyOrder(
+                        "id",
+                        "revision",
+                        "sequence",
+                        "budgetType",
+                        "goodsName",
+                        "quantity",
+                        "currency",
+                        "amount",
+                        "foreignAmount",
+                        "calculationBasis");
+        assertThat(requiredProperties(json, "ItBudgetSnapshotV3Payload"))
+                .containsExactlyInAnyOrder("projects", "costs", "summary", "ledger");
+        assertThat(requiredProperties(json, "ItBudgetSnapshotV3Ledger"))
+                .containsExactlyInAnyOrder("format", "aggregates");
+        assertThat(requiredProperties(json, "ItBudgetSnapshotV3LedgerAggregate"))
+                .containsExactlyInAnyOrder("kind", "id", "revision", "parent", "children");
+        assertThat(requiredProperties(json, "ItBudgetSnapshotV3LedgerRow"))
+                .containsExactlyInAnyOrder("table", "columns");
+        assertThat(requiredProperties(json, "ItBudgetSnapshotV3Source"))
+                .containsExactlyInAnyOrder("kind", "id", "revision", "order", "digest");
+        assertThat(requiredProperties(json, "ItBudgetSnapshotV3Integrity"))
+                .containsExactlyInAnyOrder(
+                        "algorithm", "canonicalization", "payloadDigest", "capturedAt", "sources");
         assertThat(
                         json.at(
                                         "/components/schemas/ItBudgetSnapshotV3Payload/properties/ledger/$ref")
                                 .asText())
                 .isEqualTo("#/components/schemas/ItBudgetSnapshotV3Ledger");
+    }
+
+    private static Set<String> requiredProperties(JsonNode document, String schemaName) {
+        Set<String> result = new LinkedHashSet<>();
+        document.at("/components/schemas/" + schemaName + "/required")
+                .forEach(value -> result.add(value.asText()));
+        return result;
     }
 
     @Configuration(proxyBeanMethods = false)

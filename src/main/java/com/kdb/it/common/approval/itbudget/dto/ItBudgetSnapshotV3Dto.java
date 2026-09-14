@@ -104,17 +104,29 @@ public final class ItBudgetSnapshotV3Dto {
 
     @Schema(name = "ItBudgetSnapshotV3ProjectItem", description = "v3 사업 스냅샷 품목")
     public record ProjectItem(
-            @NotBlank @Size(max = 30) String id,
-            @Positive int revision,
-            @Positive int sequence,
-            @NotNull @Valid CodeLabel budgetType,
-            @Schema(nullable = true) String goodsName,
+            @NotBlank @Size(max = 30) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String id,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sequence,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel budgetType,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String goodsName,
             @Pattern(regexp = QUANTITY_PATTERN)
-                    @Schema(type = "string", pattern = QUANTITY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = QUANTITY_PATTERN,
+                            example = "1",
+                            nullable = true)
                     String quantity,
-            @Schema(nullable = true) String currency,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String currency,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            example = "0.000",
+                            nullable = true)
                     String amount,
             @Pattern(regexp = MONEY_PATTERN)
                     @Schema(
@@ -124,7 +136,8 @@ public final class ItBudgetSnapshotV3Dto {
                             nullable = true,
                             description = "BITEMM.FC_AMT 외화 원금")
                     String foreignAmount,
-            @Schema(nullable = true) String calculationBasis) {}
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String calculationBasis) {}
 
     @Schema(name = "ItBudgetSnapshotV3Project", description = "사업 원장 기반 v3 표시 스냅샷")
     public record Project(
@@ -138,7 +151,10 @@ public final class ItBudgetSnapshotV3Dto {
                     String projectBudget,
             @NotBlank
                     @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN)
                     String currentRequestAmount,
             @NotNull @Valid CodeLabel editType,
             @NotNull @Valid CodeLabel progressStatus,
@@ -182,7 +198,8 @@ public final class ItBudgetSnapshotV3Dto {
 
     @Schema(name = "ItBudgetSnapshotV3Terminal", description = "전산업무비 스냅샷 단말기")
     public record Terminal(
-            @NotBlank @Size(max = 30) String id,
+            @NotBlank @Size(max = 30) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String id,
             @Positive int revision,
             @Positive int sequence,
             @NotNull @Valid CodeLabel classification,
@@ -237,47 +254,69 @@ public final class ItBudgetSnapshotV3Dto {
 
     @Schema(name = "ItBudgetSnapshotV3Summary", description = "v3 스냅샷 금액 요약")
     public record Summary(
-            @NotBlank @Pattern(regexp = MONEY_PATTERN) String total,
-            @NotBlank @Pattern(regexp = MONEY_PATTERN) String asset,
-            @NotBlank @Pattern(regexp = MONEY_PATTERN) String cost) {}
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String total,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String asset,
+            @NotBlank
+                    @Pattern(regexp = MONEY_PATTERN)
+                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String cost) {}
 
     @Schema(name = "ItBudgetSnapshotV3LedgerRow", description = "원장 테이블의 전체 영속 컬럼")
     public record LedgerRow(
-            @NotBlank String table, @NotNull Map<@NotBlank String, Object> columns) {}
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String table,
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Map<@NotBlank String, Object> columns) {}
 
     @Schema(name = "ItBudgetSnapshotV3LedgerAggregate", description = "원장 aggregate 스냅샷")
     public record LedgerAggregate(
-            @NotBlank String kind,
-            @NotBlank String id,
-            @Positive int revision,
-            @NotNull @Valid LedgerRow parent,
-            @NotNull List<@NotNull @Valid LedgerRow> children) {}
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String kind,
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LedgerRow parent,
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid LedgerRow> children) {}
 
     @Schema(name = "ItBudgetSnapshotV3Ledger", description = "상신 시점 전체 원장 스냅샷")
     public record Ledger(
-            @NotBlank String format, @NotNull List<@NotNull @Valid LedgerAggregate> aggregates) {}
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String format,
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid LedgerAggregate> aggregates) {}
 
     @Schema(name = "ItBudgetSnapshotV3Payload", description = "표시 projection과 전체 원장")
     public record Payload(
-            @NotNull List<@NotNull @Valid Project> projects,
-            @NotNull List<@NotNull @Valid Cost> costs,
-            @NotNull @Valid Summary summary,
-            @NotNull @Valid Ledger ledger) {}
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid Project> projects,
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid Cost> costs,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Summary summary,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Ledger ledger) {}
 
     @Schema(name = "ItBudgetSnapshotV3Source", description = "v3 스냅샷 무결성 대상 원장")
     public record SnapshotSource(
-            @NotNull SourceKind kind,
-            @NotBlank @Size(max = 30) String id,
-            @Positive int revision,
-            @Positive int order,
-            @NotBlank @Size(min = 64, max = 64) String digest) {}
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) SourceKind kind,
+            @NotBlank @Size(max = 30) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String id,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int order,
+            @NotBlank @Size(min = 64, max = 64) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String digest) {}
 
     @Schema(name = "ItBudgetSnapshotV3Integrity", description = "v3 스냅샷 무결성 메타데이터")
     public record Integrity(
-            @NotBlank String algorithm,
-            @NotBlank String canonicalization,
-            @NotBlank @Size(min = 64, max = 64) String payloadDigest,
-            @NotNull @JsonFormat(shape = JsonFormat.Shape.STRING) @Schema(format = "date-time")
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String algorithm,
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String canonicalization,
+            @NotBlank @Size(min = 64, max = 64) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    String payloadDigest,
+            @NotNull
+                    @JsonFormat(shape = JsonFormat.Shape.STRING)
+                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, format = "date-time")
                     Instant capturedAt,
-            @NotEmpty List<@NotNull @Valid SnapshotSource> sources) {}
+            @NotEmpty @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid SnapshotSource> sources) {}
 }
