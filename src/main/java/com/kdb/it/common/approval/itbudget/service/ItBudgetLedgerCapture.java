@@ -7,6 +7,7 @@ import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.entity.BaseEntity;
+import com.kdb.it.infra.file.entity.Cfilem;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -153,6 +154,18 @@ public final class ItBudgetLedgerCapture {
                     "RMK",
                     "FC_AMT");
 
+    private static final Set<String> CFILEM_COLUMNS =
+            columns(
+                    "FL_MPN_ID",
+                    "FL_NM",
+                    "FL_PYS_NM",
+                    "FL_KPN_PTH",
+                    "FL_TP_CONE",
+                    "APG_FL_SZ",
+                    "APG_FL_PTH",
+                    "APG_FL_KD_NM",
+                    "APG_FL_LNK_CTZ_NM");
+
     private final ItBudgetCanonicalJson canonical;
 
     public ItBudgetLedgerCapture(ItBudgetCanonicalJson canonical) {
@@ -171,6 +184,7 @@ public final class ItBudgetLedgerCapture {
         if (entityType == Bitemm.class) return BITEMM_COLUMNS;
         if (entityType == Bcostm.class) return BCOSTM_COLUMNS;
         if (entityType == Btermm.class) return BTERMM_COLUMNS;
+        if (entityType == Cfilem.class) return CFILEM_COLUMNS;
         throw new IllegalArgumentException("지원하지 않는 원장 엔티티입니다: " + entityType.getName());
     }
 
@@ -191,7 +205,8 @@ public final class ItBudgetLedgerCapture {
                 aggregate.ref().id(),
                 aggregate.ref().revision(),
                 capture(parent),
-                children);
+                children,
+                captureAttachments(aggregate));
     }
 
     private ItBudgetLedgerSnapshot.Aggregate captureCost(
@@ -204,7 +219,13 @@ public final class ItBudgetLedgerCapture {
                 aggregate.ref().id(),
                 aggregate.ref().revision(),
                 capture(parent),
-                children);
+                children,
+                captureAttachments(aggregate));
+    }
+
+    private List<ItBudgetLedgerSnapshot.Row> captureAttachments(
+            ItBudgetSourceLoader.SourceAggregate aggregate) {
+        return aggregate.attachments().stream().map(this::capture).toList();
     }
 
     private ItBudgetLedgerSnapshot.Row capture(Bprojm project) {
@@ -340,6 +361,21 @@ public final class ItBudgetLedgerCapture {
         values.put("FC_AMT", money(terminal.getFcAmt()));
         putBaseColumns(values, terminal);
         return row("BTERMM", BTERMM_COLUMNS, values);
+    }
+
+    private ItBudgetLedgerSnapshot.Row capture(Cfilem file) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("FL_MPN_ID", file.getFlMpnId());
+        values.put("FL_NM", file.getFlNm());
+        values.put("FL_PYS_NM", file.getFlPysNm());
+        values.put("FL_KPN_PTH", file.getFlKpnPth());
+        values.put("FL_TP_CONE", file.getFlTpCone());
+        values.put("APG_FL_SZ", file.getApgFlSz());
+        values.put("APG_FL_PTH", file.getApgFlPth());
+        values.put("APG_FL_KD_NM", file.getApgFlKdNm());
+        values.put("APG_FL_LNK_CTZ_NM", file.getApgFlLnkCtzNm());
+        putBaseColumns(values, file);
+        return row("CFILEM", CFILEM_COLUMNS, values);
     }
 
     private void putBaseColumns(Map<String, Object> values, BaseEntity entity) {

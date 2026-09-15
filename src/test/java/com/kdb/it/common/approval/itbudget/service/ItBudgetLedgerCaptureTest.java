@@ -12,6 +12,7 @@ import com.kdb.it.domain.budget.cost.entity.Btermm;
 import com.kdb.it.domain.budget.project.entity.Bitemm;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.entity.BaseEntity;
+import com.kdb.it.infra.file.entity.Cfilem;
 import jakarta.persistence.Column;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -41,6 +42,8 @@ class ItBudgetLedgerCaptureTest {
                 .containsExactlyInAnyOrderElementsOf(persistentColumnNames(Bcostm.class));
         assertThat(capture.declaredColumns(Btermm.class))
                 .containsExactlyInAnyOrderElementsOf(persistentColumnNames(Btermm.class));
+        assertThat(capture.declaredColumns(Cfilem.class))
+                .containsExactlyInAnyOrderElementsOf(persistentColumnNames(Cfilem.class));
     }
 
     @Test
@@ -71,12 +74,36 @@ class ItBudgetLedgerCaptureTest {
         Bcostm cost = Bcostm.builder().costBgNo("C-001").bgSno(3).build();
         Btermm terminal =
                 Btermm.builder().tmnMngNo("T-001").sno(4).termBgNo("C-001").termBgSno(3).build();
+        Cfilem projectFile =
+                Cfilem.builder()
+                        .flMpnId("FL-00000002")
+                        .flNm("project.pdf")
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("P-2027-001")
+                        .delYn("N")
+                        .fstEnrDtm(createdAt)
+                        .lstChgDtm(changedAt)
+                        .build();
+        Cfilem costFile =
+                Cfilem.builder()
+                        .flMpnId("FL-00000001")
+                        .flNm("cost.pdf")
+                        .apgFlKdNm("전산업무비")
+                        .apgFlLnkCtzNm("C-001")
+                        .delYn("N")
+                        .build();
 
         ItBudgetLedgerSnapshot ledger =
                 capture.capture(
                         List.of(
-                                aggregate(SourceKind.PROJECT, "P-2027-001", 2, project, item),
-                                aggregate(SourceKind.COST, "C-001", 3, cost, terminal)));
+                                aggregate(
+                                        SourceKind.PROJECT,
+                                        "P-2027-001",
+                                        2,
+                                        project,
+                                        item,
+                                        projectFile),
+                                aggregate(SourceKind.COST, "C-001", 3, cost, terminal, costFile)));
 
         assertThat(ledger.format()).isEqualTo("IT_BUDGET_LEDGER_V1");
         assertThat(ledger.aggregates())
@@ -95,6 +122,10 @@ class ItBudgetLedgerCaptureTest {
                 .flatExtracting(ItBudgetLedgerSnapshot.Aggregate::children)
                 .extracting(ItBudgetLedgerSnapshot.Row::table)
                 .containsExactly("BITEMM", "BTERMM");
+        assertThat(ledger.aggregates())
+                .flatExtracting(ItBudgetLedgerSnapshot.Aggregate::attachments)
+                .extracting(ItBudgetLedgerSnapshot.Row::table)
+                .containsExactly("CFILEM", "CFILEM");
 
         ItBudgetLedgerSnapshot.Row capturedItem =
                 ledger.aggregates().getFirst().children().getFirst();
@@ -113,6 +144,14 @@ class ItBudgetLedgerCaptureTest {
                 .containsExactlyInAnyOrderElementsOf(capture.declaredColumns(Bcostm.class));
         assertThat(ledger.aggregates().get(1).children().getFirst().columns().keySet())
                 .containsExactlyInAnyOrderElementsOf(capture.declaredColumns(Btermm.class));
+        assertThat(ledger.aggregates().getFirst().attachments().getFirst().columns())
+                .containsEntry("FL_MPN_ID", "FL-00000002")
+                .containsEntry("FL_NM", "project.pdf")
+                .containsEntry("APG_FL_KD_NM", "정보화사업")
+                .containsEntry("APG_FL_LNK_CTZ_NM", "P-2027-001")
+                .containsEntry("DEL_YN", "N");
+        assertThat(ledger.aggregates().getFirst().attachments().getFirst().columns().keySet())
+                .containsExactlyInAnyOrderElementsOf(capture.declaredColumns(Cfilem.class));
     }
 
     @Test
@@ -130,7 +169,8 @@ class ItBudgetLedgerCaptureTest {
                                         1,
                                         new ItBudgetLedgerSnapshot.Row(
                                                 "BPROJM", java.util.Map.of()),
-                                        children)));
+                                        children,
+                                        List.of())));
 
         ItBudgetLedgerSnapshot ledger =
                 new ItBudgetLedgerSnapshot("IT_BUDGET_LEDGER_V1", aggregates);
@@ -156,9 +196,18 @@ class ItBudgetLedgerCaptureTest {
     }
 
     private static ItBudgetSourceLoader.SourceAggregate aggregate(
-            SourceKind kind, String id, int revision, BaseEntity parent, BaseEntity child) {
+            SourceKind kind,
+            String id,
+            int revision,
+            BaseEntity parent,
+            BaseEntity child,
+            Cfilem attachment) {
         return new ItBudgetSourceLoader.SourceAggregate(
-                new SourceRef(kind, id, revision, 1), parent, List.of(child), null);
+                new SourceRef(kind, id, revision, 1),
+                parent,
+                List.of(child),
+                List.of(attachment),
+                null);
     }
 
     private static Set<String> persistentColumnNames(Class<? extends BaseEntity> entityType) {

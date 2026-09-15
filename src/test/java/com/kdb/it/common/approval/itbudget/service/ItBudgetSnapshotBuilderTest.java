@@ -16,6 +16,7 @@ import com.kdb.it.common.iam.repository.*;
 import com.kdb.it.domain.budget.cost.entity.*;
 import com.kdb.it.domain.budget.project.entity.*;
 import com.kdb.it.domain.budget.project.service.ProjectAmountCalculator;
+import com.kdb.it.infra.file.entity.Cfilem;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -128,6 +129,16 @@ class ItBudgetSnapshotBuilderTest {
         var renamed = build(p, List.of());
         assertThat(renamed.sources()).isEqualTo(before.sources());
         assertThat(renamed.payloadDigest()).isNotEqualTo(before.payloadDigest());
+    }
+
+    @Test
+    void attachmentMetadataChangesV3PayloadDigestWithoutChangingSourceDigest() {
+        var p = project("P1", 1);
+        var first = build(p, List.of(), file("FL-1", "first.pdf"));
+        var renamed = build(p, List.of(), file("FL-1", "renamed.pdf"));
+
+        assertThat(renamed.sources()).isEqualTo(first.sources());
+        assertThat(renamed.payloadDigest()).isNotEqualTo(first.payloadDigest());
     }
 
     @Test
@@ -406,6 +417,27 @@ class ItBudgetSnapshotBuilderTest {
                         List.of(new DocumentRequest("one", List.of(r))),
                         List.of(ItBudgetSourceLoader.aggregate(r, p, children)))
                 .getFirst();
+    }
+
+    ItBudgetSnapshotBuilder.BuiltDocument build(
+            Bprojm p, List<Bitemm> children, Cfilem attachment) {
+        var r = ref(p.getAbusMngNo(), p.getSno(), 1);
+        return builder.buildDocuments(
+                        List.of(new DocumentRequest("one", List.of(r))),
+                        List.of(
+                                ItBudgetSourceLoader.aggregate(
+                                        r, p, children, List.of(attachment))))
+                .getFirst();
+    }
+
+    private static Cfilem file(String id, String name) {
+        return Cfilem.builder()
+                .flMpnId(id)
+                .flNm(name)
+                .apgFlKdNm("정보화사업")
+                .apgFlLnkCtzNm("P1")
+                .delYn("N")
+                .build();
     }
 
     @Test

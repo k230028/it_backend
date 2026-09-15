@@ -141,7 +141,8 @@ class ItBudgetPreviewOpenApiContractTest {
         assertThat(requiredProperties(json, "ItBudgetSnapshotV3Ledger"))
                 .containsExactlyInAnyOrder("format", "aggregates");
         assertThat(requiredProperties(json, "ItBudgetSnapshotV3LedgerAggregate"))
-                .containsExactlyInAnyOrder("kind", "id", "revision", "parent", "children");
+                .containsExactlyInAnyOrder(
+                        "kind", "id", "revision", "parent", "children", "attachments");
         assertThat(requiredProperties(json, "ItBudgetSnapshotV3LedgerRow"))
                 .containsExactlyInAnyOrder("table", "columns");
         assertThat(requiredProperties(json, "ItBudgetSnapshotV3Source"))

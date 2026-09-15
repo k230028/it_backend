@@ -255,6 +255,8 @@ public final class ItBudgetSnapshotReader {
     }
 
     private static boolean isOptional(RecordComponent component) {
+        if (component.getDeclaringRecord() == ItBudgetSnapshotV3Dto.LedgerAggregate.class
+                && "attachments".equals(component.getName())) return true;
         Schema schema = component.getAccessor().getAnnotation(Schema.class);
         return schema != null && schema.requiredMode() == Schema.RequiredMode.NOT_REQUIRED;
     }
@@ -339,6 +341,11 @@ public final class ItBudgetSnapshotReader {
         for (JsonNode aggregate : ledger.path("aggregates")) {
             validateRowScalars(aggregate.path("parent"));
             for (JsonNode child : aggregate.path("children")) validateRowScalars(child);
+            JsonNode attachments = aggregate.get("attachments");
+            if (attachments != null) {
+                if (!attachments.isArray()) throw corrupt("v3", "첨부파일 원장 배열 형식이 올바르지 않습니다.");
+                for (JsonNode attachment : attachments) validateRowScalars(attachment);
+            }
         }
     }
 
@@ -419,6 +426,7 @@ public final class ItBudgetSnapshotReader {
             if (!all.add(identity)) throw corrupt("v3", "원장 자식 복합키가 중복되었습니다.");
             if ("N".equals(row.columns().get("DEL_YN"))) active.add(identity);
         }
+        validateAttachments(aggregate, "정보화사업");
         if (!active.equals(expected)) throw corrupt("v3", "표시 품목과 원장 복합키가 일치하지 않습니다.");
     }
 
@@ -450,7 +458,28 @@ public final class ItBudgetSnapshotReader {
             if (!all.add(identity)) throw corrupt("v3", "원장 자식 복합키가 중복되었습니다.");
             if ("N".equals(row.columns().get("DEL_YN"))) active.add(identity);
         }
+        validateAttachments(aggregate, "전산업무비");
         if (!active.equals(expected)) throw corrupt("v3", "표시 단말기와 원장 복합키가 일치하지 않습니다.");
+    }
+
+    private void validateAttachments(
+            ItBudgetLedgerSnapshot.Aggregate aggregate, String expectedFileKind) {
+        Set<String> fileIds = new HashSet<>();
+        for (var row : aggregate.attachmentRows()) {
+            requireRow(
+                    row,
+                    "CFILEM",
+                    Map.of(
+                            "APG_FL_KD_NM",
+                            expectedFileKind,
+                            "APG_FL_LNK_CTZ_NM",
+                            aggregate.id(),
+                            "DEL_YN",
+                            "N"));
+            Object rawId = row.columns().get("FL_MPN_ID");
+            if (!(rawId instanceof String fileId) || fileId.isBlank() || !fileIds.add(fileId))
+                throw corrupt("v3", "첨부파일 원장 식별자가 올바르지 않습니다.");
+        }
     }
 
     private void requireRow(

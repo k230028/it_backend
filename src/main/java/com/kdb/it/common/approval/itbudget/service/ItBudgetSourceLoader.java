@@ -12,6 +12,8 @@ import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.entity.BaseEntity;
+import com.kdb.it.infra.file.entity.Cfilem;
+import com.kdb.it.infra.file.repository.FileRepository;
 import java.time.LocalDateTime;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -28,15 +30,26 @@ public class ItBudgetSourceLoader {
     private final ProjectItemRepository items;
     private final CostRepository costs;
     private final BtermmRepository terminals;
+    private final FileRepository files;
 
     public record SourceKey(SourceKind kind, String id, int revision) {}
 
     public record Audit(String modifierUserId, LocalDateTime modifiedAt) {}
 
     public record SourceAggregate(
-            SourceRef ref, BaseEntity parent, List<BaseEntity> children, Audit latestAudit) {
+            SourceRef ref,
+            BaseEntity parent,
+            List<BaseEntity> children,
+            List<Cfilem> attachments,
+            Audit latestAudit) {
         public SourceAggregate {
             children = List.copyOf(children);
+            attachments = List.copyOf(attachments);
+        }
+
+        public SourceAggregate(
+                SourceRef ref, BaseEntity parent, List<BaseEntity> children, Audit latestAudit) {
+            this(ref, parent, children, List.of(), latestAudit);
         }
 
         public SourceKey key() {
@@ -107,6 +120,7 @@ public class ItBudgetSourceLoader {
                     children.computeIfAbsent(key, ignored -> new ArrayList<>()).add(row);
             }
         }
+        Map<SourceKind, Map<String, List<Cfilem>>> attachments = loadAttachments(refs);
         return refs.stream()
                 .filter(r -> parents.containsKey(new SourceKey(r.kind(), r.id(), r.revision())))
                 .sorted(
@@ -118,9 +132,38 @@ public class ItBudgetSourceLoader {
                         r -> {
                             var key = new SourceKey(r.kind(), r.id(), r.revision());
                             return aggregate(
-                                    r, parents.get(key), children.getOrDefault(key, List.of()));
+                                    r,
+                                    parents.get(key),
+                                    children.getOrDefault(key, List.of()),
+                                    attachments
+                                            .getOrDefault(r.kind(), Map.of())
+                                            .getOrDefault(r.id(), List.of()));
                         })
                 .toList();
+    }
+
+    private Map<SourceKind, Map<String, List<Cfilem>>> loadAttachments(List<SourceRef> refs) {
+        Map<SourceKind, Map<String, List<Cfilem>>> result = new EnumMap<>(SourceKind.class);
+        for (SourceKind kind : SourceKind.values()) {
+            Set<String> ids =
+                    refs.stream()
+                            .filter(ref -> ref.kind() == kind)
+                            .map(SourceRef::id)
+                            .collect(java.util.stream.Collectors.toCollection(TreeSet::new));
+            if (ids.isEmpty()) continue;
+            String fileKind = kind == SourceKind.PROJECT ? "정보화사업" : "전산업무비";
+            Map<String, List<Cfilem>> byParent = new HashMap<>();
+            files.findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn(fileKind, ids, "N").stream()
+                    .sorted(Comparator.comparing(Cfilem::getFlMpnId))
+                    .forEach(
+                            file ->
+                                    byParent.computeIfAbsent(
+                                                    file.getApgFlLnkCtzNm(),
+                                                    ignored -> new ArrayList<>())
+                                            .add(file));
+            result.put(kind, byParent);
+        }
+        return result;
     }
 
     static void validateRefs(List<SourceRef> refs) {
@@ -166,6 +209,14 @@ public class ItBudgetSourceLoader {
 
     static SourceAggregate aggregate(
             SourceRef ref, BaseEntity parent, List<? extends BaseEntity> children) {
+        return aggregate(ref, parent, children, List.of());
+    }
+
+    static SourceAggregate aggregate(
+            SourceRef ref,
+            BaseEntity parent,
+            List<? extends BaseEntity> children,
+            List<Cfilem> attachments) {
         List<BaseEntity> ordered = new ArrayList<>(children);
         ordered.sort(
                 Comparator.comparing(ItBudgetSourceLoader::childId)
@@ -183,7 +234,11 @@ public class ItBudgetSourceLoader {
                 latest = child;
         }
         return new SourceAggregate(
-                ref, parent, ordered, new Audit(latest.getLstChgUsid(), latest.getLstChgDtm()));
+                ref,
+                parent,
+                ordered,
+                attachments,
+                new Audit(latest.getLstChgUsid(), latest.getLstChgDtm()));
     }
 
     static ItBudgetApprovalException invalid(String message) {

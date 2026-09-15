@@ -17,6 +17,7 @@ import com.kdb.it.domain.budget.cost.repository.*;
 import com.kdb.it.domain.budget.project.entity.*;
 import com.kdb.it.domain.budget.project.repository.*;
 import com.kdb.it.domain.budget.project.service.ProjectAmountCalculator;
+import com.kdb.it.infra.file.repository.FileRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.*;
@@ -36,11 +37,12 @@ class ItBudgetApprovalFacadeTest {
     final ProjectItemRepository items = mock(ProjectItemRepository.class);
     final CostRepository costs = mock(CostRepository.class);
     final BtermmRepository terminals = mock(BtermmRepository.class);
+    final FileRepository files = mock(FileRepository.class);
     final UserRepository users = mock(UserRepository.class);
     final OrganizationRepository organizations = mock(OrganizationRepository.class);
     final CodeRepository codes = mock(CodeRepository.class);
     final ItBudgetSourceLoader loader =
-            spy(new ItBudgetSourceLoader(projects, items, costs, terminals));
+            spy(new ItBudgetSourceLoader(projects, items, costs, terminals, files));
     final ItBudgetSnapshotBuilder builder =
             spy(
                     new ItBudgetSnapshotBuilder(

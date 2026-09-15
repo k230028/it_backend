@@ -332,7 +332,7 @@ class ApiResponseOpenApiContractTest {
                 ItBudgetSnapshotV3Dto.Ledger.class, fields("format", "aggregates"), Set.of());
         assertContract(
                 ItBudgetSnapshotV3Dto.LedgerAggregate.class,
-                fields("kind", "id", "revision", "parent", "children"),
+                fields("kind", "id", "revision", "parent", "children", "attachments"),
                 Set.of());
         assertContract(ItBudgetSnapshotV3Dto.LedgerRow.class, fields("table", "columns"), Set.of());
         assertContract(

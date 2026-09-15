@@ -367,7 +367,14 @@ public final class ItBudgetSnapshotV3Dto {
             @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
             @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LedgerRow parent,
             @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-                    List<@NotNull @Valid LedgerRow> children) {}
+                    List<@NotNull @Valid LedgerRow> children,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid LedgerRow> attachments) {
+        public LedgerAggregate(
+                String kind, String id, int revision, LedgerRow parent, List<LedgerRow> children) {
+            this(kind, id, revision, parent, children, List.of());
+        }
+    }
 
     @Schema(name = "ItBudgetSnapshotV3Ledger", description = "상신 시점 전체 원장 스냅샷")
     public record Ledger(

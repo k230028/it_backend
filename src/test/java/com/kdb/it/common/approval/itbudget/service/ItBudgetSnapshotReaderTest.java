@@ -67,6 +67,87 @@ class ItBudgetSnapshotReaderTest {
     }
 
     @Test
+    void acceptsActiveRelatedCfilemRowsAndKeepsLegacyV3WithoutAttachmentsReadable()
+            throws Exception {
+        var withAttachment = v3();
+        object(withAttachment, "/payload/ledger/aggregates/0")
+                .set(
+                        "attachments",
+                        MAPPER.createArrayNode()
+                                .add(
+                                        MAPPER.createObjectNode()
+                                                .put("table", "CFILEM")
+                                                .set(
+                                                        "columns",
+                                                        MAPPER.createObjectNode()
+                                                                .put("FL_MPN_ID", "FL-1")
+                                                                .put("APG_FL_KD_NM", "정보화사업")
+                                                                .put("APG_FL_LNK_CTZ_NM", "P1")
+                                                                .put("DEL_YN", "N"))));
+        object(withAttachment, "/payload/ledger/aggregates/1")
+                .set("attachments", MAPPER.createArrayNode());
+        resignV3(withAttachment);
+
+        var parsed = reader.read(withAttachment.toString());
+
+        assertThat(parsed.v3Payload().ledger().aggregates().getFirst().attachmentRows())
+                .singleElement()
+                .satisfies(
+                        row -> {
+                            assertThat(row.table()).isEqualTo("CFILEM");
+                            assertThat(row.columns()).containsEntry("FL_MPN_ID", "FL-1");
+                        });
+        assertThat(reader.read(v3Json()).version()).isEqualTo(3);
+    }
+
+    @Test
+    void rejectsInactiveOrUnrelatedCfilemRowsEvenWhenResigned() throws Exception {
+        for (String column : new String[] {"DEL_YN", "APG_FL_LNK_CTZ_NM", "APG_FL_KD_NM"}) {
+            var root = v3WithProjectAttachment();
+            var columns = object(root, "/payload/ledger/aggregates/0/attachments/0/columns");
+            if ("DEL_YN".equals(column)) columns.put(column, "Y");
+            else columns.put(column, "OTHER");
+            resignV3(root);
+
+            assertThatThrownBy(() -> reader.read(root.toString()))
+                    .isInstanceOf(DataCorruptionException.class);
+        }
+    }
+
+    @Test
+    void rejectsExplicitNullV3AttachmentsEvenWhenResigned() throws Exception {
+        var root = v3();
+        object(root, "/payload/ledger/aggregates/0").putNull("attachments");
+        resignV3(root);
+
+        assertThatThrownBy(() -> reader.read(root.toString()))
+                .isInstanceOf(DataCorruptionException.class);
+    }
+
+    @Test
+    void rejectsMalformedCfilemTableIdentityDuplicateAndNestedValueEvenWhenResigned()
+            throws Exception {
+        assertRejectedAttachmentAfterV3Resign(
+                root ->
+                        object(root, "/payload/ledger/aggregates/0/attachments/0")
+                                .put("table", "BITEMM"));
+        assertRejectedAttachmentAfterV3Resign(
+                root ->
+                        object(root, "/payload/ledger/aggregates/0/attachments/0/columns")
+                                .put("FL_MPN_ID", ""));
+        assertRejectedAttachmentAfterV3Resign(
+                root -> {
+                    var attachments =
+                            (ArrayNode) root.at("/payload/ledger/aggregates/0/attachments");
+                    attachments.add(attachments.get(0).deepCopy());
+                });
+        assertRejectedAttachmentAfterV3Resign(
+                root ->
+                        object(root, "/payload/ledger/aggregates/0/attachments/0/columns")
+                                .set("EXTRA", MAPPER.createObjectNode().put("nested", true)));
+    }
+
+    @Test
     void rejectsObjectAndArrayV3LedgerColumnValuesEvenWhenResigned() throws Exception {
         var objectValue = v3();
         object(objectValue, "/payload/ledger/aggregates/0/parent/columns")
@@ -403,5 +484,37 @@ class ItBudgetSnapshotReaderTest {
         resignV3(root);
         assertThatThrownBy(() -> reader.read(root.toString()))
                 .isInstanceOf(DataCorruptionException.class);
+    }
+
+    private void assertRejectedAttachmentAfterV3Resign(
+            java.util.function.Consumer<com.fasterxml.jackson.databind.node.ObjectNode> mutation)
+            throws Exception {
+        var root = v3WithProjectAttachment();
+        mutation.accept(root);
+        resignV3(root);
+        assertThatThrownBy(() -> reader.read(root.toString()))
+                .isInstanceOf(DataCorruptionException.class);
+    }
+
+    private com.fasterxml.jackson.databind.node.ObjectNode v3WithProjectAttachment()
+            throws Exception {
+        var root = v3();
+        object(root, "/payload/ledger/aggregates/0")
+                .set(
+                        "attachments",
+                        MAPPER.createArrayNode()
+                                .add(
+                                        MAPPER.createObjectNode()
+                                                .put("table", "CFILEM")
+                                                .set(
+                                                        "columns",
+                                                        MAPPER.createObjectNode()
+                                                                .put("FL_MPN_ID", "FL-1")
+                                                                .put("APG_FL_KD_NM", "정보화사업")
+                                                                .put("APG_FL_LNK_CTZ_NM", "P1")
+                                                                .put("DEL_YN", "N"))));
+        object(root, "/payload/ledger/aggregates/1").set("attachments", MAPPER.createArrayNode());
+        resignV3(root);
+        return root;
     }
 }

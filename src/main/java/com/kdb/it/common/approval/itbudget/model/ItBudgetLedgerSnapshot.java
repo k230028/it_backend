@@ -1,5 +1,6 @@
 package com.kdb.it.common.approval.itbudget.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -15,10 +16,26 @@ public record ItBudgetLedgerSnapshot(String format, List<Aggregate> aggregates) 
         aggregates = List.copyOf(aggregates);
     }
 
-    public record Aggregate(String kind, String id, int revision, Row parent, List<Row> children) {
+    public record Aggregate(
+            String kind,
+            String id,
+            int revision,
+            Row parent,
+            List<Row> children,
+            @JsonInclude(JsonInclude.Include.NON_NULL) List<Row> attachments) {
 
         public Aggregate {
             children = List.copyOf(children);
+            attachments = attachments == null ? null : List.copyOf(attachments);
+        }
+
+        /** 첨부 필드 도입 전 생성된 v3 스냅샷은 빈 첨부 목록으로 해석한다. */
+        public List<Row> attachmentRows() {
+            return attachments == null ? List.of() : attachments;
+        }
+
+        public Aggregate(String kind, String id, int revision, Row parent, List<Row> children) {
+            this(kind, id, revision, parent, children, null);
         }
     }
 

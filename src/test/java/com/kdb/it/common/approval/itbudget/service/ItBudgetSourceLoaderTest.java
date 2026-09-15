@@ -10,8 +10,11 @@ import com.kdb.it.domain.budget.cost.entity.*;
 import com.kdb.it.domain.budget.cost.repository.*;
 import com.kdb.it.domain.budget.project.entity.*;
 import com.kdb.it.domain.budget.project.repository.*;
+import com.kdb.it.infra.file.entity.Cfilem;
+import com.kdb.it.infra.file.repository.FileRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
@@ -21,7 +24,99 @@ class ItBudgetSourceLoaderTest {
     final ProjectItemRepository items = mock(ProjectItemRepository.class);
     final CostRepository costs = mock(CostRepository.class);
     final BtermmRepository terminals = mock(BtermmRepository.class);
-    final ItBudgetSourceLoader loader = new ItBudgetSourceLoader(projects, items, costs, terminals);
+    final FileRepository files = mock(FileRepository.class);
+    final ItBudgetSourceLoader loader =
+            new ItBudgetSourceLoader(projects, items, costs, terminals, files);
+
+    @Test
+    void legacyAggregateConstructorDefaultsAttachmentsToEmptyAndPreservesSourceKey() {
+        var source =
+                new ItBudgetSourceLoader.SourceAggregate(
+                        ref("P1", 2, 1),
+                        project("P1", 2),
+                        List.of(),
+                        new ItBudgetSourceLoader.Audit("U1", null));
+
+        assertThat(source.attachments()).isEmpty();
+        assertThat(source.key())
+                .isEqualTo(new ItBudgetSourceLoader.SourceKey(SourceKind.PROJECT, "P1", 2));
+    }
+
+    @Test
+    void loadsOnlyActiveRelatedFilesInBulkAndKeepsThemOutOfLatestAudit() {
+        var changedAt = LocalDateTime.of(2026, 9, 15, 11, 0);
+        var project = project("P1", 1);
+        var cost = Bcostm.builder().costBgNo("C1").bgSno(2).delYn("N").build();
+        when(projects.findVersions(anyCollection(), anyCollection())).thenReturn(List.of(project));
+        when(costs.findVersions(anyCollection(), anyCollection())).thenReturn(List.of(cost));
+        var projectFile =
+                Cfilem.builder()
+                        .flMpnId("FL-2")
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("P1")
+                        .delYn("N")
+                        .lstChgDtm(changedAt)
+                        .lstChgUsid("file-user")
+                        .build();
+        var costFile =
+                Cfilem.builder()
+                        .flMpnId("FL-1")
+                        .apgFlKdNm("전산업무비")
+                        .apgFlLnkCtzNm("C1")
+                        .delYn("N")
+                        .build();
+        when(files.findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn("정보화사업", Set.of("P1"), "N"))
+                .thenReturn(List.of(projectFile));
+        when(files.findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn("전산업무비", Set.of("C1"), "N"))
+                .thenReturn(List.of(costFile));
+
+        var result =
+                loader.load(List.of(ref("P1", 1, 1), new SourceRef(SourceKind.COST, "C1", 2, 2)));
+
+        assertThat(result.getFirst().attachments()).containsExactly(projectFile);
+        assertThat(result.get(1).attachments()).containsExactly(costFile);
+        assertThat(result.getFirst().latestAudit().modifierUserId()).isNotEqualTo("file-user");
+        verify(files).findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn("정보화사업", Set.of("P1"), "N");
+        verify(files).findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn("전산업무비", Set.of("C1"), "N");
+    }
+
+    @Test
+    void groupsFilesByManagementNumberAcrossRevisionsAndSortsByFileId() {
+        when(projects.findVersions(anyCollection(), anyCollection()))
+                .thenReturn(List.of(project("P1", 1), project("P1", 2), project("P2", 1)));
+        var first =
+                Cfilem.builder()
+                        .flMpnId("FL-1")
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("P1")
+                        .delYn("N")
+                        .build();
+        var last =
+                Cfilem.builder()
+                        .flMpnId("FL-3")
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("P1")
+                        .delYn("N")
+                        .build();
+        var other =
+                Cfilem.builder()
+                        .flMpnId("FL-2")
+                        .apgFlKdNm("정보화사업")
+                        .apgFlLnkCtzNm("P2")
+                        .delYn("N")
+                        .build();
+        when(files.findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn("정보화사업", Set.of("P1", "P2"), "N"))
+                .thenReturn(List.of(last, other, first));
+
+        var result = loader.load(List.of(ref("P1", 1, 1), ref("P1", 2, 2), ref("P2", 1, 3)));
+
+        assertThat(result.get(0).attachments()).containsExactly(first, last);
+        assertThat(result.get(1).attachments()).containsExactly(first, last);
+        assertThat(result.get(2).attachments()).containsExactly(other);
+        verify(files)
+                .findAllByApgFlKdNmAndApgFlLnkCtzNmInAndDelYn("정보화사업", Set.of("P1", "P2"), "N");
+        verifyNoMoreInteractions(files);
+    }
 
     @Test
     void filtersCartesianPairsAndSortsChildrenWithoutDiscardingDeletedRows() {
