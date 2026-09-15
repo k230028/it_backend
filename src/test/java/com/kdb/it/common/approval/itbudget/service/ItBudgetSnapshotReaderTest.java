@@ -289,6 +289,16 @@ class ItBudgetSnapshotReaderTest {
     }
 
     @Test
+    void treatsOtherFormVersion3AsLegacyWithoutRewritingIt() {
+        String raw = "{\"form\":{\"id\":\"another\",\"version\":3},\"payload\":{\"extension\":1}}";
+
+        var parsed = reader.read(raw);
+
+        assertThat(parsed.version()).isEqualTo(1);
+        assertThat(parsed.write()).isEqualTo(raw);
+    }
+
+    @Test
     void publicNumericStringsRoundTripToOriginalCanonicalPayload() throws Exception {
         var root = v2();
         var parsed = reader.read(root.toString());

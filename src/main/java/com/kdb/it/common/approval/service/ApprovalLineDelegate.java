@@ -64,7 +64,7 @@ public class ApprovalLineDelegate {
         ObjectNode line = line(parsed, required);
         if (line == null) return;
         Map<String, Set<Integer>> targets = buildTargetOccurrences(allApprovers, approvedItems);
-        if (parsed.version() == 2) {
+        if (hasModernApprovalLine(parsed)) {
             List<JsonNode> nodes = new ArrayList<>();
             line.get("approvers").forEach(nodes::add);
             validateTargets(nodes, targets, "eno");
@@ -88,7 +88,7 @@ public class ApprovalLineDelegate {
         }
     }
 
-    /** 회수 정보를 기록한다. v2 payload 무결성 실패는 상태 변경을 차단한다. */
+    /** 회수 정보를 기록한다. v2·v3 payload 무결성 실패는 상태 변경을 차단한다. */
     @Transactional
     public void applyRecallInfo(
             Capplm capplm, String recallerEno, String recallOpnn, DetailMode detailMode) {
@@ -100,14 +100,14 @@ public class ApprovalLineDelegate {
         capplm.updateDetailContent(parsed.write());
     }
 
-    /** IAM에서 해석한 결재자 정보를 뒤에 추가한다. v2의 필수 표시 값 누락은 데이터 오류다. */
+    /** IAM에서 해석한 결재자 정보를 뒤에 추가한다. v2·v3의 필수 표시 값 누락은 데이터 오류다. */
     @Transactional
     public void addApproverToDetail(Capplm capplm, String eno, String name, String rank) {
         ParsedSnapshot parsed = read(capplm, inProgress(capplm));
         if (parsed == null) return;
         ObjectNode line = line(parsed, inProgress(capplm));
         if (line == null) return;
-        if (parsed.version() == 2) {
+        if (hasModernApprovalLine(parsed)) {
             ((ArrayNode) line.get("approvers"))
                     .add(v2Approver(eno, name, rank, ApproverRole.ADDITIONAL));
         } else {
@@ -122,7 +122,7 @@ public class ApprovalLineDelegate {
         capplm.updateDetailContent(parsed.write());
     }
 
-    /** CDECIM 전체 결재선의 인덱스로 v1 정적·추가 노드 또는 v2 결재자를 삭제한다. */
+    /** CDECIM 전체 결재선의 인덱스로 v1 정적·추가 노드 또는 v2·v3 결재자를 삭제한다. */
     @Transactional
     public void removeApproverFromDetail(Capplm capplm, int orderedIndex) {
         ParsedSnapshot parsed = read(capplm, inProgress(capplm));
@@ -153,14 +153,14 @@ public class ApprovalLineDelegate {
         }
     }
 
-    /** v2는 표시 정보·승인일을 포함한 노드를 재배치하며 v1은 기존 order 배열을 갱신한다. */
+    /** v2·v3는 표시 정보·승인일을 포함한 노드를 재배치하며 v1은 기존 order 배열을 갱신한다. */
     @Transactional
     public void updateApprovalOrder(Capplm capplm, List<Cdecim> orderedApprovers) {
         ParsedSnapshot parsed = read(capplm, inProgress(capplm));
         if (parsed == null) return;
         ObjectNode line = line(parsed, inProgress(capplm));
         if (line == null) return;
-        if (parsed.version() == 2) {
+        if (hasModernApprovalLine(parsed)) {
             Map<String, ArrayDeque<JsonNode>> byEno = new HashMap<>();
             for (JsonNode person : line.get("approvers"))
                 byEno.computeIfAbsent(person.get("eno").textValue(), ignored -> new ArrayDeque<>())
@@ -194,7 +194,7 @@ public class ApprovalLineDelegate {
         ObjectNode lineObject = line(parsed, inProgress(capplm));
         if (lineObject == null) return;
         int completedCount = completedPrefixCount(orderedApprovers);
-        if (parsed.version() == 2) {
+        if (hasModernApprovalLine(parsed)) {
             JsonNode current = lineObject.get("approvers");
             if (current.size() < completedCount
                     || replacementUsers.size() != orderedApprovers.size() - completedCount)
@@ -303,6 +303,10 @@ public class ApprovalLineDelegate {
 
     private static boolean inProgress(Capplm capplm) {
         return ApprovalStatus.IN_PROGRESS.code().equals(capplm.getItPtlApfPrgStsC());
+    }
+
+    private static boolean hasModernApprovalLine(ParsedSnapshot parsed) {
+        return parsed.version() >= 2;
     }
 
     private ObjectNode line(ParsedSnapshot parsed, boolean required) {

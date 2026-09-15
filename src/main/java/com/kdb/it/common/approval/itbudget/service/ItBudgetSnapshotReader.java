@@ -74,10 +74,7 @@ public final class ItBudgetSnapshotReader {
             boolean budget = "it-budget".equals(form) || "IT_BUDGET".equals(form);
             boolean envelope = root.has("integrity") || budget && root.has("payload");
             tag = versionTag(root, version, envelope);
-            if (!budget
-                    && !envelope
-                    && !(version.isIntegralNumber()
-                            && (version.intValue() == 2 || version.intValue() == 3)))
+            if (!budget && !envelope && !(version.isIntegralNumber() && version.intValue() == 2))
                 return new ParsedSnapshot(root, 1, null, null);
             if (budget
                     && !envelope

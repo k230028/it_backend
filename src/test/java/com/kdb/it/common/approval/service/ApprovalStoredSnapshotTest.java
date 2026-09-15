@@ -202,6 +202,93 @@ class ApprovalStoredSnapshotTest {
     }
 
     @Test
+    void validV3UpdatesPendingDateWithoutChangingPayloadOrIntegrity() throws Exception {
+        ObjectNode original = v3();
+        Capplm application =
+                Capplm.builder().itPtlApfPrgStsC("1").dcdReqInf(original.toString()).build();
+        LocalDateTime decisionAt = LocalDateTime.of(2030, 1, 2, 23, 59, 59);
+
+        delegate.doUpdate(application, List.of(approver()), List.of(approver()), decisionAt);
+
+        var updated = MAPPER.readTree(application.getDcdReqInf());
+        assertThat(updated.at("/approvalLine/approvers/0/date").asText())
+                .isEqualTo("2030-01-02T23:59:59");
+        assertThat(updated.get("payload")).isEqualTo(original.get("payload"));
+        assertThat(updated.get("integrity")).isEqualTo(original.get("integrity"));
+        assertThat(reader().read(application.getDcdReqInf()).version()).isEqualTo(3);
+    }
+
+    @Test
+    void v3AddApproverUsesStrictApproversShape() throws Exception {
+        ObjectNode original = v3();
+        Capplm application =
+                Capplm.builder().itPtlApfPrgStsC("1").dcdReqInf(original.toString()).build();
+
+        delegate.addApproverToDetail(application, "E3", "추가 사용자", "과장");
+
+        var updated = MAPPER.readTree(application.getDcdReqInf());
+        assertThat(updated.at("/approvalLine/approvers/2/role").asText()).isEqualTo("ADDITIONAL");
+        assertThat(updated.at("/approvalLine/approvers/2/eno").asText()).isEqualTo("E3");
+        assertThat(updated.at("/approvalLine/additionalApprovers").isMissingNode()).isTrue();
+        assertThat(updated.at("/approvalLine/order").isMissingNode()).isTrue();
+        assertThat(updated.get("payload")).isEqualTo(original.get("payload"));
+        assertThat(updated.get("integrity")).isEqualTo(original.get("integrity"));
+        assertThat(reader().read(application.getDcdReqInf()).version()).isEqualTo(3);
+    }
+
+    @Test
+    void v3ReordersApproverObjectsWithoutLegacyOrderField() throws Exception {
+        ObjectNode original = v3();
+        object(original, "/approvalLine/approvers/0").put("role", "ADDITIONAL");
+        object(original, "/approvalLine/approvers/1").put("role", "ADDITIONAL");
+        Capplm application =
+                Capplm.builder().itPtlApfPrgStsC("1").dcdReqInf(original.toString()).build();
+        Cdecim first = Cdecim.builder().dcrEno("E1").dcrSqnSno(1).build();
+        Cdecim second = Cdecim.builder().dcrEno("E2").dcrSqnSno(2).build();
+
+        delegate.updateApprovalOrder(application, List.of(second, first));
+
+        var updated = MAPPER.readTree(application.getDcdReqInf());
+        assertThat(updated.at("/approvalLine/approvers/0/eno").asText()).isEqualTo("E2");
+        assertThat(updated.at("/approvalLine/approvers/1/eno").asText()).isEqualTo("E1");
+        assertThat(updated.at("/approvalLine/order").isMissingNode()).isTrue();
+        assertThat(updated.get("payload")).isEqualTo(original.get("payload"));
+        assertThat(updated.get("integrity")).isEqualTo(original.get("integrity"));
+        assertThat(reader().read(application.getDcdReqInf()).version()).isEqualTo(3);
+    }
+
+    @Test
+    void v3ReplacesOnlyPendingApproversInsideStrictApproversArray() throws Exception {
+        ObjectNode original = v3();
+        Capplm application =
+                Capplm.builder().itPtlApfPrgStsC("1").dcdReqInf(original.toString()).build();
+        Cdecim completed = Cdecim.builder().dcrEno("E1").dcrSqnSno(1).itPtlDcdStsC("2").build();
+        Cdecim pending = Cdecim.builder().dcrEno("E4").dcrSqnSno(2).itPtlDcdStsC("1").build();
+        var replacement =
+                com.kdb.it.common.iam.entity.CuserI.builder()
+                        .eno("E4")
+                        .usrNm("교체 사용자")
+                        .ptCNm("부장")
+                        .build();
+
+        delegate.replacePendingApproversInDetail(
+                application, List.of(completed, pending), List.of(replacement));
+
+        var updated = MAPPER.readTree(application.getDcdReqInf());
+        assertThat(updated.at("/approvalLine/approvers/0"))
+                .isEqualTo(original.at("/approvalLine/approvers/0"));
+        assertThat(updated.at("/approvalLine/approvers/1/role").asText()).isEqualTo("DEPT_HEAD");
+        assertThat(updated.at("/approvalLine/approvers/1/eno").asText()).isEqualTo("E4");
+        assertThat(updated.at("/approvalLine/approvers/1/name").asText()).isEqualTo("교체 사용자");
+        assertThat(updated.at("/approvalLine/approvers/1/date").isNull()).isTrue();
+        assertThat(updated.at("/approvalLine/additionalApprovers").isMissingNode()).isTrue();
+        assertThat(updated.at("/approvalLine/order").isMissingNode()).isTrue();
+        assertThat(updated.get("payload")).isEqualTo(original.get("payload"));
+        assertThat(updated.get("integrity")).isEqualTo(original.get("integrity"));
+        assertThat(reader().read(application.getDcdReqInf()).version()).isEqualTo(3);
+    }
+
+    @Test
     void inProgressLegacyMissingRequiredLineBlocksMutation() {
         Capplm application = application("{\"form\":{\"id\":\"it-budget\",\"version\":1}}");
         when(application.getItPtlApfPrgStsC()).thenReturn("1");
