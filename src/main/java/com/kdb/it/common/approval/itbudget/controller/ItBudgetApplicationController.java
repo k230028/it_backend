@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class ItBudgetApplicationController {
     private final ItBudgetApprovalFacade facade;
 
-    /** 원장·결재자 입력을 검증해 v2 문서를 반환한다. 인증·권한·대상 누락은 공통 오류 계약으로 응답한다. */
+    /** 원장·결재자 입력을 검증해 v3 문서를 반환한다. 인증·권한·대상 누락은 공통 오류 계약으로 응답한다. */
     @PostMapping(value = "/previews", consumes = "application/json", produces = "application/json")
     @Operation(
             summary = "전산예산 결재 미리보기",
