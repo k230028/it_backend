@@ -155,16 +155,175 @@ class ApiResponseOpenApiContractTest {
     }
 
     @Test
-    void itBudgetV3SnapshotSchemasExposeRequiredNullableAndLedgerContracts() {
-        Schema<?> snapshotV3 = resolve(ItBudgetSnapshotV3Dto.ItBudgetSnapshot.class);
-        assertThat(snapshotV3.getRequired())
-                .contains("form", "payload", "approvalLine", "integrity");
-
-        Schema<?> projectItemV3 = resolve(ItBudgetSnapshotV3Dto.ProjectItem.class);
-        assertThat(projectItemV3.getRequired()).contains("foreignAmount");
-        assertThat(Boolean.TRUE.equals(property(projectItemV3, "foreignAmount").getNullable()))
-                .isTrue();
-
+    void itBudgetV3SnapshotSchemasExposeExactRequiredAndNullableContracts() {
+        assertContract(
+                ItBudgetSnapshotV3Dto.ItBudgetSnapshot.class,
+                fields("form", "payload", "approvalLine", "integrity"),
+                Set.of());
+        assertContract(ItBudgetSnapshotV3Dto.Form.class, fields("id", "version"), Set.of());
+        assertContract(
+                ItBudgetSnapshotV3Dto.CodeLabel.class,
+                fields("code", "label"),
+                fields("code", "label"));
+        assertContract(
+                ItBudgetSnapshotV3Dto.Organization.class,
+                fields("code", "name"),
+                fields("code", "name"));
+        assertContract(
+                ItBudgetSnapshotV3Dto.Person.class,
+                fields("eno", "name", "rank"),
+                fields("eno", "name", "rank"));
+        Schema<?> requester = resolve(ItBudgetSnapshotV3Dto.Requester.class);
+        assertThat(requester.getProperties().keySet())
+                .containsExactlyInAnyOrder("eno", "name", "rank", "date");
+        assertThat(requester.getRequired()).containsExactlyInAnyOrder("eno", "name", "rank");
+        assertThat(Boolean.TRUE.equals(property(requester, "rank").getNullable())).isTrue();
+        assertThat(Boolean.TRUE.equals(property(requester, "date").getNullable())).isTrue();
+        assertContract(
+                ItBudgetSnapshotV3Dto.ApprovalPerson.class,
+                fields("role", "eno", "name", "rank", "date"),
+                fields("date"));
+        assertContract(
+                ItBudgetSnapshotV3Dto.SnapshotApprovalLine.class,
+                fields("requester", "approvers"),
+                Set.of());
+        assertContract(
+                ItBudgetSnapshotV3Dto.ProjectItem.class,
+                fields(
+                        "id",
+                        "revision",
+                        "sequence",
+                        "budgetType",
+                        "goodsName",
+                        "quantity",
+                        "currency",
+                        "amount",
+                        "foreignAmount",
+                        "calculationBasis"),
+                fields(
+                        "goodsName",
+                        "quantity",
+                        "currency",
+                        "amount",
+                        "foreignAmount",
+                        "calculationBasis"));
+        assertContract(
+                ItBudgetSnapshotV3Dto.Project.class,
+                fields(
+                        "id",
+                        "revision",
+                        "ordinaryYn",
+                        "name",
+                        "baseYear",
+                        "projectBudget",
+                        "currentRequestAmount",
+                        "editType",
+                        "progressStatus",
+                        "startDate",
+                        "endDate",
+                        "feasibilityDate",
+                        "outline",
+                        "scope",
+                        "security",
+                        "purpose",
+                        "necessity",
+                        "expectedEffect",
+                        "mainProgress",
+                        "workforcePlan",
+                        "supervisingOrganization",
+                        "supervisingDepartment",
+                        "manager",
+                        "teamLeader",
+                        "developmentDepartment",
+                        "developmentManager",
+                        "developmentTeamLeader",
+                        "businessType",
+                        "businessDetail",
+                        "costType",
+                        "skillType",
+                        "executionPattern",
+                        "deploymentYn",
+                        "assetBudget",
+                        "costBudget",
+                        "items"),
+                fields(
+                        "ordinaryYn",
+                        "name",
+                        "baseYear",
+                        "projectBudget",
+                        "startDate",
+                        "endDate",
+                        "feasibilityDate",
+                        "outline",
+                        "scope",
+                        "security",
+                        "purpose",
+                        "necessity",
+                        "expectedEffect",
+                        "mainProgress",
+                        "workforcePlan",
+                        "deploymentYn",
+                        "assetBudget",
+                        "costBudget"));
+        assertContract(
+                ItBudgetSnapshotV3Dto.Terminal.class,
+                fields(
+                        "id",
+                        "revision",
+                        "sequence",
+                        "classification",
+                        "kind",
+                        "usage",
+                        "specification",
+                        "currency",
+                        "exchangeRate",
+                        "foreignAmount",
+                        "budgetAmount"),
+                fields(
+                        "usage",
+                        "specification",
+                        "currency",
+                        "exchangeRate",
+                        "foreignAmount",
+                        "budgetAmount"));
+        assertContract(
+                ItBudgetSnapshotV3Dto.Cost.class,
+                fields(
+                        "id",
+                        "revision",
+                        "baseYear",
+                        "name",
+                        "counterparty",
+                        "business",
+                        "budgetType",
+                        "totalAmount",
+                        "currency",
+                        "exchangeRate",
+                        "exchangeRateBaseDate",
+                        "deferralType",
+                        "firstDeferralDate",
+                        "reason",
+                        "supervisingDepartment",
+                        "manager",
+                        "securitySystemUseYn",
+                        "assetBudget",
+                        "costBudget",
+                        "terminals"),
+                fields(
+                        "baseYear",
+                        "name",
+                        "counterparty",
+                        "totalAmount",
+                        "currency",
+                        "exchangeRate",
+                        "exchangeRateBaseDate",
+                        "firstDeferralDate",
+                        "reason",
+                        "securitySystemUseYn",
+                        "assetBudget",
+                        "costBudget"));
+        assertContract(
+                ItBudgetSnapshotV3Dto.Summary.class, fields("total", "asset", "cost"), Set.of());
         assertContract(
                 ItBudgetSnapshotV3Dto.Payload.class,
                 fields("projects", "costs", "summary", "ledger"),
@@ -176,6 +335,14 @@ class ApiResponseOpenApiContractTest {
                 fields("kind", "id", "revision", "parent", "children"),
                 Set.of());
         assertContract(ItBudgetSnapshotV3Dto.LedgerRow.class, fields("table", "columns"), Set.of());
+        assertContract(
+                ItBudgetSnapshotV3Dto.SnapshotSource.class,
+                fields("kind", "id", "revision", "order", "digest"),
+                Set.of());
+        assertContract(
+                ItBudgetSnapshotV3Dto.Integrity.class,
+                fields("algorithm", "canonicalization", "payloadDigest", "capturedAt", "sources"),
+                Set.of());
         assertThat(
                         property(resolve(ItBudgetSnapshotV3Dto.LedgerRow.class), "columns")
                                 .getDescription())

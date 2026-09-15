@@ -141,13 +141,17 @@ public final class ItBudgetSnapshotV3Dto {
 
     @Schema(name = "ItBudgetSnapshotV3Project", description = "사업 원장 기반 v3 표시 스냅샷")
     public record Project(
-            @NotBlank String id,
-            @Positive int revision,
-            @Schema(nullable = true) String ordinaryYn,
-            @Schema(nullable = true) String name,
-            @Schema(nullable = true) String baseYear,
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String ordinaryYn,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String name,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String baseYear,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String projectBudget,
             @NotBlank
                     @Pattern(regexp = MONEY_PATTERN)
@@ -156,101 +160,180 @@ public final class ItBudgetSnapshotV3Dto {
                             type = "string",
                             pattern = MONEY_PATTERN)
                     String currentRequestAmount,
-            @NotNull @Valid CodeLabel editType,
-            @NotNull @Valid CodeLabel progressStatus,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) CodeLabel editType,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel progressStatus,
             @JsonFormat(pattern = "uuuu-MM-dd", lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date", nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            format = "date",
+                            nullable = true)
                     LocalDate startDate,
             @JsonFormat(pattern = "uuuu-MM-dd", lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date", nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            format = "date",
+                            nullable = true)
                     LocalDate endDate,
             @JsonFormat(pattern = "uuuu-MM-dd", lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date", nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            format = "date",
+                            nullable = true)
                     LocalDate feasibilityDate,
-            @Schema(nullable = true) String outline,
-            @Schema(nullable = true) String scope,
-            @Schema(nullable = true) String security,
-            @Schema(nullable = true) String purpose,
-            @Schema(nullable = true) String necessity,
-            @Schema(nullable = true) String expectedEffect,
-            @Schema(nullable = true) String mainProgress,
-            @Schema(nullable = true) String workforcePlan,
-            @NotNull @Valid Organization supervisingOrganization,
-            @NotNull @Valid Organization supervisingDepartment,
-            @NotNull @Valid Person manager,
-            @NotNull @Valid Person teamLeader,
-            @NotNull @Valid Organization developmentDepartment,
-            @NotNull @Valid Person developmentManager,
-            @NotNull @Valid Person developmentTeamLeader,
-            @NotNull @Valid CodeLabel businessType,
-            @NotNull @Valid CodeLabel businessDetail,
-            @NotNull @Valid CodeLabel costType,
-            @NotNull @Valid CodeLabel skillType,
-            @NotNull @Valid CodeLabel executionPattern,
-            @Schema(nullable = true) String deploymentYn,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String outline,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String scope,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String security,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String purpose,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String necessity,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String expectedEffect,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String mainProgress,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String workforcePlan,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Organization supervisingOrganization,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Organization supervisingDepartment,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Person manager,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Person teamLeader,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Organization developmentDepartment,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Person developmentManager,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Person developmentTeamLeader,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel businessType,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel businessDetail,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) CodeLabel costType,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel skillType,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel executionPattern,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String deploymentYn,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String assetBudget,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String costBudget,
-            @NotNull List<@NotNull @Valid ProjectItem> items) {}
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid ProjectItem> items) {}
 
     @Schema(name = "ItBudgetSnapshotV3Terminal", description = "전산업무비 스냅샷 단말기")
     public record Terminal(
             @NotBlank @Size(max = 30) @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
                     String id,
-            @Positive int revision,
-            @Positive int sequence,
-            @NotNull @Valid CodeLabel classification,
-            @NotNull @Valid CodeLabel kind,
-            @Schema(nullable = true) String usage,
-            @Schema(nullable = true) String specification,
-            @Schema(nullable = true) String currency,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int sequence,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel classification,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) CodeLabel kind,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String usage,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String specification,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String currency,
             @Pattern(regexp = EXCHANGE_RATE_PATTERN)
-                    @Schema(type = "string", pattern = EXCHANGE_RATE_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = EXCHANGE_RATE_PATTERN,
+                            nullable = true)
                     String exchangeRate,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String foreignAmount,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String budgetAmount) {}
 
     @Schema(name = "ItBudgetSnapshotV3Cost", description = "전산업무비 원장 기반 v3 표시 스냅샷")
     public record Cost(
-            @NotBlank String id,
-            @Positive int revision,
-            @Schema(nullable = true) String baseYear,
-            @Schema(nullable = true) String name,
-            @Schema(nullable = true) String counterparty,
-            @NotNull @Valid CodeLabel business,
-            @NotNull @Valid CodeLabel budgetType,
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
+            @Positive @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int revision,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String baseYear,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String name,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String counterparty,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) CodeLabel business,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel budgetType,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String totalAmount,
-            @Schema(nullable = true) String currency,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String currency,
             @Pattern(regexp = EXCHANGE_RATE_PATTERN)
-                    @Schema(type = "string", pattern = EXCHANGE_RATE_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = EXCHANGE_RATE_PATTERN,
+                            nullable = true)
                     String exchangeRate,
             @JsonFormat(pattern = "uuuu-MM-dd", lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date", nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            format = "date",
+                            nullable = true)
                     LocalDate exchangeRateBaseDate,
-            @NotNull @Valid CodeLabel deferralType,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    CodeLabel deferralType,
             @JsonFormat(pattern = "uuuu-MM-dd", lenient = OptBoolean.FALSE)
-                    @Schema(type = "string", format = "date", nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            format = "date",
+                            nullable = true)
                     LocalDate firstDeferralDate,
-            @Schema(nullable = true) String reason,
-            @NotNull @Valid Organization supervisingDepartment,
-            @NotNull @Valid Person manager,
-            @Schema(nullable = true) String securitySystemUseYn,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String reason,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    Organization supervisingDepartment,
+            @NotNull @Valid @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Person manager,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+                    String securitySystemUseYn,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String assetBudget,
             @Pattern(regexp = MONEY_PATTERN)
-                    @Schema(type = "string", pattern = MONEY_PATTERN, nullable = true)
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            type = "string",
+                            pattern = MONEY_PATTERN,
+                            nullable = true)
                     String costBudget,
-            @NotNull List<@NotNull @Valid Terminal> terminals) {}
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+                    List<@NotNull @Valid Terminal> terminals) {}
 
     @Schema(name = "ItBudgetSnapshotV3Summary", description = "v3 스냅샷 금액 요약")
     public record Summary(
