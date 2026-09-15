@@ -270,7 +270,11 @@ public final class ItBudgetSnapshotV3Dto {
     @Schema(name = "ItBudgetSnapshotV3LedgerRow", description = "원장 테이블의 전체 영속 컬럼")
     public record LedgerRow(
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String table,
-            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotNull
+                    @Schema(
+                            requiredMode = Schema.RequiredMode.REQUIRED,
+                            description =
+                                    "각 물리 컬럼 값. JSON scalar(string, number, boolean) 또는 null만 허용한다.")
                     Map<@NotBlank String, Object> columns) {}
 
     @Schema(name = "ItBudgetSnapshotV3LedgerAggregate", description = "원장 aggregate 스냅샷")

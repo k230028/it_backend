@@ -10,6 +10,7 @@ import com.kdb.it.common.approval.dto.ApplicationDto;
 import com.kdb.it.common.approval.dto.ApplicationInfoDto;
 import com.kdb.it.common.approval.itbudget.controller.ItBudgetApplicationController;
 import com.kdb.it.common.approval.itbudget.dto.ItBudgetApprovalDto;
+import com.kdb.it.common.approval.itbudget.dto.ItBudgetSnapshotV3Dto;
 import com.kdb.it.common.approval.itbudget.service.ItBudgetApprovalFacade;
 import com.kdb.it.common.board.dto.BoardCommentDto;
 import com.kdb.it.common.board.dto.BoardMetaDto;
@@ -76,6 +77,7 @@ class ApiResponseOpenApiContractTest {
                 .isEqualTo("#/components/schemas/ItBudgetPreviewRequest");
         assertThat(preview.at("/responses/200/content/application~1json/schema/$ref").asText())
                 .isEqualTo("#/components/schemas/ItBudgetPreviewResponse");
+        assertThat(preview.at("/responses/200/description").asText()).contains("v3");
         assertThat(submission.at("/requestBody/content/application~1json/schema/$ref").asText())
                 .isEqualTo("#/components/schemas/ItBudgetSubmissionRequest");
         assertThat(submission.at("/responses/200/content/application~1json/schema/$ref").asText())
@@ -103,6 +105,11 @@ class ApiResponseOpenApiContractTest {
                 "approvers",
                 "documents");
         assertRequired(document, "ItBudgetSubmissionResponse", "applicationNumbers");
+        assertThat(
+                        document.at(
+                                        "/components/schemas/ItBudgetPreviewDocument/properties/snapshot/$ref")
+                                .asText())
+                .isEqualTo("#/components/schemas/ItBudgetSnapshotV3");
         assertThat(
                         document.at(
                                         "/components/schemas/ItBudgetPreviewRequest/properties/approvers/maxItems")
@@ -145,6 +152,34 @@ class ApiResponseOpenApiContractTest {
         assertThat(jsonStrings(modifiedAt.path("type")))
                 .containsExactlyInAnyOrder("string", "null");
         assertThat(modifiedAt.path("format").asText()).isEqualTo("date-time");
+    }
+
+    @Test
+    void itBudgetV3SnapshotSchemasExposeRequiredNullableAndLedgerContracts() {
+        Schema<?> snapshotV3 = resolve(ItBudgetSnapshotV3Dto.ItBudgetSnapshot.class);
+        assertThat(snapshotV3.getRequired())
+                .contains("form", "payload", "approvalLine", "integrity");
+
+        Schema<?> projectItemV3 = resolve(ItBudgetSnapshotV3Dto.ProjectItem.class);
+        assertThat(projectItemV3.getRequired()).contains("foreignAmount");
+        assertThat(Boolean.TRUE.equals(property(projectItemV3, "foreignAmount").getNullable()))
+                .isTrue();
+
+        assertContract(
+                ItBudgetSnapshotV3Dto.Payload.class,
+                fields("projects", "costs", "summary", "ledger"),
+                Set.of());
+        assertContract(
+                ItBudgetSnapshotV3Dto.Ledger.class, fields("format", "aggregates"), Set.of());
+        assertContract(
+                ItBudgetSnapshotV3Dto.LedgerAggregate.class,
+                fields("kind", "id", "revision", "parent", "children"),
+                Set.of());
+        assertContract(ItBudgetSnapshotV3Dto.LedgerRow.class, fields("table", "columns"), Set.of());
+        assertThat(
+                        property(resolve(ItBudgetSnapshotV3Dto.LedgerRow.class), "columns")
+                                .getDescription())
+                .contains("JSON scalar", "null");
     }
 
     private static void assertErrorResponse(JsonNode operation, String... statuses) {

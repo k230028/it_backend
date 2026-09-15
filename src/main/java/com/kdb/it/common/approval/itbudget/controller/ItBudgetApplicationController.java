@@ -29,7 +29,7 @@ public class ItBudgetApplicationController {
             responses = {
                 @ApiResponse(
                         responseCode = "200",
-                        description = "서버 생성 v2 미리보기",
+                        description = "서버 생성 v3 미리보기",
                         content =
                                 @Content(schema = @Schema(implementation = PreviewResponse.class))),
                 @ApiResponse(
