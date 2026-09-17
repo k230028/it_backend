@@ -4108,4 +4108,42 @@ class ProjectServiceTest {
 
         verify(concurrencyGuard, never()).verifyStamp(any(), any(), any());
     }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"30", "31", "32", "33", "34", "35"})
+    @DisplayName("사용자 지정 전결권은 신규 저장에서 코드 원문을 보존한다")
+    void createProjectPreservesManualApprovalAuthority(String code) {
+        given(projectRepository.getNextSequenceValue()).willReturn(1L);
+        var request =
+                ProjectDto.CreateRequest.builder()
+                        .abusNm("사용자 지정 전결권 사업")
+                        .bseYy("2027")
+                        .edrtTc(code)
+                        .build();
+        projectService.createProject(request);
+        var captor = ArgumentCaptor.forClass(Bprojm.class);
+        verify(projectRepository).save(captor.capture());
+        assertThat(captor.getValue().getEdrtTc()).isEqualTo(code);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"30", "31", "32", "33", "34", "35"})
+    @DisplayName("사용자 지정 전결권은 내용 수정 후에도 코드 원문을 보존한다")
+    void updateProjectPreservesManualApprovalAuthority(String code) {
+        var project =
+                Bprojm.builder().abusMngNo("PRJ-MANUAL").sno(1).edrtTc(code).delYn("N").build();
+        given(projectRepository.findCurrentVersionForUpdate("PRJ-MANUAL"))
+                .willReturn(Optional.of(project));
+        given(bitemmRepository.findByAbusMngNoAndFntTbCrySnoAndDelYn("PRJ-MANUAL", 1, "N"))
+                .willReturn(List.of());
+        var request =
+                ProjectDto.UpdateRequest.builder()
+                        .abusNm("변경된 사업명")
+                        .edrtTc(code)
+                        .items(List.of())
+                        .build();
+        projectService.updateProject("PRJ-MANUAL", request);
+        assertThat(project.getAbusNm()).isEqualTo("변경된 사업명");
+        assertThat(project.getEdrtTc()).isEqualTo(code);
+    }
 }
