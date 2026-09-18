@@ -70,4 +70,17 @@ public class FileTargetWriteAuthorizerRegistry {
             throw new AccessDeniedException("보호된 파일 종류는 generic 파일 API로 변경할 수 없습니다: " + apgFlKdNm);
         }
     }
+
+    /**
+     * 파일 종류별 범용 삭제 제한을 검증합니다. 수정 제한과 분리하여 예산 첨부만 삭제를 엽니다.
+     *
+     * @param apgFlKdNm 삭제할 파일 종류
+     * @throws AccessDeniedException 반입 원본·배너·사용자가이드 등 전용 관리 대상인 경우
+     */
+    public void verifyGenericDeletionAllowed(String apgFlKdNm) {
+        FileTargetWriteAuthorizer authorizer = apgFlKdNm == null ? null : byKind.get(apgFlKdNm);
+        if (authorizer != null && !authorizer.allowsGenericDeletion()) {
+            throw new AccessDeniedException("보호된 파일 종류는 generic 파일 API로 삭제할 수 없습니다: " + apgFlKdNm);
+        }
+    }
 }

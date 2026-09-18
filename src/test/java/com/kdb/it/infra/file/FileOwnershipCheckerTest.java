@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.exception.CustomGeneralException;
+import com.kdb.it.infra.file.authz.BudgetFileDeleteAuthorizer;
 import com.kdb.it.infra.file.authz.FileReadAuthorizerRegistry;
 import com.kdb.it.infra.file.authz.ReviewCommentFileWriteAuthorizer;
 import com.kdb.it.infra.file.entity.Cfilem;
@@ -34,10 +35,44 @@ import org.springframework.security.access.AccessDeniedException;
 class FileOwnershipCheckerTest {
 
     @Mock private FileRepository fileRepository;
+    @Mock private BudgetFileDeleteAuthorizer budgetFileDeleteAuthorizer;
     @Mock private FileReadAuthorizerRegistry readAuthorizerRegistry;
     @Mock private ReviewCommentFileWriteAuthorizer reviewCommentFileWriteAuthorizer;
 
     @InjectMocks private FileOwnershipChecker fileOwnershipChecker;
+
+    @Test
+    @DisplayName("검토의견 첨부 삭제도 업로더 대신 댓글 작성자 권한을 따른다")
+    void verifyDeleteAccess_reviewComment_authorizerAllowsAuthor() {
+        Cfilem file = mock(Cfilem.class);
+        given(file.getApgFlKdNm()).willReturn(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND);
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_REVIEW_DELETE_01", "N"))
+                .willReturn(Optional.of(file));
+        CustomUserDetails author = new CustomUserDetails("AUTHOR", List.of("ITPZZ001"), "IT001");
+        given(reviewCommentFileWriteAuthorizer.canWrite(file, author)).willReturn(true);
+
+        assertThatCode(() -> fileOwnershipChecker.verifyDeleteAccess("FL_REVIEW_DELETE_01", author))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("검토의견 첨부 삭제도 댓글 작성자 권한이 없으면 거부한다")
+    void verifyDeleteAccess_reviewComment_authorizerDeniesUploader() {
+        Cfilem file = mock(Cfilem.class);
+        given(file.getApgFlKdNm()).willReturn(ReviewCommentFileWriteAuthorizer.REVIEW_COMMENT_KIND);
+        given(fileRepository.findByFlMpnIdAndDelYn("FL_REVIEW_DELETE_02", "N"))
+                .willReturn(Optional.of(file));
+        CustomUserDetails uploader =
+                new CustomUserDetails("UPLOADER", List.of("ITPZZ001"), "IT001");
+        given(reviewCommentFileWriteAuthorizer.canWrite(file, uploader)).willReturn(false);
+
+        assertThatThrownBy(
+                        () ->
+                                fileOwnershipChecker.verifyDeleteAccess(
+                                        "FL_REVIEW_DELETE_02", uploader))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("파일 쓰기 권한이 없습니다");
+    }
 
     // ── verifyWriteAccess (owner-or-admin, 403) ──
 

@@ -31,6 +31,12 @@ public class ProjectFileTargetWriteAuthorizer implements FileTargetWriteAuthoriz
         return false;
     }
 
+    /** 파일 연결 변경은 계속 차단하되, 별도 삭제 권한을 통과한 첨부의 삭제는 허용합니다. */
+    @Override
+    public boolean allowsGenericDeletion() {
+        return true;
+    }
+
     /**
      * 정보화사업 첨부 대상 쓰기 가능 여부를 판정합니다.
      *

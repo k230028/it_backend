@@ -365,12 +365,11 @@ public class FileController {
             summary = "파일 단건 삭제",
             description =
                     "파일을 논리 삭제합니다(DEL_YN='Y'). 검토의견 첨부는 활성 댓글 작성자 또는 관리자만 삭제할 수 있으며, "
-                            + "다른 종류는 업로더 또는 관리자만 삭제할 수 있습니다. 물리 파일은 서버에 유지됩니다.")
+                            + "예산 첨부는 업로더·주관부서 사용자·관리자, 다른 종류는 업로더 또는 관리자만 삭제할 수 있습니다. 물리 파일은 서버에 유지됩니다.")
     public ResponseEntity<Void> deleteFile(
             @PathVariable("flMpnId") String flMpnId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        // 쓰기 권한 검증 — 파일 종류별 작성자 또는 관리자 정책을 적용한다.
-        fileOwnershipChecker.verifyWriteAccess(flMpnId, userDetails);
+        fileOwnershipChecker.verifyDeleteAccess(flMpnId, userDetails);
         fileService.deleteFile(flMpnId);
         return ResponseEntity.noContent().build();
     }
@@ -393,7 +392,7 @@ public class FileController {
     public ResponseEntity<Integer> deleteFilesByOrc(
             @org.springframework.web.bind.annotation.RequestBody FileDto.BulkDeleteRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        // 소유권 검증은 서비스 계층에서 수행 — 비관리자는 본인 소유 파일만 일괄 삭제 가능
+        // 소유권·예산 주관부서 권한과 보호 종류 검증은 서비스 계층에서 수행한다.
         int deletedCount =
                 fileService.deleteFilesByOrc(
                         request.getApgFlKdNm(), request.getApgFlLnkCtzNm(), userDetails);

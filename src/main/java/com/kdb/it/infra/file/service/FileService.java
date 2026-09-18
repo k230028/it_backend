@@ -435,7 +435,7 @@ public class FileService {
                                         new CustomGeneralException(
                                                 "존재하지 않는 파일입니다. 파일매핑ID: " + flMpnId));
 
-        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(cfilem.getApgFlKdNm());
+        targetWriteAuthorizerRegistry.verifyGenericDeletionAllowed(cfilem.getApgFlKdNm());
         // 논리 삭제(DEL_YN = 'Y')
         cfilem.delete();
         syncBoardFileCacheIfNeeded(cfilem.getApgFlKdNm(), cfilem.getApgFlLnkCtzNm());
@@ -454,19 +454,19 @@ public class FileService {
      * <p>특정 도메인 레코드에 연결된 모든 파일을 일괄 논리 삭제합니다. 프로젝트·문서 삭제 시 연관 파일 정리에 활용합니다. 삭제할 파일이 없어도 예외 없이 정상
      * 처리됩니다.
      *
-     * <p>소유권 검증: 관리자가 아닌 경우 대상 파일이 모두 본인이 업로드한 파일일 때만 삭제할 수 있습니다. 하나라도 타인이 업로드한 파일이 섞여 있으면 {@link
-     * AccessDeniedException}을 던집니다. 관리자는 소유권 검증만 우회하며, 보호 종류 차단은 우회하지 않습니다.
+     * <p>모두 본인 업로드 파일이거나 관리자이면 허용합니다. 예산 첨부는 활성 원장의 주관부서 사용자도 허용하며, 파일 수와 무관하게 부모는 한 번만 조회합니다. 반입
+     * 원본 등 보호 종류는 관리자도 범용 삭제할 수 없습니다.
      *
      * @param apgFlKdNm 첨부파일종류명 (예: 요구사항정의서)
      * @param apgFlLnkCtzNm 첨부파일연결콘텐츠명 (예: PRJ-2026-0001)
-     * @param user 현재 사용자 — 비관리자는 본인 소유 파일만 일괄 삭제 가능
+     * @param user 현재 사용자 — 예산 첨부는 주관부서 사용자도 일괄 삭제 가능
      * @return 논리 삭제된 파일 수
      * @throws AccessDeniedException 비관리자가 타인 소유 파일을 포함해 삭제를 시도한 경우, 또는 대상 파일 종류가 전용 writer만 관리하는 보호
      *     종류인 경우(관리자 포함)
      */
     @Transactional
     public int deleteFilesByOrc(String apgFlKdNm, String apgFlLnkCtzNm, CustomUserDetails user) {
-        targetWriteAuthorizerRegistry.verifyGenericMutationAllowed(apgFlKdNm);
+        targetWriteAuthorizerRegistry.verifyGenericDeletionAllowed(apgFlKdNm);
         List<Cfilem> files =
                 fileRepository.findAllByApgFlKdNmAndApgFlLnkCtzNmAndDelYn(
                         apgFlKdNm, apgFlLnkCtzNm, "N");
@@ -475,12 +475,14 @@ public class FileService {
         if (user == null) {
             throw new AccessDeniedException("인증 정보가 없습니다.");
         }
-        // 관리자가 아니면 본인 소유 파일만 일괄 삭제 허용 — 하나라도 타인 파일이면 차단
+        // 다른 업로더의 파일이 섞여 있으면 예산 원장의 부서 권한을 한 번만 확인한다.
         if (!user.isAdmin()) {
             boolean hasOthers =
                     files.stream().anyMatch(f -> !user.getUsername().equals(f.getFstEnrUsid()));
-            if (hasOthers) {
-                throw new AccessDeniedException("본인이 업로드한 파일만 일괄 삭제할 수 있습니다.");
+            if (hasOthers
+                    && !fileOwnershipChecker.canDeleteForDepartment(
+                            apgFlKdNm, apgFlLnkCtzNm, user)) {
+                throw new AccessDeniedException("본인 업로드 파일 또는 같은 주관부서의 예산 첨부만 일괄 삭제할 수 있습니다.");
             }
         }
 

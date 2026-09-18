@@ -505,7 +505,7 @@ class FileControllerTest {
                         new org.springframework.security.access.AccessDeniedException(
                                 "본인 또는 관리자만 수행할 수 있습니다."))
                 .when(fileOwnershipChecker)
-                .verifyWriteAccess(anyString(), any());
+                .verifyDeleteAccess(anyString(), any());
 
         mockMvc.perform(delete("/api/files/" + FL_MNG_NO).with(user(userDetails)))
                 .andExpect(status().isForbidden());
@@ -727,7 +727,7 @@ class FileControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("DELETE /api/files/{id} - 배너 파일은 범용 API로 삭제할 수 없다 → 403")
     void deleteFile_배너파일_403() throws Exception {
-        doNothing().when(fileOwnershipChecker).verifyWriteAccess(anyString(), any());
+        doNothing().when(fileOwnershipChecker).verifyDeleteAccess(anyString(), any());
         doThrow(
                         new org.springframework.security.access.AccessDeniedException(
                                 "보호된 파일 종류는 generic 파일 API로 변경할 수 없습니다: 배너"))

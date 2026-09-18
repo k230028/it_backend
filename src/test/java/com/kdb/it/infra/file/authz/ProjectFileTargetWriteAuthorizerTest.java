@@ -115,8 +115,9 @@ class ProjectFileTargetWriteAuthorizerTest {
     }
 
     @Test
-    @DisplayName("정보화사업 첨부는 범용 수정·삭제 API로 변경할 수 없다")
+    @DisplayName("정보화사업 첨부의 범용 연결 수정은 차단하고 삭제는 별도 권한으로 허용한다")
     void genericMutationDenied() {
         assertThat(authorizer.allowsGenericMutation()).isFalse();
+        assertThat(authorizer.allowsGenericDeletion()).isTrue();
     }
 }
