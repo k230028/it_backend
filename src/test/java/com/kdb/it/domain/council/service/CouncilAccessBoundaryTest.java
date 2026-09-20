@@ -553,6 +553,33 @@ class CouncilAccessBoundaryTest {
         verify(entityManager, org.mockito.Mockito.times(3)).persist(any());
     }
 
+    @Test
+    void councilCreateRejectsBeforeAnyPersistence() {
+        CustomUserDetails other = login("OTHER");
+        assertThatThrownBy(
+                        () ->
+                                councilService.createCouncil(
+                                        new CouncilDto.CreateRequest("PRJ-1", 1, "03", null),
+                                        other))
+                .isInstanceOf(AccessDeniedException.class);
+        CustomUserDetails owner = login("OWNER");
+        assertThatThrownBy(
+                        () ->
+                                councilService.createCouncil(
+                                        new CouncilDto.CreateRequest("PRJ-1", 1, "01", null),
+                                        owner))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(
+                        () ->
+                                councilService.createCouncil(
+                                        new CouncilDto.CreateRequest(null, null, "02", "PLN-1"),
+                                        owner))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(councilRepository, never()).getNextSequenceValue();
+        verify(councilRepository, never()).findByAbusMngNoAndDelYn(any(), any());
+        verifyNoInteractions(entityManager);
+    }
+
     private CouncilDto.CommitteeRequest committeeRequest() {
         return new CouncilDto.CommitteeRequest(
                 "03", List.of(new CouncilDto.CommitteeMemberRequest("E-1", "02")));

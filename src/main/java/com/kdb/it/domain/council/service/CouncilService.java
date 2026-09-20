@@ -271,6 +271,9 @@ public class CouncilService {
      */
     @Transactional
     public String createCouncil(CouncilDto.CreateRequest request, CustomUserDetails userDetails) {
+        // 원장이 없으므로 심의유형과 사업 키로 신청 권한을 먼저 판정한다. 계획협의회는 관리자만 통과한다.
+        councilAccessGuard.verifyCreatable(request.dbrTc(), request.prjMngNo(), request.prjSno());
+
         // 정보기술부문계획 협의회(dbrTc='02')는 단일 사업이 아니라 계획(BPLANM)을 심의 대상으로 가진다.
         boolean isPlanCouncil = "02".equals(request.dbrTc());
 
