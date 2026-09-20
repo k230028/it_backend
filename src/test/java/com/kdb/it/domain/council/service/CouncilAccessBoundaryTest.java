@@ -1,6 +1,7 @@
 package com.kdb.it.domain.council.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
+import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
 import com.kdb.it.domain.budget.project.repository.ProjectRepository;
 import com.kdb.it.domain.council.controller.CouncilFeasibilityController;
 import com.kdb.it.domain.council.dto.CouncilDto;
@@ -60,7 +62,9 @@ class CouncilAccessBoundaryTest {
     @Mock PerformanceRepository performanceRepository;
     @Mock SelfCheckRepository selfCheckRepository;
     @Mock EntityManager entityManager;
+    @Mock ProjectItemRepository projectItemRepository;
     @InjectMocks CouncilService councilService;
+    private CouncilAccessGuard guard;
     private FeasibilityService feasibilityService;
     private Basctm council;
 
@@ -88,10 +92,13 @@ class CouncilAccessBoundaryTest {
                         selfCheckRepository,
                         councilService);
         ReflectionTestUtils.setField(feasibilityService, "entityManager", entityManager);
-        ReflectionTestUtils.setField(
-                councilService,
-                "councilAccessGuard",
-                new CouncilAccessGuard(councilRepository, projectRepository, committeeRepository));
+        guard =
+                new CouncilAccessGuard(
+                        councilRepository,
+                        projectRepository,
+                        committeeRepository,
+                        projectItemRepository);
+        ReflectionTestUtils.setField(councilService, "councilAccessGuard", guard);
         login("OTHER");
     }
 
@@ -302,18 +309,118 @@ class CouncilAccessBoundaryTest {
         verifyNoInteractions(entityManager, projectOverviewRepository);
     }
 
-    private void loginAs(String role) {
+    @Test
+    void manageableRejectsOwningDepartmentAndCommittee() {
+        login("OWNER");
+        assertThatThrownBy(() -> guard.verifyManageable(council))
+                .isInstanceOf(AccessDeniedException.class);
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.of(mock(Bcmmtm.class)));
+        assertThatThrownBy(() -> guard.verifyManageable(council))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void manageableAllowsAdminAndInfoSecOnlyForInfoSecType() {
+        loginAs("ITPAD001");
+        assertThatCode(() -> guard.verifyManageable(council)).doesNotThrowAnyException();
+        loginAs("ITPAD002");
+        assertThatThrownBy(() -> guard.verifyManageable(council))
+                .isInstanceOf(AccessDeniedException.class);
+        ReflectionTestUtils.setField(council, "itPtlAsctDbrTc", "04");
+        assertThatCode(() -> guard.verifyManageable(council)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void owningOrManageableAllowsOwnerButNotCommittee() {
+        login("OWNER");
+        assertThatCode(() -> guard.verifyOwningOrManageable(council)).doesNotThrowAnyException();
+        login("OTHER");
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.of(mock(Bcmmtm.class)));
+        assertThatThrownBy(() -> guard.verifyOwningOrManageable(council))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void committeeOrManageableAllowsCommitteeAndManagerOnly() {
+        login("OTHER");
+        assertThatThrownBy(() -> guard.verifyCommitteeOrManageable(council))
+                .isInstanceOf(AccessDeniedException.class);
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.of(mock(Bcmmtm.class)));
+        assertThatCode(() -> guard.verifyCommitteeOrManageable(council)).doesNotThrowAnyException();
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.empty());
+        loginAs("ITPAD001");
+        assertThatCode(() -> guard.verifyCommitteeOrManageable(council)).doesNotThrowAnyException();
+        login("OWNER");
+        assertThatThrownBy(() -> guard.verifyCommitteeOrManageable(council))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void creatableFollowsRoleAndDepartmentMatrix() {
+        // 일반 사용자: 본인 부서 사업 03 허용, 타 부서 03 거부, 01·02·05 거부
+        login("OWNER");
+        assertThatCode(() -> guard.verifyCreatable("03", "PRJ-1", 1)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> guard.verifyCreatable("01", "PRJ-1", 1))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> guard.verifyCreatable("02", "PLN-1", null))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> guard.verifyCreatable("05", "PRJ-1", 1))
+                .isInstanceOf(AccessDeniedException.class);
+        login("OTHER");
+        assertThatThrownBy(() -> guard.verifyCreatable("03", "PRJ-1", 1))
+                .isInstanceOf(AccessDeniedException.class);
+        // 일반 사용자 04: 정보보호 항목이 있어야 허용
+        login("OWNER");
+        when(projectItemRepository.existsByAbusMngNoAndSectSysUtzYnAndDelYn("PRJ-1", "Y", "N"))
+                .thenReturn(false);
+        assertThatThrownBy(() -> guard.verifyCreatable("04", "PRJ-1", 1))
+                .isInstanceOf(AccessDeniedException.class);
+        when(projectItemRepository.existsByAbusMngNoAndSectSysUtzYnAndDelYn("PRJ-1", "Y", "N"))
+                .thenReturn(true);
+        assertThatCode(() -> guard.verifyCreatable("04", "PRJ-1", 1)).doesNotThrowAnyException();
+        // 정보보호관리자: 04만
+        loginAs("ITPAD002");
+        assertThatCode(() -> guard.verifyCreatable("04", "PRJ-9", 1)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> guard.verifyCreatable("03", "PRJ-1", 1))
+                .isInstanceOf(AccessDeniedException.class);
+        // 시스템관리자: 01·02·03·05 무조건, 04는 정보보호 항목 있을 때
+        loginAs("ITPAD001");
+        assertThatCode(() -> guard.verifyCreatable("02", "PLN-1", null)).doesNotThrowAnyException();
+        assertThatCode(() -> guard.verifyCreatable("03", "PRJ-9", 1)).doesNotThrowAnyException();
+        when(projectItemRepository.existsByAbusMngNoAndSectSysUtzYnAndDelYn("PRJ-9", "Y", "N"))
+                .thenReturn(false);
+        assertThatThrownBy(() -> guard.verifyCreatable("04", "PRJ-9", 1))
+                .isInstanceOf(AccessDeniedException.class);
+        when(projectItemRepository.existsByAbusMngNoAndSectSysUtzYnAndDelYn("PRJ-9", "Y", "N"))
+                .thenReturn(true);
+        assertThatCode(() -> guard.verifyCreatable("04", "PRJ-9", 1)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void creatableRejectsMissingAuthentication() {
+        SecurityContextHolder.clearContext();
+        assertThatThrownBy(() -> guard.verifyCreatable("03", "PRJ-1", 1))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    private CustomUserDetails loginAs(String role) {
         var user = new CustomUserDetails("USER-1", List.of(role), "OTHER");
         SecurityContextHolder.getContext()
                 .setAuthentication(
                         new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+        return user;
     }
 
-    private void login(String department) {
+    private CustomUserDetails login(String department) {
         var user = new CustomUserDetails("USER-1", List.of("ITPZZ001"), department);
         SecurityContextHolder.getContext()
                 .setAuthentication(
                         new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+        return user;
     }
 
     private CouncilDto.FeasibilityRequest request(String type) {
