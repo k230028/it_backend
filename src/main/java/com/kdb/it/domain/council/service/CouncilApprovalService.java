@@ -51,6 +51,9 @@ public class CouncilApprovalService {
     /** 공통 전자결재 서비스 */
     private final ApplicationService applicationService;
 
+    /** 결재 상신의 주관부서·관리 권한 검사 */
+    private final CouncilAccessGuard councilAccessGuard;
+
     // 원천 테이블명 (CAPPLA.FNT_TB_NM)
     private static final String ORC_TB_CD = "BASCTM";
 
@@ -77,6 +80,9 @@ public class CouncilApprovalService {
 
         // 협의회 존재 확인
         Basctm council = councilService.findActiveCouncil(asctId);
+
+        // 권한을 상태보다 먼저 검사한다. 배정위원은 상세를 볼 수 있지만 상신은 주관부서·관리자만 한다.
+        councilAccessGuard.verifyOwningOrManageable(council);
 
         // SUBMITTED 상태 확인 (작성완료 후에만 결재 요청 가능)
         if (!"02".equals(council.getItPtlAsctPrgStsTc())) {

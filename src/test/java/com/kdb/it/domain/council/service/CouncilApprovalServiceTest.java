@@ -41,6 +41,8 @@ class CouncilApprovalServiceTest {
 
     @Mock private ApplicationService applicationService;
 
+    @Mock private CouncilAccessGuard councilAccessGuard;
+
     @InjectMocks private CouncilApprovalService councilApprovalService;
 
     private static final String ASCT_ID = "ASCT-2026-0001";

@@ -366,7 +366,10 @@ class CouncilJsonlessApprovalWorkflowTest {
         var requester = new CustomUserDetails("U1", List.of("ITPAD001", "ITPAD002"), "D1");
         var approvals =
                 new CouncilApprovalService(
-                        councils, mock(ProjectOverviewRepository.class), service);
+                        councils,
+                        mock(ProjectOverviewRepository.class),
+                        service,
+                        mock(CouncilAccessGuard.class));
         if (producer == Producer.REVIEW) {
             when(council.getItPtlAsctPrgStsTc()).thenReturn("02");
             return approvals

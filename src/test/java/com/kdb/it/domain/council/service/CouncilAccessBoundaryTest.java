@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kdb.it.common.approval.service.ApplicationService;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
@@ -65,10 +66,12 @@ class CouncilAccessBoundaryTest {
     @Mock EntityManager entityManager;
     @Mock ProjectItemRepository projectItemRepository;
     @Mock UserRepository userRepository;
+    @Mock ApplicationService applicationService;
     @InjectMocks CouncilService councilService;
     private CouncilAccessGuard guard;
     private FeasibilityService feasibilityService;
     private CommitteeService committeeService;
+    private CouncilApprovalService approvalService;
     private Basctm council;
 
     @BeforeEach
@@ -105,6 +108,9 @@ class CouncilAccessBoundaryTest {
         committeeService =
                 new CommitteeService(committeeRepository, userRepository, councilService, guard);
         ReflectionTestUtils.setField(committeeService, "entityManager", entityManager);
+        approvalService =
+                new CouncilApprovalService(
+                        councilService, projectOverviewRepository, applicationService, guard);
         login("OTHER");
     }
 
@@ -458,6 +464,50 @@ class CouncilAccessBoundaryTest {
                         ResponseStatusException.class,
                         error -> assertThat(error.getStatusCode().value()).isEqualTo(409));
         verifyNoInteractions(entityManager);
+    }
+
+    @Test
+    void approvalRequestRejectsOtherDepartmentAndCommittee() {
+        council.changeStatus("02");
+        CustomUserDetails other = login("OTHER");
+        assertThatThrownBy(
+                        () ->
+                                approvalService.requestApproval(
+                                        ID, new CouncilDto.ApprovalRequest("E-9", null), other))
+                .isInstanceOf(AccessDeniedException.class);
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.of(mock(Bcmmtm.class)));
+        assertThatThrownBy(
+                        () ->
+                                approvalService.requestApproval(
+                                        ID, new CouncilDto.ApprovalRequest("E-9", null), other))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(applicationService, projectOverviewRepository);
+    }
+
+    @Test
+    void approvalRequestChecksPermissionBeforeStatus() {
+        // 작성중(01) 원장이라도 권한 없는 호출자는 상태 오류(400)가 아니라 403을 받는다.
+        CustomUserDetails other = login("OTHER");
+        assertThatThrownBy(
+                        () ->
+                                approvalService.requestApproval(
+                                        ID, new CouncilDto.ApprovalRequest("E-9", null), other))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(applicationService, projectOverviewRepository);
+    }
+
+    @Test
+    void approvalRequestPermissionAllowsOwnerAdminAndInfoSecForInfoSecType() {
+        login("OWNER");
+        assertThatCode(() -> guard.verifyOwningOrManageable(council)).doesNotThrowAnyException();
+        loginAs("ITPAD001");
+        assertThatCode(() -> guard.verifyOwningOrManageable(council)).doesNotThrowAnyException();
+        loginAs("ITPAD002");
+        assertThatThrownBy(() -> guard.verifyOwningOrManageable(council))
+                .isInstanceOf(AccessDeniedException.class);
+        ReflectionTestUtils.setField(council, "itPtlAsctDbrTc", "04");
+        assertThatCode(() -> guard.verifyOwningOrManageable(council)).doesNotThrowAnyException();
     }
 
     private CouncilDto.CommitteeRequest committeeRequest() {
