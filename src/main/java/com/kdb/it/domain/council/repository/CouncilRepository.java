@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.repository;
 import com.kdb.it.domain.council.dto.CouncilProjectRow;
 import com.kdb.it.domain.council.entity.Basctm;
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 /**
@@ -118,6 +120,7 @@ public interface CouncilRepository extends JpaRepository<Basctm, String> {
      * @return 잠금된 협의회 (없으면 empty)
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
     @Query("SELECT b FROM Basctm b WHERE b.itPtlAsctId = :itPtlAsctId")
     Optional<Basctm> findByIdForUpdate(@Param("itPtlAsctId") String itPtlAsctId);
 

@@ -65,6 +65,8 @@ public class CouncilService {
     /** 협의회 기본정보 리포지토리 (TPRMPP_BASCTM) */
     private final CouncilRepository councilRepository;
 
+    private final CouncilAccessGuard councilAccessGuard;
+
     /** 사업개요 리포지토리 (TPRMPP_BPOVWM) — 사업명 조회용 */
     private final ProjectOverviewRepository projectOverviewRepository;
 
@@ -238,8 +240,20 @@ public class CouncilService {
      * @throws IllegalArgumentException 존재하지 않는 협의회
      */
     public CouncilDto.DetailResponse getCouncil(String asctId) {
-        Basctm council = findActiveCouncil(asctId);
+        Basctm council = findReadableCouncil(asctId);
         return toDetailResponse(council);
+    }
+
+    /** 활성 협의회의 조회 권한을 검사하며, 범위 밖 사용자에게는 접근 거부 예외를 반환합니다. */
+    public Basctm findReadableCouncil(String asctId) {
+        Basctm council = findActiveCouncil(asctId);
+        councilAccessGuard.verifyReadable(council);
+        return council;
+    }
+
+    /** 쓰기 트랜잭션에서 검토표 원장을 잠그고 권한·작성중 상태를 검사합니다. 충돌 시 409입니다. */
+    public Basctm findWritableDraftCouncil(String asctId) {
+        return councilAccessGuard.lockWritableDraft(asctId);
     }
 
     // =========================================================================

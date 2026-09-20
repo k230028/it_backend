@@ -81,8 +81,8 @@ public class FeasibilityService {
      * @throws IllegalArgumentException 존재하지 않는 협의회이거나 아직 미작성인 경우
      */
     public CouncilDto.FeasibilityResponse getFeasibility(String asctId) {
-        // 협의회 존재 확인
-        councilService.findActiveCouncil(asctId);
+        // 문서와 첨부 정보를 읽기 전에 대상 협의회의 조회 권한을 검사한다.
+        councilService.findReadableCouncil(asctId);
 
         // 사업개요 조회 — 최초 진입 시 미작성 상태이면 null 반환 (프론트에서 DEFAULT_FORM으로 초기화)
         java.util.Optional<Bpovwm> overviewOpt =
@@ -122,8 +122,8 @@ public class FeasibilityService {
      */
     @Transactional
     public void saveFeasibility(String asctId, CouncilDto.FeasibilityRequest request) {
-        // 협의회 존재 확인
-        councilService.findActiveCouncil(asctId);
+        // 잠금 이후 권한·상태를 검사해 작성완료 이후 덮어쓰기와 단계 역행을 차단한다.
+        councilService.findWritableDraftCouncil(asctId);
 
         // 작성완료 시 첨부파일 필수 검증
         if ("20".equals(request.kpnTc())) { // KPN_TP_TC 20 = 저장완료

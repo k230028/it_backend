@@ -70,6 +70,8 @@ class CouncilServiceTest {
 
     @Mock private CouncilRepository councilRepository;
 
+    @Mock private CouncilAccessGuard councilAccessGuard;
+
     @Mock private ProjectOverviewRepository projectOverviewRepository;
 
     @Mock private ProjectRepository projectRepository;
