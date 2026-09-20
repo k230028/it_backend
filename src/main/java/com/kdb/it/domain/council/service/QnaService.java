@@ -40,6 +40,9 @@ public class QnaService {
     /** 정보화사업 리포지토리 — 답변 권한(주관부서) 검증용 */
     private final ProjectRepository projectRepository;
 
+    /** 사전 Q&A 질문 등록의 위원·관리 권한 검사 */
+    private final CouncilAccessGuard councilAccessGuard;
+
     /** JPA EntityManager — 질의 신규 INSERT persist용 (§5.12.1.1) */
     @PersistenceContext private EntityManager entityManager;
 
@@ -85,9 +88,13 @@ public class QnaService {
             String asctId, CouncilDto.QnaCreateRequest request, CustomUserDetails userDetails) {
         /* 협의회 존재 검증 + 채번 직렬화: 부모 협의회 행 비관적 잠금
          * (동일 협의회 동시 등록 시 QTN_ID 순번 충돌 방지) */
-        councilRepository
-                .findByIdForUpdate(asctId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 협의회입니다: " + asctId));
+        Basctm council =
+                councilRepository
+                        .findByIdForUpdate(asctId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("존재하지 않는 협의회입니다: " + asctId));
+        // 질문은 해당 협의회 배정위원과 관리자만 남긴다. 추진부서 담당자는 답변 전용이다.
+        councilAccessGuard.verifyCommitteeOrManageable(council);
 
         /* QTN_ID 채번: QTN-{asctId}-{2자리순번} */
         int seq = qnaRepository.getNextQtnSeq(asctId);

@@ -26,6 +26,7 @@ import com.kdb.it.domain.council.repository.CommitteeRepository;
 import com.kdb.it.domain.council.repository.CouncilRepository;
 import com.kdb.it.domain.council.repository.PerformanceRepository;
 import com.kdb.it.domain.council.repository.ProjectOverviewRepository;
+import com.kdb.it.domain.council.repository.QnaRepository;
 import com.kdb.it.domain.council.repository.SelfCheckRepository;
 import com.kdb.it.exception.GlobalExceptionHandler;
 import jakarta.persistence.EntityManager;
@@ -67,11 +68,13 @@ class CouncilAccessBoundaryTest {
     @Mock ProjectItemRepository projectItemRepository;
     @Mock UserRepository userRepository;
     @Mock ApplicationService applicationService;
+    @Mock QnaRepository qnaRepository;
     @InjectMocks CouncilService councilService;
     private CouncilAccessGuard guard;
     private FeasibilityService feasibilityService;
     private CommitteeService committeeService;
     private CouncilApprovalService approvalService;
+    private QnaService qnaService;
     private Basctm council;
 
     @BeforeEach
@@ -111,6 +114,8 @@ class CouncilAccessBoundaryTest {
         approvalService =
                 new CouncilApprovalService(
                         councilService, projectOverviewRepository, applicationService, guard);
+        qnaService = new QnaService(qnaRepository, councilRepository, projectRepository, guard);
+        ReflectionTestUtils.setField(qnaService, "entityManager", entityManager);
         login("OTHER");
     }
 
@@ -508,6 +513,44 @@ class CouncilAccessBoundaryTest {
                 .isInstanceOf(AccessDeniedException.class);
         ReflectionTestUtils.setField(council, "itPtlAsctDbrTc", "04");
         assertThatCode(() -> guard.verifyOwningOrManageable(council)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void qnaCreateRejectsUnrelatedUserAndOwningDepartment() {
+        CustomUserDetails other = login("OTHER");
+        assertThatThrownBy(
+                        () ->
+                                qnaService.createQna(
+                                        ID, new CouncilDto.QnaCreateRequest("질문"), other))
+                .isInstanceOf(AccessDeniedException.class);
+        CustomUserDetails owner = login("OWNER");
+        assertThatThrownBy(
+                        () ->
+                                qnaService.createQna(
+                                        ID, new CouncilDto.QnaCreateRequest("질문"), owner))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(entityManager, qnaRepository);
+    }
+
+    @Test
+    void qnaCreateAllowsCommitteeAndManagers() {
+        CustomUserDetails member = login("OTHER");
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.of(mock(Bcmmtm.class)));
+        qnaService.createQna(ID, new CouncilDto.QnaCreateRequest("질문"), member);
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.empty());
+        CustomUserDetails admin = loginAs("ITPAD001");
+        qnaService.createQna(ID, new CouncilDto.QnaCreateRequest("질문"), admin);
+        CustomUserDetails infoSec = loginAs("ITPAD002");
+        assertThatThrownBy(
+                        () ->
+                                qnaService.createQna(
+                                        ID, new CouncilDto.QnaCreateRequest("질문"), infoSec))
+                .isInstanceOf(AccessDeniedException.class);
+        ReflectionTestUtils.setField(council, "itPtlAsctDbrTc", "04");
+        qnaService.createQna(ID, new CouncilDto.QnaCreateRequest("질문"), infoSec);
+        verify(entityManager, org.mockito.Mockito.times(3)).persist(any());
     }
 
     private CouncilDto.CommitteeRequest committeeRequest() {

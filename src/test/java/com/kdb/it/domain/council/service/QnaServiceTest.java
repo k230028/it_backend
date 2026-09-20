@@ -47,6 +47,8 @@ class QnaServiceTest {
 
     @Mock private ProjectRepository projectRepository;
 
+    @Mock private CouncilAccessGuard councilAccessGuard;
+
     @Mock private EntityManager entityManager;
 
     @InjectMocks private QnaService qnaService;
