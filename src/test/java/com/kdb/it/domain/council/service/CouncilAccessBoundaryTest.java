@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.system.security.CustomUserDetails;
 import com.kdb.it.domain.budget.project.entity.Bprojm;
 import com.kdb.it.domain.budget.project.repository.ProjectItemRepository;
@@ -63,9 +64,11 @@ class CouncilAccessBoundaryTest {
     @Mock SelfCheckRepository selfCheckRepository;
     @Mock EntityManager entityManager;
     @Mock ProjectItemRepository projectItemRepository;
+    @Mock UserRepository userRepository;
     @InjectMocks CouncilService councilService;
     private CouncilAccessGuard guard;
     private FeasibilityService feasibilityService;
+    private CommitteeService committeeService;
     private Basctm council;
 
     @BeforeEach
@@ -99,6 +102,9 @@ class CouncilAccessBoundaryTest {
                         committeeRepository,
                         projectItemRepository);
         ReflectionTestUtils.setField(councilService, "councilAccessGuard", guard);
+        committeeService =
+                new CommitteeService(committeeRepository, userRepository, councilService, guard);
+        ReflectionTestUtils.setField(committeeService, "entityManager", entityManager);
         login("OTHER");
     }
 
@@ -405,6 +411,58 @@ class CouncilAccessBoundaryTest {
         SecurityContextHolder.clearContext();
         assertThatThrownBy(() -> guard.verifyCreatable("03", "PRJ-1", 1))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void committeeSaveRejectsOwningDepartmentAndCommittee() {
+        council.changeStatus("05");
+        login("OWNER");
+        assertThatThrownBy(() -> committeeService.saveCommittee(ID, committeeRequest()))
+                .isInstanceOf(AccessDeniedException.class);
+        login("OTHER");
+        when(committeeRepository.findByItPtlAsctIdAndEnoAndDelYn(ID, "USER-1", "N"))
+                .thenReturn(Optional.of(mock(Bcmmtm.class)));
+        assertThatThrownBy(() -> committeeService.saveCommittee(ID, committeeRequest()))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(entityManager);
+    }
+
+    @Test
+    void committeeSaveAllowsAdminInPreparationStatuses() {
+        loginAs("ITPAD001");
+        council.changeStatus("04");
+        committeeService.saveCommittee(ID, committeeRequest());
+        council.changeStatus("05");
+        committeeService.saveCommittee(ID, committeeRequest());
+        verify(entityManager, org.mockito.Mockito.times(2)).persist(any());
+    }
+
+    @Test
+    void committeeSaveAllowsInfoSecManagerOnlyForInfoSecType() {
+        loginAs("ITPAD002");
+        council.changeStatus("05");
+        assertThatThrownBy(() -> committeeService.saveCommittee(ID, committeeRequest()))
+                .isInstanceOf(AccessDeniedException.class);
+        ReflectionTestUtils.setField(council, "itPtlAsctDbrTc", "04");
+        committeeService.saveCommittee(ID, committeeRequest());
+        verify(entityManager).persist(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"01", "02", "03", "06", "07", "08", "09", "10", "11", "12", "13", "99"})
+    void committeeSaveRejectsOtherStatusesWithConflict(String status) {
+        loginAs("ITPAD001");
+        council.changeStatus(status);
+        assertThatThrownBy(() -> committeeService.saveCommittee(ID, committeeRequest()))
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
+                        error -> assertThat(error.getStatusCode().value()).isEqualTo(409));
+        verifyNoInteractions(entityManager);
+    }
+
+    private CouncilDto.CommitteeRequest committeeRequest() {
+        return new CouncilDto.CommitteeRequest(
+                "03", List.of(new CouncilDto.CommitteeMemberRequest("E-1", "02")));
     }
 
     private CustomUserDetails loginAs(String role) {

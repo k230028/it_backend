@@ -3,6 +3,7 @@ package com.kdb.it.domain.council.service;
 import com.kdb.it.common.iam.repository.UserRepository;
 import com.kdb.it.common.iam.service.UserRepresentativeSelector;
 import com.kdb.it.domain.council.dto.CouncilDto;
+import com.kdb.it.domain.council.entity.Basctm;
 import com.kdb.it.domain.council.entity.Bcmmtm;
 import com.kdb.it.domain.council.entity.BcmmtmId;
 import com.kdb.it.domain.council.repository.CommitteeRepository;
@@ -16,8 +17,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 협의회 평가위원 서비스 (Step 2 — 위원 선정)
@@ -50,6 +53,12 @@ public class CommitteeService {
 
     /** 협의회 기본 서비스 — 존재 확인 및 상태 전이용 */
     private final CouncilService councilService;
+
+    /** 평가위원 편성의 관리 권한 검사 */
+    private final CouncilAccessGuard councilAccessGuard;
+
+    /** 평가위원을 편성·변경할 수 있는 진행상태: 요청서 결재 완료(04), 협의회 개최 준비(05) */
+    private static final Set<String> COMMITTEE_EDITABLE_STATUSES = Set.of("04", "05");
 
     /**
      * JPA EntityManager — 신규 위원 INSERT 전용 persist() 호출용.
@@ -204,8 +213,15 @@ public class CommitteeService {
      */
     @Transactional
     public void saveCommittee(String asctId, CouncilDto.CommitteeRequest request) {
-        // 협의회 존재 확인 (없으면 예외)
-        councilService.findActiveCouncil(asctId);
+        Basctm council = councilService.findActiveCouncil(asctId);
+        // 권한을 상태보다 먼저 검사해 권한 없는 호출자에게 상태 정보를 노출하지 않는다.
+        councilAccessGuard.verifyManageable(council);
+        // Set.of는 contains(null)에서 NPE를 던지므로 상태 누락은 별도로 거른다.
+        String status = council.getItPtlAsctPrgStsTc();
+        if (status == null || !COMMITTEE_EDITABLE_STATUSES.contains(status)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "평가위원을 편성할 수 있는 상태가 아닙니다. 협의회를 다시 조회해 주세요.");
+        }
 
         // 기존 활성 위원을 사번 기준으로 인덱싱
         Map<String, Bcmmtm> existingByEno =

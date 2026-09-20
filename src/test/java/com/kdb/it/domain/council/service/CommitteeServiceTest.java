@@ -50,6 +50,8 @@ class CommitteeServiceTest {
 
     @Mock private CouncilService councilService;
 
+    @Mock private CouncilAccessGuard councilAccessGuard;
+
     @Mock private EntityManager entityManager;
 
     @InjectMocks private CommitteeService committeeService;
@@ -307,6 +309,7 @@ class CommitteeServiceTest {
     @DisplayName("saveCommittee: 기존 위원을 Soft Delete하고 신규 위원을 저장한다")
     void saveCommittee_기존위원삭제후신규저장() {
         Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
 
         Bcmmtm existing = mock(Bcmmtm.class);
@@ -326,7 +329,9 @@ class CommitteeServiceTest {
     @Test
     @DisplayName("saveCommittee: 위원 유형 변경은 복합 PK를 직접 변경하지 않고 기존 행 교체로 처리한다")
     void saveCommittee_위원유형변경_기존행교체() {
-        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(mock(Basctm.class));
+        Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
+        given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         Bcmmtm existing = mockMember("E10001", "01");
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N"))
                 .willReturn(List.of(existing));
@@ -352,8 +357,9 @@ class CommitteeServiceTest {
     @DisplayName(
             "saveCommittee: 위원 저장은 더 이상 협의회 상태를 전이하지 않는다 (PRD_c_20260620 #2 — '개최준비 진행' 버튼이 명시적으로 수행)")
     void saveCommittee_상태전이없음() {
-        // Arrange: 활성 협의회 존재, 기존 위원 없음
+        // Arrange: 활성 협의회 존재(개최 준비 05), 기존 위원 없음
         Basctm council = mock(Basctm.class);
+        given(council.getItPtlAsctPrgStsTc()).willReturn("05");
         given(councilService.findActiveCouncil(ASCT_ID)).willReturn(council);
         given(committeeRepository.findByItPtlAsctIdAndDelYn(ASCT_ID, "N")).willReturn(List.of());
 
